@@ -1,7 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef, useCallback } from 'react';
 import ColumnMapping from '../components/ColumnMapping';
 import excelLogo from '../assets/logos/excel_logo.png';
 import nexusLogo from '../assets/logos/nexus_logo.png';
+import { usersApi, type AdminUser, type UserRole } from '../lib/api';
+
+// ─── Types ───────────────────────────────────────────────────────
 
 interface User {
   id: string;
@@ -12,7 +15,67 @@ interface User {
   address: string;
   lastActivity: string;
   firstJoined: string;
-  userType: 'contact' | 'member'; // contact = איש קשר, member = חבר רשום
+  userType: 'contact' | 'member';
+  systemRole: UserRole;
+  orgs: AdminUser['orgMemberships'];
+}
+
+// ─── Constants ───────────────────────────────────────────────────
+
+const SYSTEM_ROLE_LABELS: Record<UserRole, string> = {
+  USER:  'משתמש',
+  ADMIN: 'מנהל מערכת',
+  AGENT: 'סוכן',
+};
+
+const SYSTEM_ROLE_COLORS: Record<UserRole, string> = {
+  USER:  'bg-slate-100 text-slate-700',
+  ADMIN: 'bg-purple-100 text-purple-700',
+  AGENT: 'bg-blue-100 text-blue-700',
+};
+
+const ORG_ROLE_LABELS: Record<string, string> = {
+  OWNER:  'בעלים',
+  ADMIN:  'מנהל',
+  MEMBER: 'חבר',
+};
+
+// ─── Helpers ─────────────────────────────────────────────────────
+
+function relativeTime(dateStr: string | undefined): string {
+  if (!dateStr) return 'אף פעם';
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const min  = Math.floor(diff / 60000);
+  const hr   = Math.floor(diff / 3600000);
+  const day  = Math.floor(diff / 86400000);
+  if (min < 2)   return 'לפני רגע';
+  if (min < 60)  return `לפני ${min} דקות`;
+  if (hr  < 24)  return `לפני ${hr} שעות`;
+  if (day < 7)   return `לפני ${day} ימים`;
+  if (day < 30)  return `לפני ${Math.floor(day / 7)} שבועות`;
+  if (day < 365) return `לפני ${Math.floor(day / 30)} חודשים`;
+  return `לפני ${Math.floor(day / 365)} שנים`;
+}
+
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+}
+
+function mapAdminUser(u: AdminUser): User {
+  return {
+    id:           u.id,
+    name:         u.fullName,
+    email:        u.email,
+    phone:        u.phone ?? '',
+    status:       u.status,
+    address:      u.country,
+    lastActivity: relativeTime(u.lastLoginAt),
+    firstJoined:  formatDate(u.createdAt),
+    userType:     u.orgMemberships.length > 0 ? 'member' : 'contact',
+    systemRole:   u.role,
+    orgs:         u.orgMemberships,
+  };
 }
 
 interface Activity {
@@ -23,6 +86,16 @@ interface Activity {
 }
 
 const Users = () => {
+  // ─── API state ─────────────────────────────────────────────────
+  const [users, setUsers] = useState<User[]>([]);
+  const [usersTotal, setUsersTotal] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [apiError, setApiError] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<User | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [roleChanging, setRoleChanging] = useState(false);
+
+  // ─── Existing UI state ─────────────────────────────────────────
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [expandedSection, setExpandedSection] = useState<string>('purchases');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -61,7 +134,7 @@ const Users = () => {
   const [isHeaderFixed, setIsHeaderFixed] = useState(false);
   const [headerWidth, setHeaderWidth] = useState(0);
   const [headerLeft, setHeaderLeft] = useState(0);
-  const [horizontalScrolled, setHorizontalScrolled] = useState(false);
+  const [_horizontalScrolled, setHorizontalScrolled] = useState(false);
   const tableHeaderRef = useRef<HTMLTableSectionElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -89,7 +162,7 @@ const Users = () => {
     const updateHeaderPosition = () => {
       if (tableRef.current && tableHeaderRef.current && tableContainerRef.current) {
         const tableRect = tableRef.current.getBoundingClientRect();
-        const containerScrollLeft = tableContainerRef.current.scrollLeft;
+        void tableContainerRef.current.scrollLeft; // tracked via event listener below
 
         setHeaderWidth(tableRect.width);
         setHeaderLeft(tableRect.left);
@@ -171,181 +244,32 @@ const Users = () => {
     }
   };
 
-  // Simulate initial table loading
-  useEffect(() => {
-    const timer = setTimeout(() => {
+  // ─── Load users from API ────────────────────────────────────────
+  const loadUsers = useCallback(async () => {
+    setIsTableLoading(true);
+    setApiError('');
+    try {
+      const res = await usersApi.list({
+        search: filters.searchText || undefined,
+        status: filters.status !== 'all' ? filters.status : undefined,
+        page:   currentPage,
+        limit:  50,
+      });
+      setUsers(res.users.map(mapAdminUser));
+      setUsersTotal(res.total);
+    } catch (err) {
+      setApiError((err as Error).message);
+    } finally {
       setIsTableLoading(false);
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const users: User[] = [
-    {
-      id: '1',
-      name: 'יונתן ישראלי',
-      email: 'yonatan@gmail.com',
-      phone: '050-1234567',
-      status: 'active',
-      address: 'תל אביב, הרצל 12',
-      lastActivity: 'לפני 2 דקות',
-      firstJoined: '12/01/2023',
-      userType: 'member'
-    },
-    {
-      id: '2',
-      name: 'מיכל כהן',
-      email: 'michal.c@outlook.com',
-      phone: '052-9876543',
-      status: 'active',
-      address: 'חיפה, הנביאים 44',
-      lastActivity: 'אתמול, 18:30',
-      firstJoined: '05/11/2022',
-      userType: 'member'
-    },
-    {
-      id: '3',
-      name: 'דוד לוי',
-      email: 'david.l@gmail.com',
-      phone: '054-5551234',
-      status: 'inactive',
-      address: 'ירושלים, קינג ג\'ורג\' 5',
-      lastActivity: 'לפני שבועיים',
-      firstJoined: '02/05/2023',
-      userType: 'contact'
-    },
-    {
-      id: '4',
-      name: 'שרה אהרוני',
-      email: 'sarah.a@gmail.com',
-      phone: '053-7778888',
-      status: 'active',
-      address: 'רמת גן, ביאליק 10',
-      lastActivity: 'לפני 3 שעות',
-      firstJoined: '20/09/2023',
-      userType: 'member'
-    },
-    {
-      id: '5',
-      name: 'אריאל מזרחי',
-      email: 'ariel.m@company.co.il',
-      phone: '050-4445566',
-      status: 'pending',
-      address: 'נתניה, פולג 3',
-      lastActivity: 'לפני שעה',
-      firstJoined: '15/03/2024',
-      userType: 'contact'
-    },
-    {
-      id: '6',
-      name: 'רונית שמש',
-      email: 'ronit.s@gmail.com',
-      phone: '052-1112233',
-      status: 'active',
-      address: 'באר שבע, דרך הבאר 22',
-      lastActivity: 'לפני 5 דקות',
-      firstJoined: '18/07/2022',
-      userType: 'member'
-    },
-    {
-      id: '7',
-      name: 'עמית ברוך',
-      email: 'amit.b@outlook.com',
-      phone: '054-3334455',
-      status: 'active',
-      address: 'פתח תקווה, רוטשילד 8',
-      lastActivity: 'לפני שעה',
-      firstJoined: '09/03/2023',
-      userType: 'contact'
-    },
-    {
-      id: '8',
-      name: 'נועה גולדברג',
-      email: 'noa.gold@gmail.com',
-      phone: '050-6667788',
-      status: 'inactive',
-      address: 'הרצליה, הים 15',
-      lastActivity: 'לפני חודש',
-      firstJoined: '14/12/2021',
-      userType: 'member'
-    },
-    {
-      id: '9',
-      name: 'אלון דהן',
-      email: 'alon.d@company.co.il',
-      phone: '053-9998877',
-      status: 'active',
-      address: 'רעננה, אחוזה 30',
-      lastActivity: 'לפני 10 דקות',
-      firstJoined: '22/08/2023',
-      userType: 'member'
-    },
-    {
-      id: '10',
-      name: 'תמר אברהם',
-      email: 'tamar.a@gmail.com',
-      phone: '052-5554443',
-      status: 'pending',
-      address: 'כפר סבא, ויצמן 7',
-      lastActivity: 'לפני יומיים',
-      firstJoined: '05/01/2024',
-      userType: 'contact'
-    },
-    {
-      id: '11',
-      name: 'גיא פרידמן',
-      email: 'guy.f@outlook.com',
-      phone: '050-2223334',
-      status: 'active',
-      address: 'ראשון לציון, הרצל 45',
-      lastActivity: 'לפני 30 דקות',
-      firstJoined: '11/06/2022',
-      userType: 'member'
-    },
-    {
-      id: '12',
-      name: 'ליאת מור',
-      email: 'liat.m@gmail.com',
-      phone: '054-7776665',
-      status: 'active',
-      address: 'חולון, סוקולוב 18',
-      lastActivity: 'לפני שעתיים',
-      firstJoined: '28/09/2023',
-      userType: 'contact'
-    },
-    {
-      id: '13',
-      name: 'יוסי כץ',
-      email: 'yossi.k@company.co.il',
-      phone: '053-1119998',
-      status: 'inactive',
-      address: 'בת ים, בן גוריון 25',
-      lastActivity: 'לפני שבוע',
-      firstJoined: '17/04/2022',
-      userType: 'contact'
-    },
-    {
-      id: '14',
-      name: 'הדס ויצמן',
-      email: 'hadas.w@gmail.com',
-      phone: '052-8887776',
-      status: 'active',
-      address: 'גבעתיים, קריניצי 12',
-      lastActivity: 'לפני 15 דקות',
-      firstJoined: '03/11/2023',
-      userType: 'member'
-    },
-    {
-      id: '15',
-      name: 'רועי שחר',
-      email: 'roee.s@outlook.com',
-      phone: '050-4443332',
-      status: 'pending',
-      address: 'מודיעין, עמק איילון 40',
-      lastActivity: 'לפני 4 שעות',
-      firstJoined: '20/02/2024',
-      userType: 'contact'
     }
-  ];
+  }, [filters.searchText, filters.status, currentPage]);
+
+  useEffect(() => {
+    // Debounce search to avoid too many API calls
+    const t = setTimeout(() => { loadUsers(); }, filters.searchText ? 400 : 0);
+    return () => clearTimeout(t);
+  }, [loadUsers]);
+
 
   const activities: Activity[] = [
     {
@@ -497,31 +421,9 @@ const Users = () => {
     setCustomFieldFilters({});
   };
 
+  // Search + status → server-side (handled by API). Tab → client-side.
   const filteredUsers = users.filter(user => {
-    // User type filter (tabs)
-    if (activeTab === 'members' && user.userType !== 'member') {
-      return false;
-    }
-    // Note: 'contacts' tab shows all users (both contacts and members)
-
-    // Search filter (name, email, address)
-    if (filters.searchText) {
-      const searchLower = filters.searchText.toLowerCase();
-      const matchesSearch =
-        user.name.toLowerCase().includes(searchLower) ||
-        user.email.toLowerCase().includes(searchLower) ||
-        user.address.toLowerCase().includes(searchLower);
-      if (!matchesSearch) return false;
-    }
-
-    // Status filter
-    if (filters.status !== 'all' && user.status !== filters.status) {
-      return false;
-    }
-
-    // Date filters would need proper date parsing
-    // For now, we'll skip date filtering since firstJoined is a string
-
+    if (activeTab === 'members' && user.userType !== 'member') return false;
     return true;
   });
 
@@ -682,16 +584,79 @@ const Users = () => {
     });
   };
 
-  const handleConvertToMember = (userId: string, userName: string) => {
-    // In a real app, this would update the user in the database
-    console.log('Converting contact to member:', userId);
-    alert(`${userName} הופך לחבר רשום בהצלחה!`);
+  const handleConvertToMember = (_userId: string, _userName: string) => {
+    // Membership is managed via org invite flow — no DB concept of "convert to member"
     setRowActionMenuId(null);
-    // Would refresh data or update state here
+  };
+
+  // ─── Delete user ─────────────────────────────────────────────────
+
+  const handleDeleteUser = async (user: User) => {
+    setIsDeleting(true);
+    try {
+      await usersApi.delete(user.id);
+      setUsers(prev => prev.filter(u => u.id !== user.id));
+      setUsersTotal(prev => prev - 1);
+      if (selectedUser?.id === user.id) setSelectedUser(null);
+    } catch (err) {
+      alert(`שגיאה במחיקת המשתמש: ${(err as Error).message}`);
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteConfirm(null);
+    }
+  };
+
+  // ─── Change global (system) role ─────────────────────────────────
+
+  const handleChangeSystemRole = async (user: User, newRole: UserRole) => {
+    setRoleChanging(true);
+    try {
+      const updated = await usersApi.update(user.id, { role: newRole });
+      const mapped = mapAdminUser(updated);
+      setUsers(prev => prev.map(u => u.id === user.id ? mapped : u));
+      setSelectedUser(mapped);
+    } catch (err) {
+      alert(`שגיאה בשינוי תפקיד: ${(err as Error).message}`);
+    } finally {
+      setRoleChanging(false);
+    }
   };
 
   return (
     <>
+      {/* Delete Confirm Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
+            <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mx-auto mb-4">
+              <span className="material-icons text-red-500 text-2xl">delete_forever</span>
+            </div>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">מחיקת משתמש</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+              האם למחוק את <span className="font-semibold text-slate-700 dark:text-slate-300">{showDeleteConfirm.name}</span>?<br/>
+              פעולה זו אינה הפיכה.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(null)}
+                disabled={isDeleting}
+                className="flex-1 py-2.5 text-sm font-medium border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
+              >
+                ביטול
+              </button>
+              <button
+                onClick={() => handleDeleteUser(showDeleteConfirm)}
+                disabled={isDeleting}
+                className="flex-1 py-2.5 text-sm font-medium bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isDeleting && <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
+                מחק
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Column Mapping Component */}
       {showColumnMapping && (
         <ColumnMapping
@@ -963,7 +928,7 @@ const Users = () => {
               <button
                 onClick={() => {
                   setShowManualRegistrationModal(false);
-                  setManualContactData({ name: '', email: '', phone: '', address: '', userType: 'contact' });
+                  setManualContactData({ name: '', email: '', phone: '', address: '' });
                 }}
                 className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg font-medium transition-colors text-sm"
               >
@@ -2060,6 +2025,15 @@ const Users = () => {
               </div>
             </div>
 
+            {/* API Error Banner */}
+            {apiError && (
+              <div className="mx-6 mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-600 dark:text-red-400 flex items-center gap-2">
+                <span className="material-icons text-base">error_outline</span>
+                {apiError}
+                <button onClick={loadUsers} className="mr-auto text-xs underline">נסה שוב</button>
+              </div>
+            )}
+
             {/* Users Table */}
             <div ref={tableContainerRef} className="overflow-x-auto relative">
               <table ref={tableRef} className="w-full text-right" style={{ minWidth: '1200px', borderSpacing: 0, position: 'relative' }}>
@@ -2435,6 +2409,30 @@ const Users = () => {
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination */}
+            {usersTotal > 50 && (
+              <div className="flex items-center justify-between px-6 py-3 border-t border-slate-100 dark:border-slate-800">
+                <span className="text-xs text-slate-400">{usersTotal} משתמשים סה"כ</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-lg disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    הקודם
+                  </button>
+                  <span className="text-xs text-slate-500">עמוד {currentPage}</span>
+                  <button
+                    onClick={() => setCurrentPage(p => p + 1)}
+                    disabled={currentPage * 50 >= usersTotal}
+                    className="px-3 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-lg disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    הבא
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -2509,38 +2507,38 @@ const Users = () => {
                       <span className="material-icons text-sm">edit</span>
                     </button>
                   </div>
-                  <h2 className="text-xl font-semibold">{selectedUser.name}</h2>
+                  <h2 className="text-xl font-semibold">{selectedUser!.name}</h2>
 
                   {/* Email with copy button */}
                   <div className="group relative inline-block mb-2 pl-5">
                     <button
-                      onClick={() => handleCopy(selectedUser.email)}
+                      onClick={() => handleCopy(selectedUser!.email)}
                       className="absolute left-0 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded"
                       title="Copy email"
                     >
-                      {copiedText === selectedUser.email ? (
+                      {copiedText === selectedUser!.email ? (
                         <span className="material-icons text-xs text-green-500">check</span>
                       ) : (
                         <span className="material-icons text-xs text-slate-400">content_copy</span>
                       )}
                     </button>
-                    <p className="text-slate-500 dark:text-slate-400 text-sm">{selectedUser.email}</p>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm">{selectedUser!.email}</p>
                   </div>
 
                   {/* Phone with copy button */}
                   <div className="group relative inline-block mb-4 pl-5">
                     <button
-                      onClick={() => handleCopy(selectedUser.phone)}
+                      onClick={() => handleCopy(selectedUser!.phone)}
                       className="absolute left-0 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded"
                       title="Copy phone"
                     >
-                      {copiedText === selectedUser.phone ? (
+                      {copiedText === selectedUser!.phone ? (
                         <span className="material-icons text-xs text-green-500">check</span>
                       ) : (
                         <span className="material-icons text-xs text-slate-400">content_copy</span>
                       )}
                     </button>
-                    <p className="text-slate-500 dark:text-slate-400 text-sm">{selectedUser.phone}</p>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm">{selectedUser!.phone}</p>
                   </div>
 
                   <div className="flex gap-2 w-full">
@@ -2554,6 +2552,62 @@ const Users = () => {
                       <span className="material-icons">phone</span>
                     </button>
                   </div>
+                </div>
+
+                {/* ── System Role ──────────────────────────────── */}
+                <div className="mb-4 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                  <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-2">תפקיד מערכת</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${SYSTEM_ROLE_COLORS[selectedUser!.systemRole]}`}>
+                      {SYSTEM_ROLE_LABELS[selectedUser!.systemRole]}
+                    </span>
+                    <select
+                      value={selectedUser!.systemRole}
+                      disabled={roleChanging}
+                      onChange={(e) => handleChangeSystemRole(selectedUser!, e.target.value as UserRole)}
+                      className="text-xs border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-purple-400 disabled:opacity-50"
+                    >
+                      <option value="USER">משתמש</option>
+                      <option value="AGENT">סוכן</option>
+                      <option value="ADMIN">מנהל מערכת</option>
+                    </select>
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-1.5">תפקיד זה אינו קשור לתפקיד בארגון</p>
+                </div>
+
+                {/* ── Org Memberships ───────────────────────────── */}
+                {selectedUser!.orgs.length > 0 && (
+                  <div className="mb-4 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-2">חברויות ארגוניות</p>
+                    <div className="space-y-2">
+                      {selectedUser!.orgs.map((m, i) => (
+                        <div key={i} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
+                              style={{ backgroundColor: m.org.primaryColor ?? '#6366f1' }}
+                            >
+                              {m.org.name.charAt(0).toUpperCase()}
+                            </div>
+                            <span className="text-xs text-slate-700 dark:text-slate-300 font-medium">{m.org.name}</span>
+                          </div>
+                          <span className="text-[10px] px-1.5 py-0.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-full text-slate-500 dark:text-slate-400">
+                            {ORG_ROLE_LABELS[m.role] ?? m.role}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Delete User ───────────────────────────────── */}
+                <div className="mb-3">
+                  <button
+                    onClick={() => setShowDeleteConfirm(selectedUser!)}
+                    className="w-full py-2 text-xs font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800 transition-colors"
+                  >
+                    מחיקת משתמש
+                  </button>
                 </div>
 
                 {/* Accordion Sections */}

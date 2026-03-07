@@ -120,6 +120,61 @@ export const orgsApi = {
     request<void>('DELETE', `/api/orgs/${slug}/invites/${id}`),
 };
 
+// ─── Admin Users API ──────────────────────────────────────────────
+
+export type UserRole   = 'USER' | 'ADMIN' | 'AGENT';
+export type UserStatus = 'active' | 'inactive' | 'pending';
+export type AuthProvider = 'EMAIL' | 'GOOGLE';
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  fullName: string;
+  role: UserRole;
+  emailVerified: boolean;
+  avatarUrl?: string;
+  phone?: string;
+  jobTitle?: string;
+  country: string;
+  provider: AuthProvider;
+  createdAt: string;
+  lastLoginAt?: string;
+  status: UserStatus; // derived by backend
+  orgMemberships: {
+    role: OrgRole;
+    org: { id: string; slug: string; name: string; logoUrl?: string; primaryColor?: string };
+  }[];
+}
+
+export interface AdminUsersResponse {
+  users: AdminUser[];
+  total: number;
+  page: number;
+  pages: number;
+}
+
+export const usersApi = {
+  list: (params?: { search?: string; role?: string; status?: string; page?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.search) qs.set('search', params.search);
+    if (params?.role)   qs.set('role',   params.role);
+    if (params?.status) qs.set('status', params.status);
+    if (params?.page)   qs.set('page',   String(params.page));
+    if (params?.limit)  qs.set('limit',  String(params.limit));
+    const query = qs.toString() ? `?${qs.toString()}` : '';
+    return request<AdminUsersResponse>('GET', `/api/admin/users${query}`);
+  },
+
+  get: (id: string) =>
+    request<AdminUser>('GET', `/api/admin/users/${id}`),
+
+  update: (id: string, data: Partial<Pick<AdminUser, 'fullName' | 'phone' | 'jobTitle' | 'emailVerified'> & { role: UserRole }>) =>
+    request<AdminUser>('PATCH', `/api/admin/users/${id}`, data),
+
+  delete: (id: string) =>
+    request<void>('DELETE', `/api/admin/users/${id}`),
+};
+
 // ─── Public Invite API ────────────────────────────────────────────
 
 export interface OrgInvite {
