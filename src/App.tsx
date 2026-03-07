@@ -25,6 +25,8 @@ import BenefitsPartnerships from './pages/BenefitsPartnerships';
 import EditBenefit from './pages/EditBenefit';
 import Loader from './pages/Loader';
 import ApiDocs from './pages/ApiDocs';
+import Organizations from './pages/Organizations';
+import OrgDetail from './pages/OrgDetail';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -94,6 +96,8 @@ function App() {
                 <Route path="send-gift/greeting" element={<SendGiftGreeting />} />
                 <Route path="send-gift/recipients" element={<SendGiftRecipients />} />
                 <Route path="send-gift/summary" element={<SendGiftSummary />} />
+                <Route path="organizations" element={<Organizations />} />
+                <Route path="organizations/:slug" element={<OrgDetail />} />
                 <Route path="content" element={<Content />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="settings/roles-permissions" element={<RolesPermissions />} />

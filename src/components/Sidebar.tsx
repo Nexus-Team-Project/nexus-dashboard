@@ -81,6 +81,7 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
   const navItems: NavItem[] = [
     { to: '/', icon: 'dashboard', label: t('dashboard') },
     { to: '/users', icon: 'people_alt', label: t('users') },
+    { to: '/organizations', icon: 'domain', label: 'ארגונים' },
     { to: '/points-gifts', icon: 'card_giftcard', label: 'נקודות ומתנות' },
     { to: '/benefits-partnerships', icon: 'local_offer', label: 'הטבות ושיתופי פעולה' },
     { to: '/content', icon: 'article', label: t('content') },
