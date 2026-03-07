@@ -1,6 +1,6 @@
-import { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { LanguageProvider } from './i18n/LanguageContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import DashboardLayout from './layouts/DashboardLayout';
 import Home from './pages/Home';
 import Users from './pages/Users';
@@ -14,7 +14,6 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import AddTeamMembers from './pages/AddTeamMembers';
 import Lobby from './pages/Lobby';
-import CompanySetup from './pages/CompanySetup';
 import PointsGifts from './pages/PointsGifts';
 import SendGiftEvent from './pages/SendGiftEvent';
 import SendGiftBrands from './pages/SendGiftBrands';
@@ -23,91 +22,91 @@ import SendGiftRecipients from './pages/SendGiftRecipients';
 import SendGiftSummary from './pages/SendGiftSummary';
 import BenefitsPartnerships from './pages/BenefitsPartnerships';
 import EditBenefit from './pages/EditBenefit';
-import Loader from './pages/Loader';
 import ApiDocs from './pages/ApiDocs';
 import Organizations from './pages/Organizations';
 import OrgDetail from './pages/OrgDetail';
 
-function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isOnboarding, setIsOnboarding] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [userName, setUserName] = useState('Sarah');
-  const [userImage, setUserImage] = useState('https://lh3.googleusercontent.com/a/default-user');
+// Minimal spinner shown while session is being restored from cookie
+function PageLoader() {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100dvh',
+        background: '#000',
+      }}
+    >
+      <div
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: '50%',
+          border: '3px solid #222',
+          borderTopColor: '#fff',
+          animation: 'spin 0.7s linear infinite',
+        }}
+      />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
 
-  const handleLogin = () => {
-    setIsLoading(true);
-  };
+function AppRoutes() {
+  const { user, isLoading, logout } = useAuth();
 
-  const handleSignup = () => {
-    setIsOnboarding(true);
-  };
-
-  const handleCompleteOnboarding = () => {
-    setIsOnboarding(false);
-    setIsLoading(true);
-  };
-
-  const handleLoadingComplete = () => {
-    setIsLoading(false);
-    setIsAuthenticated(true);
-  };
-
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-  };
+  if (isLoading) return <PageLoader />;
 
   return (
+    <Routes>
+      {!user ? (
+        <>
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/add-team-members" element={<AddTeamMembers onComplete={() => {}} />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </>
+      ) : (
+        <>
+          <Route path="/api-docs" element={<ApiDocs />} />
+          <Route path="/" element={<DashboardLayout onLogout={logout} />}>
+            <Route index element={<Home />} />
+            <Route path="projects" element={<Lobby />} />
+            <Route path="users" element={<Users />} />
+            <Route path="points-gifts" element={<PointsGifts />} />
+            <Route path="benefits-partnerships" element={<BenefitsPartnerships />} />
+            <Route path="benefits-partnerships/edit-benefit/:id" element={<EditBenefit />} />
+            <Route path="benefits-partnerships/edit-business/:id" element={<EditBenefit />} />
+            <Route path="send-gift/event" element={<SendGiftEvent />} />
+            <Route path="send-gift/brands" element={<SendGiftBrands />} />
+            <Route path="send-gift/greeting" element={<SendGiftGreeting />} />
+            <Route path="send-gift/recipients" element={<SendGiftRecipients />} />
+            <Route path="send-gift/summary" element={<SendGiftSummary />} />
+            <Route path="organizations" element={<Organizations />} />
+            <Route path="organizations/:slug" element={<OrgDetail />} />
+            <Route path="content" element={<Content />} />
+            <Route path="settings" element={<Settings />} />
+            <Route path="settings/roles-permissions" element={<RolesPermissions />} />
+            <Route path="settings/roles-permissions/invite" element={<InviteCollaborators />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Route>
+        </>
+      )}
+    </Routes>
+  );
+}
+
+function App() {
+  return (
     <LanguageProvider>
-      <BrowserRouter>
-        <Routes>
-          {isLoading ? (
-            <>
-              <Route path="/loader" element={<Loader onComplete={handleLoadingComplete} userName={userName} userImage={userImage} />} />
-              <Route path="*" element={<Navigate to="/loader" replace />} />
-            </>
-          ) : !isAuthenticated && !isOnboarding ? (
-            <>
-              <Route path="/login" element={<Login onLogin={handleLogin} />} />
-              <Route path="/signup" element={<Signup onSignup={handleSignup} />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="*" element={<Navigate to="/login" replace />} />
-            </>
-          ) : isOnboarding ? (
-            <>
-              <Route path="/company-setup" element={<CompanySetup onComplete={() => {}} />} />
-              <Route path="/add-team-members" element={<AddTeamMembers onComplete={handleCompleteOnboarding} />} />
-              <Route path="*" element={<Navigate to="/company-setup" replace />} />
-            </>
-          ) : (
-            <>
-              <Route path="/api-docs" element={<ApiDocs />} />
-              <Route path="/" element={<DashboardLayout onLogout={handleLogout} />}>
-                <Route index element={<Home />} />
-                <Route path="projects" element={<Lobby />} />
-                <Route path="users" element={<Users />} />
-                <Route path="points-gifts" element={<PointsGifts />} />
-                <Route path="benefits-partnerships" element={<BenefitsPartnerships />} />
-                <Route path="benefits-partnerships/edit-benefit/:id" element={<EditBenefit />} />
-                <Route path="benefits-partnerships/edit-business/:id" element={<EditBenefit />} />
-                <Route path="send-gift/event" element={<SendGiftEvent />} />
-                <Route path="send-gift/brands" element={<SendGiftBrands />} />
-                <Route path="send-gift/greeting" element={<SendGiftGreeting />} />
-                <Route path="send-gift/recipients" element={<SendGiftRecipients />} />
-                <Route path="send-gift/summary" element={<SendGiftSummary />} />
-                <Route path="organizations" element={<Organizations />} />
-                <Route path="organizations/:slug" element={<OrgDetail />} />
-                <Route path="content" element={<Content />} />
-                <Route path="settings" element={<Settings />} />
-                <Route path="settings/roles-permissions" element={<RolesPermissions />} />
-                <Route path="settings/roles-permissions/invite" element={<InviteCollaborators />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Route>
-            </>
-          )}
-        </Routes>
-      </BrowserRouter>
+      <AuthProvider>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </AuthProvider>
     </LanguageProvider>
   );
 }

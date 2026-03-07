@@ -4,7 +4,7 @@
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:3001';
 
-// In-memory token store (replace with proper auth context when integrating login)
+// In-memory access token store
 let _token: string | null = null;
 
 export function setToken(token: string | null) {
@@ -22,19 +22,52 @@ async function request<T>(
   const res = await fetch(`${BASE}${path}`, {
     method,
     headers,
+    credentials: 'include', // send httpOnly refresh cookie
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 
   if (res.status === 204) return undefined as T;
 
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
+  if (!res.ok) {
+    const err = new Error(data?.error ?? `HTTP ${res.status}`) as Error & { status: number };
+    err.status = res.status;
+    throw err;
+  }
   return data as T;
 }
+
+// ─── Auth API ─────────────────────────────────────────────────────
+
+export const authApi = {
+  login: (email: string, password: string, rememberMe = false) =>
+    request<{ accessToken: string }>('POST', '/api/auth/login', { email, password, rememberMe }),
+
+  logout: () => request<void>('POST', '/api/auth/logout'),
+
+  refresh: () =>
+    request<{ accessToken: string; user: DashboardUser }>('POST', '/api/auth/refresh'),
+
+  me: () => request<DashboardUser>('GET', '/api/auth/me'),
+};
 
 // ─── Types (mirrors backend Prisma output) ────────────────────────
 
 export type OrgRole = 'OWNER' | 'ADMIN' | 'MEMBER';
+
+export interface DashboardUser {
+  id: string;
+  email: string;
+  fullName: string;
+  role: 'USER' | 'ADMIN' | 'AGENT';
+  avatarUrl?: string;
+  emailVerified: boolean;
+  onboardingDone: boolean;
+  orgMemberships: {
+    role: OrgRole;
+    org: { id: string; slug: string; name: string; logoUrl?: string; primaryColor?: string };
+  }[];
+}
 
 export interface Org {
   id: string;
