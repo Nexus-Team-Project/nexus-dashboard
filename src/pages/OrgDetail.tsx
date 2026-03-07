@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { orgsApi, type Org, type OrgMember, type OrgRole } from '../lib/api';
+import { orgsApi, type Org, type OrgMember, type OrgRole, type OrgInvite } from '../lib/api';
 
 // ─── Helpers ──────────────────────────────────────────────────────
 
@@ -229,6 +229,218 @@ function EditMemberModal({ slug, member, onClose, onUpdated }: EditMemberModalPr
           </div>
         </form>
       </div>
+    </div>
+  );
+}
+
+// ─── Invite Section ───────────────────────────────────────────────
+
+const INVITE_BASE = (import.meta.env.VITE_APP_URL as string | undefined) ?? 'http://localhost:5173';
+const ROLE_LABELS_INVITE: Record<OrgRole, string> = { OWNER: 'בעלים', ADMIN: 'מנהל', MEMBER: 'חבר' };
+
+interface InviteSectionProps { slug: string }
+
+function InviteSection({ slug }: InviteSectionProps) {
+  const [invites, setInvites] = useState<OrgInvite[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ role: 'MEMBER' as OrgRole, label: '', maxUses: '', expiresInDays: '7' });
+  const [creating, setCreating] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
+  const [error, setError] = useState('');
+
+  const load = useCallback(() => {
+    orgsApi.listInvites(slug)
+      .then(setInvites)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [slug]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreating(true);
+    setError('');
+    try {
+      const invite = await orgsApi.createInvite(slug, {
+        role: form.role,
+        label: form.label || undefined,
+        maxUses: form.maxUses ? Number(form.maxUses) : undefined,
+        expiresInDays: form.expiresInDays ? Number(form.expiresInDays) : undefined,
+      });
+      setInvites((prev) => [invite, ...prev]);
+      setShowForm(false);
+      setForm({ role: 'MEMBER', label: '', maxUses: '', expiresInDays: '7' });
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    await orgsApi.deleteInvite(slug, id).catch(() => {});
+    setInvites((prev) => prev.filter((i) => i.id !== id));
+  };
+
+  const handleCopy = (token: string) => {
+    const link = `${INVITE_BASE}/join/${token}`;
+    navigator.clipboard.writeText(link).catch(() => {});
+    setCopied(token);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+        <div className="flex items-center gap-2">
+          <span className="material-icons !text-[20px] text-slate-400">link</span>
+          <h2 className="text-[14px] font-semibold text-slate-800">קישורי הזמנה</h2>
+          {!loading && invites.length > 0 && (
+            <span className="text-[11px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">{invites.length}</span>
+          )}
+        </div>
+        <button
+          onClick={() => setShowForm((v) => !v)}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+        >
+          <span className="material-icons !text-[16px]">add_link</span>
+          {showForm ? 'ביטול' : 'קישור חדש'}
+        </button>
+      </div>
+
+      {/* Create form */}
+      {showForm && (
+        <form onSubmit={handleCreate} className="px-5 py-4 bg-slate-50 border-b border-slate-100 space-y-3">
+          {error && (
+            <div className="px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>
+          )}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[12px] font-medium text-slate-600 mb-1">תפקיד מוענק</label>
+              <select
+                value={form.role}
+                onChange={(e) => setForm({ ...form, role: e.target.value as OrgRole })}
+                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white"
+              >
+                <option value="MEMBER">חבר</option>
+                <option value="ADMIN">מנהל</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-[12px] font-medium text-slate-600 mb-1">תוקף (ימים)</label>
+              <select
+                value={form.expiresInDays}
+                onChange={(e) => setForm({ ...form, expiresInDays: e.target.value })}
+                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white"
+              >
+                <option value="1">יום אחד</option>
+                <option value="7">שבוע</option>
+                <option value="30">חודש</option>
+                <option value="">ללא תוקף</option>
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[12px] font-medium text-slate-600 mb-1">תווית (אופציונלי)</label>
+              <input
+                type="text"
+                value={form.label}
+                onChange={(e) => setForm({ ...form, label: e.target.value })}
+                placeholder='לדוגמה: גיוס עובדים'
+                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+            <div>
+              <label className="block text-[12px] font-medium text-slate-600 mb-1">מקסימום שימושים</label>
+              <input
+                type="number"
+                min="1"
+                value={form.maxUses}
+                onChange={(e) => setForm({ ...form, maxUses: e.target.value })}
+                placeholder="ללא הגבלה"
+                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              disabled={creating}
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              {creating && <span className="material-icons animate-spin !text-[15px]">sync</span>}
+              צור קישור
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Invite list */}
+      {loading ? (
+        <div className="px-5 py-4 space-y-2 animate-pulse">
+          {[...Array(2)].map((_, i) => (
+            <div key={i} className="h-10 bg-slate-100 rounded-xl" />
+          ))}
+        </div>
+      ) : invites.length === 0 ? (
+        <div className="py-8 text-center text-slate-400 text-[13px]">
+          <span className="material-icons !text-3xl mb-2 block text-slate-300">link_off</span>
+          אין קישורי הזמנה פעילים
+        </div>
+      ) : (
+        <ul className="divide-y divide-slate-100">
+          {invites.map((invite) => {
+            const link = `${INVITE_BASE}/join/${invite.token}`;
+            const expired = invite.expiresAt && new Date(invite.expiresAt) < new Date();
+            const exhausted = invite.maxUses !== null && invite.maxUses !== undefined && invite.useCount >= invite.maxUses;
+            const inactive = expired || exhausted;
+            return (
+              <li key={invite.id} className={`flex items-center gap-3 px-5 py-3 ${inactive ? 'opacity-50' : ''}`}>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {invite.label && <span className="text-[13px] font-medium text-slate-700">{invite.label}</span>}
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                      invite.role === 'ADMIN' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
+                    }`}>
+                      {ROLE_LABELS_INVITE[invite.role]}
+                    </span>
+                    <span className="text-[11px] text-slate-400">
+                      {invite.useCount}{invite.maxUses ? `/${invite.maxUses}` : ''} שימושים
+                    </span>
+                    {invite.expiresAt && (
+                      <span className={`text-[11px] ${expired ? 'text-red-500' : 'text-slate-400'}`}>
+                        {expired ? 'פג תוקף' : `עד ${new Date(invite.expiresAt).toLocaleDateString('he-IL')}`}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-400 truncate mt-0.5">{link}</p>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => handleCopy(invite.token)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-blue-50 transition-colors"
+                    title={copied === invite.token ? 'הועתק!' : 'העתק קישור'}
+                  >
+                    <span className="material-icons !text-[18px]">
+                      {copied === invite.token ? 'check' : 'content_copy'}
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => handleDelete(invite.id)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                    title="מחק קישור"
+                  >
+                    <span className="material-icons !text-[18px]">delete_outline</span>
+                  </button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }
@@ -501,6 +713,9 @@ const OrgDetail = () => {
           </table>
         )}
       </div>
+
+      {/* Invite section */}
+      {slug && <InviteSection slug={slug} />}
 
       {/* Modals */}
       {showAddModal && slug && (

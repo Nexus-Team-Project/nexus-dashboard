@@ -109,4 +109,37 @@ export const orgsApi = {
 
   // Current user's org memberships
   myOrgs: () => request<{ role: OrgRole; org: Org }[]>('GET', '/api/user/orgs'),
+
+  // Invites
+  listInvites: (slug: string) => request<OrgInvite[]>('GET', `/api/orgs/${slug}/invites`),
+
+  createInvite: (slug: string, data: { role?: OrgRole; label?: string; maxUses?: number; expiresInDays?: number }) =>
+    request<OrgInvite>('POST', `/api/orgs/${slug}/invites`, data),
+
+  deleteInvite: (slug: string, id: string) =>
+    request<void>('DELETE', `/api/orgs/${slug}/invites/${id}`),
+};
+
+// ─── Public Invite API ────────────────────────────────────────────
+
+export interface OrgInvite {
+  id: string;
+  token: string;
+  role: OrgRole;
+  label?: string;
+  orgId: string;
+  maxUses?: number;
+  useCount: number;
+  expiresAt?: string;
+  createdAt: string;
+  org?: Pick<Org, 'id' | 'slug' | 'name' | 'nameHe' | 'logoUrl' | 'primaryColor'> & { _count?: { members: number } };
+}
+
+export const invitesApi = {
+  get: (token: string) => request<OrgInvite>('GET', `/api/invites/${token}`),
+  accept: (token: string) =>
+    request<{ membership: OrgMember; org: OrgInvite['org']; alreadyMember: boolean }>(
+      'POST',
+      `/api/invites/${token}/accept`,
+    ),
 };
