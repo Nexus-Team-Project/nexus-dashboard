@@ -9,7 +9,6 @@ import Settings from './pages/Settings';
 import RolesPermissions from './pages/RolesPermissions';
 import InviteCollaborators from './pages/InviteCollaborators';
 import Login from './pages/Login';
-import Signup from './pages/Signup';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import AddTeamMembers from './pages/AddTeamMembers';
@@ -53,6 +52,13 @@ function PageLoader() {
   );
 }
 
+// Signup is handled by nexus-website — redirect there
+function SignupRedirect() {
+  const url = `${import.meta.env.VITE_WEBSITE_URL ?? 'http://localhost:5173'}/signup`;
+  window.location.replace(url);
+  return null;
+}
+
 function AppRoutes() {
   const { user, isLoading, logout } = useAuth();
 
@@ -63,7 +69,7 @@ function AppRoutes() {
       {!user ? (
         <>
           <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
+          <Route path="/signup" element={<SignupRedirect />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/add-team-members" element={<AddTeamMembers onComplete={() => {}} />} />
