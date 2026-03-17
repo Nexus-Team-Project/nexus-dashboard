@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm install --include=dev && tsc -b && vite build",
+    "build": "tsc -b && vite build",
     "start": "serve dist -s -l tcp://0.0.0.0:$PORT",
     "lint": "eslint .",
     "preview": "vite preview"
