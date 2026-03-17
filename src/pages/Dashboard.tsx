@@ -1,12 +1,12 @@
-import Header from '../components/Header';
 import { useLanguage } from '../i18n/LanguageContext';
-import { mockStats, mockUsers, mockContent } from '../data/mockData';
+import { useAuth } from '../contexts/AuthContext';
 import './Dashboard.css';
 
 const Dashboard = () => {
   const { t, isRTL } = useLanguage();
-  const recentUsers = mockUsers.slice(0, 3);
-  const recentContent = mockContent.slice(0, 3);
+  const { user } = useAuth();
+  const recentUsers: never[] = [];
+  const recentContent: never[] = [];
 
   // Determine time of day and get appropriate styling
   const getTimeBasedTheme = () => {
@@ -56,8 +56,8 @@ const Dashboard = () => {
   };
 
   const theme = getTimeBasedTheme();
-  const userName = 'Admin'; // TODO: Replace with actual user name from auth context
-  const userImage = undefined; // TODO: Replace with actual user image from auth context
+  const userName = user?.fullName ?? '';
+  const userImage = user?.avatarUrl;
 
   return (
     <>
@@ -132,7 +132,6 @@ const Dashboard = () => {
           background: linear-gradient(135deg, rgba(15, 23, 42, 0.7) 0%, rgba(30, 41, 59, 0.6) 100%);
         }
       `}</style>
-      <Header title={t('dashboard')} />
       <div className="page-content">
         {/* Time-based greeting banner */}
         <div className="w-full mb-4 banner-entrance">
@@ -159,64 +158,7 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-value">{mockStats.totalUsers}</div>
-            <div className="stat-label">{t('totalUsers')}</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value">{mockStats.activeUsers}</div>
-            <div className="stat-label">{t('activeUsers')}</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value">{mockStats.totalContent}</div>
-            <div className="stat-label">{t('totalContent')}</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value">{mockStats.publishedContent}</div>
-            <div className="stat-label">{t('published')}</div>
-          </div>
-        </div>
-
-        <div className="dashboard-grid">
-          <div className="dashboard-card">
-            <h3>{t('recentUsers')}</h3>
-            <ul className="recent-list">
-              {recentUsers.map(user => (
-                <li key={user.id} className="recent-item">
-                  <div className="item-avatar">{user.name[0]}</div>
-                  <div className="item-info">
-                    <div className="item-name">{user.name}</div>
-                    <div className="item-meta">{user.email}</div>
-                  </div>
-                  <span className={`status-badge ${user.status}`}>
-                    {t(user.status as 'active' | 'inactive')}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="dashboard-card">
-            <h3>{t('recentContent')}</h3>
-            <ul className="recent-list">
-              {recentContent.map(item => (
-                <li key={item.id} className="recent-item">
-                  <div className="item-icon">
-                    {item.type === 'page' ? '📄' : item.type === 'post' ? '📝' : '🖼️'}
-                  </div>
-                  <div className="item-info">
-                    <div className="item-name">{item.title}</div>
-                    <div className="item-meta">{item.author}</div>
-                  </div>
-                  <span className={`status-badge ${item.status}`}>
-                    {t(item.status as 'published' | 'draft')}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
+        {/* TODO: event-based org stats will go here */}
       </div>
     </>
   );

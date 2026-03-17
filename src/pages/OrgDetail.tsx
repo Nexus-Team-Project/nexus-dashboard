@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { orgsApi, type Org, type OrgMember, type OrgRole, type OrgInvite } from '../lib/api';
+import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../i18n/LanguageContext';
 
 // ─── Helpers ──────────────────────────────────────────────────────
 
@@ -450,6 +452,8 @@ function InviteSection({ slug }: InviteSectionProps) {
 const OrgDetail = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { isRTL } = useLanguage();
 
   const [org, setOrg] = useState<Org | null>(null);
   const [members, setMembers] = useState<OrgMember[]>([]);
@@ -539,6 +543,33 @@ const OrgDetail = () => {
         </button>
         <span className="material-icons !text-[14px]">chevron_left</span>
         <span className="text-slate-800 font-medium">{org.name}</span>
+      </div>
+
+      {/* Dashboard banner */}
+      <div
+        className="rounded-xl px-6 py-5 border shadow-sm flex items-center justify-between gap-4"
+        style={{ background: `linear-gradient(135deg, ${org.primaryColor ?? '#0066cc'}18 0%, ${org.primaryColor ?? '#0066cc'}08 100%)`, borderColor: `${org.primaryColor ?? '#0066cc'}30` }}
+      >
+        <div>
+          <h2 className="text-xl font-bold text-slate-800 mb-0.5">
+            {isRTL ? `שלום, ${user?.fullName ?? ''}` : `Hello, ${user?.fullName ?? ''}`}
+          </h2>
+          <p className="text-[13px] text-slate-500">
+            {isRTL ? `ברוך הבא ל${org.name}` : `Welcome to ${org.name}`}
+          </p>
+        </div>
+        <div className="flex items-center gap-6 shrink-0">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-slate-800">{members.length}</div>
+            <div className="text-[11px] text-slate-500 font-medium">{isRTL ? 'חברים' : 'Members'}</div>
+          </div>
+          <div
+            className="w-12 h-12 rounded-xl flex items-center justify-center text-white text-xl font-bold shadow-sm"
+            style={{ backgroundColor: org.primaryColor ?? '#0066cc' }}
+          >
+            {org.name[0].toUpperCase()}
+          </div>
+        </div>
       </div>
 
       {/* Org header card */}

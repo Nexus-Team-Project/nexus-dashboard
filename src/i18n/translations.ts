@@ -49,6 +49,7 @@ export const translations = {
     canSignInNow: 'You can now sign in with your new password.',
 
     // Validation
+    invalidCredentials: 'Invalid email or password',
     enterBothFields: 'Please enter both email and password',
     fillAllFields: 'Please fill in all fields',
     passwordsNoMatch: 'Passwords do not match',
@@ -169,6 +170,7 @@ export const translations = {
     canSignInNow: 'כעת תוכל להתחבר עם הסיסמה החדשה.',
 
     // Validation
+    invalidCredentials: 'אימייל או סיסמה שגויים',
     enterBothFields: 'נא להזין אימייל וסיסמה',
     fillAllFields: 'נא למלא את כל השדות',
     passwordsNoMatch: 'הסיסמאות אינן תואמות',

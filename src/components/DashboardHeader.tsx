@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 import LanguageSwitcher from './LanguageSwitcher';
 import SearchBar from './SearchBar';
 import nexusLogoAnimated from '../assets/logos/Nexus_Wide_Logo_Animation_Black_Whithout_Slogan.gif';
@@ -11,6 +12,7 @@ interface DashboardHeaderProps {
 
 const DashboardHeader = ({ onLogout }: DashboardHeaderProps) => {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const [isLogoHovered, setIsLogoHovered] = useState(false);
 
   return (
@@ -45,35 +47,36 @@ const DashboardHeader = ({ onLogout }: DashboardHeaderProps) => {
         }
       `}</style>
       <header className="bg-white dark:bg-card-dark border-b border-slate-200 dark:border-slate-800 h-16 flex items-center px-6 sticky top-0 z-50">
-        {/* All buttons and user profile at far left */}
+        {/* Profile + logout + actions at far left */}
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 me-2 pe-4 border-e border-slate-200 dark:border-slate-700">
-            <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center overflow-hidden">
-              <span className="material-icons text-slate-500">person</span>
+          {/* Profile + signout grouped together */}
+          <div className="flex items-center gap-1 pe-4 border-e border-slate-200 dark:border-slate-700">
+            <div className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+              <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center overflow-hidden shrink-0">
+                <span className="material-icons text-slate-500">person</span>
+              </div>
+              {user?.fullName && (
+                <span className="text-[13px] font-medium text-slate-700 dark:text-slate-200 max-w-[120px] truncate">
+                  {user.fullName}
+                </span>
+              )}
             </div>
+            <button
+              onClick={onLogout}
+              className="p-2 text-slate-500 hover:bg-red-100 dark:hover:bg-red-900/30 hover:text-red-600 rounded-full transition-colors"
+              title={t('logout')}
+            >
+              <span className="material-icons text-[18px]">logout</span>
+            </button>
           </div>
           <button className="relative p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
             <span className="material-icons">notifications</span>
             <span className="absolute top-2 end-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-card-dark"></span>
           </button>
           <button className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
-            <span className="material-icons">headset_mic</span>
-          </button>
-          <button className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
             <span className="material-icons">group</span>
           </button>
-          <button className="text-primary text-[13px] font-semibold flex items-center gap-1.5 hover:opacity-80 transition-opacity leading-none">
-            <span className="material-icons !text-[18px]">diamond</span>
-            שדרג
-          </button>
           <LanguageSwitcher />
-          <button
-            onClick={onLogout}
-            className="p-2 text-slate-500 hover:bg-red-100 dark:hover:bg-red-900/30 hover:text-red-600 rounded-full transition-colors"
-            title={t('logout')}
-          >
-            <span className="material-icons">logout</span>
-          </button>
         </div>
 
         {/* Search bar and Logo at far right */}

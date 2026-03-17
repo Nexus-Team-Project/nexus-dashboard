@@ -3,7 +3,7 @@ import { LanguageProvider } from './i18n/LanguageContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import DashboardLayout from './layouts/DashboardLayout';
 import Home from './pages/Home';
-import Users from './pages/Users';
+import Dashboard from './pages/Dashboard';
 import Content from './pages/Content';
 import Settings from './pages/Settings';
 import RolesPermissions from './pages/RolesPermissions';
@@ -22,7 +22,6 @@ import SendGiftSummary from './pages/SendGiftSummary';
 import BenefitsPartnerships from './pages/BenefitsPartnerships';
 import EditBenefit from './pages/EditBenefit';
 import ApiDocs from './pages/ApiDocs';
-import Organizations from './pages/Organizations';
 import OrgDetail from './pages/OrgDetail';
 
 // Minimal spinner shown while session is being restored from cookie
@@ -79,9 +78,8 @@ function AppRoutes() {
         <>
           <Route path="/api-docs" element={<ApiDocs />} />
           <Route path="/" element={<DashboardLayout onLogout={logout} />}>
-            <Route index element={<Home />} />
+            <Route index element={<Dashboard />} />
             <Route path="projects" element={<Lobby />} />
-            <Route path="users" element={<Users />} />
             <Route path="points-gifts" element={<PointsGifts />} />
             <Route path="benefits-partnerships" element={<BenefitsPartnerships />} />
             <Route path="benefits-partnerships/edit-benefit/:id" element={<EditBenefit />} />
@@ -91,7 +89,7 @@ function AppRoutes() {
             <Route path="send-gift/greeting" element={<SendGiftGreeting />} />
             <Route path="send-gift/recipients" element={<SendGiftRecipients />} />
             <Route path="send-gift/summary" element={<SendGiftSummary />} />
-            <Route path="organizations" element={<Organizations />} />
+            <Route path="organizations" element={<Home />} />
             <Route path="organizations/:slug" element={<OrgDetail />} />
             <Route path="content" element={<Content />} />
             <Route path="settings" element={<Settings />} />

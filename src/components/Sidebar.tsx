@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useLanguage } from '../i18n/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 import ProjectSwitcher from './ProjectSwitcher';
 
 export type SidebarState = 'open' | 'collapsed' | 'closed';
@@ -13,6 +14,7 @@ interface SidebarProps {
 
 interface NavItem {
   to?: string;
+  href?: string; // external link — opens standalone app
   icon: string;
   label: string;
   submenu?: { to: string; label: string }[];
@@ -20,6 +22,7 @@ interface NavItem {
 
 const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
   const [sidebarWidth, setSidebarWidth] = useState(256); // 64 * 4 = 256px (w-64)
   const [isResizing, setIsResizing] = useState(false);
@@ -78,9 +81,11 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
     };
   }, [isResizing]);
 
+  const USER_MGMT_URL = import.meta.env.VITE_USER_MGMT_URL ?? 'http://localhost:5175';
+
   const navItems: NavItem[] = [
     { to: '/', icon: 'dashboard', label: t('dashboard') },
-    { to: '/users', icon: 'people_alt', label: t('users') },
+    { href: `${USER_MGMT_URL}/users`, icon: 'people_alt', label: t('users') },
     { to: '/organizations', icon: 'domain', label: 'ארגונים' },
     { to: '/points-gifts', icon: 'card_giftcard', label: 'נקודות ומתנות' },
     { to: '/benefits-partnerships', icon: 'local_offer', label: 'הטבות ושיתופי פעולה' },
@@ -225,6 +230,18 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
                 </div>
               )}
             </div>
+          ) : item.href ? (
+            <a
+              key={item.href}
+              href={item.href}
+              className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors text-[#676879] hover:bg-slate-200/50 ${
+                isCollapsed ? 'justify-center' : ''
+              }`}
+              title={isCollapsed ? item.label : undefined}
+            >
+              <span className="material-icons !text-[18px]">{item.icon}</span>
+              {isOpen && <span className="text-[13px]">{item.label}</span>}
+            </a>
           ) : (
             <NavLink
               key={item.to}
@@ -248,55 +265,36 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
         )}
       </nav>
 
-      {/* Upgrade Banner - Monday.com style */}
-      {isOpen && (
-        <div className="px-3 pb-3">
-          <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="material-icons !text-[14px] text-primary">diamond</span>
-              <span className="text-primary text-[11px] font-semibold">Upgrade</span>
-            </div>
-            <p className="text-[11px] text-slate-600 mb-2 leading-tight">שדרג לפרימיום וקבל גישה לכל התכונות</p>
-            <button className="w-full py-1.5 bg-primary hover:bg-primary/90 text-white text-[11px] font-semibold rounded transition-colors">
-              שדרג עכשיו
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Collapsed Upgrade Icon */}
-      {isCollapsed && (
-        <div className="p-3 flex justify-center">
-          <button
-            className="w-8 h-8 bg-white border border-slate-200 rounded flex items-center justify-center shadow-sm"
-            title="שדרג לפרימיום"
-          >
-            <span className="material-icons !text-[14px] text-primary">diamond</span>
-          </button>
-        </div>
-      )}
-
-      {/* User Info & Logout - Monday.com style */}
+      {/* User Info & Logout */}
       <div className="p-3 border-t border-slate-200">
-        <div className={`flex items-center gap-2 px-2 py-2 rounded-md hover:bg-slate-200/50 cursor-pointer transition-colors mb-1 ${isCollapsed ? 'justify-center' : ''}`}>
-          <div className="w-7 h-7 bg-gradient-to-br from-primary to-blue-400 rounded-full flex items-center justify-center text-white font-semibold text-xs shrink-0">
-            ד
+        <div className={`flex items-center gap-2 px-2 py-2 rounded-md hover:bg-slate-200/50 cursor-pointer transition-colors ${isCollapsed ? 'justify-center' : ''}`}>
+          <div className="w-7 h-7 bg-gradient-to-br from-primary to-blue-400 rounded-full flex items-center justify-center text-white font-semibold text-xs shrink-0 uppercase">
+            {user?.fullName?.[0] ?? '?'}
           </div>
           {isOpen && (
-            <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-medium truncate text-[#323338]">דניאל רביב</p>
-              <p className="text-[11px] text-[#676879] truncate">daniel@nexus.com</p>
-            </div>
+            <p className="text-[13px] font-medium truncate text-[#323338] flex-1 min-w-0">
+              {user?.fullName ?? ''}
+            </p>
+          )}
+          {isOpen && (
+            <button
+              onClick={onLogout}
+              className="p-1.5 text-slate-500 hover:bg-slate-300/60 hover:text-red-600 rounded-md transition-colors shrink-0"
+              title={t('logout')}
+            >
+              <span className="material-icons !text-[18px]">logout</span>
+            </button>
+          )}
+          {isCollapsed && (
+            <button
+              onClick={onLogout}
+              className="p-1.5 text-slate-500 hover:text-red-600 transition-colors"
+              title={t('logout')}
+            >
+              <span className="material-icons !text-[18px]">logout</span>
+            </button>
           )}
         </div>
-        <button
-          onClick={onLogout}
-          className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-slate-600 hover:bg-slate-200/50 transition-colors ${isCollapsed ? 'justify-center' : ''}`}
-          title={isCollapsed ? t('logout') : undefined}
-        >
-          <span className="material-icons !text-[18px]">logout</span>
-          {isOpen && <span className="text-[13px]">{t('logout')}</span>}
-        </button>
       </div>
     </aside>
   );
