@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, MouseEvent } from 'react';
+import { useState, useRef, useEffect, type MouseEvent } from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
 
 // Reusable SVG Line Chart Component
