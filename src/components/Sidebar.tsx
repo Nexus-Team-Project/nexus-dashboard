@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../i18n/LanguageContext';
 import ProjectSwitcher from './ProjectSwitcher';
 
@@ -15,14 +15,18 @@ interface NavItem {
   to?: string;
   icon: string;
   label: string;
-  submenu?: { to: string; label: string }[];
+  submenu?: { to: string; icon: string; label: string }[];
+  isSectionHeader?: boolean;
+  moreButton?: boolean;
 }
 
 const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
   const { t } = useLanguage();
-  const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
-  const [sidebarWidth, setSidebarWidth] = useState(256); // 64 * 4 = 256px (w-64)
+  const navigate = useNavigate();
+  const [expandedMenus, setExpandedMenus] = useState<string[]>(['products']);
+  const [sidebarWidth, setSidebarWidth] = useState(256);
   const [isResizing, setIsResizing] = useState(false);
+  const [showMoreProducts, setShowMoreProducts] = useState(false);
 
   const toggleSubmenu = (label: string) => {
     setExpandedMenus((prev) =>
@@ -36,17 +40,15 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
     setIsResizing(true);
   };
 
-  // Handle resize - bar is now on the right side
+  // Handle resize
   useEffect(() => {
     if (!isResizing) return;
 
     let rafId: number | null = null;
 
     const handleMouseMove = (e: MouseEvent) => {
-      if (rafId) return; // Skip if animation frame is already scheduled
-
+      if (rafId) return;
       rafId = requestAnimationFrame(() => {
-        // Calculate width from the right edge
         const newWidth = window.innerWidth - e.clientX;
         if (newWidth >= 200 && newWidth <= 500) {
           setSidebarWidth(newWidth);
@@ -78,45 +80,63 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
     };
   }, [isResizing]);
 
-  const navItems: NavItem[] = [
-    { to: '/', icon: 'dashboard', label: t('dashboard') },
+  // Main navigation items (before Products section)
+  const mainNavItems: NavItem[] = [
+    { to: '/', icon: 'home', label: t('dashboard') },
     { to: '/users', icon: 'people_alt', label: t('users') },
-    { to: '/organizations', icon: 'domain', label: 'ארגונים' },
-    { to: '/points-gifts', icon: 'card_giftcard', label: 'נקודות ומתנות' },
-    { to: '/benefits-partnerships', icon: 'local_offer', label: 'הטבות ושיתופי פעולה' },
+{ to: '/transactions', icon: 'receipt_long', label: t('transactions') },
+    { to: '/product-catalog', icon: 'inventory_2', label: t('productCatalog') },
+    { to: '/balances', icon: 'account_balance_wallet', label: t('balances') },
+  ];
+
+  // Products section items
+  const productItems: { to: string; icon: string; label: string }[] = [
+    { to: '/benefits-partnerships', icon: 'local_offer', label: t('benefitsPartnerships') },
+    { to: '/points-gifts', icon: 'card_giftcard', label: t('gifts') },
+    { to: '/payments', icon: 'payment', label: t('payments') },
+    { to: '/charges', icon: 'request_quote', label: t('charges') },
+  ];
+
+  // Extra products shown when "More" is clicked
+  const moreProductItems: { to: string; icon: string; label: string }[] = [
     { to: '/content', icon: 'article', label: t('content') },
     { to: '/reports', icon: 'assessment', label: 'דוחות' },
-    { to: '/marketing', icon: 'campaign', label: 'שיווק' },
-
+    { to: '/marketing', icon: 'campaign', label: t('marketing') },
     { to: '/updates', icon: 'sync', label: 'עדכונים' },
-    { to: '/chat', icon: 'chat', label: "צ'אט" },
+  ];
+
+  // Marketing sub-items (nested under שיווק in moreProductItems)
+  const marketingSubItems = [
+    { to: '/marketing/sms', icon: 'sms', label: 'SMS' },
+    { to: '/marketing/email', icon: 'mail', label: t('emailCampaigns') },
+    { to: '/marketing/push', icon: 'notifications_active', label: t('pushCampaigns') },
+  ];
+
+  // Bottom navigation items
+  const bottomNavItems: NavItem[] = [
     {
       icon: 'code',
       label: t('developerTools'),
-      submenu: [{ to: '/api-docs', label: t('apiDocumentation') }],
+      submenu: [{ to: '/api-docs', icon: 'description', label: t('apiDocumentation') }],
     },
-    { to: '/settings', icon: 'settings', label: t('settings') },
   ];
 
   const isOpen = state === 'open';
   const isCollapsed = state === 'collapsed';
   const isClosed = state === 'closed';
 
-  // Cycle through states: open -> collapsed -> closed -> open
   const cycleState = () => {
     if (isOpen) onStateChange('collapsed');
     else if (isCollapsed) onStateChange('closed');
     else onStateChange('open');
   };
 
-  // Get next state icon
   const getToggleIcon = () => {
     if (isOpen) return 'chevron_left';
     if (isCollapsed) return 'close';
     return 'menu';
   };
 
-  // Get tooltip text
   const getToggleTooltip = () => {
     if (isOpen) return 'כווץ תפריט';
     if (isCollapsed) return 'סגור תפריט';
@@ -130,19 +150,93 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
         className="fixed top-20 right-4 z-50 w-10 h-10 bg-white border border-slate-200 rounded-full shadow-md flex items-center justify-center text-slate-500 hover:bg-slate-50 transition-all"
         title="פתח תפריט"
       >
-        <span className="material-icons text-[18px]">menu</span>
+        <span className="material-symbols-rounded text-[18px]">menu</span>
       </button>
     );
   }
 
+  const renderNavLink = (item: NavItem) => (
+    <NavLink
+      key={item.to}
+      to={item.to!}
+      className={({ isActive }) =>
+        `flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-150 ${
+          isCollapsed ? 'justify-center' : ''
+        } ${
+          isActive
+            ? 'bg-blue-50 text-primary font-medium'
+            : 'text-[#676879] hover:bg-slate-200'
+        }`
+      }
+      end={item.to === '/'}
+      title={isCollapsed ? item.label : undefined}
+    >
+      {({ isActive }) => (
+        <>
+          <span className={`material-symbols-rounded !text-[18px] ${isActive ? 'text-primary' : ''}`}>
+            {item.icon}
+          </span>
+          {isOpen && <span className="text-[13px]">{item.label}</span>}
+        </>
+      )}
+    </NavLink>
+  );
+
+  const renderSubmenu = (item: NavItem) => (
+    <div key={item.label}>
+      <button
+        onClick={() => toggleSubmenu(item.label)}
+        className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-150 text-[#676879] hover:bg-slate-200 ${
+          isCollapsed ? 'justify-center' : ''
+        }`}
+        title={isCollapsed ? item.label : undefined}
+      >
+        <span className="material-symbols-rounded !text-[18px]">{item.icon}</span>
+        {isOpen && (
+          <>
+            <span className="text-[13px] flex-1 text-start">{item.label}</span>
+            <span
+              className={`material-symbols-rounded !text-sm transition-transform ${
+                expandedMenus.includes(item.label) ? 'rotate-90' : ''
+              }`}
+            >
+              chevron_right
+            </span>
+          </>
+        )}
+      </button>
+      {isOpen && expandedMenus.includes(item.label) && item.submenu && (
+        <div className="ms-9 mt-0.5 space-y-0.5">
+          {item.submenu.map((subItem) => (
+            <NavLink
+              key={subItem.to}
+              to={subItem.to}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-1.5 rounded-md transition-all duration-150 text-[13px] ${
+                  isActive
+                    ? 'bg-blue-50 text-primary font-medium'
+                    : 'text-[#676879] hover:bg-slate-200'
+                }`
+              }
+            >
+              {subItem.label}
+            </NavLink>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  const isProductsExpanded = expandedMenus.includes('products');
+
   return (
     <aside
       style={isOpen ? { width: `${sidebarWidth}px` } : undefined}
-      className={`bg-white border-s border-[#e1e4e8] min-h-[calc(100vh-73px)] sticky top-[73px] flex flex-col shrink-0 z-40 relative group/sidebar ${
+      className={`bg-[#e8eef6] dark:bg-background-dark min-h-[calc(100vh-48px)] sticky top-[48px] flex flex-col shrink-0 z-40 relative group/sidebar rounded-tr-xl ${
         isOpen ? '' : 'w-16 transition-all duration-300'
       } ${isResizing ? '' : 'transition-all duration-300'}`}
     >
-      {/* Resize Handle - Blue bar on right edge for dragging */}
+      {/* Resize Handle */}
       {isOpen && (
         <div
           onMouseDown={handleResizeStart}
@@ -156,13 +250,13 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
         </div>
       )}
 
-      {/* Toggle Button - Shows only on hover */}
+      {/* Toggle Button */}
       <button
         onClick={cycleState}
         className="absolute -end-3 top-6 w-6 h-6 bg-white rounded-full border border-slate-200 shadow-sm flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all z-10 opacity-0 group-hover/sidebar:opacity-100"
         title={getToggleTooltip()}
       >
-        <span className="material-icons !text-sm">{getToggleIcon()}</span>
+        <span className="material-symbols-rounded !text-sm">{getToggleIcon()}</span>
       </button>
 
       {/* Project Switcher - Open State */}
@@ -173,87 +267,178 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
       {/* Project Icon - Collapsed State */}
       {isCollapsed && (
         <div className="p-3 border-b border-slate-200 flex justify-center">
-          <button className="w-8 h-8 bg-slate-200/60 rounded flex items-center justify-center text-primary hover:bg-slate-300/60 transition-colors">
-            <span className="material-icons !text-[18px]">web</span>
+          <button className="w-8 h-8 bg-slate-200/60 rounded flex items-center justify-center text-primary hover:bg-slate-300/60 transition-colors" title="פרויקטים">
+            <span className="material-symbols-rounded !text-[18px]">web</span>
           </button>
         </div>
       )}
 
-      {/* Navigation - Monday.com style */}
+      {/* Navigation */}
       <nav className="flex-1 px-3 py-2 space-y-0.5 overflow-y-auto no-scrollbar">
-        {navItems.map((item) =>
-          item.submenu ? (
-            <div key={item.label}>
+        {/* Main nav items */}
+        {mainNavItems.map((item) => renderNavLink(item))}
+
+        {/* Separator + Products Section */}
+        <div className="pt-3 mt-3 border-t border-slate-200">
+          <button
+            onClick={() => toggleSubmenu('products')}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-150 text-[#676879] hover:bg-slate-200 ${
+              isCollapsed ? 'justify-center' : ''
+            }`}
+            title={isCollapsed ? t('products') : undefined}
+          >
+            <span className="material-symbols-rounded !text-[18px]">widgets</span>
+            {isOpen && (
+              <>
+                <span className="text-[13px] flex-1 text-start font-semibold text-[#323338]">{t('products')}</span>
+                <span
+                  className={`material-symbols-rounded !text-sm transition-transform ${
+                    isProductsExpanded ? 'rotate-90' : ''
+                  }`}
+                >
+                  chevron_right
+                </span>
+              </>
+            )}
+          </button>
+
+          {/* Product sub-items */}
+          {isOpen && isProductsExpanded && (
+            <div className="ms-4 mt-0.5 space-y-0.5">
+              {productItems.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className={({ isActive }) =>
+                    `flex items-center gap-2.5 px-3 py-1.5 rounded-md transition-all duration-150 text-[13px] ${
+                      isActive
+                        ? 'bg-blue-50 text-primary font-medium'
+                        : 'text-[#676879] hover:bg-slate-200'
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <span className={`material-symbols-rounded !text-[16px] ${isActive ? 'text-primary' : 'text-[#676879]'}`}>
+                        {item.icon}
+                      </span>
+                      <span>{item.label}</span>
+                    </>
+                  )}
+                </NavLink>
+              ))}
+
+              {/* More products */}
+              {showMoreProducts && moreProductItems.map((item) => (
+                item.to === '/marketing' ? (
+                  <div key={item.to}>
+                    <button
+                      onClick={() => toggleSubmenu('marketing')}
+                      className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md transition-all duration-150 text-[13px] text-[#676879] hover:bg-slate-200"
+                    >
+                      <span className="material-symbols-rounded !text-[16px]">{item.icon}</span>
+                      <span className="flex-1 text-start">{item.label}</span>
+                      <span className={`material-symbols-rounded !text-sm transition-transform ${expandedMenus.includes('marketing') ? 'rotate-90' : ''}`}>
+                        chevron_right
+                      </span>
+                    </button>
+                    {expandedMenus.includes('marketing') && (
+                      <div className="ms-6 mt-0.5 space-y-0.5">
+                        {marketingSubItems.map((sub) => (
+                          <NavLink
+                            key={sub.to}
+                            to={sub.to}
+                            className={({ isActive }) =>
+                              `flex items-center gap-2.5 px-3 py-1.5 rounded-md transition-all duration-150 text-[13px] ${
+                                isActive
+                                  ? 'bg-blue-50 text-primary font-medium'
+                                  : 'text-[#676879] hover:bg-slate-200'
+                              }`
+                            }
+                          >
+                            {({ isActive }) => (
+                              <>
+                                <span className={`material-symbols-rounded !text-[16px] ${isActive ? 'text-primary' : 'text-[#676879]'}`}>
+                                  {sub.icon}
+                                </span>
+                                <span>{sub.label}</span>
+                              </>
+                            )}
+                          </NavLink>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    className={({ isActive }) =>
+                      `flex items-center gap-2.5 px-3 py-1.5 rounded-md transition-all duration-150 text-[13px] ${
+                        isActive
+                          ? 'bg-blue-50 text-primary font-medium'
+                          : 'text-[#676879] hover:bg-slate-200'
+                      }`
+                    }
+                  >
+                    {({ isActive }) => (
+                      <>
+                        <span className={`material-symbols-rounded !text-[16px] ${isActive ? 'text-primary' : 'text-[#676879]'}`}>
+                          {item.icon}
+                        </span>
+                        <span>{item.label}</span>
+                      </>
+                    )}
+                  </NavLink>
+                )
+              ))}
+
+              {/* More button */}
               <button
-                onClick={() => toggleSubmenu(item.label)}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-colors text-[#676879] hover:bg-slate-200/50 ${
-                  isCollapsed ? 'justify-center' : ''
-                }`}
-                title={isCollapsed ? item.label : undefined}
+                onClick={() => setShowMoreProducts(!showMoreProducts)}
+                className="flex items-center gap-2.5 px-3 py-1.5 rounded-md transition-all duration-150 text-[13px] text-[#676879] hover:bg-slate-200 w-full"
               >
-                <span className="material-icons !text-[18px]">{item.icon}</span>
-                {isOpen && (
-                  <>
-                    <span className="text-[13px] flex-1 text-start">{item.label}</span>
-                    <span
-                      className={`material-icons !text-sm transition-transform ${
-                        expandedMenus.includes(item.label) ? 'rotate-90' : ''
-                      }`}
-                    >
-                      chevron_right
-                    </span>
-                  </>
-                )}
+                <span className="material-symbols-rounded !text-[16px]">more_horiz</span>
+                <span>{showMoreProducts ? '' : t('more')}</span>
               </button>
-              {isOpen && expandedMenus.includes(item.label) && (
-                <div className="ms-9 mt-0.5 space-y-0.5">
-                  {item.submenu.map((subItem) => (
-                    <NavLink
-                      key={subItem.to}
-                      to={subItem.to}
-                      className={({ isActive }) =>
-                        `flex items-center gap-3 px-3 py-1.5 rounded-md transition-colors text-[13px] ${
-                          isActive
-                            ? 'bg-slate-200/60 text-[#323338] font-medium'
-                            : 'text-[#676879] hover:bg-slate-200/50'
-                        }`
-                      }
-                    >
-                      {subItem.label}
-                    </NavLink>
-                  ))}
-                </div>
-              )}
             </div>
-          ) : (
-            <NavLink
-              key={item.to}
-              to={item.to!}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
-                  isCollapsed ? 'justify-center' : ''
-                } ${
-                  isActive
-                    ? 'bg-slate-200/60 text-[#323338]'
-                    : 'text-[#676879] hover:bg-slate-200/50'
-                }`
-              }
-              end={item.to === '/'}
-              title={isCollapsed ? item.label : undefined}
-            >
-              <span className="material-icons !text-[18px]">{item.icon}</span>
-              {isOpen && <span className="text-[13px]">{item.label}</span>}
-            </NavLink>
-          )
-        )}
+          )}
+
+          {/* Collapsed products icon */}
+          {isCollapsed && (
+            <div className="flex flex-col items-center gap-1 mt-1">
+              {productItems.slice(0, 3).map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className={({ isActive }) =>
+                    `w-8 h-8 rounded-md flex items-center justify-center transition-all duration-150 ${
+                      isActive ? 'bg-blue-50 text-primary' : 'text-[#676879] hover:bg-slate-200'
+                    }`
+                  }
+                  title={item.label}
+                >
+                  <span className="material-symbols-rounded !text-[16px]">{item.icon}</span>
+                </NavLink>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Separator + Bottom nav items */}
+        <div className="pt-3 mt-3 border-t border-slate-200">
+          {bottomNavItems.map((item) =>
+            item.submenu ? renderSubmenu(item) : renderNavLink(item)
+          )}
+        </div>
       </nav>
 
-      {/* Upgrade Banner - Monday.com style */}
+      {/* Upgrade Banner */}
       {isOpen && (
         <div className="px-3 pb-3">
           <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
             <div className="flex items-center gap-2 mb-2">
-              <span className="material-icons !text-[14px] text-primary">diamond</span>
+              <span className="material-symbols-rounded !text-[14px] text-primary">diamond</span>
               <span className="text-primary text-[11px] font-semibold">Upgrade</span>
             </div>
             <p className="text-[11px] text-slate-600 mb-2 leading-tight">שדרג לפרימיום וקבל גישה לכל התכונות</p>
@@ -271,14 +456,14 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
             className="w-8 h-8 bg-white border border-slate-200 rounded flex items-center justify-center shadow-sm"
             title="שדרג לפרימיום"
           >
-            <span className="material-icons !text-[14px] text-primary">diamond</span>
+            <span className="material-symbols-rounded !text-[14px] text-primary">diamond</span>
           </button>
         </div>
       )}
 
-      {/* User Info & Logout - Monday.com style */}
+      {/* User Info & Logout */}
       <div className="p-3 border-t border-slate-200">
-        <div className={`flex items-center gap-2 px-2 py-2 rounded-md hover:bg-slate-200/50 cursor-pointer transition-colors mb-1 ${isCollapsed ? 'justify-center' : ''}`}>
+        <div className={`flex items-center gap-2 px-2 py-2 rounded-md hover:bg-slate-200 cursor-pointer transition-colors mb-1 ${isCollapsed ? 'justify-center' : ''}`}>
           <div className="w-7 h-7 bg-gradient-to-br from-primary to-blue-400 rounded-full flex items-center justify-center text-white font-semibold text-xs shrink-0">
             ד
           </div>
@@ -291,10 +476,10 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
         </div>
         <button
           onClick={onLogout}
-          className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-slate-600 hover:bg-slate-200/50 transition-colors ${isCollapsed ? 'justify-center' : ''}`}
-          title={isCollapsed ? t('logout') : undefined}
+          className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-slate-600 hover:bg-slate-200 transition-colors ${isCollapsed ? 'justify-center' : ''}`}
+          title={isCollapsed ? t('logout') : t('logout')}
         >
-          <span className="material-icons !text-[18px]">logout</span>
+          <span className="material-symbols-rounded !text-[18px]">logout</span>
           {isOpen && <span className="text-[13px]">{t('logout')}</span>}
         </button>
       </div>

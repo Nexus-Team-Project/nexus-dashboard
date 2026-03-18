@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useNavigate } from 'react-router-dom';
+import type { Language } from '../i18n/translations';
 
 interface SettingsTile {
   id: string;
@@ -13,7 +14,7 @@ interface SettingsTile {
 
 const Settings = () => {
   const [loading, setLoading] = useState(true);
-  const { t } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
   const navigate = useNavigate();
 
   // Simulate loading
@@ -91,6 +92,10 @@ const Settings = () => {
     }
   ];
 
+  const handleLanguageChange = (lang: Language) => {
+    setLanguage(lang);
+  };
+
   if (loading) {
     return (
       <>
@@ -142,6 +147,38 @@ const Settings = () => {
             </div>
           </button>
         ))}
+      </div>
+
+      {/* Language Section */}
+      <div className="mt-10">
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-1">{t('language')}</h2>
+        <p className="text-slate-500 dark:text-slate-400 text-sm mb-4">{t('languageDesc')}</p>
+        <div className="bg-white dark:bg-card-dark rounded-2xl border border-slate-100 dark:border-slate-800 p-6 max-w-md">
+          <div className="flex gap-3">
+            <button
+              onClick={() => handleLanguageChange('he')}
+              className={`flex-1 py-3 px-4 rounded-xl border-2 text-sm font-medium transition-all ${
+                language === 'he'
+                  ? 'border-primary bg-primary/5 text-primary'
+                  : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'
+              }`}
+            >
+              <span className="text-lg mb-1 block">🇮🇱</span>
+              עברית
+            </button>
+            <button
+              onClick={() => handleLanguageChange('en')}
+              className={`flex-1 py-3 px-4 rounded-xl border-2 text-sm font-medium transition-all ${
+                language === 'en'
+                  ? 'border-primary bg-primary/5 text-primary'
+                  : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'
+              }`}
+            >
+              <span className="text-lg mb-1 block">🇺🇸</span>
+              English
+            </button>
+          </div>
+        </div>
       </div>
     </>
   );

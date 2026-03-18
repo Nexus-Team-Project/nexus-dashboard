@@ -34,14 +34,14 @@ const SearchBar = () => {
     {
       id: 'home',
       type: 'page',
-      title: 'Dashboard',
-      titleHe: 'לוח בקרה',
+      title: 'Home',
+      titleHe: 'בית',
       description: 'Main dashboard with overview and statistics',
-      descriptionHe: 'לוח בקרה ראשי עם סקירה כללית וסטטיסטיקות',
+      descriptionHe: 'דף הבית הראשי עם סקירה כללית וסטטיסטיקות',
       path: '/',
-      breadcrumb: 'Dashboard',
-      breadcrumbHe: 'לוח בקרה',
-      icon: 'dashboard',
+      breadcrumb: 'Home',
+      breadcrumbHe: 'בית',
+      icon: 'home',
       relevanceScore: 0
     },
     {
@@ -120,6 +120,45 @@ const SearchBar = () => {
       breadcrumb: 'Settings',
       breadcrumbHe: 'הגדרות',
       icon: 'settings',
+      relevanceScore: 0
+    },
+    {
+      id: 'transactions',
+      type: 'page',
+      title: 'Transactions',
+      titleHe: 'עסקאות',
+      description: 'View and manage all transactions',
+      descriptionHe: 'צפייה וניהול כל העסקאות',
+      path: '/transactions',
+      breadcrumb: 'Transactions',
+      breadcrumbHe: 'עסקאות',
+      icon: 'receipt_long',
+      relevanceScore: 0
+    },
+    {
+      id: 'product-catalog',
+      type: 'page',
+      title: 'Product Catalog',
+      titleHe: 'קטלוג מוצרים',
+      description: 'Browse and manage product catalog',
+      descriptionHe: 'עיון וניהול קטלוג המוצרים',
+      path: '/product-catalog',
+      breadcrumb: 'Product Catalog',
+      breadcrumbHe: 'קטלוג מוצרים',
+      icon: 'inventory_2',
+      relevanceScore: 0
+    },
+    {
+      id: 'balances',
+      type: 'page',
+      title: 'Balances',
+      titleHe: 'יתרות',
+      description: 'View account balances and funds',
+      descriptionHe: 'צפייה ביתרות חשבון וכספים',
+      path: '/balances',
+      breadcrumb: 'Balances',
+      breadcrumbHe: 'יתרות',
+      icon: 'account_balance_wallet',
       relevanceScore: 0
     },
     // Features
@@ -339,7 +378,7 @@ const SearchBar = () => {
             if (query) setIsOpen(true);
           }}
           className={`ps-10 pe-10 py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-full text-sm focus:ring-2 focus:ring-primary outline-none transition-all duration-300 ${
-            isExpanded ? 'w-64 opacity-100 pointer-events-auto' : 'w-10 h-10 opacity-0 pointer-events-none'
+            isExpanded ? 'w-64 opacity-100 pointer-events-auto' : 'w-8 h-8 opacity-0 pointer-events-none'
           }`}
           placeholder={isExpanded ? t('searchUsers') : ''}
           tabIndex={isExpanded ? 0 : -1}
@@ -348,20 +387,20 @@ const SearchBar = () => {
         {/* Collapsed button - only show when not expanded */}
         {!isExpanded && (
           <div
-            className="absolute inset-0 w-10 h-10 bg-slate-100 dark:bg-slate-800 rounded-full transition-all duration-300 flex items-center justify-center cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700"
+            className="absolute inset-0 w-8 h-8 bg-slate-100 dark:bg-slate-800 rounded-full transition-all duration-300 flex items-center justify-center cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700"
             onClick={() => {
               setIsExpanded(true);
               setTimeout(() => inputRef.current?.focus(), 100);
             }}
           >
-            <span className="material-icons text-slate-400 text-sm">search</span>
+            <span className="material-symbols-rounded text-slate-400 !text-[18px]">search</span>
           </div>
         )}
 
         {/* Search icon container - ALWAYS on the RIGHT in RTL (left in visual) */}
         {isExpanded && (
           <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none z-10 flex items-center justify-center">
-            <span className="material-icons text-slate-400 text-lg">search</span>
+            <span className="material-symbols-rounded text-slate-400 !text-[20px]">search</span>
           </div>
         )}
 
@@ -384,7 +423,7 @@ const SearchBar = () => {
               className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 flex items-center justify-center"
               tabIndex={-1}
             >
-              <span className="material-icons text-lg">close</span>
+              <span className="material-symbols-rounded !text-[20px]">close</span>
             </button>
           </div>
         )}
@@ -392,7 +431,7 @@ const SearchBar = () => {
 
       {/* Search Results */}
       {isOpen && results.length > 0 && (
-        <div className="absolute top-full start-0 mt-2 w-[400px] max-w-[calc(100vw-2rem)] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl overflow-hidden z-[150]">
+        <div className="absolute top-full end-0 mt-2 w-[400px] max-w-[calc(100vw-2rem)] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl overflow-hidden z-[150]">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100 dark:border-slate-700">
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
@@ -418,7 +457,7 @@ const SearchBar = () => {
                 }`}
               >
                 {result.icon && (
-                  <span className="material-icons text-slate-400 dark:text-slate-500 mt-0.5 shrink-0">
+                  <span className="material-symbols-rounded !text-[20px] text-slate-400 dark:text-slate-500 mt-0.5 shrink-0">
                     {result.icon}
                   </span>
                 )}
@@ -466,7 +505,7 @@ const SearchBar = () => {
       {/* No Results */}
       {isOpen && query && results.length === 0 && (
         <div className="absolute top-full start-0 mt-2 w-[400px] max-w-[calc(100vw-2rem)] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl overflow-hidden z-[150] p-8 text-center">
-          <span className="material-icons text-slate-300 dark:text-slate-700 text-5xl mb-3">search_off</span>
+          <span className="material-symbols-rounded text-slate-300 dark:text-slate-700 !text-[48px] mb-3">search_off</span>
           <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
             {language === 'he' ? 'לא נמצאו תוצאות' : 'No results found'}
           </p>

@@ -627,9 +627,9 @@ const Users = () => {
       {/* Delete Confirm Modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
+          <div className="bg-white dark:bg-slate-900 rounded-lg shadow-2xl w-full max-w-sm p-6 text-center">
             <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mx-auto mb-4">
-              <span className="material-icons text-red-500 text-2xl">delete_forever</span>
+              <span className="material-symbols-rounded text-red-500 text-2xl">delete_forever</span>
             </div>
             <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">מחיקת משתמש</h3>
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
@@ -677,7 +677,7 @@ const Users = () => {
       {/* Export Modal */}
       {showExportModal && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-xl my-8 overflow-hidden animate-in fade-in zoom-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-lg shadow-2xl w-full max-w-xl my-8 overflow-hidden animate-in fade-in zoom-in duration-200">
             {/* Header */}
             <div className="p-5 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center justify-between">
@@ -695,7 +695,7 @@ const Users = () => {
                   onClick={() => setShowExportModal(false)}
                   className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
                 >
-                  <span className="material-icons text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">close</span>
+                  <span className="material-symbols-rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">close</span>
                 </button>
               </div>
             </div>
@@ -709,13 +709,13 @@ const Users = () => {
                   מה לייצא?
                 </label>
                 <div className="space-y-2">
-                  <label className="flex items-center gap-3 cursor-pointer group p-3 border-2 rounded-lg transition-all hover:border-primary hover:bg-primary/5">
+                  <label className="flex items-center gap-3 cursor-pointer group p-3 border-2 rounded-lg transition-all hover:border-[#635bff] hover:bg-[#635bff]/5">
                     <input
                       type="radio"
                       name="exportOption"
                       checked={exportOption === 'all'}
                       onChange={() => setExportOption('all')}
-                      className="w-5 h-5 text-primary focus:ring-primary cursor-pointer"
+                      className="w-5 h-5 text-[#635bff] focus:ring-[#635bff] cursor-pointer"
                     />
                     <div className="flex-1">
                       <span className="text-base font-medium text-slate-900 dark:text-white block">ייצא הכל</span>
@@ -723,7 +723,7 @@ const Users = () => {
                         {filteredUsers.length} משתמשים יוצאו
                       </span>
                     </div>
-                    <span className="material-icons text-slate-400 group-hover:text-primary transition-colors">
+                    <span className="material-symbols-rounded text-slate-400 group-hover:text-[#635bff] transition-colors">
                       select_all
                     </span>
                   </label>
@@ -731,7 +731,7 @@ const Users = () => {
                   <label className={`flex items-center gap-3 cursor-pointer group p-3 border-2 rounded-lg transition-all ${
                     selectedIds.length === 0
                       ? 'opacity-50 cursor-not-allowed'
-                      : 'hover:border-primary hover:bg-primary/5'
+                      : 'hover:border-[#635bff] hover:bg-[#635bff]/5'
                   }`}>
                     <input
                       type="radio"
@@ -739,7 +739,7 @@ const Users = () => {
                       checked={exportOption === 'selected'}
                       onChange={() => setExportOption('selected')}
                       disabled={selectedIds.length === 0}
-                      className="w-5 h-5 text-primary focus:ring-primary cursor-pointer disabled:cursor-not-allowed"
+                      className="w-5 h-5 text-[#635bff] focus:ring-[#635bff] cursor-pointer disabled:cursor-not-allowed"
                     />
                     <div className="flex-1">
                       <span className="text-base font-medium text-slate-900 dark:text-white block">
@@ -749,7 +749,7 @@ const Users = () => {
                         {selectedIds.length === 0 ? 'לא נבחרו שורות' : `${selectedIds.length} משתמשים מסומנים`}
                       </span>
                     </div>
-                    <span className="material-icons text-slate-400 group-hover:text-primary transition-colors">
+                    <span className="material-symbols-rounded text-slate-400 group-hover:text-[#635bff] transition-colors">
                       checklist
                     </span>
                   </label>
@@ -767,7 +767,7 @@ const Users = () => {
                   />
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="material-icons text-blue-600 dark:text-blue-400 text-base">email</span>
+                      <span className="material-symbols-rounded text-blue-600 dark:text-blue-400 text-base">email</span>
                       <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
                         שלח עותק למייל שלי
                       </span>
@@ -782,7 +782,7 @@ const Users = () => {
               {/* Info */}
               <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3">
                 <div className="flex gap-2">
-                  <span className="material-icons text-slate-500 dark:text-slate-400 text-lg">info</span>
+                  <span className="material-symbols-rounded text-slate-500 dark:text-slate-400 text-lg">info</span>
                   <div className="flex-1">
                     <p className="text-xs text-slate-700 dark:text-slate-300 font-medium">
                       הקובץ יכלול את כל העמודות הנראות: שם, אימייל, סטטוס, כתובת ותאריכים
@@ -811,12 +811,12 @@ const Users = () => {
               >
                 {isExporting ? (
                   <>
-                    <span className="material-icons text-sm animate-spin">refresh</span>
+                    <span className="material-symbols-rounded text-sm animate-spin">refresh</span>
                     מייצא...
                   </>
                 ) : (
                   <>
-                    <span className="material-icons text-sm">file_download</span>
+                    <span className="material-symbols-rounded text-sm">file_download</span>
                     ייצא לאקסל
                   </>
                 )}
@@ -829,13 +829,13 @@ const Users = () => {
       {/* Manual Registration Modal */}
       {showManualRegistrationModal && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg my-8 overflow-hidden animate-in fade-in zoom-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-lg shadow-2xl w-full max-w-lg my-8 overflow-hidden animate-in fade-in zoom-in duration-200">
             {/* Header */}
             <div className="p-5 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                    <span className="material-icons text-primary text-xl">person_add</span>
+                  <div className="w-10 h-10 bg-[#635bff]/10 rounded-lg flex items-center justify-center">
+                    <span className="material-symbols-rounded text-[#635bff] text-xl">person_add</span>
                   </div>
                   <div>
                     <h2 className="text-xl font-bold text-slate-900 dark:text-white">הרשמה ידנית</h2>
@@ -849,7 +849,7 @@ const Users = () => {
                   }}
                   className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
                 >
-                  <span className="material-icons text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">close</span>
+                  <span className="material-symbols-rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">close</span>
                 </button>
               </div>
             </div>
@@ -866,7 +866,7 @@ const Users = () => {
                   value={manualContactData.name}
                   onChange={(e) => setManualContactData({ ...manualContactData, name: e.target.value })}
                   placeholder="לדוגמה: יוסי כהן"
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all"
                 />
               </div>
 
@@ -880,7 +880,7 @@ const Users = () => {
                   value={manualContactData.email}
                   onChange={(e) => setManualContactData({ ...manualContactData, email: e.target.value })}
                   placeholder="example@email.com"
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all"
                 />
               </div>
 
@@ -894,7 +894,7 @@ const Users = () => {
                   value={manualContactData.phone}
                   onChange={(e) => setManualContactData({ ...manualContactData, phone: e.target.value })}
                   placeholder="050-1234567"
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all"
                 />
               </div>
 
@@ -908,14 +908,14 @@ const Users = () => {
                   value={manualContactData.address}
                   onChange={(e) => setManualContactData({ ...manualContactData, address: e.target.value })}
                   placeholder="תל אביב, הרצל 12"
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all"
                 />
               </div>
 
               {/* Info Note */}
               <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
                 <div className="flex gap-2 items-start">
-                  <span className="material-icons text-blue-600 dark:text-blue-400 text-base">info</span>
+                  <span className="material-symbols-rounded text-blue-600 dark:text-blue-400 text-base">info</span>
                   <p className="text-xs text-blue-700 dark:text-blue-300 flex-1">
                     המשתמש ייווצר כאיש קשר. תוכל להפוך אותו לחבר רשום מאוחר יותר.
                   </p>
@@ -937,9 +937,9 @@ const Users = () => {
               <button
                 onClick={handleManualRegistration}
                 disabled={!manualContactData.name || !manualContactData.email}
-                className="px-6 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg font-semibold flex items-center gap-1.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                className="px-6 py-2 bg-[#635bff] hover:bg-[#635bff]/90 text-white rounded-lg font-semibold flex items-center gap-1.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
               >
-                <span className="material-icons text-sm">person_add</span>
+                <span className="material-symbols-rounded text-sm">person_add</span>
                 הוסף משתמש
               </button>
             </div>
@@ -950,13 +950,13 @@ const Users = () => {
       {/* Custom Field Modal */}
       {showCustomFieldModal && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md my-8 overflow-hidden animate-in fade-in zoom-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-lg shadow-2xl w-full max-w-md my-8 overflow-hidden animate-in fade-in zoom-in duration-200">
             {/* Header */}
             <div className="p-4 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
-                    <span className="material-icons text-blue-600 dark:text-blue-400 text-lg">add_circle</span>
+                    <span className="material-symbols-rounded text-blue-600 dark:text-blue-400 text-lg">add_circle</span>
                   </div>
                   <div>
                     <h2 className="text-lg font-bold text-slate-900 dark:text-white">הוסף שדה מותאם אישית</h2>
@@ -971,7 +971,7 @@ const Users = () => {
                   }}
                   className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
                 >
-                  <span className="material-icons text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">close</span>
+                  <span className="material-symbols-rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">close</span>
                 </button>
               </div>
             </div>
@@ -988,7 +988,7 @@ const Users = () => {
                   value={customFieldName}
                   onChange={(e) => setCustomFieldName(e.target.value)}
                   placeholder="לדוגמה: חברת עבודה..."
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all"
                 />
               </div>
 
@@ -999,15 +999,15 @@ const Users = () => {
                 </label>
                 <div className="space-y-1.5">
                   {/* Text */}
-                  <label className="flex items-center gap-2 cursor-pointer group p-2 border-2 rounded-lg transition-all hover:border-primary hover:bg-primary/5">
+                  <label className="flex items-center gap-2 cursor-pointer group p-2 border-2 rounded-lg transition-all hover:border-[#635bff] hover:bg-[#635bff]/5">
                     <input
                       type="radio"
                       name="fieldType"
                       checked={customFieldType === 'text'}
                       onChange={() => setCustomFieldType('text')}
-                      className="w-4 h-4 text-primary focus:ring-primary cursor-pointer"
+                      className="w-4 h-4 text-[#635bff] focus:ring-[#635bff] cursor-pointer"
                     />
-                    <span className="material-icons text-slate-500 dark:text-slate-400 text-base">text_fields</span>
+                    <span className="material-symbols-rounded text-slate-500 dark:text-slate-400 text-base">text_fields</span>
                     <div className="flex-1">
                       <span className="text-sm font-medium text-slate-900 dark:text-white">טקסט</span>
                       <span className="text-xs text-slate-500 dark:text-slate-400 block">שדה טקסט חופשי</span>
@@ -1015,15 +1015,15 @@ const Users = () => {
                   </label>
 
                   {/* Number */}
-                  <label className="flex items-center gap-2 cursor-pointer group p-2 border-2 rounded-lg transition-all hover:border-primary hover:bg-primary/5">
+                  <label className="flex items-center gap-2 cursor-pointer group p-2 border-2 rounded-lg transition-all hover:border-[#635bff] hover:bg-[#635bff]/5">
                     <input
                       type="radio"
                       name="fieldType"
                       checked={customFieldType === 'number'}
                       onChange={() => setCustomFieldType('number')}
-                      className="w-4 h-4 text-primary focus:ring-primary cursor-pointer"
+                      className="w-4 h-4 text-[#635bff] focus:ring-[#635bff] cursor-pointer"
                     />
-                    <span className="material-icons text-slate-500 dark:text-slate-400 text-base">tag</span>
+                    <span className="material-symbols-rounded text-slate-500 dark:text-slate-400 text-base">tag</span>
                     <div className="flex-1">
                       <span className="text-sm font-medium text-slate-900 dark:text-white">מספר</span>
                       <span className="text-xs text-slate-500 dark:text-slate-400 block">ערכים מספריים</span>
@@ -1031,15 +1031,15 @@ const Users = () => {
                   </label>
 
                   {/* Link */}
-                  <label className="flex items-center gap-2 cursor-pointer group p-2 border-2 rounded-lg transition-all hover:border-primary hover:bg-primary/5">
+                  <label className="flex items-center gap-2 cursor-pointer group p-2 border-2 rounded-lg transition-all hover:border-[#635bff] hover:bg-[#635bff]/5">
                     <input
                       type="radio"
                       name="fieldType"
                       checked={customFieldType === 'link'}
                       onChange={() => setCustomFieldType('link')}
-                      className="w-4 h-4 text-primary focus:ring-primary cursor-pointer"
+                      className="w-4 h-4 text-[#635bff] focus:ring-[#635bff] cursor-pointer"
                     />
-                    <span className="material-icons text-slate-500 dark:text-slate-400 text-base">link</span>
+                    <span className="material-symbols-rounded text-slate-500 dark:text-slate-400 text-base">link</span>
                     <div className="flex-1">
                       <span className="text-sm font-medium text-slate-900 dark:text-white">קישור</span>
                       <span className="text-xs text-slate-500 dark:text-slate-400 block">כתובת URL</span>
@@ -1047,15 +1047,15 @@ const Users = () => {
                   </label>
 
                   {/* Date */}
-                  <label className="flex items-center gap-2 cursor-pointer group p-2 border-2 rounded-lg transition-all hover:border-primary hover:bg-primary/5">
+                  <label className="flex items-center gap-2 cursor-pointer group p-2 border-2 rounded-lg transition-all hover:border-[#635bff] hover:bg-[#635bff]/5">
                     <input
                       type="radio"
                       name="fieldType"
                       checked={customFieldType === 'date'}
                       onChange={() => setCustomFieldType('date')}
-                      className="w-4 h-4 text-primary focus:ring-primary cursor-pointer"
+                      className="w-4 h-4 text-[#635bff] focus:ring-[#635bff] cursor-pointer"
                     />
-                    <span className="material-icons text-slate-500 dark:text-slate-400 text-base">calendar_today</span>
+                    <span className="material-symbols-rounded text-slate-500 dark:text-slate-400 text-base">calendar_today</span>
                     <div className="flex-1">
                       <span className="text-sm font-medium text-slate-900 dark:text-white">תאריך</span>
                       <span className="text-xs text-slate-500 dark:text-slate-400 block">תאריך ספציפי</span>
@@ -1063,15 +1063,15 @@ const Users = () => {
                   </label>
 
                   {/* Dropdown */}
-                  <label className="flex items-center gap-2 cursor-pointer group p-2 border-2 rounded-lg transition-all hover:border-primary hover:bg-primary/5">
+                  <label className="flex items-center gap-2 cursor-pointer group p-2 border-2 rounded-lg transition-all hover:border-[#635bff] hover:bg-[#635bff]/5">
                     <input
                       type="radio"
                       name="fieldType"
                       checked={customFieldType === 'dropdown'}
                       onChange={() => setCustomFieldType('dropdown')}
-                      className="w-4 h-4 text-primary focus:ring-primary cursor-pointer"
+                      className="w-4 h-4 text-[#635bff] focus:ring-[#635bff] cursor-pointer"
                     />
-                    <span className="material-icons text-slate-500 dark:text-slate-400 text-base">arrow_drop_down_circle</span>
+                    <span className="material-symbols-rounded text-slate-500 dark:text-slate-400 text-base">arrow_drop_down_circle</span>
                     <div className="flex-1">
                       <span className="text-sm font-medium text-slate-900 dark:text-white">תפריט נפתח</span>
                       <span className="text-xs text-slate-500 dark:text-slate-400 block">בחירה מרשימה</span>
@@ -1083,7 +1083,7 @@ const Users = () => {
               {/* Info */}
               <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-2">
                 <div className="flex gap-2 items-start">
-                  <span className="material-icons text-blue-600 dark:text-blue-400 text-base">info</span>
+                  <span className="material-symbols-rounded text-blue-600 dark:text-blue-400 text-base">info</span>
                   <p className="text-xs text-blue-700 dark:text-blue-300 flex-1">
                     השדה יתווסף לטבלת המשתמשים
                   </p>
@@ -1108,7 +1108,7 @@ const Users = () => {
                 disabled={!customFieldName.trim()}
                 className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold flex items-center gap-1.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
               >
-                <span className="material-icons text-sm">add</span>
+                <span className="material-symbols-rounded text-sm">add</span>
                 הוסף שדה
               </button>
             </div>
@@ -1119,21 +1119,21 @@ const Users = () => {
       {/* Import Modal */}
       {showImportModal && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-6xl h-[85vh] flex overflow-hidden animate-in fade-in zoom-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-lg shadow-2xl w-full max-w-6xl h-[85vh] flex overflow-hidden animate-in fade-in zoom-in duration-200">
             {/* Left Side - Content */}
             <div className="flex-1 flex flex-col p-8 md:p-12 relative overflow-y-auto custom-scrollbar">
               {/* Header */}
               <div className="flex justify-between items-center mb-8">
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2 text-slate-400 dark:text-slate-500 text-sm">
-                    <span className="material-icons text-sm">table_view</span>
-                    <span className="material-icons text-xs">chevron_left</span>
-                    <span className="material-icons text-sm text-emerald-600">drive_folder_upload</span>
+                    <span className="material-symbols-rounded text-sm">table_view</span>
+                    <span className="material-symbols-rounded text-xs">chevron_left</span>
+                    <span className="material-symbols-rounded text-sm text-emerald-600">drive_folder_upload</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-6 text-sm">
                   <button className="flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
-                    <span className="material-icons text-lg">chat_bubble_outline</span>
+                    <span className="material-symbols-rounded text-lg">chat_bubble_outline</span>
                     תן משוב
                   </button>
                   <span className="text-slate-500 dark:text-slate-400 font-medium">שלב 1 מתוך 4</span>
@@ -1141,7 +1141,7 @@ const Users = () => {
                     onClick={() => setShowImportModal(false)}
                     className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
                   >
-                    <span className="material-icons text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">close</span>
+                    <span className="material-symbols-rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">close</span>
                   </button>
                 </div>
               </div>
@@ -1174,8 +1174,8 @@ const Users = () => {
                   />
                   {!uploadedFile ? (
                     <div className="py-16 md:py-20 flex flex-col items-center justify-center text-center px-6">
-                      <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-2xl flex items-center justify-center mb-6 text-slate-600 dark:text-slate-400 group-hover:scale-110 transition-transform border border-slate-200 dark:border-slate-700">
-                        <span className="material-icons text-3xl">upload_file</span>
+                      <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-lg flex items-center justify-center mb-6 text-slate-600 dark:text-slate-400 group-hover:scale-110 transition-transform border border-slate-200 dark:border-slate-700">
+                        <span className="material-symbols-rounded text-3xl">upload_file</span>
                       </div>
                       <p className="text-lg text-slate-900 dark:text-white font-medium">
                         <span className="text-blue-600 hover:underline cursor-pointer">עיין בקבצים שלך</span> או גרור ושחרר כאן
@@ -1186,7 +1186,7 @@ const Users = () => {
                     </div>
                   ) : (
                     <div className="py-16 md:py-20 flex items-center justify-center gap-3">
-                      <span className="material-icons text-green-600 text-3xl animate-in zoom-in">check_circle</span>
+                      <span className="material-symbols-rounded text-green-600 text-3xl animate-in zoom-in">check_circle</span>
                       <div className="text-right">
                         <p className="text-sm font-medium text-slate-900 dark:text-white">{uploadedFile.name}</p>
                         <p className="text-xs text-slate-500">מעלה קובץ...</p>
@@ -1245,7 +1245,7 @@ const Users = () => {
                 </div>
                 <div className="flex flex-col items-center">
                   <div className="w-20 h-[3px] bg-gradient-to-l from-teal-400 to-green-500 rounded-full"></div>
-                  <span className="material-icons text-teal-500 dark:text-teal-400 mt-2 text-2xl">arrow_back</span>
+                  <span className="material-symbols-rounded text-teal-500 dark:text-teal-400 mt-2 text-2xl">arrow_back</span>
                 </div>
                 {/* Nexus Logo */}
                 <div className="w-24 h-24 md:w-28 md:h-28 bg-white dark:bg-slate-700 rounded-3xl shadow-xl flex items-center justify-center border border-slate-100 dark:border-slate-600 p-4">
@@ -1265,8 +1265,12 @@ const Users = () => {
       )}
 
       <div className="mb-8">
-        <h1 className="text-3xl font-semibold text-slate-900 dark:text-white mb-2">ניהול משתמשים</h1>
-        <p className="text-slate-500 dark:text-slate-400 font-normal">נהל ועקוב אחר הלקוחות וחברי האתר שלך במקום אחד.</p>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">ניהול משתמשים</h2>
+            <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">נהל ועקוב אחר הלקוחות וחברי האתר שלך במקום אחד.</p>
+          </div>
+        </div>
       </div>
 
       {/* Tabs for User Types */}
@@ -1281,7 +1285,7 @@ const Users = () => {
             }`}
           >
             <div className="flex items-center gap-2">
-              <span className="material-icons text-base">contacts</span>
+              <span className="material-symbols-rounded text-base">contacts</span>
               <span>אנשי קשר</span>
               <span className="text-xs bg-slate-200 dark:bg-slate-600 px-2 py-0.5 rounded-full">
                 {users.length}
@@ -1297,7 +1301,7 @@ const Users = () => {
             }`}
           >
             <div className="flex items-center gap-2">
-              <span className="material-icons text-base">badge</span>
+              <span className="material-symbols-rounded text-base">badge</span>
               <span>חברים רשומים</span>
               <span className="text-xs bg-slate-200 dark:bg-slate-600 px-2 py-0.5 rounded-full">
                 {users.filter(u => u.userType === 'member').length}
@@ -1308,7 +1312,7 @@ const Users = () => {
                 onMouseEnter={() => setShowMemberTooltip(true)}
                 onMouseLeave={() => setShowMemberTooltip(false)}
               >
-                <span className="material-icons text-sm text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400 cursor-help transition-colors">
+                <span className="material-symbols-rounded text-sm text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400 cursor-help transition-colors">
                   info
                 </span>
                 {showMemberTooltip && (
@@ -1335,7 +1339,7 @@ const Users = () => {
         {/* Filter Panel */}
         {showFilterPanel && (
           <aside className="w-full lg:w-[380px] animate-in slide-in-from-right">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 sticky top-8 max-h-[calc(100vh-4rem)] overflow-y-auto custom-scrollbar">
+            <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-[#e3e8ee] dark:border-slate-700 sticky top-8 max-h-[calc(100vh-4rem)] overflow-y-auto custom-scrollbar">
               {isFilterLoading ? (
                 /* Skeleton Loader */
                 <div className="animate-pulse">
@@ -1397,7 +1401,7 @@ const Users = () => {
                         onClick={() => setShowFilterPanel(false)}
                         className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
                       >
-                        <span className="material-icons">close</span>
+                        <span className="material-symbols-rounded">close</span>
                       </button>
                     </div>
                     <p className="text-sm text-slate-500 dark:text-slate-400">סנן משתמשים לפי קריטריונים שונים</p>
@@ -1407,11 +1411,11 @@ const Users = () => {
                   <div className="p-6 space-y-6">
                 {/* Active Filters Count */}
                 {activeFilterCount > 0 && (
-                  <div className="flex items-center justify-between p-3 bg-primary/10 rounded-lg">
-                    <span className="text-sm font-medium text-primary">{activeFilterCount} סינונים פעילים</span>
+                  <div className="flex items-center justify-between p-3 bg-[#635bff]/10 rounded-lg">
+                    <span className="text-sm font-medium text-[#635bff]">{activeFilterCount} סינונים פעילים</span>
                     <button
                       onClick={clearFilters}
-                      className="text-xs text-primary hover:underline font-medium"
+                      className="text-xs text-[#635bff] hover:underline font-medium"
                     >
                       נקה הכל
                     </button>
@@ -1424,7 +1428,7 @@ const Users = () => {
                     חיפוש חופשי
                   </label>
                   <div className="relative">
-                    <span className="material-icons absolute start-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">
+                    <span className="material-symbols-rounded absolute start-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">
                       search
                     </span>
                     <input
@@ -1432,7 +1436,7 @@ const Users = () => {
                       value={filters.searchText}
                       onChange={(e) => setFilters({ ...filters, searchText: e.target.value })}
                       placeholder="שם, אימייל או כתובת..."
-                      className="w-full ps-10 pe-3 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                      className="w-full ps-10 pe-3 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all"
                     />
                   </div>
                 </div>
@@ -1449,9 +1453,9 @@ const Users = () => {
                         name="status"
                         checked={filters.status === 'all'}
                         onChange={() => setFilters({ ...filters, status: 'all' })}
-                        className="w-4 h-4 text-primary focus:ring-primary cursor-pointer"
+                        className="w-4 h-4 text-[#635bff] focus:ring-[#635bff] cursor-pointer"
                       />
-                      <span className="text-sm group-hover:text-primary transition-colors">הכל</span>
+                      <span className="text-sm group-hover:text-[#635bff] transition-colors">הכל</span>
                     </label>
                     <label className="flex items-center gap-3 cursor-pointer group p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors">
                       <input
@@ -1459,9 +1463,9 @@ const Users = () => {
                         name="status"
                         checked={filters.status === 'active'}
                         onChange={() => setFilters({ ...filters, status: 'active' })}
-                        className="w-4 h-4 text-primary focus:ring-primary cursor-pointer"
+                        className="w-4 h-4 text-[#635bff] focus:ring-[#635bff] cursor-pointer"
                       />
-                      <span className="text-sm group-hover:text-primary transition-colors flex items-center gap-2">
+                      <span className="text-sm group-hover:text-[#635bff] transition-colors flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                         פעיל
                       </span>
@@ -1472,9 +1476,9 @@ const Users = () => {
                         name="status"
                         checked={filters.status === 'inactive'}
                         onChange={() => setFilters({ ...filters, status: 'inactive' })}
-                        className="w-4 h-4 text-primary focus:ring-primary cursor-pointer"
+                        className="w-4 h-4 text-[#635bff] focus:ring-[#635bff] cursor-pointer"
                       />
-                      <span className="text-sm group-hover:text-primary transition-colors flex items-center gap-2">
+                      <span className="text-sm group-hover:text-[#635bff] transition-colors flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-slate-400"></span>
                         לא פעיל
                       </span>
@@ -1485,9 +1489,9 @@ const Users = () => {
                         name="status"
                         checked={filters.status === 'pending'}
                         onChange={() => setFilters({ ...filters, status: 'pending' })}
-                        className="w-4 h-4 text-primary focus:ring-primary cursor-pointer"
+                        className="w-4 h-4 text-[#635bff] focus:ring-[#635bff] cursor-pointer"
                       />
-                      <span className="text-sm group-hover:text-primary transition-colors flex items-center gap-2">
+                      <span className="text-sm group-hover:text-[#635bff] transition-colors flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-amber-500"></span>
                         בהמתנה
                       </span>
@@ -1507,7 +1511,7 @@ const Users = () => {
                         type="date"
                         value={filters.dateFrom}
                         onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
-                        className="w-full px-3 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                        className="w-full px-3 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all"
                       />
                     </div>
                     <div>
@@ -1516,7 +1520,7 @@ const Users = () => {
                         type="date"
                         value={filters.dateTo}
                         onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
-                        className="w-full px-3 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                        className="w-full px-3 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all"
                       />
                     </div>
                   </div>
@@ -1532,7 +1536,7 @@ const Users = () => {
                       {customFields.filter(f => f.visible).map(field => (
                         <div key={field.id}>
                           <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1 flex items-center gap-1">
-                            <span className="material-icons text-xs">
+                            <span className="material-symbols-rounded text-xs">
                               {field.type === 'text' && 'text_fields'}
                               {field.type === 'number' && 'tag'}
                               {field.type === 'link' && 'link'}
@@ -1547,7 +1551,7 @@ const Users = () => {
                               value={customFieldFilters[field.id] || ''}
                               onChange={(e) => setCustomFieldFilters({ ...customFieldFilters, [field.id]: e.target.value })}
                               placeholder={`חפש ${field.name}...`}
-                              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all"
                             />
                           ) : field.type === 'number' ? (
                             <input
@@ -1555,20 +1559,20 @@ const Users = () => {
                               value={customFieldFilters[field.id] || ''}
                               onChange={(e) => setCustomFieldFilters({ ...customFieldFilters, [field.id]: e.target.value })}
                               placeholder={`סנן לפי ${field.name}...`}
-                              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all"
                             />
                           ) : field.type === 'date' ? (
                             <input
                               type="date"
                               value={customFieldFilters[field.id] || ''}
                               onChange={(e) => setCustomFieldFilters({ ...customFieldFilters, [field.id]: e.target.value })}
-                              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all"
                             />
                           ) : field.type === 'dropdown' ? (
                             <select
                               value={customFieldFilters[field.id] || ''}
                               onChange={(e) => setCustomFieldFilters({ ...customFieldFilters, [field.id]: e.target.value })}
-                              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all"
                             >
                               <option value="">הכל</option>
                               <option value="אופציה 1">אופציה 1</option>
@@ -1603,7 +1607,7 @@ const Users = () => {
         {/* Customize Panel */}
         {showCustomizePanel && (
           <aside className="w-full lg:w-[380px] animate-in slide-in-from-right">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 sticky top-8 max-h-[calc(100vh-4rem)] overflow-y-auto custom-scrollbar">
+            <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-[#e3e8ee] dark:border-slate-700 sticky top-8 max-h-[calc(100vh-4rem)] overflow-y-auto custom-scrollbar">
               {isCustomizeLoading ? (
                 /* Skeleton Loader */
                 <div className="animate-pulse">
@@ -1645,7 +1649,7 @@ const Users = () => {
                         onClick={() => setShowCustomizePanel(false)}
                         className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
                       >
-                        <span className="material-icons">close</span>
+                        <span className="material-symbols-rounded">close</span>
                       </button>
                     </div>
                     <p className="text-sm text-slate-500 dark:text-slate-400">בחר אילו עמודות להציג בטבלה</p>
@@ -1661,9 +1665,9 @@ const Users = () => {
                         type="checkbox"
                         checked={visibleColumns.name}
                         onChange={() => toggleColumnVisibility('name')}
-                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary"
+                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-[#635bff] focus:ring-[#635bff]"
                       />
-                      <span className="text-sm group-hover:text-primary transition-colors">שם מלא</span>
+                      <span className="text-sm group-hover:text-[#635bff] transition-colors">שם מלא</span>
                     </label>
                     <button
                       onClick={() => toggleColumnFreeze('name')}
@@ -1674,7 +1678,7 @@ const Users = () => {
                       }`}
                       title={frozenColumns.includes('name') ? 'בטל הקפאה' : 'הקפא עמודה'}
                     >
-                      <span className="material-icons text-sm">{frozenColumns.includes('name') ? 'push_pin' : 'push_pin'}</span>
+                      <span className="material-symbols-rounded text-sm">{frozenColumns.includes('name') ? 'push_pin' : 'push_pin'}</span>
                     </button>
                   </div>
 
@@ -1684,9 +1688,9 @@ const Users = () => {
                         type="checkbox"
                         checked={visibleColumns.email}
                         onChange={() => toggleColumnVisibility('email')}
-                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary"
+                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-[#635bff] focus:ring-[#635bff]"
                       />
-                      <span className="text-sm group-hover:text-primary transition-colors">אימייל</span>
+                      <span className="text-sm group-hover:text-[#635bff] transition-colors">אימייל</span>
                     </label>
                     <button
                       onClick={() => toggleColumnFreeze('email')}
@@ -1697,7 +1701,7 @@ const Users = () => {
                       }`}
                       title={frozenColumns.includes('email') ? 'בטל הקפאה' : 'הקפא עמודה'}
                     >
-                      <span className="material-icons text-sm">push_pin</span>
+                      <span className="material-symbols-rounded text-sm">push_pin</span>
                     </button>
                   </div>
 
@@ -1707,9 +1711,9 @@ const Users = () => {
                         type="checkbox"
                         checked={visibleColumns.status}
                         onChange={() => toggleColumnVisibility('status')}
-                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary"
+                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-[#635bff] focus:ring-[#635bff]"
                       />
-                      <span className="text-sm group-hover:text-primary transition-colors">סטטוס</span>
+                      <span className="text-sm group-hover:text-[#635bff] transition-colors">סטטוס</span>
                     </label>
                     <button
                       onClick={() => toggleColumnFreeze('status')}
@@ -1720,7 +1724,7 @@ const Users = () => {
                       }`}
                       title={frozenColumns.includes('status') ? 'בטל הקפאה' : 'הקפא עמודה'}
                     >
-                      <span className="material-icons text-sm">push_pin</span>
+                      <span className="material-symbols-rounded text-sm">push_pin</span>
                     </button>
                   </div>
 
@@ -1730,9 +1734,9 @@ const Users = () => {
                         type="checkbox"
                         checked={visibleColumns.address}
                         onChange={() => toggleColumnVisibility('address')}
-                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary"
+                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-[#635bff] focus:ring-[#635bff]"
                       />
-                      <span className="text-sm group-hover:text-primary transition-colors">כתובת</span>
+                      <span className="text-sm group-hover:text-[#635bff] transition-colors">כתובת</span>
                     </label>
                     <button
                       onClick={() => toggleColumnFreeze('address')}
@@ -1743,7 +1747,7 @@ const Users = () => {
                       }`}
                       title={frozenColumns.includes('address') ? 'בטל הקפאה' : 'הקפא עמודה'}
                     >
-                      <span className="material-icons text-sm">push_pin</span>
+                      <span className="material-symbols-rounded text-sm">push_pin</span>
                     </button>
                   </div>
 
@@ -1753,9 +1757,9 @@ const Users = () => {
                         type="checkbox"
                         checked={visibleColumns.lastActivity}
                         onChange={() => toggleColumnVisibility('lastActivity')}
-                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary"
+                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-[#635bff] focus:ring-[#635bff]"
                       />
-                      <span className="text-sm group-hover:text-primary transition-colors">פעילות אחרונה</span>
+                      <span className="text-sm group-hover:text-[#635bff] transition-colors">פעילות אחרונה</span>
                     </label>
                     <button
                       onClick={() => toggleColumnFreeze('lastActivity')}
@@ -1766,7 +1770,7 @@ const Users = () => {
                       }`}
                       title={frozenColumns.includes('lastActivity') ? 'בטל הקפאה' : 'הקפא עמודה'}
                     >
-                      <span className="material-icons text-sm">push_pin</span>
+                      <span className="material-symbols-rounded text-sm">push_pin</span>
                     </button>
                   </div>
 
@@ -1776,9 +1780,9 @@ const Users = () => {
                         type="checkbox"
                         checked={visibleColumns.firstJoined}
                         onChange={() => toggleColumnVisibility('firstJoined')}
-                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary"
+                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-[#635bff] focus:ring-[#635bff]"
                       />
-                      <span className="text-sm group-hover:text-primary transition-colors">כניסה ראשונה</span>
+                      <span className="text-sm group-hover:text-[#635bff] transition-colors">כניסה ראשונה</span>
                     </label>
                     <button
                       onClick={() => toggleColumnFreeze('firstJoined')}
@@ -1789,7 +1793,7 @@ const Users = () => {
                       }`}
                       title={frozenColumns.includes('firstJoined') ? 'בטל הקפאה' : 'הקפא עמודה'}
                     >
-                      <span className="material-icons text-sm">push_pin</span>
+                      <span className="material-symbols-rounded text-sm">push_pin</span>
                     </button>
                   </div>
                 </div>
@@ -1808,17 +1812,17 @@ const Users = () => {
                               type="checkbox"
                               checked={field.visible}
                               onChange={() => toggleCustomFieldVisibility(field.id)}
-                              className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary"
+                              className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-[#635bff] focus:ring-[#635bff]"
                             />
                             <div className="flex-1 flex items-center gap-2">
-                              <span className="material-icons text-sm text-slate-500">
+                              <span className="material-symbols-rounded text-sm text-slate-500">
                                 {field.type === 'text' && 'text_fields'}
                                 {field.type === 'number' && 'tag'}
                                 {field.type === 'link' && 'link'}
                                 {field.type === 'date' && 'calendar_today'}
                                 {field.type === 'dropdown' && 'arrow_drop_down_circle'}
                               </span>
-                              <span className="text-sm group-hover:text-primary transition-colors">{field.name}</span>
+                              <span className="text-sm group-hover:text-[#635bff] transition-colors">{field.name}</span>
                               <span className="text-xs text-slate-400">
                                 ({field.type === 'text' && 'טקסט'}
                                 {field.type === 'number' && 'מספר'}
@@ -1836,7 +1840,7 @@ const Users = () => {
                               className="p-1 hover:bg-red-100 dark:hover:bg-red-900/20 rounded text-red-600 dark:text-red-400 transition-colors"
                               title="מחק שדה"
                             >
-                              <span className="material-icons text-sm">delete</span>
+                              <span className="material-symbols-rounded text-sm">delete</span>
                             </button>
                           </label>
                         ))}
@@ -1846,9 +1850,9 @@ const Users = () => {
                     {/* Add Button */}
                     <button
                       onClick={() => setShowCustomFieldModal(true)}
-                      className="w-full py-3 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2"
+                      className="w-full py-3 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:border-[#635bff] hover:text-[#635bff] transition-colors flex items-center justify-center gap-2"
                     >
-                      <span className="material-icons text-lg">add</span>
+                      <span className="material-symbols-rounded text-lg">add</span>
                       הוסף שדה מותאם אישית
                     </button>
                   </div>
@@ -1860,7 +1864,7 @@ const Users = () => {
 
         {/* Main Content - Users Table */}
         <div className={`transition-[width,flex] duration-300 ${selectedUser || showCustomizePanel || showFilterPanel ? 'flex-1 min-w-0' : 'w-full'}`}>
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
+          <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-[#e3e8ee] dark:border-slate-700">
             {/* Table Header Actions */}
             <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-2">
@@ -1876,14 +1880,14 @@ const Users = () => {
                   }}
                   className={`px-4 py-2 border rounded-lg text-sm font-medium flex items-center gap-2 transition-colors ${
                     activeFilterCount > 0
-                      ? 'bg-primary text-white border-primary'
-                      : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
+                      ? 'bg-[#635bff] text-white border-[#635bff]'
+                      : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700'
                   }`}
                 >
-                  <span className="material-icons text-sm">filter_list</span>
+                  <span className="material-symbols-rounded text-sm">filter_list</span>
                   סינון
                   {activeFilterCount > 0 && (
-                    <span className="bg-white text-primary text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    <span className="bg-white text-[#635bff] text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
                       {activeFilterCount}
                     </span>
                   )}
@@ -1893,9 +1897,9 @@ const Users = () => {
                 <div className="relative">
                   <button
                     onClick={() => setShowImportExportMenu(!showImportExportMenu)}
-                    className="px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                    className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                   >
-                    <span className="material-icons text-sm">swap_vert</span>
+                    <span className="material-symbols-rounded text-sm">swap_vert</span>
                     ייבוא/ייצוא
                   </button>
 
@@ -1916,7 +1920,7 @@ const Users = () => {
                           }}
                           className="w-full px-4 py-3 text-right text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-3"
                         >
-                          <span className="material-icons text-sm text-green-600">file_upload</span>
+                          <span className="material-symbols-rounded text-sm text-[#635bff]">file_upload</span>
                           <span>ייבוא משתמשים</span>
                         </button>
                         <button
@@ -1926,7 +1930,7 @@ const Users = () => {
                           }}
                           className="w-full px-4 py-3 text-right text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-3 border-t border-slate-100 dark:border-slate-700"
                         >
-                          <span className="material-icons text-sm text-green-600">file_download</span>
+                          <span className="material-symbols-rounded text-sm text-[#635bff]">file_download</span>
                           <span>ייצא לאקסל</span>
                         </button>
                       </div>
@@ -1941,9 +1945,9 @@ const Users = () => {
                     setIsCustomizeLoading(true);
                     setTimeout(() => setIsCustomizeLoading(false), 600);
                   }}
-                  className="px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                  className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                 >
-                  <span className="material-icons text-sm">tune</span>
+                  <span className="material-symbols-rounded text-sm">tune</span>
                   התאם
                 </button>
 
@@ -1955,7 +1959,7 @@ const Users = () => {
                     onMouseLeave={() => setShowMoreActionsTooltip(false)}
                     className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
                   >
-                    <span className="material-icons text-slate-600 dark:text-slate-400">more_vert</span>
+                    <span className="material-symbols-rounded text-slate-600 dark:text-slate-400">more_vert</span>
                   </button>
 
                   {/* Tooltip */}
@@ -1988,7 +1992,7 @@ const Users = () => {
                           }}
                           className="w-full px-4 py-3 text-right text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-3"
                         >
-                          <span className="material-icons text-sm text-primary">person_add</span>
+                          <span className="material-symbols-rounded text-sm text-[#635bff]">person_add</span>
                           <div>
                             <div className="font-medium">הרשמה ידנית</div>
                             <div className="text-xs text-slate-500 dark:text-slate-400">הוסף איש קשר חדש</div>
@@ -2001,7 +2005,7 @@ const Users = () => {
                           }}
                           className="w-full px-4 py-3 text-right text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-3 border-t border-slate-100 dark:border-slate-700"
                         >
-                          <span className="material-icons text-sm text-slate-500">email</span>
+                          <span className="material-symbols-rounded text-sm text-[#635bff]">email</span>
                           <div>
                             <div className="font-medium">שלח הזמנה</div>
                             <div className="text-xs text-slate-500 dark:text-slate-400">הזמן משתמשים חדשים</div>
@@ -2016,10 +2020,10 @@ const Users = () => {
                 <span className="text-xs text-slate-400">מציג {filteredUsers.length} מתוך {users.length} משתמשים</span>
                 <div className="flex border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
                   <button className="p-2 bg-white dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700">
-                    <span className="material-icons text-sm">chevron_right</span>
+                    <span className="material-symbols-rounded text-sm">chevron_right</span>
                   </button>
                   <button className="p-2 bg-white dark:bg-slate-800">
-                    <span className="material-icons text-sm">chevron_left</span>
+                    <span className="material-symbols-rounded text-sm">chevron_left</span>
                   </button>
                 </div>
               </div>
@@ -2028,7 +2032,7 @@ const Users = () => {
             {/* API Error Banner */}
             {apiError && (
               <div className="mx-6 mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-600 dark:text-red-400 flex items-center gap-2">
-                <span className="material-icons text-base">error_outline</span>
+                <span className="material-symbols-rounded text-base">error_outline</span>
                 {apiError}
                 <button onClick={loadUsers} className="mr-auto text-xs underline">נסה שוב</button>
               </div>
@@ -2051,7 +2055,7 @@ const Users = () => {
                   }}
                   className="dark:bg-slate-800"
                 >
-                  <tr className="bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                  <tr className="bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">
                     <th
                       className={`px-6 py-4 w-12 text-center ${isLastFrozenColumn('checkbox') ? 'frozen-column-shadow' : ''}`}
                       style={{
@@ -2065,7 +2069,7 @@ const Users = () => {
                         type="checkbox"
                         checked={filteredUsers.length > 0 && selectedIds.length === filteredUsers.length}
                         onChange={toggleAllUsers}
-                        className="rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary dark:bg-slate-700"
+                        className="rounded border-slate-300 dark:border-slate-600 text-[#635bff] focus:ring-[#635bff] dark:bg-slate-700"
                       />
                     </th>
                     {visibleColumns.name && (
@@ -2143,7 +2147,7 @@ const Users = () => {
                     {customFields.filter(f => f.visible).map(field => (
                       <th key={field.id} className="px-6 py-4">
                         <div className="flex items-center gap-1">
-                          <span className="material-icons text-xs text-slate-400">
+                          <span className="material-symbols-rounded text-xs text-slate-400">
                             {field.type === 'text' && 'text_fields'}
                             {field.type === 'number' && 'tag'}
                             {field.type === 'link' && 'link'}
@@ -2216,11 +2220,11 @@ const Users = () => {
                     <tr>
                       <td colSpan={8} className="px-6 py-12 text-center">
                         <div className="flex flex-col items-center gap-3">
-                          <span className="material-icons text-4xl text-slate-300">search_off</span>
+                          <span className="material-symbols-rounded text-4xl text-slate-300">search_off</span>
                           <p className="text-slate-500 dark:text-slate-400">לא נמצאו משתמשים התואמים לסינון</p>
                           <button
                             onClick={clearFilters}
-                            className="text-sm text-primary hover:underline"
+                            className="text-sm text-[#635bff] hover:underline"
                           >
                             נקה סינון
                           </button>
@@ -2233,7 +2237,7 @@ const Users = () => {
                         key={user.id}
                         onClick={() => handleRowClick(user)}
                         className={`hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer group ${
-                          selectedUser?.id === user.id ? 'bg-blue-50 dark:bg-blue-900/20 border-r-4 border-primary' :
+                          selectedUser?.id === user.id ? 'bg-[#635bff]/5 dark:bg-[#635bff]/10 border-r-4 border-[#635bff]' :
                           selectedIds.includes(user.id) ? 'bg-slate-50/30 dark:bg-slate-800/10' : ''
                         }`}
                       >
@@ -2252,7 +2256,7 @@ const Users = () => {
                             e.stopPropagation();
                             toggleUserSelection(user.id);
                           }}
-                          className="rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary dark:bg-slate-700"
+                          className="rounded border-slate-300 dark:border-slate-600 text-[#635bff] focus:ring-[#635bff] dark:bg-slate-700"
                         />
                       </td>
                       {visibleColumns.name && (
@@ -2340,7 +2344,7 @@ const Users = () => {
                           }}
                           className="text-slate-300 group-hover:text-slate-600 dark:group-hover:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded p-1 transition-colors"
                         >
-                          <span className="material-icons">more_horiz</span>
+                          <span className="material-symbols-rounded">more_horiz</span>
                         </button>
 
                         {/* Row Actions Menu */}
@@ -2362,7 +2366,7 @@ const Users = () => {
                                   }}
                                   className="w-full px-4 py-2.5 text-right text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-3"
                                 >
-                                  <span className="material-icons text-sm text-emerald-600">upgrade</span>
+                                  <span className="material-symbols-rounded text-sm text-[#635bff]">upgrade</span>
                                   <div>
                                     <div className="font-medium">הפוך לחבר רשום</div>
                                     <div className="text-xs text-slate-500 dark:text-slate-400">תן גישה מלאה</div>
@@ -2377,7 +2381,7 @@ const Users = () => {
                                 }}
                                 className="w-full px-4 py-2.5 text-right text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-3 border-t border-slate-100 dark:border-slate-700"
                               >
-                                <span className="material-icons text-sm text-slate-500">edit</span>
+                                <span className="material-symbols-rounded text-sm text-slate-500">edit</span>
                                 <div>
                                   <div className="font-medium">ערוך פרטים</div>
                                   <div className="text-xs text-slate-500 dark:text-slate-400">שנה מידע</div>
@@ -2393,7 +2397,7 @@ const Users = () => {
                                 }}
                                 className="w-full px-4 py-2.5 text-right text-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-3 border-t border-slate-100 dark:border-slate-700"
                               >
-                                <span className="material-icons text-sm text-red-600">delete</span>
+                                <span className="material-symbols-rounded text-sm text-red-600">delete</span>
                                 <div>
                                   <div className="font-medium text-red-600">מחק משתמש</div>
                                   <div className="text-xs text-slate-500 dark:text-slate-400">הסרה לצמיתות</div>
@@ -2444,7 +2448,7 @@ const Users = () => {
           >
               {isLoading ? (
                 <>
-                <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-6">
+                <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-[#e3e8ee] dark:border-slate-700 p-6">
                   {/* Skeleton Loader */}
                   <div className="animate-pulse">
                     {/* Avatar Skeleton */}
@@ -2471,7 +2475,7 @@ const Users = () => {
                 </div>
 
                 {/* Recent Activity Skeleton */}
-                <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-6">
+                <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-[#e3e8ee] dark:border-slate-700 p-6">
                   <div className="animate-pulse">
                     <div className="h-4 w-32 bg-slate-200 dark:bg-slate-700 rounded mb-4"></div>
                     <div className="space-y-4">
@@ -2491,20 +2495,20 @@ const Users = () => {
               ) : (
               <>
               {/* User Profile Card */}
-              <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 relative">
+              <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-[#e3e8ee] dark:border-slate-700 p-6 relative">
                 {/* Close Button */}
                 <button
                   onClick={() => setSelectedUser(null)}
                   className="absolute top-4 left-4 p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors z-10"
                 >
-                  <span className="material-icons text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">close</span>
+                  <span className="material-symbols-rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">close</span>
                 </button>
 
                 <div className="flex flex-col items-center text-center mb-8 mt-8">
                   <div className="w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4 relative ring-4 ring-slate-50 dark:ring-slate-800/50">
-                    <span className="material-icons text-4xl text-slate-300">person</span>
+                    <span className="material-symbols-rounded text-4xl text-slate-300">person</span>
                     <button className="absolute bottom-0 right-0 p-1.5 bg-white dark:bg-slate-700 shadow-lg rounded-full border border-slate-100 dark:border-slate-600">
-                      <span className="material-icons text-sm">edit</span>
+                      <span className="material-symbols-rounded text-sm">edit</span>
                     </button>
                   </div>
                   <h2 className="text-xl font-semibold">{selectedUser!.name}</h2>
@@ -2517,9 +2521,9 @@ const Users = () => {
                       title="Copy email"
                     >
                       {copiedText === selectedUser!.email ? (
-                        <span className="material-icons text-xs text-green-500">check</span>
+                        <span className="material-symbols-rounded text-xs text-green-500">check</span>
                       ) : (
-                        <span className="material-icons text-xs text-slate-400">content_copy</span>
+                        <span className="material-symbols-rounded text-xs text-slate-400">content_copy</span>
                       )}
                     </button>
                     <p className="text-slate-500 dark:text-slate-400 text-sm">{selectedUser!.email}</p>
@@ -2533,23 +2537,23 @@ const Users = () => {
                       title="Copy phone"
                     >
                       {copiedText === selectedUser!.phone ? (
-                        <span className="material-icons text-xs text-green-500">check</span>
+                        <span className="material-symbols-rounded text-xs text-green-500">check</span>
                       ) : (
-                        <span className="material-icons text-xs text-slate-400">content_copy</span>
+                        <span className="material-symbols-rounded text-xs text-slate-400">content_copy</span>
                       )}
                     </button>
                     <p className="text-slate-500 dark:text-slate-400 text-sm">{selectedUser!.phone}</p>
                   </div>
 
                   <div className="flex gap-2 w-full">
-                    <button className="flex-1 px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity">
+                    <button className="flex-1 px-4 py-2 bg-[#635bff] text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity">
                       שלח הודעה
                     </button>
-                    <button className="p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-500">
-                      <span className="material-icons">mail_outline</span>
+                    <button className="p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                      <span className="material-symbols-rounded !text-[20px]">mail</span>
                     </button>
-                    <button className="p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-500">
-                      <span className="material-icons">phone</span>
+                    <button className="p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                      <span className="material-symbols-rounded !text-[20px]">phone</span>
                     </button>
                   </div>
                 </div>
@@ -2619,7 +2623,7 @@ const Users = () => {
                       className="w-full py-4 flex items-center justify-between font-medium text-slate-700 dark:text-slate-300"
                     >
                       <span>סטטוס רכישות</span>
-                      <span className="material-icons text-slate-400">
+                      <span className="material-symbols-rounded text-slate-400">
                         {expandedSection === 'purchases' ? 'expand_less' : 'expand_more'}
                       </span>
                     </button>
@@ -2646,7 +2650,7 @@ const Users = () => {
                       className="w-full py-4 flex items-center justify-between font-medium text-slate-700 dark:text-slate-300"
                     >
                       <span>פרטי קשר</span>
-                      <span className="material-icons text-slate-400">
+                      <span className="material-symbols-rounded text-slate-400">
                         {expandedSection === 'contact' ? 'expand_less' : 'expand_more'}
                       </span>
                     </button>
@@ -2659,7 +2663,7 @@ const Users = () => {
                       className="w-full py-4 flex items-center justify-between font-medium text-slate-700 dark:text-slate-300"
                     >
                       <span>הערות</span>
-                      <span className="material-icons text-slate-400">
+                      <span className="material-symbols-rounded text-slate-400">
                         {expandedSection === 'notes' ? 'expand_less' : 'expand_more'}
                       </span>
                     </button>
@@ -2672,7 +2676,7 @@ const Users = () => {
                       className="w-full py-4 flex items-center justify-between font-medium text-slate-700 dark:text-slate-300"
                     >
                       <span>משימות</span>
-                      <span className="material-icons text-slate-400">
+                      <span className="material-symbols-rounded text-slate-400">
                         {expandedSection === 'tasks' ? 'expand_less' : 'expand_more'}
                       </span>
                     </button>
@@ -2685,7 +2689,7 @@ const Users = () => {
                       className="w-full py-4 flex items-center justify-between font-medium text-slate-700 dark:text-slate-300"
                     >
                       <span>קבוצות יעד</span>
-                      <span className="material-icons text-slate-400">
+                      <span className="material-symbols-rounded text-slate-400">
                         {expandedSection === 'groups' ? 'expand_less' : 'expand_more'}
                       </span>
                     </button>
@@ -2694,7 +2698,7 @@ const Users = () => {
               </div>
 
               {/* Recent Activity Card */}
-              <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-6">
+              <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-[#e3e8ee] dark:border-slate-700 p-6">
                 <h3 className="font-semibold text-sm mb-4">פעילות אחרונה</h3>
                 <div className="space-y-4">
                   {activities.map((activity) => (

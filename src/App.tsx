@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { LanguageProvider } from './i18n/LanguageContext';
 import DashboardLayout from './layouts/DashboardLayout';
@@ -27,9 +27,28 @@ import Loader from './pages/Loader';
 import ApiDocs from './pages/ApiDocs';
 import Organizations from './pages/Organizations';
 import OrgDetail from './pages/OrgDetail';
+import SmsCampaign from './pages/SmsCampaign';
+import Inbox from './pages/Inbox';
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // Convert title attributes to data-tooltip for modern black tooltips
+  useEffect(() => {
+    const convertTitles = () => {
+      document.querySelectorAll('[title]:not([data-tooltip])').forEach(el => {
+        const title = el.getAttribute('title');
+        if (title) {
+          el.setAttribute('data-tooltip', title);
+          el.removeAttribute('title');
+        }
+      });
+    };
+    convertTitles();
+    const observer = new MutationObserver(convertTitles);
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['title'] });
+    return () => observer.disconnect();
+  }, []);
+
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
   const [isOnboarding, setIsOnboarding] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [userName, setUserName] = useState('Sarah');
@@ -98,6 +117,8 @@ function App() {
                 <Route path="send-gift/summary" element={<SendGiftSummary />} />
                 <Route path="organizations" element={<Organizations />} />
                 <Route path="organizations/:slug" element={<OrgDetail />} />
+                <Route path="marketing/sms" element={<SmsCampaign />} />
+                <Route path="inbox" element={<Inbox />} />
                 <Route path="content" element={<Content />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="settings/roles-permissions" element={<RolesPermissions />} />
