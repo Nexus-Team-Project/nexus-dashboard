@@ -581,13 +581,13 @@ const Users = () => {
     setColumnMenuOpen(null);
     e.dataTransfer.effectAllowed = 'move';
 
-    const thEl = e.currentTarget as HTMLElement;
+    const thEl = e.currentTarget as HTMLTableCellElement;
     const table = thEl.closest('table');
     if (!table) return;
 
     const headerRow = table.querySelector('thead tr');
     if (!headerRow) return;
-    const allThs = Array.from(headerRow.querySelectorAll('th'));
+    const allThs = Array.from(headerRow.querySelectorAll<HTMLTableCellElement>('th'));
     const colIndex = allThs.indexOf(thEl);
     if (colIndex === -1) return;
 
