@@ -2,7 +2,7 @@
 import ColumnMapping from '../components/ColumnMapping';
 import excelLogo from '../assets/logos/excel_logo.png';
 import nexusLogo from '../assets/logos/nexus_logo.png';
-import { usersApi, type AdminUser, type UserRole } from '../lib/api';
+import { usersApi, type AdminUser, type UserRole, type Address, type TaxId, type TaxStatus } from '../lib/api';
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -18,9 +18,138 @@ interface User {
   userType: 'contact' | 'member';
   systemRole: UserRole;
   orgs: AdminUser['orgMemberships'];
+  // Account info
+  displayName?: string;
+  language?: string;
+  businessName?: string;
+  description?: string;
+  // Billing
+  billingEmail?: string;
+  billingAddress?: Address;
+  currency?: string;
+  timezone?: string;
+  // Tax
+  taxStatus?: TaxStatus;
+  taxIds?: TaxId[];
+  // Shipping
+  shippingAddress?: Address;
+  shippingPhone?: string;
 }
 
 // ─── Constants ───────────────────────────────────────────────────
+
+const COUNTRIES = [
+  { code: 'IL', name: 'ישראל' }, { code: 'US', name: 'ארצות הברית' }, { code: 'GB', name: 'בריטניה' },
+  { code: 'DE', name: 'גרמניה' }, { code: 'FR', name: 'צרפת' }, { code: 'IT', name: 'איטליה' },
+  { code: 'ES', name: 'ספרד' }, { code: 'NL', name: 'הולנד' }, { code: 'BE', name: 'בלגיה' },
+  { code: 'AT', name: 'אוסטריה' }, { code: 'CH', name: 'שוויץ' }, { code: 'SE', name: 'שוודיה' },
+  { code: 'NO', name: 'נורווגיה' }, { code: 'DK', name: 'דנמרק' }, { code: 'FI', name: 'פינלנד' },
+  { code: 'PT', name: 'פורטוגל' }, { code: 'GR', name: 'יוון' }, { code: 'PL', name: 'פולין' },
+  { code: 'CZ', name: 'צ\'כיה' }, { code: 'RO', name: 'רומניה' }, { code: 'HU', name: 'הונגריה' },
+  { code: 'BG', name: 'בולגריה' }, { code: 'HR', name: 'קרואטיה' }, { code: 'IE', name: 'אירלנד' },
+  { code: 'CA', name: 'קנדה' }, { code: 'AU', name: 'אוסטרליה' }, { code: 'NZ', name: 'ניו זילנד' },
+  { code: 'JP', name: 'יפן' }, { code: 'CN', name: 'סין' }, { code: 'KR', name: 'דרום קוריאה' },
+  { code: 'IN', name: 'הודו' }, { code: 'BR', name: 'ברזיל' }, { code: 'MX', name: 'מקסיקו' },
+  { code: 'AR', name: 'ארגנטינה' }, { code: 'CL', name: 'צ\'ילה' }, { code: 'CO', name: 'קולומביה' },
+  { code: 'ZA', name: 'דרום אפריקה' }, { code: 'AE', name: 'איחוד האמירויות' }, { code: 'SA', name: 'ערב הסעודית' },
+  { code: 'EG', name: 'מצרים' }, { code: 'TR', name: 'טורקיה' }, { code: 'RU', name: 'רוסיה' },
+  { code: 'UA', name: 'אוקראינה' }, { code: 'TH', name: 'תאילנד' }, { code: 'SG', name: 'סינגפור' },
+  { code: 'MY', name: 'מלזיה' }, { code: 'PH', name: 'פיליפינים' }, { code: 'ID', name: 'אינדונזיה' },
+  { code: 'VN', name: 'וייטנאם' }, { code: 'TW', name: 'טייוואן' }, { code: 'HK', name: 'הונג קונג' },
+];
+
+const CURRENCIES = [
+  { code: 'ILS', symbol: '₪', name: 'שקל חדש' }, { code: 'USD', symbol: '$', name: 'דולר אמריקאי' },
+  { code: 'EUR', symbol: '€', name: 'יורו' }, { code: 'GBP', symbol: '£', name: 'ליש"ט' },
+  { code: 'CHF', symbol: 'CHF', name: 'פרנק שוויצרי' }, { code: 'CAD', symbol: 'C$', name: 'דולר קנדי' },
+  { code: 'AUD', symbol: 'A$', name: 'דולר אוסטרלי' }, { code: 'JPY', symbol: '¥', name: 'ין יפני' },
+  { code: 'CNY', symbol: '¥', name: 'יואן סיני' }, { code: 'INR', symbol: '₹', name: 'רופי הודי' },
+  { code: 'BRL', symbol: 'R$', name: 'ריאל ברזילאי' }, { code: 'KRW', symbol: '₩', name: 'וון דרום קוריאני' },
+  { code: 'TRY', symbol: '₺', name: 'לירה טורקית' }, { code: 'AED', symbol: 'د.إ', name: 'דירהם' },
+  { code: 'SAR', symbol: '﷼', name: 'ריאל סעודי' }, { code: 'PLN', symbol: 'zł', name: 'זלוטי פולני' },
+  { code: 'SEK', symbol: 'kr', name: 'כתר שוודי' }, { code: 'NOK', symbol: 'kr', name: 'כתר נורווגי' },
+  { code: 'DKK', symbol: 'kr', name: 'כתר דני' }, { code: 'MXN', symbol: '$', name: 'פזו מקסיקני' },
+  { code: 'SGD', symbol: 'S$', name: 'דולר סינגפורי' }, { code: 'HKD', symbol: 'HK$', name: 'דולר הונג קונגי' },
+  { code: 'ZAR', symbol: 'R', name: 'רנד דרום אפריקאי' }, { code: 'RUB', symbol: '₽', name: 'רובל רוסי' },
+];
+
+const TIMEZONES = [
+  { value: 'Pacific/Midway', label: '(GMT-11:00) מידוויי' },
+  { value: 'Pacific/Honolulu', label: '(GMT-10:00) הוואי' },
+  { value: 'America/Anchorage', label: '(GMT-9:00) אלסקה' },
+  { value: 'America/Los_Angeles', label: '(GMT-8:00) לוס אנג\'לס' },
+  { value: 'America/Denver', label: '(GMT-7:00) דנוור' },
+  { value: 'America/Chicago', label: '(GMT-6:00) שיקגו' },
+  { value: 'America/New_York', label: '(GMT-5:00) ניו יורק' },
+  { value: 'America/Sao_Paulo', label: '(GMT-3:00) סאו פאולו' },
+  { value: 'America/Argentina/Buenos_Aires', label: '(GMT-3:00) בואנוס איירס' },
+  { value: 'Atlantic/Cape_Verde', label: '(GMT-1:00) כף ורדה' },
+  { value: 'Europe/London', label: '(GMT+0:00) לונדון' },
+  { value: 'Europe/Paris', label: '(GMT+1:00) פריז' },
+  { value: 'Europe/Berlin', label: '(GMT+1:00) ברלין' },
+  { value: 'Europe/Amsterdam', label: '(GMT+1:00) אמסטרדם' },
+  { value: 'Europe/Rome', label: '(GMT+1:00) רומא' },
+  { value: 'Europe/Madrid', label: '(GMT+1:00) מדריד' },
+  { value: 'Europe/Athens', label: '(GMT+2:00) אתונה' },
+  { value: 'Europe/Helsinki', label: '(GMT+2:00) הלסינקי' },
+  { value: 'Europe/Bucharest', label: '(GMT+2:00) בוקרשט' },
+  { value: 'Asia/Jerusalem', label: '(GMT+2:00) ירושלים' },
+  { value: 'Africa/Cairo', label: '(GMT+2:00) קהיר' },
+  { value: 'Europe/Moscow', label: '(GMT+3:00) מוסקבה' },
+  { value: 'Asia/Riyadh', label: '(GMT+3:00) ריאד' },
+  { value: 'Asia/Dubai', label: '(GMT+4:00) דובאי' },
+  { value: 'Asia/Karachi', label: '(GMT+5:00) קראצ\'י' },
+  { value: 'Asia/Kolkata', label: '(GMT+5:30) מומבאי' },
+  { value: 'Asia/Bangkok', label: '(GMT+7:00) בנגקוק' },
+  { value: 'Asia/Singapore', label: '(GMT+8:00) סינגפור' },
+  { value: 'Asia/Hong_Kong', label: '(GMT+8:00) הונג קונג' },
+  { value: 'Asia/Shanghai', label: '(GMT+8:00) שנגחאי' },
+  { value: 'Asia/Tokyo', label: '(GMT+9:00) טוקיו' },
+  { value: 'Asia/Seoul', label: '(GMT+9:00) סיאול' },
+  { value: 'Australia/Sydney', label: '(GMT+10:00) סידני' },
+  { value: 'Pacific/Auckland', label: '(GMT+12:00) אוקלנד' },
+];
+
+const TAX_ID_TYPES = [
+  { code: 'il_vat', name: 'ע.מ ישראלי (IL VAT)' },
+  { code: 'eu_vat', name: 'EU VAT' },
+  { code: 'gb_vat', name: 'GB VAT' },
+  { code: 'us_ein', name: 'US EIN' },
+  { code: 'au_abn', name: 'AU ABN' },
+  { code: 'br_cnpj', name: 'BR CNPJ' },
+  { code: 'ca_bn', name: 'CA BN' },
+  { code: 'ch_vat', name: 'CH VAT' },
+  { code: 'in_gst', name: 'IN GST' },
+  { code: 'jp_cn', name: 'JP Corporate Number' },
+  { code: 'kr_brn', name: 'KR BRN' },
+  { code: 'mx_rfc', name: 'MX RFC' },
+  { code: 'nz_gst', name: 'NZ GST' },
+  { code: 'sg_uen', name: 'SG UEN' },
+  { code: 'za_vat', name: 'ZA VAT' },
+  { code: 'other', name: 'אחר' },
+];
+
+const LANGUAGES = [
+  { code: 'he', name: 'עברית' }, { code: 'en', name: 'English' },
+  { code: 'ar', name: 'العربية' }, { code: 'ru', name: 'Русский' },
+  { code: 'fr', name: 'Français' }, { code: 'de', name: 'Deutsch' },
+  { code: 'es', name: 'Español' }, { code: 'pt', name: 'Português' },
+  { code: 'it', name: 'Italiano' }, { code: 'nl', name: 'Nederlands' },
+  { code: 'pl', name: 'Polski' }, { code: 'tr', name: 'Türkçe' },
+  { code: 'ja', name: '日本語' }, { code: 'zh', name: '中文' },
+  { code: 'ko', name: '한국어' }, { code: 'hi', name: 'हिन्दी' },
+  { code: 'th', name: 'ไทย' }, { code: 'vi', name: 'Tiếng Việt' },
+];
+
+const EMPTY_CONTACT_DATA = {
+  name: '', email: '', phone: '', address: '',
+  displayName: '', language: '', businessName: '', individualName: '', description: '',
+  billingEmail: '', billingStreet: '', billingCity: '', billingState: '', billingZip: '', billingCountry: '', billingPhone: '',
+  currency: '', timezone: '',
+  taxStatus: '' as '' | TaxStatus,
+  taxIds: [] as { type: string; value: string }[],
+  shippingStreet: '', shippingCity: '', shippingState: '', shippingZip: '', shippingCountry: '', shippingPhone: '',
+};
 
 const SYSTEM_ROLE_LABELS: Record<UserRole, string> = {
   USER:  'משתמש',
@@ -31,7 +160,7 @@ const SYSTEM_ROLE_LABELS: Record<UserRole, string> = {
 const SYSTEM_ROLE_COLORS: Record<UserRole, string> = {
   USER:  'bg-slate-100 text-slate-700',
   ADMIN: 'bg-purple-100 text-purple-700',
-  AGENT: 'bg-blue-100 text-blue-700',
+  AGENT: 'bg-violet-100 text-violet-700',
 };
 
 const ORG_ROLE_LABELS: Record<string, string> = {
@@ -75,6 +204,18 @@ function mapAdminUser(u: AdminUser): User {
     userType:     u.orgMemberships.length > 0 ? 'member' : 'contact',
     systemRole:   u.role,
     orgs:         u.orgMemberships,
+    displayName:    u.displayName,
+    language:       u.language,
+    businessName:   u.businessName,
+    description:    u.description,
+    billingEmail:   u.billingEmail,
+    billingAddress: u.billingAddress,
+    currency:       u.currency,
+    timezone:       u.timezone,
+    taxStatus:      u.taxStatus,
+    taxIds:         u.taxIds,
+    shippingAddress: u.shippingAddress,
+    shippingPhone:  u.shippingPhone,
   };
 }
 
@@ -131,6 +272,8 @@ const Users = () => {
   const [customFieldFilters, setCustomFieldFilters] = useState<Record<string, string>>({});
   const [showMoreActionsMenu, setShowMoreActionsMenu] = useState(false);
   const [showMoreActionsTooltip, setShowMoreActionsTooltip] = useState(false);
+  const [isTableSearchExpanded, setIsTableSearchExpanded] = useState(false);
+  const tableSearchInputRef = useRef<HTMLInputElement>(null);
   const [isHeaderFixed, setIsHeaderFixed] = useState(false);
   const [headerWidth, setHeaderWidth] = useState(0);
   const [headerLeft, setHeaderLeft] = useState(0);
@@ -140,12 +283,8 @@ const Users = () => {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const headerOffsetRef = useRef<number>(0);
   const [showManualRegistrationModal, setShowManualRegistrationModal] = useState(false);
-  const [manualContactData, setManualContactData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    address: ''
-  });
+  const [manualContactData, setManualContactData] = useState({ ...EMPTY_CONTACT_DATA });
+  const [expandedFormSections, setExpandedFormSections] = useState<Record<string, boolean>>({});
   const [rowActionMenuId, setRowActionMenuId] = useState<string | null>(null);
   const [visibleColumns, setVisibleColumns] = useState({
     name: true,
@@ -154,11 +293,52 @@ const Users = () => {
     address: true,
     lastActivity: true,
     firstJoined: true,
+    displayName: false,
+    language: false,
+    businessName: false,
+    description: false,
+    billingEmail: false,
+    billingAddress: false,
+    billingPhone: false,
+    currency: false,
+    timezone: false,
+    taxStatus: false,
+    shippingAddress: false,
+    shippingPhone: false,
   });
   const [frozenColumns, setFrozenColumns] = useState<string[]>(['checkbox']); // checkbox is always frozen
 
+  // ─── Column infrastructure ──────────────────────────────────────
+  const COLUMN_WIDTHS: Record<string, number> = {
+    checkbox: 64, name: 200, email: 240, status: 140, address: 220,
+    lastActivity: 180, firstJoined: 160, displayName: 180, language: 120,
+    businessName: 200, description: 220, billingEmail: 240, billingAddress: 220,
+    billingPhone: 160, currency: 120, timezone: 180, taxStatus: 140,
+    shippingAddress: 220, shippingPhone: 160,
+  };
+
+  const [columnOrder, setColumnOrder] = useState([
+    'checkbox', 'name', 'email', 'status', 'address', 'lastActivity', 'firstJoined',
+    'displayName', 'language', 'businessName', 'description', 'billingEmail',
+    'billingAddress', 'billingPhone', 'currency', 'timezone', 'taxStatus',
+    'shippingAddress', 'shippingPhone',
+  ]);
+
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+  const [resizingColumn, setResizingColumn] = useState<string | null>(null);
+  const resizeStartX = useRef(0);
+  const resizeStartWidth = useRef(0);
+  const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
+  const [columnMenuOpen, setColumnMenuOpen] = useState<string | null>(null);
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [headerHeight, setHeaderHeight] = useState(0);
+
   // Sticky header scroll listener
   useEffect(() => {
+    let rafId: number;
+
     const updateHeaderPosition = () => {
       if (tableRef.current && tableHeaderRef.current && tableContainerRef.current) {
         const tableRect = tableRef.current.getBoundingClientRect();
@@ -166,6 +346,10 @@ const Users = () => {
 
         setHeaderWidth(tableRect.width);
         setHeaderLeft(tableRect.left);
+
+        // Measure header height for spacer row
+        const hh = tableHeaderRef.current.getBoundingClientRect().height;
+        if (hh !== headerHeight) setHeaderHeight(hh);
 
         // Store original offset only once
         if (headerOffsetRef.current === 0) {
@@ -175,33 +359,39 @@ const Users = () => {
     };
 
     const handleScroll = () => {
-      if (tableRef.current && tableHeaderRef.current) {
-        const dashboardHeaderHeight = 64;
-        const scrollPosition = window.scrollY + dashboardHeaderHeight;
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        if (tableRef.current && tableHeaderRef.current) {
+          const dashboardHeaderHeight = 64;
+          const scrollPosition = window.scrollY + dashboardHeaderHeight;
 
-        const shouldBeFixed = scrollPosition >= headerOffsetRef.current;
+          const shouldBeFixed = scrollPosition >= headerOffsetRef.current;
 
-        if (shouldBeFixed !== isHeaderFixed) {
-          setIsHeaderFixed(shouldBeFixed);
+          if (shouldBeFixed !== isHeaderFixed) {
+            setIsHeaderFixed(shouldBeFixed);
+          }
+
+          // Update position on scroll
+          if (shouldBeFixed) {
+            updateHeaderPosition();
+          }
         }
-
-        // Update position on scroll
-        if (shouldBeFixed) {
-          updateHeaderPosition();
-        }
-      }
+      });
     };
 
     const handleHorizontalScroll = () => {
-      if (isHeaderFixed) {
-        updateHeaderPosition();
-      }
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        if (isHeaderFixed) {
+          updateHeaderPosition();
+        }
 
-      // Track horizontal scroll for frozen columns
-      if (tableContainerRef.current) {
-        const scrollLeft = tableContainerRef.current.scrollLeft;
-        setHorizontalScrolled(scrollLeft > 0);
-      }
+        // Track horizontal scroll for frozen columns
+        if (tableContainerRef.current) {
+          const scrollLeft = tableContainerRef.current.scrollLeft;
+          setHorizontalScrolled(scrollLeft > 0);
+        }
+      });
     };
 
     // Set initial position
@@ -215,13 +405,14 @@ const Users = () => {
     }
 
     return () => {
+      cancelAnimationFrame(rafId);
       window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('resize', updateHeaderPosition);
       if (container) {
         container.removeEventListener('scroll', handleHorizontalScroll);
       }
     };
-  }, [isHeaderFixed, showCustomizePanel, showFilterPanel, selectedUser]);
+  }, [isHeaderFixed, showCustomizePanel, showFilterPanel, selectedUser, headerHeight]);
 
   // Update header position when panels open/close
   useEffect(() => {
@@ -282,7 +473,7 @@ const Users = () => {
       id: '2',
       title: 'התחברות למערכת',
       description: 'היום, 09:41',
-      color: 'bg-blue-400'
+      color: 'bg-violet-400'
     }
   ];
 
@@ -315,10 +506,10 @@ const Users = () => {
   };
 
   const toggleAllUsers = () => {
-    if (selectedIds.length === filteredUsers.length) {
+    if (selectedIds.length === sortedUsers.length) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(filteredUsers.map(u => u.id));
+      setSelectedIds(sortedUsers.map(u => u.id));
     }
   };
 
@@ -339,77 +530,160 @@ const Users = () => {
     });
   };
 
-  const getColumnLeftPosition = (columnKey: string): number => {
-    const columnOrder = ['checkbox', 'name', 'email', 'status', 'address', 'lastActivity', 'firstJoined'];
-    const frozenBeforeThis = columnOrder.slice(0, columnOrder.indexOf(columnKey))
-      .filter(col => {
-        // Only count frozen columns that are also visible
-        if (col === 'checkbox') return true; // checkbox is always visible
-        return frozenColumns.includes(col) && visibleColumns[col as keyof typeof visibleColumns];
-      });
+  // ─── Column helpers (data-driven, matching Transactions pattern) ──
+  const getColWidth = (col: string) => columnWidths[col] || COLUMN_WIDTHS[col] || 160;
 
-    let left = 0;
-    frozenBeforeThis.forEach(col => {
-      if (col === 'checkbox') left += 64; // checkbox column width
-      else if (col === 'name') left += 200;
-      else if (col === 'email') left += 240;
-      else if (col === 'status') left += 140;
-      else if (col === 'address') left += 220;
-      else if (col === 'lastActivity') left += 180;
-      else if (col === 'firstJoined') left += 160;
-    });
-    return left;
+  const getColumnLeftPosition = (columnKey: string): number => {
+    const frozenBefore = columnOrder.slice(0, columnOrder.indexOf(columnKey))
+      .filter(col => frozenColumns.includes(col) && (col === 'checkbox' || visibleColumns[col as keyof typeof visibleColumns]));
+    return frozenBefore.reduce((sum, col) => sum + getColWidth(col), 0);
   };
 
   const isLastFrozenColumn = (columnKey: string): boolean => {
-    const columnOrder = ['checkbox', 'name', 'email', 'status', 'address', 'lastActivity', 'firstJoined'];
-    const visibleFrozenColumns = columnOrder.filter(col => {
-      if (col === 'checkbox') return true;
-      return frozenColumns.includes(col) && visibleColumns[col as keyof typeof visibleColumns];
-    });
-    return visibleFrozenColumns[visibleFrozenColumns.length - 1] === columnKey;
+    const frozenVisible = columnOrder.filter(col =>
+      frozenColumns.includes(col) && (col === 'checkbox' || visibleColumns[col as keyof typeof visibleColumns])
+    );
+    return frozenVisible[frozenVisible.length - 1] === columnKey;
   };
 
-  // Apply frozen column positioning when scrolling horizontally
-  useEffect(() => {
-    const applyFrozenColumnPositions = () => {
-      if (!tableRef.current || !tableContainerRef.current) return;
+  // ─── Column resize ──────────────────────────────────────────────
+  const handleResizeStart = (e: React.MouseEvent, colKey: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setResizingColumn(colKey);
+    resizeStartX.current = e.clientX;
+    resizeStartWidth.current = getColWidth(colKey);
 
-      const scrollLeft = tableContainerRef.current.scrollLeft;
-      const shouldFreeze = scrollLeft > 0;
-
-      // Get all cells in frozen columns
-      const allRows = tableRef.current.querySelectorAll('tr');
-
-      allRows.forEach((row) => {
-        // Checkbox column (always frozen)
-        const checkboxCell = row.querySelector('th:first-child, td:first-child') as HTMLElement;
-        if (checkboxCell) {
-          if (shouldFreeze) {
-            checkboxCell.style.position = 'relative';
-            checkboxCell.style.left = `${scrollLeft}px`;
-            checkboxCell.style.zIndex = '15';
-          } else {
-            checkboxCell.style.position = '';
-            checkboxCell.style.left = '';
-            checkboxCell.style.zIndex = '';
-          }
-        }
-      });
+    const onMouseMove = (ev: MouseEvent) => {
+      // RTL: moving mouse LEFT = increasing width, RIGHT = decreasing
+      const diff = resizeStartX.current - ev.clientX;
+      const newWidth = Math.max(80, resizeStartWidth.current + diff);
+      setColumnWidths(prev => ({ ...prev, [colKey]: newWidth }));
     };
 
-    const container = tableContainerRef.current;
-    if (container) {
-      container.addEventListener('scroll', applyFrozenColumnPositions);
-      applyFrozenColumnPositions(); // Initial call
+    const onMouseUp = () => {
+      setResizingColumn(null);
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  };
+
+  // ─── Column drag-to-reorder ─────────────────────────────────────
+  const handleColumnDragStart = (e: React.DragEvent, colKey: string) => {
+    setDraggedColumn(colKey);
+    setColumnMenuOpen(null);
+    e.dataTransfer.effectAllowed = 'move';
+
+    const thEl = e.currentTarget as HTMLElement;
+    const table = thEl.closest('table');
+    if (!table) return;
+
+    const headerRow = table.querySelector('thead tr');
+    if (!headerRow) return;
+    const allThs = Array.from(headerRow.querySelectorAll('th'));
+    const colIndex = allThs.indexOf(thEl);
+    if (colIndex === -1) return;
+
+    const colWidth = thEl.getBoundingClientRect().width;
+    const allBodyRows = Array.from(table.querySelectorAll('tbody tr'));
+
+    const pad = 50;
+    const ghost = document.createElement('div');
+    ghost.style.cssText = `position:absolute;top:-2000px;left:-2000px;pointer-events:none;padding:${pad}px;`;
+
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = `transform:rotate(-6deg);opacity:0.72;border-radius:10px;overflow:hidden;box-shadow:0 16px 32px rgba(99,91,255,0.28),0 4px 12px rgba(0,0,0,0.12);border:2px solid #635bff;`;
+
+    const cloneTable = document.createElement('table');
+    cloneTable.style.cssText = `width:${colWidth}px;border-collapse:collapse;direction:rtl;table-layout:fixed;`;
+
+    const cloneThead = document.createElement('thead');
+    const cloneHeadRow = document.createElement('tr');
+    const cloneTh = thEl.cloneNode(true) as HTMLElement;
+    const thComputed = window.getComputedStyle(thEl);
+    cloneTh.style.cssText = `padding:${thComputed.padding};background:${thComputed.backgroundColor};color:${thComputed.color};font-size:${thComputed.fontSize};font-weight:${thComputed.fontWeight};text-transform:${thComputed.textTransform};letter-spacing:${thComputed.letterSpacing};text-align:${thComputed.textAlign};width:${colWidth}px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:none;`;
+    const menuBtn = cloneTh.querySelector('button');
+    if (menuBtn) menuBtn.remove();
+    const absDropdown = cloneTh.querySelector('[class*="absolute"]');
+    if (absDropdown) absDropdown.remove();
+    cloneHeadRow.appendChild(cloneTh);
+    cloneThead.appendChild(cloneHeadRow);
+    cloneTable.appendChild(cloneThead);
+
+    const cloneTbody = document.createElement('tbody');
+    const maxRows = Math.min(allBodyRows.length, 8);
+    for (let i = 0; i < maxRows; i++) {
+      const origRow = allBodyRows[i];
+      const origTds = origRow.querySelectorAll('td');
+      if (colIndex >= origTds.length) continue;
+      const origTd = origTds[colIndex] as HTMLElement;
+      const cloneRow = document.createElement('tr');
+      const cloneTd = origTd.cloneNode(true) as HTMLElement;
+      const tdComputed = window.getComputedStyle(origTd);
+      cloneTd.style.cssText = `padding:${tdComputed.padding};background:${tdComputed.backgroundColor};color:${tdComputed.color};font-size:${tdComputed.fontSize};font-weight:${tdComputed.fontWeight};text-align:${tdComputed.textAlign};width:${colWidth}px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:none;border-bottom:1px solid #e2e8f0;`;
+      cloneRow.appendChild(cloneTd);
+      cloneTbody.appendChild(cloneRow);
     }
 
-    return () => {
-      if (container) {
-        container.removeEventListener('scroll', applyFrozenColumnPositions);
-      }
-    };
-  }, []);
+    if (allBodyRows.length > maxRows) {
+      const moreRow = document.createElement('tr');
+      const moreTd = document.createElement('td');
+      moreTd.textContent = `+${allBodyRows.length - maxRows} עוד`;
+      moreTd.style.cssText = `padding:6px 12px;font-size:11px;color:#94a3b8;text-align:center;background:#f8fafc;border:none;`;
+      moreRow.appendChild(moreTd);
+      cloneTbody.appendChild(moreRow);
+    }
+
+    cloneTable.appendChild(cloneTbody);
+    wrapper.appendChild(cloneTable);
+    ghost.appendChild(wrapper);
+    document.body.appendChild(ghost);
+    e.dataTransfer.setDragImage(ghost, colWidth / 2 + pad, 20 + pad);
+    setTimeout(() => ghost.remove(), 0);
+  };
+
+  const handleColumnDragOver = (e: React.DragEvent, colKey: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (colKey !== 'checkbox' && colKey !== draggedColumn) {
+      setDragOverColumn(colKey);
+    }
+  };
+
+  const handleColumnDrop = (e: React.DragEvent, targetKey: string) => {
+    e.preventDefault();
+    if (!draggedColumn || draggedColumn === targetKey || targetKey === 'checkbox') return;
+    setColumnOrder(prev => {
+      const newOrder = [...prev];
+      const dragIdx = newOrder.indexOf(draggedColumn);
+      const targetIdx = newOrder.indexOf(targetKey);
+      const [removed] = newOrder.splice(dragIdx, 1);
+      newOrder.splice(targetIdx, 0, removed);
+      return newOrder;
+    });
+    setDraggedColumn(null);
+    setDragOverColumn(null);
+  };
+
+  const handleColumnDragEnd = () => {
+    setDraggedColumn(null);
+    setDragOverColumn(null);
+  };
+
+  // ─── Table border highlight ─────────────────────────────────────
+  const handleTableMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    const rect = el.getBoundingClientRect();
+    el.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
+    el.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
+  };
 
   const clearFilters = () => {
     setFilters({
@@ -426,6 +700,156 @@ const Users = () => {
     if (activeTab === 'members' && user.userType !== 'member') return false;
     return true;
   });
+
+  // ─── COLUMN_CONFIG — data-driven column rendering ─────────────
+  const COLUMN_CONFIG: Record<string, { label: string; cellClass: string; render: (user: User) => React.ReactNode }> = {
+    name: {
+      label: 'שם מלא',
+      cellClass: 'text-sm font-medium text-slate-900 dark:text-white',
+      render: (user) => user.name,
+    },
+    email: {
+      label: 'אימייל',
+      cellClass: 'text-sm text-slate-500 dark:text-slate-400',
+      render: (user) => user.email,
+    },
+    status: {
+      label: 'סטטוס',
+      cellClass: '',
+      render: (user) => getStatusBadge(user.status),
+    },
+    address: {
+      label: 'כתובת',
+      cellClass: 'text-sm text-slate-500 dark:text-slate-400',
+      render: (user) => user.address,
+    },
+    lastActivity: {
+      label: 'פעילות אחרונה',
+      cellClass: 'text-sm text-slate-500 dark:text-slate-400',
+      render: (user) => user.lastActivity,
+    },
+    firstJoined: {
+      label: 'כניסה ראשונה',
+      cellClass: 'text-sm text-slate-500 dark:text-slate-400',
+      render: (user) => user.firstJoined,
+    },
+    displayName: {
+      label: 'שם תצוגה',
+      cellClass: 'text-sm text-slate-500 dark:text-slate-400',
+      render: (user) => user.displayName || '—',
+    },
+    language: {
+      label: 'שפה',
+      cellClass: 'text-sm text-slate-500 dark:text-slate-400',
+      render: (user) => user.language ? LANGUAGES.find(l => l.code === user.language)?.name || user.language : '—',
+    },
+    businessName: {
+      label: 'שם עסק',
+      cellClass: 'text-sm text-slate-500 dark:text-slate-400',
+      render: (user) => user.businessName || '—',
+    },
+    description: {
+      label: 'תיאור',
+      cellClass: 'text-sm text-slate-500 dark:text-slate-400',
+      render: (user) => user.description || '—',
+    },
+    billingEmail: {
+      label: 'אימייל חיוב',
+      cellClass: 'text-sm text-slate-500 dark:text-slate-400',
+      render: (user) => user.billingEmail || '—',
+    },
+    billingAddress: {
+      label: 'כתובת חיוב',
+      cellClass: 'text-sm text-slate-500 dark:text-slate-400',
+      render: (user) => user.billingAddress
+        ? [user.billingAddress.street, user.billingAddress.city, user.billingAddress.country].filter(Boolean).join(', ')
+        : '—',
+    },
+    billingPhone: {
+      label: 'טלפון חיוב',
+      cellClass: 'text-sm text-slate-500 dark:text-slate-400',
+      render: () => '—',
+    },
+    currency: {
+      label: 'מטבע',
+      cellClass: 'text-sm text-slate-500 dark:text-slate-400',
+      render: (user) => user.currency || '—',
+    },
+    timezone: {
+      label: 'אזור זמן',
+      cellClass: 'text-sm text-slate-500 dark:text-slate-400',
+      render: (user) => user.timezone
+        ? TIMEZONES.find(tz => tz.value === user.timezone)?.label || user.timezone
+        : '—',
+    },
+    taxStatus: {
+      label: 'סטטוס מס',
+      cellClass: '',
+      render: (user) => user.taxStatus ? (
+        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+          user.taxStatus === 'taxable' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+          user.taxStatus === 'exempt' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
+          'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400'
+        }`}>
+          {user.taxStatus === 'taxable' ? 'חייב' : user.taxStatus === 'exempt' ? 'פטור' : 'חיוב הפוך'}
+        </span>
+      ) : <span className="text-slate-400 italic">—</span>,
+    },
+    shippingAddress: {
+      label: 'כתובת משלוח',
+      cellClass: 'text-sm text-slate-500 dark:text-slate-400',
+      render: (user) => user.shippingAddress
+        ? [user.shippingAddress.street, user.shippingAddress.city, user.shippingAddress.country].filter(Boolean).join(', ')
+        : '—',
+    },
+    shippingPhone: {
+      label: 'טלפון משלוח',
+      cellClass: 'text-sm text-slate-500 dark:text-slate-400',
+      render: (user) => user.shippingPhone || '—',
+    },
+  };
+
+  // Add custom field entries dynamically
+  customFields.forEach(field => {
+    const cfKey = `cf_${field.id}`;
+    if (!COLUMN_CONFIG[cfKey]) {
+      COLUMN_CONFIG[cfKey] = {
+        label: field.name,
+        cellClass: 'text-sm text-slate-400 dark:text-slate-500 italic',
+        render: () => '—',
+      };
+    }
+  });
+
+  const COLUMN_LABELS: [string, string][] = Object.entries(COLUMN_CONFIG).map(
+    ([key, cfg]) => [key, cfg.label]
+  );
+
+  const visibleOrderedColumns = columnOrder.filter(col => {
+    if (col === 'checkbox') return false;
+    if (!COLUMN_CONFIG[col]) return false;
+    if (col.startsWith('cf_')) {
+      const fieldId = col.replace('cf_', '');
+      return customFields.find(f => f.id === fieldId)?.visible ?? false;
+    }
+    return visibleColumns[col as keyof typeof visibleColumns] ?? false;
+  });
+
+  const totalTableWidth = getColWidth('checkbox') + visibleOrderedColumns.reduce((sum, col) => sum + getColWidth(col), 0) + 48;
+
+  // ─── Sorting ────────────────────────────────────────────────────
+  const sortedUsers = sortColumn
+    ? [...filteredUsers].sort((a, b) => {
+        const aVal = a[sortColumn as keyof User];
+        const bVal = b[sortColumn as keyof User];
+        if (typeof aVal === 'number' && typeof bVal === 'number') {
+          return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+        }
+        const aStr = String(aVal ?? '');
+        const bStr = String(bVal ?? '');
+        return sortDirection === 'asc' ? aStr.localeCompare(bStr, 'he') : bStr.localeCompare(aStr, 'he');
+      })
+    : filteredUsers;
 
   const activeFilterCount =
     (filters.searchText ? 1 : 0) +
@@ -554,6 +978,7 @@ const Users = () => {
     };
 
     setCustomFields([...customFields, newField]);
+    setColumnOrder(prev => [...prev, `cf_${newField.id}`]);
     setShowCustomFieldModal(false);
     setCustomFieldName('');
     setCustomFieldType('text');
@@ -576,12 +1001,7 @@ const Users = () => {
     alert(`איש קשר "${manualContactData.name}" נוסף בהצלחה!`);
 
     setShowManualRegistrationModal(false);
-    setManualContactData({
-      name: '',
-      email: '',
-      phone: '',
-      address: ''
-    });
+    setManualContactData({ ...EMPTY_CONTACT_DATA });
   };
 
   const handleConvertToMember = (_userId: string, _userName: string) => {
@@ -757,22 +1177,22 @@ const Users = () => {
               </div>
 
               {/* Email Option */}
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+              <div className="bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-lg p-3">
                 <label className="flex items-start gap-3 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={sendEmailCopy}
                     onChange={(e) => setSendEmailCopy(e.target.checked)}
-                    className="mt-0.5 w-4 h-4 rounded border-blue-300 dark:border-blue-700 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    className="mt-0.5 w-4 h-4 rounded border-violet-300 dark:border-violet-700 text-violet-600 focus:ring-violet-500 cursor-pointer"
                   />
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="material-symbols-rounded text-blue-600 dark:text-blue-400 text-base">email</span>
-                      <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                      <span className="material-symbols-rounded text-violet-600 dark:text-violet-400 text-base">email</span>
+                      <span className="text-sm font-medium text-violet-900 dark:text-violet-100">
                         שלח עותק למייל שלי
                       </span>
                     </div>
-                    <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                    <p className="text-xs text-violet-700 dark:text-violet-300 mt-1">
                       הקובץ ישלח אליך במייל בנוסף להורדה ישירה
                     </p>
                   </div>
@@ -845,7 +1265,7 @@ const Users = () => {
                 <button
                   onClick={() => {
                     setShowManualRegistrationModal(false);
-                    setManualContactData({ name: '', email: '', phone: '', address: '' });
+                    setManualContactData({ ...EMPTY_CONTACT_DATA });
                   }}
                   className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
                 >
@@ -855,8 +1275,8 @@ const Users = () => {
             </div>
 
             {/* Content */}
-            <div className="p-5 space-y-4">
-              {/* Name */}
+            <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto">
+              {/* ── Basic Info (always visible) ── */}
               <div>
                 <label className="block text-sm font-semibold mb-2 text-slate-700 dark:text-slate-300">
                   שם מלא <span className="text-red-500">*</span>
@@ -869,8 +1289,6 @@ const Users = () => {
                   className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all"
                 />
               </div>
-
-              {/* Email */}
               <div>
                 <label className="block text-sm font-semibold mb-2 text-slate-700 dark:text-slate-300">
                   אימייל <span className="text-red-500">*</span>
@@ -883,12 +1301,8 @@ const Users = () => {
                   className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all"
                 />
               </div>
-
-              {/* Phone */}
               <div>
-                <label className="block text-sm font-semibold mb-2 text-slate-700 dark:text-slate-300">
-                  טלפון
-                </label>
+                <label className="block text-sm font-semibold mb-2 text-slate-700 dark:text-slate-300">טלפון</label>
                 <input
                   type="tel"
                   value={manualContactData.phone}
@@ -897,12 +1311,8 @@ const Users = () => {
                   className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all"
                 />
               </div>
-
-              {/* Address */}
               <div>
-                <label className="block text-sm font-semibold mb-2 text-slate-700 dark:text-slate-300">
-                  כתובת
-                </label>
+                <label className="block text-sm font-semibold mb-2 text-slate-700 dark:text-slate-300">כתובת</label>
                 <input
                   type="text"
                   value={manualContactData.address}
@@ -912,11 +1322,230 @@ const Users = () => {
                 />
               </div>
 
+              {/* ── Section: Account Information ── */}
+              <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setExpandedFormSections(s => ({ ...s, account: !s.account }))}
+                  className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <span className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    <span className="material-symbols-rounded text-base text-[#635bff]">person</span>
+                    פרטי חשבון
+                  </span>
+                  <span className={`material-symbols-rounded text-slate-400 text-base transition-transform ${expandedFormSections.account ? 'rotate-180' : ''}`}>expand_more</span>
+                </button>
+                {expandedFormSections.account && (
+                  <div className="p-4 space-y-3 border-t border-slate-200 dark:border-slate-700">
+                    <div>
+                      <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">שם תצוגה</label>
+                      <input type="text" value={manualContactData.displayName} onChange={(e) => setManualContactData({ ...manualContactData, displayName: e.target.value })} placeholder="שם שמופיע בחשבוניות" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">שפה</label>
+                      <select value={manualContactData.language} onChange={(e) => setManualContactData({ ...manualContactData, language: e.target.value })} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all">
+                        <option value="">בחר שפה...</option>
+                        {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">שם עסק</label>
+                      <input type="text" value={manualContactData.businessName} onChange={(e) => setManualContactData({ ...manualContactData, businessName: e.target.value })} placeholder="שם החברה או העסק" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">שם פרטי (אדם פרטי)</label>
+                      <input type="text" value={manualContactData.individualName} onChange={(e) => setManualContactData({ ...manualContactData, individualName: e.target.value })} placeholder="שם פרטי של איש הקשר" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">תיאור</label>
+                      <textarea value={manualContactData.description} onChange={(e) => setManualContactData({ ...manualContactData, description: e.target.value })} placeholder="הערות פנימיות על הלקוח" rows={2} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all resize-none" />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ── Section: Billing Information ── */}
+              <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setExpandedFormSections(s => ({ ...s, billing: !s.billing }))}
+                  className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <span className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    <span className="material-symbols-rounded text-base text-[#635bff]">receipt_long</span>
+                    פרטי חיוב
+                  </span>
+                  <span className={`material-symbols-rounded text-slate-400 text-base transition-transform ${expandedFormSections.billing ? 'rotate-180' : ''}`}>expand_more</span>
+                </button>
+                {expandedFormSections.billing && (
+                  <div className="p-4 space-y-3 border-t border-slate-200 dark:border-slate-700">
+                    <div>
+                      <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">אימייל לחיוב</label>
+                      <input type="email" value={manualContactData.billingEmail} onChange={(e) => setManualContactData({ ...manualContactData, billingEmail: e.target.value })} placeholder="billing@company.com" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">רחוב</label>
+                        <input type="text" value={manualContactData.billingStreet} onChange={(e) => setManualContactData({ ...manualContactData, billingStreet: e.target.value })} placeholder="הרצל 12" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">עיר</label>
+                        <input type="text" value={manualContactData.billingCity} onChange={(e) => setManualContactData({ ...manualContactData, billingCity: e.target.value })} placeholder="תל אביב" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">מדינה/מחוז</label>
+                        <input type="text" value={manualContactData.billingState} onChange={(e) => setManualContactData({ ...manualContactData, billingState: e.target.value })} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">מיקוד</label>
+                        <input type="text" value={manualContactData.billingZip} onChange={(e) => setManualContactData({ ...manualContactData, billingZip: e.target.value })} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">ארץ</label>
+                        <select value={manualContactData.billingCountry} onChange={(e) => setManualContactData({ ...manualContactData, billingCountry: e.target.value })} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all">
+                          <option value="">בחר ארץ...</option>
+                          {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">טלפון לחיוב</label>
+                      <input type="tel" value={manualContactData.billingPhone} onChange={(e) => setManualContactData({ ...manualContactData, billingPhone: e.target.value })} placeholder="+972-50-1234567" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">מטבע</label>
+                        <select value={manualContactData.currency} onChange={(e) => setManualContactData({ ...manualContactData, currency: e.target.value })} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all">
+                          <option value="">בחר מטבע...</option>
+                          {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol} {c.name} ({c.code})</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">אזור זמן</label>
+                        <select value={manualContactData.timezone} onChange={(e) => setManualContactData({ ...manualContactData, timezone: e.target.value })} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all">
+                          <option value="">בחר אזור זמן...</option>
+                          {TIMEZONES.map(tz => <option key={tz.value} value={tz.value}>{tz.label}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ── Section: Tax Information ── */}
+              <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setExpandedFormSections(s => ({ ...s, tax: !s.tax }))}
+                  className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <span className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    <span className="material-symbols-rounded text-base text-[#635bff]">calculate</span>
+                    מידע מס
+                  </span>
+                  <span className={`material-symbols-rounded text-slate-400 text-base transition-transform ${expandedFormSections.tax ? 'rotate-180' : ''}`}>expand_more</span>
+                </button>
+                {expandedFormSections.tax && (
+                  <div className="p-4 space-y-3 border-t border-slate-200 dark:border-slate-700">
+                    <div>
+                      <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">סטטוס מס</label>
+                      <div className="flex gap-2">
+                        {([['taxable', 'חייב במס'], ['exempt', 'פטור'], ['reverse_charge', 'חיוב הפוך']] as const).map(([val, label]) => (
+                          <button
+                            key={val}
+                            type="button"
+                            onClick={() => setManualContactData({ ...manualContactData, taxStatus: manualContactData.taxStatus === val ? '' : val })}
+                            className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium border transition-all ${manualContactData.taxStatus === val ? 'bg-[#635bff]/10 border-[#635bff] text-[#635bff]' : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'}`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">מזהי מס</label>
+                      {manualContactData.taxIds.map((tid, idx) => (
+                        <div key={idx} className="grid grid-cols-6 gap-2 mb-2">
+                          <div className="col-span-2">
+                            <select value={tid.type} onChange={(e) => { const ids = [...manualContactData.taxIds]; ids[idx] = { ...ids[idx], type: e.target.value }; setManualContactData({ ...manualContactData, taxIds: ids }); }} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all">
+                              <option value="">סוג...</option>
+                              {TAX_ID_TYPES.map(t => <option key={t.code} value={t.code}>{t.name}</option>)}
+                            </select>
+                          </div>
+                          <div className="col-span-3">
+                            <input type="text" value={tid.value} onChange={(e) => { const ids = [...manualContactData.taxIds]; ids[idx] = { ...ids[idx], value: e.target.value }; setManualContactData({ ...manualContactData, taxIds: ids }); }} placeholder="123456789" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
+                          </div>
+                          <button type="button" onClick={() => { const ids = manualContactData.taxIds.filter((_, i) => i !== idx); setManualContactData({ ...manualContactData, taxIds: ids }); }} className="flex items-center justify-center text-red-400 hover:text-red-600 transition-colors">
+                            <span className="material-symbols-rounded text-base">delete</span>
+                          </button>
+                        </div>
+                      ))}
+                      <button type="button" onClick={() => setManualContactData({ ...manualContactData, taxIds: [...manualContactData.taxIds, { type: '', value: '' }] })} className="flex items-center gap-1 text-xs text-[#635bff] hover:text-[#635bff]/80 font-medium mt-1">
+                        <span className="material-symbols-rounded text-sm">add</span>
+                        הוסף מזהה מס
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ── Section: Shipping Information ── */}
+              <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setExpandedFormSections(s => ({ ...s, shipping: !s.shipping }))}
+                  className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <span className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    <span className="material-symbols-rounded text-base text-[#635bff]">local_shipping</span>
+                    פרטי משלוח
+                  </span>
+                  <span className={`material-symbols-rounded text-slate-400 text-base transition-transform ${expandedFormSections.shipping ? 'rotate-180' : ''}`}>expand_more</span>
+                </button>
+                {expandedFormSections.shipping && (
+                  <div className="p-4 space-y-3 border-t border-slate-200 dark:border-slate-700">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">רחוב</label>
+                        <input type="text" value={manualContactData.shippingStreet} onChange={(e) => setManualContactData({ ...manualContactData, shippingStreet: e.target.value })} placeholder="הרצל 12" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">עיר</label>
+                        <input type="text" value={manualContactData.shippingCity} onChange={(e) => setManualContactData({ ...manualContactData, shippingCity: e.target.value })} placeholder="תל אביב" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">מדינה/מחוז</label>
+                        <input type="text" value={manualContactData.shippingState} onChange={(e) => setManualContactData({ ...manualContactData, shippingState: e.target.value })} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">מיקוד</label>
+                        <input type="text" value={manualContactData.shippingZip} onChange={(e) => setManualContactData({ ...manualContactData, shippingZip: e.target.value })} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">ארץ</label>
+                        <select value={manualContactData.shippingCountry} onChange={(e) => setManualContactData({ ...manualContactData, shippingCountry: e.target.value })} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all">
+                          <option value="">בחר ארץ...</option>
+                          {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">טלפון למשלוח</label>
+                      <input type="tel" value={manualContactData.shippingPhone} onChange={(e) => setManualContactData({ ...manualContactData, shippingPhone: e.target.value })} placeholder="050-1234567" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Info Note */}
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+              <div className="bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-lg p-3">
                 <div className="flex gap-2 items-start">
-                  <span className="material-symbols-rounded text-blue-600 dark:text-blue-400 text-base">info</span>
-                  <p className="text-xs text-blue-700 dark:text-blue-300 flex-1">
+                  <span className="material-symbols-rounded text-violet-600 dark:text-violet-400 text-base">info</span>
+                  <p className="text-xs text-violet-700 dark:text-violet-300 flex-1">
                     המשתמש ייווצר כאיש קשר. תוכל להפוך אותו לחבר רשום מאוחר יותר.
                   </p>
                 </div>
@@ -928,7 +1557,7 @@ const Users = () => {
               <button
                 onClick={() => {
                   setShowManualRegistrationModal(false);
-                  setManualContactData({ name: '', email: '', phone: '', address: '' });
+                  setManualContactData({ ...EMPTY_CONTACT_DATA });
                 }}
                 className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg font-medium transition-colors text-sm"
               >
@@ -955,8 +1584,8 @@ const Users = () => {
             <div className="p-4 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
-                    <span className="material-symbols-rounded text-blue-600 dark:text-blue-400 text-lg">add_circle</span>
+                  <div className="w-8 h-8 bg-violet-50 dark:bg-violet-900/20 rounded-lg flex items-center justify-center">
+                    <span className="material-symbols-rounded text-violet-600 dark:text-violet-400 text-lg">add_circle</span>
                   </div>
                   <div>
                     <h2 className="text-lg font-bold text-slate-900 dark:text-white">הוסף שדה מותאם אישית</h2>
@@ -1081,10 +1710,10 @@ const Users = () => {
               </div>
 
               {/* Info */}
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-2">
+              <div className="bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-lg p-2">
                 <div className="flex gap-2 items-start">
-                  <span className="material-symbols-rounded text-blue-600 dark:text-blue-400 text-base">info</span>
-                  <p className="text-xs text-blue-700 dark:text-blue-300 flex-1">
+                  <span className="material-symbols-rounded text-violet-600 dark:text-violet-400 text-base">info</span>
+                  <p className="text-xs text-violet-700 dark:text-violet-300 flex-1">
                     השדה יתווסף לטבלת המשתמשים
                   </p>
                 </div>
@@ -1106,7 +1735,7 @@ const Users = () => {
               <button
                 onClick={handleAddCustomField}
                 disabled={!customFieldName.trim()}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold flex items-center gap-1.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                className="px-6 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg font-semibold flex items-center gap-1.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
               >
                 <span className="material-symbols-rounded text-sm">add</span>
                 הוסף שדה
@@ -1178,7 +1807,7 @@ const Users = () => {
                         <span className="material-symbols-rounded text-3xl">upload_file</span>
                       </div>
                       <p className="text-lg text-slate-900 dark:text-white font-medium">
-                        <span className="text-blue-600 hover:underline cursor-pointer">עיין בקבצים שלך</span> או גרור ושחרר כאן
+                        <span className="text-violet-600 hover:underline cursor-pointer">עיין בקבצים שלך</span> או גרור ושחרר כאן
                       </p>
                       <p className="mt-2 text-slate-500 dark:text-slate-400 text-sm">
                         וודא שזה קובץ CSV, XLS, או XLSX.
@@ -1199,10 +1828,10 @@ const Users = () => {
                 <div className="mt-8 md:mt-12">
                   <h3 className="font-semibold text-slate-900 dark:text-white mb-4">צריך עזרה להתחיל?</h3>
                   <div className="flex flex-col gap-3">
-                    <a className="flex items-center gap-2 text-blue-600 hover:underline text-sm font-medium" href="#">
+                    <a className="flex items-center gap-2 text-violet-600 hover:underline text-sm font-medium" href="#">
                       קרא ולמד <span className="text-slate-500 dark:text-slate-400 font-normal">על ייבוא לפלטפורמה</span>
                     </a>
-                    <a className="flex items-center gap-2 text-blue-600 hover:underline text-sm font-medium" href="#">
+                    <a className="flex items-center gap-2 text-violet-600 hover:underline text-sm font-medium" href="#">
                       הורד <span className="text-slate-500 dark:text-slate-400 font-normal">קובץ Excel לדוגמה</span>
                     </a>
                   </div>
@@ -1275,61 +1904,48 @@ const Users = () => {
 
       {/* Tabs for User Types */}
       <div className="mb-6">
-        <div className="inline-flex bg-slate-100 dark:bg-slate-800 rounded-xl p-1 gap-1">
+        <div className="flex gap-6 border-b border-slate-200 dark:border-slate-700">
           <button
             onClick={() => setActiveTab('contacts')}
-            className={`px-6 py-2.5 rounded-lg font-medium text-sm transition-all ${
+            className={`px-3 py-1.5 text-sm font-medium transition-all border-b-2 -mb-px ${
               activeTab === 'contacts'
-                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                ? 'border-[#635bff] text-[#635bff]'
+                : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-md dark:text-slate-400 dark:hover:text-slate-300 dark:hover:bg-slate-800'
             }`}
           >
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-rounded text-base">contacts</span>
-              <span>אנשי קשר</span>
-              <span className="text-xs bg-slate-200 dark:bg-slate-600 px-2 py-0.5 rounded-full">
-                {users.length}
-              </span>
-            </div>
+            אנשי קשר
           </button>
           <button
             onClick={() => setActiveTab('members')}
-            className={`px-6 py-2.5 rounded-lg font-medium text-sm transition-all ${
+            className={`px-3 py-1.5 text-sm font-medium transition-all border-b-2 -mb-px flex items-center gap-2 ${
               activeTab === 'members'
-                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                ? 'border-[#635bff] text-[#635bff]'
+                : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-md dark:text-slate-400 dark:hover:text-slate-300 dark:hover:bg-slate-800'
             }`}
           >
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-rounded text-base">badge</span>
-              <span>חברים רשומים</span>
-              <span className="text-xs bg-slate-200 dark:bg-slate-600 px-2 py-0.5 rounded-full">
-                {users.filter(u => u.userType === 'member').length}
+            חברים רשומים
+            {/* Info Icon with Tooltip */}
+            <div
+              className="relative"
+              onMouseEnter={() => setShowMemberTooltip(true)}
+              onMouseLeave={() => setShowMemberTooltip(false)}
+            >
+              <span className="material-symbols-rounded !text-[14px] text-slate-400 hover:text-slate-600 cursor-help transition-colors">
+                info
               </span>
-              {/* Info Icon with Tooltip */}
-              <div
-                className="relative"
-                onMouseEnter={() => setShowMemberTooltip(true)}
-                onMouseLeave={() => setShowMemberTooltip(false)}
-              >
-                <span className="material-symbols-rounded text-sm text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400 cursor-help transition-colors">
-                  info
-                </span>
-                {showMemberTooltip && (
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 animate-in fade-in zoom-in duration-200">
-                    <div className="bg-slate-900 dark:bg-slate-800 text-white text-xs rounded-lg px-4 py-3 shadow-xl border border-slate-700 dark:border-slate-600 whitespace-nowrap">
-                      <div className="font-semibold mb-1">חבר רשום</div>
-                      <div className="text-slate-300 dark:text-slate-400">
-                        משתמש שנרשם באתר ויש לו גישה מלאה למערכת
-                      </div>
-                      {/* Arrow */}
-                      <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px">
-                        <div className="border-4 border-transparent border-t-slate-900 dark:border-t-slate-800"></div>
-                      </div>
+              {showMemberTooltip && (
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 animate-in fade-in zoom-in duration-200">
+                  <div className="bg-slate-900 dark:bg-slate-800 text-white text-xs rounded-lg px-4 py-3 shadow-xl border border-slate-700 dark:border-slate-600 whitespace-nowrap">
+                    <div className="font-semibold mb-1">חבר רשום</div>
+                    <div className="text-slate-300 dark:text-slate-400">
+                      משתמש שנרשם באתר ויש לו גישה מלאה למערכת
+                    </div>
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px">
+                      <div className="border-4 border-transparent border-t-slate-900 dark:border-t-slate-800"></div>
                     </div>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </button>
         </div>
@@ -1657,147 +2273,34 @@ const Users = () => {
 
                   {/* Column Checkboxes */}
                   <div className="p-6">
-                <h3 className="text-sm font-semibold mb-4 text-slate-700 dark:text-slate-300">עמודות זמינות</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <label className="flex items-center gap-3 cursor-pointer group flex-1">
-                      <input
-                        type="checkbox"
-                        checked={visibleColumns.name}
-                        onChange={() => toggleColumnVisibility('name')}
-                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-[#635bff] focus:ring-[#635bff]"
-                      />
-                      <span className="text-sm group-hover:text-[#635bff] transition-colors">שם מלא</span>
-                    </label>
-                    <button
-                      onClick={() => toggleColumnFreeze('name')}
-                      className={`p-1.5 rounded transition-colors ${
-                        frozenColumns.includes('name')
-                          ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                          : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                      }`}
-                      title={frozenColumns.includes('name') ? 'בטל הקפאה' : 'הקפא עמודה'}
-                    >
-                      <span className="material-symbols-rounded text-sm">{frozenColumns.includes('name') ? 'push_pin' : 'push_pin'}</span>
-                    </button>
+                    <h3 className="text-sm font-semibold mb-4 text-slate-700 dark:text-slate-300">עמודות זמינות</h3>
+                    <div className="space-y-3">
+                      {COLUMN_LABELS.filter(([key]) => key !== 'checkbox' && !key.startsWith('cf_')).map(([key, label]) => (
+                        <div key={key} className="flex items-center gap-2">
+                          <label className="flex items-center gap-3 cursor-pointer group flex-1">
+                            <input
+                              type="checkbox"
+                              checked={visibleColumns[key as keyof typeof visibleColumns] ?? false}
+                              onChange={() => toggleColumnVisibility(key as keyof typeof visibleColumns)}
+                              className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-[#635bff] focus:ring-[#635bff]"
+                            />
+                            <span className="text-sm group-hover:text-[#635bff] transition-colors">{label}</span>
+                          </label>
+                          <button
+                            onClick={() => toggleColumnFreeze(key)}
+                            className={`p-1 rounded transition-colors ${
+                              frozenColumns.includes(key)
+                                ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400'
+                                : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                            }`}
+                            title={frozenColumns.includes(key) ? 'בטל הקפאה' : 'הקפא עמודה'}
+                          >
+                            <span className="material-symbols-rounded !text-[14px]">push_pin</span>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-
-                  <div className="flex items-center gap-2">
-                    <label className="flex items-center gap-3 cursor-pointer group flex-1">
-                      <input
-                        type="checkbox"
-                        checked={visibleColumns.email}
-                        onChange={() => toggleColumnVisibility('email')}
-                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-[#635bff] focus:ring-[#635bff]"
-                      />
-                      <span className="text-sm group-hover:text-[#635bff] transition-colors">אימייל</span>
-                    </label>
-                    <button
-                      onClick={() => toggleColumnFreeze('email')}
-                      className={`p-1.5 rounded transition-colors ${
-                        frozenColumns.includes('email')
-                          ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                          : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                      }`}
-                      title={frozenColumns.includes('email') ? 'בטל הקפאה' : 'הקפא עמודה'}
-                    >
-                      <span className="material-symbols-rounded text-sm">push_pin</span>
-                    </button>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <label className="flex items-center gap-3 cursor-pointer group flex-1">
-                      <input
-                        type="checkbox"
-                        checked={visibleColumns.status}
-                        onChange={() => toggleColumnVisibility('status')}
-                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-[#635bff] focus:ring-[#635bff]"
-                      />
-                      <span className="text-sm group-hover:text-[#635bff] transition-colors">סטטוס</span>
-                    </label>
-                    <button
-                      onClick={() => toggleColumnFreeze('status')}
-                      className={`p-1.5 rounded transition-colors ${
-                        frozenColumns.includes('status')
-                          ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                          : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                      }`}
-                      title={frozenColumns.includes('status') ? 'בטל הקפאה' : 'הקפא עמודה'}
-                    >
-                      <span className="material-symbols-rounded text-sm">push_pin</span>
-                    </button>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <label className="flex items-center gap-3 cursor-pointer group flex-1">
-                      <input
-                        type="checkbox"
-                        checked={visibleColumns.address}
-                        onChange={() => toggleColumnVisibility('address')}
-                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-[#635bff] focus:ring-[#635bff]"
-                      />
-                      <span className="text-sm group-hover:text-[#635bff] transition-colors">כתובת</span>
-                    </label>
-                    <button
-                      onClick={() => toggleColumnFreeze('address')}
-                      className={`p-1.5 rounded transition-colors ${
-                        frozenColumns.includes('address')
-                          ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                          : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                      }`}
-                      title={frozenColumns.includes('address') ? 'בטל הקפאה' : 'הקפא עמודה'}
-                    >
-                      <span className="material-symbols-rounded text-sm">push_pin</span>
-                    </button>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <label className="flex items-center gap-3 cursor-pointer group flex-1">
-                      <input
-                        type="checkbox"
-                        checked={visibleColumns.lastActivity}
-                        onChange={() => toggleColumnVisibility('lastActivity')}
-                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-[#635bff] focus:ring-[#635bff]"
-                      />
-                      <span className="text-sm group-hover:text-[#635bff] transition-colors">פעילות אחרונה</span>
-                    </label>
-                    <button
-                      onClick={() => toggleColumnFreeze('lastActivity')}
-                      className={`p-1.5 rounded transition-colors ${
-                        frozenColumns.includes('lastActivity')
-                          ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                          : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                      }`}
-                      title={frozenColumns.includes('lastActivity') ? 'בטל הקפאה' : 'הקפא עמודה'}
-                    >
-                      <span className="material-symbols-rounded text-sm">push_pin</span>
-                    </button>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <label className="flex items-center gap-3 cursor-pointer group flex-1">
-                      <input
-                        type="checkbox"
-                        checked={visibleColumns.firstJoined}
-                        onChange={() => toggleColumnVisibility('firstJoined')}
-                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-[#635bff] focus:ring-[#635bff]"
-                      />
-                      <span className="text-sm group-hover:text-[#635bff] transition-colors">כניסה ראשונה</span>
-                    </label>
-                    <button
-                      onClick={() => toggleColumnFreeze('firstJoined')}
-                      className={`p-1.5 rounded transition-colors ${
-                        frozenColumns.includes('firstJoined')
-                          ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                          : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                      }`}
-                      title={frozenColumns.includes('firstJoined') ? 'בטל הקפאה' : 'הקפא עמודה'}
-                    >
-                      <span className="material-symbols-rounded text-sm">push_pin</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
 
                   {/* Custom Fields */}
                   <div className="p-6 border-t border-slate-200 dark:border-slate-800">
@@ -1836,6 +2339,7 @@ const Users = () => {
                                 e.preventDefault();
                                 e.stopPropagation();
                                 setCustomFields(customFields.filter(f => f.id !== field.id));
+                                setColumnOrder(prev => prev.filter(c => c !== `cf_${field.id}`));
                               }}
                               className="p-1 hover:bg-red-100 dark:hover:bg-red-900/20 rounded text-red-600 dark:text-red-400 transition-colors"
                               title="מחק שדה"
@@ -1864,10 +2368,61 @@ const Users = () => {
 
         {/* Main Content - Users Table */}
         <div className={`transition-[width,flex] duration-300 ${selectedUser || showCustomizePanel || showFilterPanel ? 'flex-1 min-w-0' : 'w-full'}`}>
-          <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-[#e3e8ee] dark:border-slate-700">
+          <div
+            className="relative bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-[#e3e8ee] dark:border-slate-700 border-highlight-card"
+            onMouseMove={handleTableMouseMove}
+          >
             {/* Table Header Actions */}
-            <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4">
+            <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
+                {/* Table Search */}
+                <div className="relative">
+                  {!isTableSearchExpanded ? (
+                    <button
+                      className="w-8 h-8 flex items-center justify-center text-[#635bff] hover:bg-[#635bff]/10 rounded-md transition-colors"
+                      onClick={() => {
+                        setIsTableSearchExpanded(true);
+                        setTimeout(() => tableSearchInputRef.current?.focus(), 50);
+                      }}
+                      title="חיפוש"
+                    >
+                      <span className="material-symbols-rounded !text-[16px]">search</span>
+                    </button>
+                  ) : (
+                    <div className="relative">
+                      <input
+                        ref={tableSearchInputRef}
+                        type="text"
+                        value={filters.searchText}
+                        onChange={(e) => setFilters({ ...filters, searchText: e.target.value })}
+                        className="w-52 ps-8 pe-8 py-1.5 bg-slate-100 dark:bg-slate-800 border-none rounded-md text-sm focus:ring-2 focus:ring-primary outline-none"
+                        placeholder="חיפוש משתמשים..."
+                        autoFocus
+                      />
+                      <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <span className="material-symbols-rounded text-slate-400 !text-[16px]">search</span>
+                      </div>
+                      <div className="absolute left-2.5 top-1/2 -translate-y-1/2">
+                        <button
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            if (filters.searchText) {
+                              setFilters({ ...filters, searchText: '' });
+                              tableSearchInputRef.current?.focus();
+                            } else {
+                              setIsTableSearchExpanded(false);
+                            }
+                          }}
+                          className="text-slate-400 hover:text-slate-600 flex items-center justify-center"
+                          tabIndex={-1}
+                        >
+                          <span className="material-symbols-rounded !text-[16px]">close</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <button
                   onClick={() => {
                     const isOpening = !showFilterPanel;
@@ -1878,16 +2433,16 @@ const Users = () => {
                       setTimeout(() => setIsFilterLoading(false), 600);
                     }
                   }}
-                  className={`px-4 py-2 border rounded-lg text-sm font-medium flex items-center gap-2 transition-colors ${
+                  className={`relative w-8 h-8 rounded-md flex items-center justify-center transition-colors ${
                     activeFilterCount > 0
-                      ? 'bg-[#635bff] text-white border-[#635bff]'
-                      : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700'
+                      ? 'bg-[#635bff] text-white'
+                      : 'text-[#635bff] hover:bg-[#635bff]/10'
                   }`}
+                  title="סינון"
                 >
-                  <span className="material-symbols-rounded text-sm">filter_list</span>
-                  סינון
+                  <span className="material-symbols-rounded !text-[16px]">filter_list</span>
                   {activeFilterCount > 0 && (
-                    <span className="bg-white text-[#635bff] text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    <span className="absolute -top-1.5 -end-1.5 bg-white text-[#635bff] text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center border border-[#635bff]">
                       {activeFilterCount}
                     </span>
                   )}
@@ -1897,10 +2452,10 @@ const Users = () => {
                 <div className="relative">
                   <button
                     onClick={() => setShowImportExportMenu(!showImportExportMenu)}
-                    className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                    className="w-8 h-8 rounded-md flex items-center justify-center text-[#635bff] hover:bg-[#635bff]/10 transition-colors"
+                    title="ייבוא/ייצוא"
                   >
-                    <span className="material-symbols-rounded text-sm">swap_vert</span>
-                    ייבוא/ייצוא
+                    <span className="material-symbols-rounded !text-[16px]">swap_vert</span>
                   </button>
 
                   {showImportExportMenu && (
@@ -1945,10 +2500,10 @@ const Users = () => {
                     setIsCustomizeLoading(true);
                     setTimeout(() => setIsCustomizeLoading(false), 600);
                   }}
-                  className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                  className="w-8 h-8 rounded-md flex items-center justify-center text-[#635bff] hover:bg-[#635bff]/10 transition-colors"
+                  title="התאמה אישית"
                 >
-                  <span className="material-symbols-rounded text-sm">tune</span>
-                  התאם
+                  <span className="material-symbols-rounded !text-[16px]">tune</span>
                 </button>
 
                 {/* More Actions Dropdown */}
@@ -1957,9 +2512,9 @@ const Users = () => {
                     onClick={() => setShowMoreActionsMenu(!showMoreActionsMenu)}
                     onMouseEnter={() => setShowMoreActionsTooltip(true)}
                     onMouseLeave={() => setShowMoreActionsTooltip(false)}
-                    className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                    className="w-8 h-8 flex items-center justify-center text-[#635bff] hover:bg-[#635bff]/10 rounded-md transition-colors"
                   >
-                    <span className="material-symbols-rounded text-slate-600 dark:text-slate-400">more_vert</span>
+                    <span className="material-symbols-rounded !text-[16px]">more_vert</span>
                   </button>
 
                   {/* Tooltip */}
@@ -2017,30 +2572,21 @@ const Users = () => {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-xs text-slate-400">מציג {filteredUsers.length} מתוך {users.length} משתמשים</span>
-                <div className="flex border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
-                  <button className="p-2 bg-white dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700">
-                    <span className="material-symbols-rounded text-sm">chevron_right</span>
+                <span className="text-xs text-slate-400">מציג {sortedUsers.length} מתוך {users.length} משתמשים</span>
+                <div className="flex gap-1">
+                  <button className="w-8 h-8 flex items-center justify-center text-[#635bff] hover:bg-[#635bff]/10 rounded-md transition-colors">
+                    <span className="material-symbols-rounded !text-[16px]">chevron_right</span>
                   </button>
-                  <button className="p-2 bg-white dark:bg-slate-800">
-                    <span className="material-symbols-rounded text-sm">chevron_left</span>
+                  <button className="w-8 h-8 flex items-center justify-center text-[#635bff] hover:bg-[#635bff]/10 rounded-md transition-colors">
+                    <span className="material-symbols-rounded !text-[16px]">chevron_left</span>
                   </button>
                 </div>
               </div>
             </div>
 
-            {/* API Error Banner */}
-            {apiError && (
-              <div className="mx-6 mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-600 dark:text-red-400 flex items-center gap-2">
-                <span className="material-symbols-rounded text-base">error_outline</span>
-                {apiError}
-                <button onClick={loadUsers} className="mr-auto text-xs underline">נסה שוב</button>
-              </div>
-            )}
-
             {/* Users Table */}
-            <div ref={tableContainerRef} className="overflow-x-auto relative">
-              <table ref={tableRef} className="w-full text-right" style={{ minWidth: '1200px', borderSpacing: 0, position: 'relative' }}>
+            <div ref={tableContainerRef} className="overflow-x-auto relative custom-scrollbar">
+              <table ref={tableRef} className="text-right" style={{ width: `${totalTableWidth}px`, minWidth: '100%', borderSpacing: 0, position: 'relative', tableLayout: 'fixed' }}>
                 <thead
                   ref={tableHeaderRef}
                   style={{
@@ -2048,295 +2594,216 @@ const Users = () => {
                     top: isHeaderFixed ? '64px' : 'auto',
                     left: isHeaderFixed ? `${headerLeft}px` : 'auto',
                     zIndex: isHeaderFixed ? 30 : 1,
-                    backgroundColor: 'rgb(248 250 252)',
+                    backgroundColor: 'rgb(239 246 255)',
                     width: isHeaderFixed ? `${headerWidth}px` : 'auto',
                     display: isHeaderFixed ? 'table' : 'table-header-group',
-                    tableLayout: isHeaderFixed ? 'fixed' : 'auto'
+                    tableLayout: isHeaderFixed ? 'fixed' : 'auto',
+                    willChange: 'transform',
+                    boxShadow: isHeaderFixed ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
+                    transition: 'box-shadow 0.2s ease',
                   }}
                   className="dark:bg-slate-800"
                 >
-                  <tr className="bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">
+                  <tr className="bg-violet-50 dark:bg-slate-800 text-primary/70 dark:text-slate-400 text-xs font-bold uppercase tracking-wider border-y-2 border-violet-200/60">
+                    {/* Checkbox — always first, always frozen */}
                     <th
-                      className={`px-6 py-4 w-12 text-center ${isLastFrozenColumn('checkbox') ? 'frozen-column-shadow' : ''}`}
+                      className={`px-3 py-2.5 ${isLastFrozenColumn('checkbox') ? 'frozen-column-shadow' : ''}`}
                       style={{
+                        width: `${getColWidth('checkbox')}px`,
                         position: 'sticky',
-                        left: 0,
+                        right: 0,
                         zIndex: 20,
-                        backgroundColor: 'rgb(248 250 252)'
+                        backgroundColor: 'rgb(239 246 255)',
                       }}
                     >
                       <input
                         type="checkbox"
-                        checked={filteredUsers.length > 0 && selectedIds.length === filteredUsers.length}
+                        checked={sortedUsers.length > 0 && selectedIds.length === sortedUsers.length}
                         onChange={toggleAllUsers}
                         className="rounded border-slate-300 dark:border-slate-600 text-[#635bff] focus:ring-[#635bff] dark:bg-slate-700"
                       />
                     </th>
-                    {visibleColumns.name && (
+
+                    {/* Data columns — iterated */}
+                    {visibleOrderedColumns.map(col => (
                       <th
-                        className={`px-6 py-4 bg-slate-50/50 dark:bg-slate-800/50 ${frozenColumns.includes('name') && isLastFrozenColumn('name') ? 'frozen-column-shadow' : ''}`}
-                        style={frozenColumns.includes('name') ? {
-                          position: 'sticky',
-                          left: `${getColumnLeftPosition('name')}px`,
-                          zIndex: 20
-                        } : {}}
+                        key={col}
+                        draggable={!resizingColumn}
+                        onDragStart={(e) => { if (resizingColumn) { e.preventDefault(); return; } handleColumnDragStart(e, col); }}
+                        onDragOver={(e) => handleColumnDragOver(e, col)}
+                        onDrop={(e) => handleColumnDrop(e, col)}
+                        onDragEnd={handleColumnDragEnd}
+                        onContextMenu={(e) => { e.preventDefault(); setColumnMenuOpen(columnMenuOpen === col ? null : col); }}
+                        className={`px-6 py-2.5 bg-violet-50 dark:bg-slate-800/50 cursor-grab active:cursor-grabbing select-none group/col relative overflow-visible ${
+                          frozenColumns.includes(col) && isLastFrozenColumn(col) ? 'frozen-column-shadow' : ''
+                        } ${draggedColumn === col ? '!bg-[#635bff]/20 border-x-2 border-[#635bff]/30' : ''} ${
+                          dragOverColumn === col && draggedColumn !== col ? 'border-e-[3px] border-[#635bff]' : ''
+                        }`}
+                        style={{
+                          width: `${getColWidth(col)}px`,
+                          ...(frozenColumns.includes(col) ? { position: 'sticky' as const, right: `${getColumnLeftPosition(col)}px`, zIndex: 20, backgroundColor: draggedColumn === col ? 'rgba(99,91,255,0.15)' : 'rgb(239 246 255)' } : {}),
+                        }}
                       >
-                        שם מלא
-                      </th>
-                    )}
-                    {visibleColumns.email && (
-                      <th
-                        className={`px-6 py-4 bg-slate-50/50 dark:bg-slate-800/50 ${frozenColumns.includes('email') && isLastFrozenColumn('email') ? 'frozen-column-shadow' : ''}`}
-                        style={frozenColumns.includes('email') ? {
-                          position: 'sticky',
-                          left: `${getColumnLeftPosition('email')}px`,
-                          zIndex: 20
-                        } : {}}
-                      >
-                        אימייל
-                      </th>
-                    )}
-                    {visibleColumns.status && (
-                      <th
-                        className={`px-6 py-4 bg-slate-50/50 dark:bg-slate-800/50 ${frozenColumns.includes('status') && isLastFrozenColumn('status') ? 'frozen-column-shadow' : ''}`}
-                        style={frozenColumns.includes('status') ? {
-                          position: 'sticky',
-                          left: `${getColumnLeftPosition('status')}px`,
-                          zIndex: 20
-                        } : {}}
-                      >
-                        סטטוס
-                      </th>
-                    )}
-                    {visibleColumns.address && (
-                      <th
-                        className={`px-6 py-4 bg-slate-50/50 dark:bg-slate-800/50 ${frozenColumns.includes('address') && isLastFrozenColumn('address') ? 'frozen-column-shadow' : ''}`}
-                        style={frozenColumns.includes('address') ? {
-                          position: 'sticky',
-                          left: `${getColumnLeftPosition('address')}px`,
-                          zIndex: 20
-                        } : {}}
-                      >
-                        כתובת
-                      </th>
-                    )}
-                    {visibleColumns.lastActivity && (
-                      <th
-                        className={`px-6 py-4 bg-slate-50/50 dark:bg-slate-800/50 ${frozenColumns.includes('lastActivity') && isLastFrozenColumn('lastActivity') ? 'frozen-column-shadow' : ''}`}
-                        style={frozenColumns.includes('lastActivity') ? {
-                          position: 'sticky',
-                          left: `${getColumnLeftPosition('lastActivity')}px`,
-                          zIndex: 20
-                        } : {}}
-                      >
-                        פעילות אחרונה
-                      </th>
-                    )}
-                    {visibleColumns.firstJoined && (
-                      <th
-                        className={`px-6 py-4 bg-slate-50/50 dark:bg-slate-800/50 ${frozenColumns.includes('firstJoined') && isLastFrozenColumn('firstJoined') ? 'frozen-column-shadow' : ''}`}
-                        style={frozenColumns.includes('firstJoined') ? {
-                          position: 'sticky',
-                          left: `${getColumnLeftPosition('firstJoined')}px`,
-                          zIndex: 20
-                        } : {}}
-                      >
-                        כניסה ראשונה
-                      </th>
-                    )}
-                    {customFields.filter(f => f.visible).map(field => (
-                      <th key={field.id} className="px-6 py-4">
-                        <div className="flex items-center gap-1">
-                          <span className="material-symbols-rounded text-xs text-slate-400">
-                            {field.type === 'text' && 'text_fields'}
-                            {field.type === 'number' && 'tag'}
-                            {field.type === 'link' && 'link'}
-                            {field.type === 'date' && 'calendar_today'}
-                            {field.type === 'dropdown' && 'arrow_drop_down_circle'}
-                          </span>
-                          {field.name}
+                        <div className="flex items-center gap-1 overflow-hidden">
+                          <span className="flex-1 truncate">{COLUMN_CONFIG[col]?.label ?? col}</span>
+                          {sortColumn === col && (
+                            <span className="material-symbols-rounded !text-[14px] text-[#635bff]">
+                              {sortDirection === 'asc' ? 'arrow_upward' : 'arrow_downward'}
+                            </span>
+                          )}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); e.preventDefault(); setColumnMenuOpen(columnMenuOpen === col ? null : col); }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            draggable={false}
+                            className="w-5 h-5 flex items-center justify-center rounded opacity-0 group-hover/col:opacity-100 hover:bg-slate-200/60 transition-opacity"
+                          >
+                            <span className="material-symbols-rounded !text-[14px]">expand_more</span>
+                          </button>
                         </div>
+
+                        {/* Column context menu */}
+                        {columnMenuOpen === col && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setColumnMenuOpen(null)} />
+                            <div className="absolute top-full start-0 mt-1 w-52 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden text-sm font-normal normal-case tracking-normal" onClick={(e) => e.stopPropagation()}>
+                              <button onClick={() => { setSortColumn(col); setSortDirection('asc'); setColumnMenuOpen(null); }}
+                                className={`w-full px-4 py-2.5 text-right hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2.5 ${sortColumn === col && sortDirection === 'asc' ? 'text-[#635bff] bg-[#635bff]/5' : 'text-slate-700 dark:text-slate-300'}`}>
+                                <span className="material-symbols-rounded !text-[16px]">arrow_upward</span>
+                                מיין לפי עולה
+                              </button>
+                              <button onClick={() => { setSortColumn(col); setSortDirection('desc'); setColumnMenuOpen(null); }}
+                                className={`w-full px-4 py-2.5 text-right hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2.5 ${sortColumn === col && sortDirection === 'desc' ? 'text-[#635bff] bg-[#635bff]/5' : 'text-slate-700 dark:text-slate-300'}`}>
+                                <span className="material-symbols-rounded !text-[16px]">arrow_downward</span>
+                                מיין לפי יורד
+                              </button>
+                              {sortColumn === col && (
+                                <button onClick={() => { setSortColumn(null); setColumnMenuOpen(null); }}
+                                  className="w-full px-4 py-2.5 text-right hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2.5 text-slate-400">
+                                  <span className="material-symbols-rounded !text-[16px]">close</span>
+                                  הסר מיון
+                                </button>
+                              )}
+                              <div className="border-t border-slate-100 dark:border-slate-700" />
+                              <button onClick={() => { setShowFilterPanel(true); setShowCustomizePanel(false); setColumnMenuOpen(null); }}
+                                className="w-full px-4 py-2.5 text-right hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2.5 text-slate-700 dark:text-slate-300">
+                                <span className="material-symbols-rounded !text-[16px]">filter_list</span>
+                                סנן
+                              </button>
+                              <div className="border-t border-slate-100 dark:border-slate-700" />
+                              <button onClick={() => { toggleColumnFreeze(col); setColumnMenuOpen(null); }}
+                                className={`w-full px-4 py-2.5 text-right hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2.5 ${frozenColumns.includes(col) ? 'text-[#635bff]' : 'text-slate-700 dark:text-slate-300'}`}>
+                                <span className="material-symbols-rounded !text-[16px]">push_pin</span>
+                                {frozenColumns.includes(col) ? 'בטל הקפאה' : 'הקפא עמודה'}
+                              </button>
+                              <button onClick={() => { toggleColumnVisibility(col as keyof typeof visibleColumns); setColumnMenuOpen(null); }}
+                                className="w-full px-4 py-2.5 text-right hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2.5 text-slate-700 dark:text-slate-300">
+                                <span className="material-symbols-rounded !text-[16px]">visibility_off</span>
+                                הסתר עמודה
+                              </button>
+                            </div>
+                          </>
+                        )}
+
+                        {/* Resize handle */}
+                        <div
+                          className={`absolute top-0 end-0 h-full w-[5px] cursor-col-resize z-10 transition-colors ${
+                            resizingColumn === col ? 'bg-[#635bff]' : 'hover:bg-[#635bff]/20'
+                          }`}
+                          onMouseDown={(e) => handleResizeStart(e, col)}
+                          draggable={false}
+                          onClick={(e) => e.stopPropagation()}
+                          onDoubleClick={(e) => { e.stopPropagation(); setColumnWidths(prev => { const next = { ...prev }; delete next[col]; return next; }); }}
+                        />
                       </th>
                     ))}
-                    <th className="px-6 py-4 w-10"></th>
+
+                    {/* Actions spacer column */}
+                    <th className="px-3 py-2.5 w-12 bg-violet-50 dark:bg-slate-800/50"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {apiError && (
+                    <tr>
+                      <td colSpan={100} className="px-6 py-3">
+                        <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-600 dark:text-red-400 flex items-center gap-2">
+                          <span className="material-symbols-rounded text-base">error_outline</span>
+                          {apiError}
+                          <button onClick={loadUsers} className="mr-auto text-xs underline">נסה שוב</button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  {isHeaderFixed && <tr><td colSpan={100} style={{ height: `${headerHeight}px`, padding: 0, border: 'none' }}></td></tr>}
                   {isTableLoading ? (
-                    // Skeleton rows
                     Array.from({ length: 10 }).map((_, index) => (
-                      <tr key={index} className="animate-pulse">
-                        <td
-                          className={`px-6 py-4 text-center bg-white dark:bg-slate-900 ${isLastFrozenColumn('checkbox') ? 'frozen-column-shadow' : ''}`}
-                          style={{
-                            position: 'sticky',
-                            left: 0,
-                            zIndex: 10
-                          }}
-                        >
-                          <div className="w-4 h-4 bg-slate-200 dark:bg-slate-700 rounded mx-auto"></div>
-                        </td>
-                        {visibleColumns.name && (
-                          <td className="px-6 py-4">
-                            <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-32"></div>
-                          </td>
-                        )}
-                        {visibleColumns.email && (
-                          <td className="px-6 py-4">
-                            <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-40"></div>
-                          </td>
-                        )}
-                        {visibleColumns.status && (
-                          <td className="px-6 py-4">
-                            <div className="h-6 bg-slate-200 dark:bg-slate-700 rounded-full w-16"></div>
-                          </td>
-                        )}
-                        {visibleColumns.address && (
-                          <td className="px-6 py-4">
-                            <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-36"></div>
-                          </td>
-                        )}
-                        {visibleColumns.lastActivity && (
-                          <td className="px-6 py-4">
-                            <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-24"></div>
-                          </td>
-                        )}
-                        {visibleColumns.firstJoined && (
-                          <td className="px-6 py-4">
-                            <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-20"></div>
-                          </td>
-                        )}
-                        {customFields.filter(f => f.visible).map(field => (
-                          <td key={field.id} className="px-6 py-4">
-                            <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16"></div>
+                      <tr key={index} className="animate-pulse border-b border-slate-100 dark:border-slate-800">
+                        <td className="px-3 py-2.5"><div className="w-4 h-4 bg-slate-200 dark:bg-slate-700 rounded mx-auto"></div></td>
+                        {visibleOrderedColumns.map(col => (
+                          <td key={col} className="px-6 py-2.5">
+                            <div className={`h-4 bg-slate-200 dark:bg-slate-700 ${
+                              col === 'status' || col === 'taxStatus' ? 'w-16 h-6 rounded-full' : 'w-24 rounded'
+                            }`}></div>
                           </td>
                         ))}
-                        <td className="px-6 py-4">
-                          <div className="w-6 h-6 bg-slate-200 dark:bg-slate-700 rounded"></div>
-                        </td>
+                        <td className="px-3 py-2.5"><div className="w-5 h-5 bg-slate-200 dark:bg-slate-700 rounded"></div></td>
                       </tr>
                     ))
-                  ) : filteredUsers.length === 0 ? (
+                  ) : sortedUsers.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-6 py-12 text-center">
+                      <td colSpan={100} className="px-6 py-12 text-center">
                         <div className="flex flex-col items-center gap-3">
                           <span className="material-symbols-rounded text-4xl text-slate-300">search_off</span>
                           <p className="text-slate-500 dark:text-slate-400">לא נמצאו משתמשים התואמים לסינון</p>
-                          <button
-                            onClick={clearFilters}
-                            className="text-sm text-[#635bff] hover:underline"
-                          >
-                            נקה סינון
-                          </button>
+                          <button onClick={clearFilters} className="text-sm text-[#635bff] hover:underline">נקה סינון</button>
                         </div>
                       </td>
                     </tr>
                   ) : (
-                    filteredUsers.map((user) => (
+                    sortedUsers.map((user) => (
                       <tr
                         key={user.id}
                         onClick={() => handleRowClick(user)}
-                        className={`hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer group ${
+                        className={`border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer group ${
                           selectedUser?.id === user.id ? 'bg-[#635bff]/5 dark:bg-[#635bff]/10 border-r-4 border-[#635bff]' :
                           selectedIds.includes(user.id) ? 'bg-slate-50/30 dark:bg-slate-800/10' : ''
                         }`}
                       >
-                      <td
-                        className={`px-6 py-4 text-center bg-white dark:bg-slate-900 ${isLastFrozenColumn('checkbox') ? 'frozen-column-shadow' : ''}`}
-                        style={{
-                          position: 'sticky',
-                          left: 0,
-                          zIndex: 10
-                        }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.includes(user.id)}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            toggleUserSelection(user.id);
-                          }}
-                          className="rounded border-slate-300 dark:border-slate-600 text-[#635bff] focus:ring-[#635bff] dark:bg-slate-700"
-                        />
-                      </td>
-                      {visibleColumns.name && (
+                        {/* Checkbox */}
                         <td
-                          className={`px-6 py-4 font-medium ${frozenColumns.includes('name') ? 'bg-white dark:bg-slate-900' : ''} ${frozenColumns.includes('name') && isLastFrozenColumn('name') ? 'frozen-column-shadow' : ''}`}
-                          style={frozenColumns.includes('name') ? {
-                            position: 'sticky',
-                            left: `${getColumnLeftPosition('name')}px`,
-                            zIndex: 10
+                          className={`px-3 py-2.5 text-center ${isLastFrozenColumn('checkbox') ? 'frozen-column-shadow' : ''}`}
+                          style={frozenColumns.includes('checkbox') ? {
+                            position: 'sticky', right: 0, zIndex: 10,
+                            backgroundColor: selectedIds.includes(user.id) ? 'rgb(245 243 255)' : 'white',
                           } : {}}
                         >
-                          {user.name}
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(user.id)}
+                            onChange={(e) => { e.stopPropagation(); toggleUserSelection(user.id); }}
+                            className="rounded border-slate-300 dark:border-slate-600 text-[#635bff] focus:ring-[#635bff] dark:bg-slate-700"
+                          />
                         </td>
-                      )}
-                      {visibleColumns.email && (
-                        <td
-                          className={`px-6 py-4 text-slate-500 dark:text-slate-400 ${frozenColumns.includes('email') ? 'bg-white dark:bg-slate-900' : ''} ${frozenColumns.includes('email') && isLastFrozenColumn('email') ? 'frozen-column-shadow' : ''}`}
-                          style={frozenColumns.includes('email') ? {
-                            position: 'sticky',
-                            left: `${getColumnLeftPosition('email')}px`,
-                            zIndex: 10
-                          } : {}}
-                        >
-                          {user.email}
-                        </td>
-                      )}
-                      {visibleColumns.status && (
-                        <td
-                          className={`px-6 py-4 ${frozenColumns.includes('status') ? 'bg-white dark:bg-slate-900' : ''} ${frozenColumns.includes('status') && isLastFrozenColumn('status') ? 'frozen-column-shadow' : ''}`}
-                          style={frozenColumns.includes('status') ? {
-                            position: 'sticky',
-                            left: `${getColumnLeftPosition('status')}px`,
-                            zIndex: 10
-                          } : {}}
-                        >
-                          {getStatusBadge(user.status)}
-                        </td>
-                      )}
-                      {visibleColumns.address && (
-                        <td
-                          className={`px-6 py-4 text-slate-500 dark:text-slate-400 ${frozenColumns.includes('address') ? 'bg-white dark:bg-slate-900' : ''} ${frozenColumns.includes('address') && isLastFrozenColumn('address') ? 'frozen-column-shadow' : ''}`}
-                          style={frozenColumns.includes('address') ? {
-                            position: 'sticky',
-                            left: `${getColumnLeftPosition('address')}px`,
-                            zIndex: 10
-                          } : {}}
-                        >
-                          {user.address}
-                        </td>
-                      )}
-                      {visibleColumns.lastActivity && (
-                        <td
-                          className={`px-6 py-4 text-slate-500 dark:text-slate-400 ${frozenColumns.includes('lastActivity') ? 'bg-white dark:bg-slate-900' : ''} ${frozenColumns.includes('lastActivity') && isLastFrozenColumn('lastActivity') ? 'frozen-column-shadow' : ''}`}
-                          style={frozenColumns.includes('lastActivity') ? {
-                            position: 'sticky',
-                            left: `${getColumnLeftPosition('lastActivity')}px`,
-                            zIndex: 10
-                          } : {}}
-                        >
-                          {user.lastActivity}
-                        </td>
-                      )}
-                      {visibleColumns.firstJoined && (
-                        <td
-                          className={`px-6 py-4 text-slate-500 dark:text-slate-400 ${frozenColumns.includes('firstJoined') ? 'bg-white dark:bg-slate-900' : ''} ${frozenColumns.includes('firstJoined') && isLastFrozenColumn('firstJoined') ? 'frozen-column-shadow' : ''}`}
-                          style={frozenColumns.includes('firstJoined') ? {
-                            position: 'sticky',
-                            left: `${getColumnLeftPosition('firstJoined')}px`,
-                            zIndex: 10
-                          } : {}}
-                        >
-                          {user.firstJoined}
-                        </td>
-                      )}
-                      {customFields.filter(f => f.visible).map(field => (
-                        <td key={field.id} className="px-6 py-4 text-slate-400 dark:text-slate-500 italic text-sm">
-                          —
-                        </td>
-                      ))}
-                      <td className="px-6 py-4 relative">
+
+                        {/* Data columns — iterated */}
+                        {visibleOrderedColumns.map(col => (
+                          <td
+                            key={col}
+                            className={`px-6 py-2.5 overflow-hidden text-ellipsis whitespace-nowrap ${COLUMN_CONFIG[col]?.cellClass ?? ''} ${
+                              frozenColumns.includes(col) && isLastFrozenColumn(col) ? 'frozen-column-shadow' : ''
+                            } ${draggedColumn === col ? '!bg-[#635bff]/10 border-x-2 border-[#635bff]/20' : ''} ${
+                              dragOverColumn === col && draggedColumn !== col ? 'border-e-[3px] border-[#635bff]' : ''
+                            }`}
+                            style={frozenColumns.includes(col) ? {
+                              position: 'sticky', right: `${getColumnLeftPosition(col)}px`, zIndex: 10,
+                              backgroundColor: draggedColumn === col ? 'rgba(99,91,255,0.08)' : selectedIds.includes(user.id) ? 'rgb(245 243 255)' : 'white',
+                            } : {}}
+                          >
+                            {COLUMN_CONFIG[col]?.render(user)}
+                          </td>
+                        ))}
+
+                        {/* Row actions */}
+                        <td className="px-6 py-2.5 relative">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -2422,17 +2889,19 @@ const Users = () => {
                   <button
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
-                    className="px-3 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-lg disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                    className="w-8 h-8 flex items-center justify-center text-[#635bff] hover:bg-[#635bff]/10 rounded-md disabled:opacity-40 transition-colors"
+                    title="הקודם"
                   >
-                    הקודם
+                    <span className="material-symbols-rounded !text-[16px]">chevron_right</span>
                   </button>
                   <span className="text-xs text-slate-500">עמוד {currentPage}</span>
                   <button
                     onClick={() => setCurrentPage(p => p + 1)}
                     disabled={currentPage * 50 >= usersTotal}
-                    className="px-3 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-lg disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                    className="w-8 h-8 flex items-center justify-center text-[#635bff] hover:bg-[#635bff]/10 rounded-md disabled:opacity-40 transition-colors"
+                    title="הבא"
                   >
-                    הבא
+                    <span className="material-symbols-rounded !text-[16px]">chevron_left</span>
                   </button>
                 </div>
               </div>

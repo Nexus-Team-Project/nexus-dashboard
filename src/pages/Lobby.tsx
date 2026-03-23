@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 interface Project {
   id: string;
@@ -10,6 +11,7 @@ interface Project {
 }
 
 const Lobby = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
@@ -159,7 +161,7 @@ const Lobby = () => {
               <span className="material-icons text-[18px]">create_new_folder</span>
               צור תיקייה חדשה
             </button>
-            <button className="px-6 py-2.5 text-sm font-bold text-white bg-primary rounded-full hover:shadow-lg hover:shadow-primary/20 transition-all flex items-center gap-2">
+            <button onClick={() => navigate('/projects/new')} className="px-6 py-2.5 text-sm font-bold text-white bg-primary rounded-full hover:shadow-lg hover:shadow-primary/20 transition-all flex items-center gap-2">
               <span className="material-icons text-[18px]">add</span>
               צור פרויקט חדש
             </button>
@@ -275,7 +277,7 @@ const Lobby = () => {
           ))}
 
           {/* New Project Card */}
-          <button className="group bg-transparent rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-primary hover:bg-white dark:hover:bg-slate-800 transition-all flex flex-col items-center justify-center p-8 aspect-[16/13]">
+          <button onClick={() => navigate('/projects/new')} className="group bg-transparent rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-primary hover:bg-white dark:hover:bg-slate-800 transition-all flex flex-col items-center justify-center p-8 aspect-[16/13]">
             <div className="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-800 group-hover:bg-primary/20 flex items-center justify-center mb-4 transition-colors">
               <span className="material-icons text-slate-400 group-hover:text-primary">
                 add

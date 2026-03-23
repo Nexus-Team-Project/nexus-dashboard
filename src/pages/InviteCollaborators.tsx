@@ -33,7 +33,7 @@ const InviteCollaborators = () => {
       description: 'Manage site content, blog posts, and dynamic data',
       icon: 'description',
       iconColor: 'text-primary',
-      bgColor: 'bg-blue-50 dark:bg-blue-900/20'
+      bgColor: 'bg-violet-50 dark:bg-violet-900/20'
     },
     {
       id: 'general',
@@ -216,7 +216,7 @@ const InviteCollaborators = () => {
             </button>
             <button
               onClick={handleSendInvite}
-              className="px-8 py-2.5 text-sm font-semibold bg-primary text-white rounded-full hover:opacity-90 transition-all shadow-lg shadow-blue-500/20"
+              className="px-8 py-2.5 text-sm font-semibold bg-primary text-white rounded-full hover:opacity-90 transition-all shadow-lg shadow-violet-500/20"
             >
               שלח הזמנה
             </button>
@@ -271,7 +271,7 @@ const InviteCollaborators = () => {
               <div>
                 <div className="flex items-center gap-3">
                   <h2 className="text-xl font-bold">בחר תפקידים</h2>
-                  <button className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:bg-blue-50 dark:hover:bg-blue-900/20 px-2 py-1 rounded-md transition-colors">
+                  <button className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:bg-violet-50 dark:hover:bg-violet-900/20 px-2 py-1 rounded-md transition-colors">
                     <span className="material-icons text-base">auto_awesome</span>
                     עזור לי לבחור תפקיד
                   </button>

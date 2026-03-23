@@ -286,9 +286,9 @@ const Home = () => {
       return {
         period: isRTL ? 'אחר צהריים טובים' : 'Good afternoon',
         emoji: '🌤️',
-        textColor: 'text-blue-900',
-        subTextColor: 'text-blue-700',
-        bannerClass: 'afternoon-banner-bg border-blue-200/50',
+        textColor: 'text-violet-900',
+        subTextColor: 'text-violet-700',
+        bannerClass: 'afternoon-banner-bg border-violet-200/50',
         isDark: false,
       };
     } else if (hour >= 17 && hour < 21) {
@@ -440,7 +440,7 @@ const Home = () => {
         </div>
 
         {/* Skeleton Analytics Section */}
-        <section className="bg-accent-blue/40 dark:bg-primary/5 rounded-[2rem] p-8 border border-accent-blue dark:border-primary/20 animate-pulse">
+        <section className="bg-accent-violet/40 dark:bg-primary/5 rounded-[2rem] p-8 border border-accent-violet dark:border-primary/20 animate-pulse">
           <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
             <div className="flex items-center gap-3">
               <div className="h-8 w-32 bg-slate-200 dark:bg-slate-700 rounded-lg"></div>
@@ -702,7 +702,7 @@ const Home = () => {
       </div>
 
       {/* Analytics Section */}
-      <section className="bg-accent-blue/40 dark:bg-primary/5 rounded-[2rem] p-8 border border-accent-blue dark:border-primary/20">
+      <section className="bg-accent-violet/40 dark:bg-primary/5 rounded-[2rem] p-8 border border-accent-violet dark:border-primary/20">
         <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
           <div className="flex items-center gap-3">
             <h2 className="text-2xl font-bold">אנליטיקס</h2>
@@ -844,7 +844,7 @@ const Home = () => {
             </div>
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-accent-blue"></span>
+                <span className="w-3 h-3 rounded-full bg-accent-violet"></span>
                 <span className="text-slate-600 dark:text-slate-400">אינסטגרם</span>
               </div>
               <span className="font-bold">30%</span>
@@ -950,12 +950,12 @@ const Home = () => {
               <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
                 <tr className="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                   <td className="py-4">
-                    <span className="px-2.5 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-full font-bold">תחזוקה</span>
+                    <span className="px-2.5 py-1 bg-violet-100 dark:bg-violet-900/30 text-violet-600 rounded-full font-bold">תחזוקה</span>
                   </td>
                   <td className="py-4 text-slate-600 dark:text-slate-300">נדרש אופטימיזציה למסד נתונים.</td>
                   <td className="py-4">
                     <div className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                      <span className="w-2 h-2 rounded-full bg-violet-500"></span>
                       <span>בתהליך</span>
                     </div>
                   </td>

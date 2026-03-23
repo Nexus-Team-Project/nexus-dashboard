@@ -6,7 +6,7 @@ import { orgsApi, type Org } from '../lib/api';
 
 const PLAN_COLORS: Record<string, string> = {
   FREE: 'bg-slate-100 text-slate-600',
-  PRO: 'bg-blue-100 text-blue-700',
+  PRO: 'bg-violet-100 text-violet-700',
   ENTERPRISE: 'bg-purple-100 text-purple-700',
 };
 
@@ -438,7 +438,7 @@ const Organizations = () => {
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={() => navigate(`/organizations/${org.slug}`)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-blue-50 transition-colors"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-violet-50 transition-colors"
                         title="נהל ארגון"
                       >
                         <span className="material-icons !text-[18px]">manage_accounts</span>

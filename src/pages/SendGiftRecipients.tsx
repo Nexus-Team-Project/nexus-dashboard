@@ -1139,7 +1139,7 @@ const SendGiftRecipients = () => {
                             className="w-4 h-4 text-primary focus:ring-primary cursor-pointer"
                           />
                           <span className="text-sm group-hover:text-primary transition-colors flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                            <span className="w-2 h-2 rounded-full bg-violet-500"></span>
                             אנשי קשר
                           </span>
                         </label>
@@ -1402,7 +1402,7 @@ const SendGiftRecipients = () => {
                       <div className={`px-2 py-1 rounded-full text-xs font-medium flex-shrink-0 ${
                         contact.type === 'member'
                           ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                          : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                          : 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400'
                       }`}>
                         {contact.type === 'member' ? 'חבר' : 'איש קשר'}
                       </div>
@@ -1591,7 +1591,7 @@ const SendGiftRecipients = () => {
                         <span className="material-icons text-3xl">upload_file</span>
                       </div>
                       <p className="text-lg text-slate-900 dark:text-white font-medium">
-                        <span className="text-blue-600 hover:underline cursor-pointer">עיין בקבצים שלך</span> או גרור ושחרר כאן
+                        <span className="text-violet-600 hover:underline cursor-pointer">עיין בקבצים שלך</span> או גרור ושחרר כאן
                       </p>
                       <p className="mt-2 text-slate-500 dark:text-slate-400 text-sm">
                         וודא שזה קובץ CSV, XLS, או XLSX.
@@ -1612,10 +1612,10 @@ const SendGiftRecipients = () => {
                 <div className="mt-8 md:mt-12">
                   <h3 className="font-semibold text-slate-900 dark:text-white mb-4">צריך עזרה להתחיל?</h3>
                   <div className="flex flex-col gap-3">
-                    <a className="flex items-center gap-2 text-blue-600 hover:underline text-sm font-medium" href="#">
+                    <a className="flex items-center gap-2 text-violet-600 hover:underline text-sm font-medium" href="#">
                       קרא ולמד <span className="text-slate-500 dark:text-slate-400 font-normal">על ייבוא נמענים</span>
                     </a>
-                    <a className="flex items-center gap-2 text-blue-600 hover:underline text-sm font-medium" href="#">
+                    <a className="flex items-center gap-2 text-violet-600 hover:underline text-sm font-medium" href="#">
                       הורד <span className="text-slate-500 dark:text-slate-400 font-normal">קובץ Excel לדוגמה</span>
                     </a>
                   </div>
@@ -1689,10 +1689,10 @@ const SendGiftRecipients = () => {
 
             {/* Modal Content */}
             <div className="p-6 overflow-y-auto flex-1">
-              <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl">
+              <div className="mb-6 p-4 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-xl">
                 <div className="flex items-start gap-3">
-                  <span className="material-icons text-blue-600 text-xl">info</span>
-                  <div className="text-sm text-blue-700 dark:text-blue-300">
+                  <span className="material-icons text-violet-600 text-xl">info</span>
+                  <div className="text-sm text-violet-700 dark:text-violet-300">
                     <p className="font-semibold mb-1">עצה:</p>
                     <p>מלא רק את השדות שברצונך לעדכן. שדות ריקים לא ישתנו.</p>
                   </div>

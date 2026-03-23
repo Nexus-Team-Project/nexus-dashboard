@@ -12,7 +12,7 @@ const ROLE_LABELS: Record<OrgRole, string> = {
 
 const ROLE_COLORS: Record<OrgRole, string> = {
   OWNER: 'bg-purple-100 text-purple-700',
-  ADMIN: 'bg-blue-100 text-blue-700',
+  ADMIN: 'bg-violet-100 text-violet-700',
   MEMBER: 'bg-slate-100 text-slate-600',
 };
 
@@ -403,7 +403,7 @@ function InviteSection({ slug }: InviteSectionProps) {
                   <div className="flex items-center gap-2 flex-wrap">
                     {invite.label && <span className="text-[13px] font-medium text-slate-700">{invite.label}</span>}
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
-                      invite.role === 'ADMIN' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
+                      invite.role === 'ADMIN' ? 'bg-violet-100 text-violet-700' : 'bg-slate-100 text-slate-600'
                     }`}>
                       {ROLE_LABELS_INVITE[invite.role]}
                     </span>
@@ -421,7 +421,7 @@ function InviteSection({ slug }: InviteSectionProps) {
                 <div className="flex items-center gap-1 shrink-0">
                   <button
                     onClick={() => handleCopy(invite.token)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-blue-50 transition-colors"
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-violet-50 transition-colors"
                     title={copied === invite.token ? 'הועתק!' : 'העתק קישור'}
                   >
                     <span className="material-icons !text-[18px]">
@@ -691,7 +691,7 @@ const OrgDetail = () => {
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={() => setEditTarget(member)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-blue-50 transition-colors"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-violet-50 transition-colors"
                         title="ערוך"
                       >
                         <span className="material-icons !text-[18px]">edit</span>

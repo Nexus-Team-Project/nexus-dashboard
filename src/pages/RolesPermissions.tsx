@@ -43,7 +43,7 @@ const RolesPermissions = () => {
       name: 'רז אשל',
       email: 'razeshel123@gmail.com',
       initials: 'ר',
-      avatarColor: 'bg-blue-600',
+      avatarColor: 'bg-violet-600',
       role: 'Admin (Co-Owner)',
       joinedDate: 'Jun 11, 2024',
       isCurrentUser: true
@@ -306,7 +306,7 @@ const RolesPermissions = () => {
       <div className="bg-white dark:bg-card-dark rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
         <table className="w-full text-right border-collapse">
           <thead>
-            <tr className="bg-blue-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700">
+            <tr className="bg-violet-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700">
               <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 <div className="flex items-center cursor-pointer hover:text-primary transition-colors">
                   שם
@@ -340,7 +340,7 @@ const RolesPermissions = () => {
                 </td>
                 <td className="px-6 py-5 text-left">
                   {collab.isCurrentUser ? (
-                    <button className="inline-flex items-center px-4 py-1.5 text-xs font-medium text-primary border border-blue-100 dark:border-blue-900/30 rounded-full bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-all">
+                    <button className="inline-flex items-center px-4 py-1.5 text-xs font-medium text-primary border border-violet-100 dark:border-violet-900/30 rounded-full bg-violet-50 dark:bg-violet-900/20 hover:bg-violet-100 dark:hover:bg-violet-900/40 transition-all">
                       <span className="material-icons text-sm ml-1">person_remove</span>
                       עזוב אתר
                     </button>

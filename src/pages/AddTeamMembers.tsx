@@ -129,12 +129,12 @@ const AddTeamMembers = ({ onComplete }: AddTeamMembersProps) => {
         </div>
 
         {/* Info Box */}
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 mb-6">
+        <div className="bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-xl p-4 mb-6">
           <div className="flex gap-3">
-            <span className="material-icons text-blue-600 dark:text-blue-400 text-xl">info</span>
+            <span className="material-icons text-violet-600 dark:text-violet-400 text-xl">info</span>
             <div className="flex-1">
-              <p className="text-sm text-blue-900 dark:text-blue-100 font-medium mb-1">הרשאות ברירת מחדל</p>
-              <p className="text-xs text-blue-700 dark:text-blue-300">
+              <p className="text-sm text-violet-900 dark:text-violet-100 font-medium mb-1">הרשאות ברירת מחדל</p>
+              <p className="text-xs text-violet-700 dark:text-violet-300">
                 כל חברי הצוות שתזמין יקבלו הרשאות צפייה בלבד. תוכל לשנות את ההרשאות בכל עת מהגדרות הצוות.
               </p>
             </div>

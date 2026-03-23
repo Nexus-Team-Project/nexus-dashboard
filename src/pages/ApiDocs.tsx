@@ -132,7 +132,7 @@ const ApiDocs = () => {
       .replace(/curl/g, '<span class="text-purple-400">curl</span>')
       .replace(/POST|GET|PUT|DELETE/g, (match) => `<span class="text-green-400">${match}</span>`)
       .replace(/'([^']+)'/g, (match) => `<span class="text-yellow-400">${match}</span>`)
-      .replace(/("[\w]+"):/g, (match) => `<span class="text-blue-400">${match}</span>`);
+      .replace(/("[\w]+"):/g, (match) => `<span class="text-violet-400">${match}</span>`);
   };
 
   const copyCode = () => {
@@ -149,7 +149,7 @@ const ApiDocs = () => {
       case 'GET':
         return 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800';
       case 'PUT':
-        return 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800';
+        return 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 border-violet-200 dark:border-violet-800';
       case 'DELETE':
         return 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800';
       default:
@@ -179,7 +179,7 @@ const ApiDocs = () => {
       case 'GET':
         return 'bg-purple-500/10 text-purple-600';
       case 'PUT':
-        return 'bg-blue-500/10 text-blue-600';
+        return 'bg-violet-500/10 text-violet-600';
       case 'DELETE':
         return 'bg-red-500/10 text-red-600';
       default:
@@ -393,7 +393,7 @@ const ApiDocs = () => {
                   through the checkout flow.
                 </p>
 
-                <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-primary p-6 rounded-r-lg mb-10">
+                <div className="bg-violet-50 dark:bg-violet-900/20 border-l-4 border-primary p-6 rounded-r-lg mb-10">
                   <div className="flex items-center gap-2 mb-3 text-primary font-bold">
                     <span className="material-icons-outlined">info</span>
                     Notes

@@ -31,7 +31,7 @@ const Settings = () => {
       title: 'תפקידים והרשאות',
       description: 'נהל תפקידי משתמשים והרשאות גישה למערכת',
       icon: 'shield',
-      color: 'bg-gradient-to-br from-blue-500 to-blue-600',
+      color: 'bg-gradient-to-br from-violet-500 to-violet-600',
       path: '/settings/roles-permissions'
     },
     {

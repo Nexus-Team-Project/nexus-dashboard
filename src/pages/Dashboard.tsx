@@ -27,9 +27,9 @@ const Dashboard = () => {
       return {
         period: isRTL ? 'אחר צהריים טובים' : 'Good afternoon',
         emoji: '🌤️',
-        textColor: 'text-blue-900',
-        subTextColor: 'text-blue-700',
-        bannerClass: 'afternoon-banner-bg border-blue-200/50',
+        textColor: 'text-violet-900',
+        subTextColor: 'text-violet-700',
+        bannerClass: 'afternoon-banner-bg border-violet-200/50',
         isDark: false,
       };
     } else if (hour >= 17 && hour < 21) {

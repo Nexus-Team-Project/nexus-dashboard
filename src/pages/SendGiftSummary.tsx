@@ -405,10 +405,10 @@ const SendGiftSummary = () => {
               </div>
 
               {/* Security Notice */}
-              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl">
+              <div className="p-4 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-xl">
                 <div className="flex items-start gap-3">
-                  <span className="material-icons text-blue-600 text-xl">lock</span>
-                  <div className="text-sm text-blue-700 dark:text-blue-300">
+                  <span className="material-icons text-violet-600 text-xl">lock</span>
+                  <div className="text-sm text-violet-700 dark:text-violet-300">
                     <p className="font-semibold mb-1">תשלום מאובטח</p>
                     <p>כל המידע מוצפן ומאובטח בהתאם לתקני אבטחה בינלאומיים</p>
                   </div>

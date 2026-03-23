@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { LanguageProvider } from './i18n/LanguageContext';
+import { DevModeProvider } from './contexts/DevModeContext';
 import DashboardLayout from './layouts/DashboardLayout';
 import Home from './pages/Home';
 import Users from './pages/Users';
@@ -29,6 +30,8 @@ import Organizations from './pages/Organizations';
 import OrgDetail from './pages/OrgDetail';
 import SmsCampaign from './pages/SmsCampaign';
 import Inbox from './pages/Inbox';
+import CreateProject from './pages/CreateProject';
+import Transactions from './pages/Transactions';
 
 function App() {
   // Convert title attributes to data-tooltip for modern black tooltips
@@ -77,6 +80,7 @@ function App() {
   };
 
   return (
+    <DevModeProvider>
     <LanguageProvider>
       <BrowserRouter>
         <Routes>
@@ -105,7 +109,9 @@ function App() {
               <Route path="/" element={<DashboardLayout onLogout={handleLogout} />}>
                 <Route index element={<Home />} />
                 <Route path="projects" element={<Lobby />} />
+                <Route path="projects/new" element={<CreateProject />} />
                 <Route path="users" element={<Users />} />
+                <Route path="transactions" element={<Transactions />} />
                 <Route path="points-gifts" element={<PointsGifts />} />
                 <Route path="benefits-partnerships" element={<BenefitsPartnerships />} />
                 <Route path="benefits-partnerships/edit-benefit/:id" element={<EditBenefit />} />
@@ -130,6 +136,7 @@ function App() {
         </Routes>
       </BrowserRouter>
     </LanguageProvider>
+    </DevModeProvider>
   );
 }
 

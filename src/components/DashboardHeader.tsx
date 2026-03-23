@@ -4,8 +4,10 @@ import { useLanguage } from '../i18n/LanguageContext';
 import SearchBar from './SearchBar';
 import NotificationsPanel from './NotificationsPanel';
 import InboxPanel from './InboxPanel';
+import UserPanel from './UserPanel';
 import nexusLogoAnimated from '../assets/logos/Nexus_Wide_Logo_Animation_Black_Whithout_Slogan.gif';
 import nexusLogoStatic from '../assets/logos/Nexus_wide_logo_blak.png';
+import orgLogo from '../assets/logos/Nexus_Logo_only_Icon_Black.png';
 
 interface DashboardHeaderProps {
   onLogout: () => void;
@@ -19,8 +21,10 @@ const DashboardHeader = ({ onLogout, isChatOpen, onChatToggle }: DashboardHeader
   const [isLogoHovered, setIsLogoHovered] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isInboxOpen, setIsInboxOpen] = useState(false);
+  const [isUserPanelOpen, setIsUserPanelOpen] = useState(false);
   const notificationsBtnRef = useRef<HTMLButtonElement>(null);
   const inboxBtnRef = useRef<HTMLButtonElement>(null);
+  const userBtnRef = useRef<HTMLButtonElement>(null);
 
   return (
     <>
@@ -53,21 +57,40 @@ const DashboardHeader = ({ onLogout, isChatOpen, onChatToggle }: DashboardHeader
           filter: drop-shadow(0 0 12px rgba(59, 130, 246, 0.8));
         }
       `}</style>
-      <header className="bg-[#d6e0ed] dark:bg-background-dark h-12 flex items-center px-6 sticky top-0 z-50">
+      <header className="bg-[#edf1fc] dark:bg-background-dark h-12 flex items-center px-6 sticky top-0 z-50">
         {/* All buttons and user profile at far left */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 me-2 pe-4 border-e border-slate-200 dark:border-slate-700">
-            <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center overflow-hidden">
-              <span className="material-symbols-rounded !text-[20px] text-slate-400">person</span>
+        <div className="flex items-center gap-1">
+          <div className="relative me-1 shrink-0">
+            <div className="absolute -start-1.5 -bottom-1 w-4 h-4 rounded-full bg-white border border-slate-200 flex items-center justify-center z-10 overflow-hidden">
+              <img src={orgLogo} alt="Organization" className="w-3 h-3 object-contain" />
             </div>
+            <button
+              ref={userBtnRef}
+              onClick={() => { setIsUserPanelOpen(!isUserPanelOpen); setIsNotificationsOpen(false); setIsInboxOpen(false); }}
+              className={`w-7 h-7 rounded-full flex items-center justify-center overflow-hidden transition-all shrink-0 ${
+                isUserPanelOpen
+                  ? 'ring-2 ring-[#635bff]'
+                  : 'hover:ring-2 hover:ring-slate-300'
+              } bg-gradient-to-br from-primary to-violet-400`}
+              title="דניאל רביב"
+            >
+              <span className="text-white font-semibold text-[12px]">ד</span>
+            </button>
           </div>
+          <UserPanel
+            isOpen={isUserPanelOpen}
+            onClose={() => setIsUserPanelOpen(false)}
+            onLogout={onLogout}
+            anchorRef={userBtnRef}
+          />
+          <SearchBar />
           <button
             ref={notificationsBtnRef}
             onClick={() => { setIsNotificationsOpen(!isNotificationsOpen); setIsInboxOpen(false); }}
-            className={`relative p-1.5 rounded-full transition-colors ${
+            className={`relative w-8 h-8 flex items-center justify-center rounded-md transition-colors ${
               isNotificationsOpen
                 ? 'text-[#635bff] bg-[#635bff]/10'
-                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200 dark:hover:text-slate-300'
             }`}
             title={language === 'he' ? 'התראות' : 'Notifications'}
           >
@@ -82,10 +105,10 @@ const DashboardHeader = ({ onLogout, isChatOpen, onChatToggle }: DashboardHeader
           <button
             ref={inboxBtnRef}
             onClick={() => { setIsInboxOpen(!isInboxOpen); setIsNotificationsOpen(false); }}
-            className={`relative p-1.5 rounded-full transition-colors ${
+            className={`relative w-8 h-8 flex items-center justify-center rounded-md transition-colors ${
               isInboxOpen
                 ? 'text-[#635bff] bg-[#635bff]/10'
-                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200 dark:hover:text-slate-300'
             }`}
             title={language === 'he' ? 'הודעות' : 'Inbox'}
           >
@@ -97,17 +120,17 @@ const DashboardHeader = ({ onLogout, isChatOpen, onChatToggle }: DashboardHeader
             anchorRef={inboxBtnRef}
           />
           <button
-            className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-full transition-colors"
+            className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-200 dark:hover:text-slate-300 rounded-md transition-colors"
             title={language === 'he' ? 'צוות' : 'Team'}
           >
             <span className="material-symbols-rounded !text-[20px]">group</span>
           </button>
           <button
             onClick={onChatToggle}
-            className={`p-1.5 rounded-full transition-colors ${
+            className={`w-8 h-8 flex items-center justify-center rounded-md transition-colors ${
               isChatOpen
                 ? 'text-[#635bff] bg-[#635bff]/10'
-                : 'text-slate-400 hover:text-[#635bff]'
+                : 'text-slate-400 hover:text-[#635bff] hover:bg-slate-200'
             }`}
             title={t('aiAssistant')}
           >
@@ -115,40 +138,36 @@ const DashboardHeader = ({ onLogout, isChatOpen, onChatToggle }: DashboardHeader
           </button>
           <button
             onClick={() => navigate('/settings')}
-            className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-full transition-colors"
+            className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-200 dark:hover:text-slate-300 rounded-md transition-colors"
             title={t('settings')}
           >
             <span className="material-symbols-rounded !text-[20px]">settings</span>
           </button>
-          <button className="text-primary text-[12px] font-semibold flex items-center gap-1 hover:opacity-80 transition-opacity leading-none" title={language === 'he' ? 'שדרג' : 'Upgrade'}>
+          <button className="text-primary hover:text-white hover:bg-primary text-[12px] font-semibold flex items-center gap-1 px-2 py-1 rounded-md transition-colors leading-none" title={language === 'he' ? 'שדרג' : 'Upgrade'}>
             <span className="material-symbols-rounded !text-[16px]">diamond</span>
             {language === 'he' ? 'שדרג' : 'Upgrade'}
           </button>
-          <button
-            onClick={onLogout}
-            className="p-1.5 text-slate-400 hover:text-red-500 rounded-full transition-colors"
-            title={t('logout')}
-          >
-            <span className="material-symbols-rounded !text-[20px]">logout</span>
-          </button>
         </div>
 
-        {/* Search bar and Logo at far right */}
-        <div className="flex items-center gap-4 ms-auto">
-          <div className="max-w-md">
-            <SearchBar />
-          </div>
+        {/* Logo at far right */}
+        <div className="flex items-center ms-auto -me-2">
           <div
-            className="flex items-center cursor-pointer transition-transform duration-300 hover:scale-105"
+            className="cursor-pointer transition-transform duration-300 hover:scale-105"
             onMouseEnter={() => setIsLogoHovered(true)}
             onMouseLeave={() => setIsLogoHovered(false)}
-          >
-            <img
-              src={isLogoHovered ? nexusLogoAnimated : nexusLogoStatic}
-              alt="Nexus"
-              className="h-10 w-auto object-contain transition-all duration-300"
-            />
-          </div>
+            style={{
+              width: 140,
+              height: 40,
+              backgroundImage: `url(${isLogoHovered ? nexusLogoAnimated : nexusLogoStatic})`,
+              backgroundColor: '#edf1fc',
+              backgroundSize: 'contain',
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'center',
+              backgroundBlendMode: 'multiply',
+            }}
+            role="img"
+            aria-label="Nexus"
+          />
         </div>
       </header>
     </>

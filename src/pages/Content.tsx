@@ -112,14 +112,14 @@ const Content = () => {
             <div className="flex items-start justify-between mb-4">
               <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
                 item.type === 'page'
-                  ? 'bg-blue-100 dark:bg-blue-900/30'
+                  ? 'bg-violet-100 dark:bg-violet-900/30'
                   : item.type === 'post'
                   ? 'bg-green-100 dark:bg-green-900/30'
                   : 'bg-purple-100 dark:bg-purple-900/30'
               }`}>
                 <span className={`material-icons text-2xl ${
                   item.type === 'page'
-                    ? 'text-blue-600'
+                    ? 'text-violet-600'
                     : item.type === 'post'
                     ? 'text-green-600'
                     : 'text-purple-600'

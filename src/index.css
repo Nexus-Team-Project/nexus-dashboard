@@ -1,12 +1,12 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #0066cc;
+  --color-primary: #635bff;
   --color-background-light: #f3f7fa;
   --color-background-dark: #0f172a;
   --color-card-light: #ffffff;
   --color-card-dark: #1e293b;
-  --color-accent-blue: #dbeafe;
+  --color-accent-violet: #ede9fe;
 }
 
 * {
@@ -312,4 +312,69 @@ body {
 
 .dark .frozen-column-shadow {
   box-shadow: 2px 0 4px -2px rgba(0, 0, 0, 0.4);
+}
+
+/* Border Highlight Effect - follows mouse cursor on all sides */
+.border-highlight-card {
+  isolation: isolate;
+}
+
+.border-highlight-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  background: radial-gradient(
+    120px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    rgba(147, 51, 234, 0.9) 0%,
+    rgba(236, 72, 153, 0.7) 25%,
+    rgba(251, 146, 60, 0.5) 50%,
+    transparent 100%
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 50;
+}
+
+.border-highlight-card:hover::before {
+  opacity: 1;
+}
+
+/* Border Highlight - top edge only (for bottom-docked bars) */
+.border-highlight-top {
+  isolation: isolate;
+}
+
+.border-highlight-top::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: radial-gradient(
+    120px circle at var(--mouse-x, 50%) 50%,
+    rgba(147, 51, 234, 0.9) 0%,
+    rgba(236, 72, 153, 0.7) 25%,
+    rgba(251, 146, 60, 0.5) 50%,
+    transparent 100%
+  );
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 50;
+}
+
+.border-highlight-top:hover::before {
+  opacity: 1;
 }

@@ -126,6 +126,21 @@ export type UserRole   = 'USER' | 'ADMIN' | 'AGENT';
 export type UserStatus = 'active' | 'inactive' | 'pending';
 export type AuthProvider = 'EMAIL' | 'GOOGLE';
 
+export interface Address {
+  street?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  country?: string;
+}
+
+export interface TaxId {
+  type: string;
+  value: string;
+}
+
+export type TaxStatus = 'taxable' | 'exempt' | 'reverse_charge';
+
 export interface AdminUser {
   id: string;
   email: string;
@@ -144,6 +159,22 @@ export interface AdminUser {
     role: OrgRole;
     org: { id: string; slug: string; name: string; logoUrl?: string; primaryColor?: string };
   }[];
+  // Account info
+  displayName?: string;
+  language?: string;
+  businessName?: string;
+  description?: string;
+  // Billing
+  billingEmail?: string;
+  billingAddress?: Address;
+  currency?: string;
+  timezone?: string;
+  // Tax
+  taxStatus?: TaxStatus;
+  taxIds?: TaxId[];
+  // Shipping
+  shippingAddress?: Address;
+  shippingPhone?: string;
 }
 
 export interface AdminUsersResponse {
@@ -173,6 +204,60 @@ export const usersApi = {
 
   delete: (id: string) =>
     request<void>('DELETE', `/api/admin/users/${id}`),
+};
+
+// ─── Transactions API ─────────────────────────────────────────────
+
+export type TransactionStatus = 'pending' | 'successful' | 'declined' | 'refunded' | 'chargeback' | 'authorized' | 'voided';
+export type TransactionType = 'payment' | 'payout' | 'topup' | 'refund' | 'third_party';
+export type PaymentMethod = 'bit' | 'apple_pay' | 'google_pay' | 'paypal' | 'alipay_qr' | 'credit_card' | 'il_direct_debit' | 'bank_transfer' | 'funds_transfer' | 'cash' | 'check' | 'pos' | 'echeck' | 'multi';
+export type TransactionChannel = 'club' | 'direct';
+
+export interface Transaction {
+  id: string;
+  date: string;
+  customerName: string;
+  product: string;
+  paymentMethod: PaymentMethod;
+  status: TransactionStatus;
+  transactionDate: string;
+  amount: number;
+  currency: string;
+  transactionId: string;
+  type: TransactionType;
+}
+
+export interface TransactionsResponse {
+  transactions: Transaction[];
+  total: number;
+  page: number;
+  pages: number;
+}
+
+export const transactionsApi = {
+  list: (params?: {
+    search?: string;
+    status?: string;
+    type?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    paymentMethod?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params?.search) qs.set('search', params.search);
+    if (params?.status) qs.set('status', params.status);
+    if (params?.type) qs.set('type', params.type);
+    if (params?.dateFrom) qs.set('dateFrom', params.dateFrom);
+    if (params?.dateTo) qs.set('dateTo', params.dateTo);
+    if (params?.paymentMethod) qs.set('paymentMethod', params.paymentMethod);
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.limit) qs.set('limit', String(params.limit));
+    const query = qs.toString() ? `?${qs.toString()}` : '';
+    return request<TransactionsResponse>('GET', `/api/transactions${query}`);
+  },
+  get: (id: string) => request<Transaction>('GET', `/api/transactions/${id}`),
 };
 
 // ─── Public Invite API ────────────────────────────────────────────

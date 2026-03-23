@@ -273,7 +273,7 @@ const BenefitsPartnerships = () => {
   const getCategoryColor = (category: string) => {
     const colors: Record<string, string> = {
       food: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400',
-      shopping: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
+      shopping: 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400',
       entertainment: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400',
       travel: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
       wellness: 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400',
@@ -288,7 +288,7 @@ const BenefitsPartnerships = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background-light dark:bg-background-dark">
+    <div className="min-h-screen bg-white dark:bg-background-dark">
       <main className="max-w-7xl mx-auto px-6 pb-12">
         {/* Hero Section */}
         <section className="relative py-20 md:py-28 flex flex-col items-center text-center overflow-hidden">
@@ -482,11 +482,11 @@ const BenefitsPartnerships = () => {
                         <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                           תמונת רקע
                         </th>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider bg-blue-50 dark:bg-blue-900/20">
+                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider bg-violet-50 dark:bg-violet-900/20">
                           שם בית העסק
                           <span className="block text-[10px] font-normal text-slate-500 mt-0.5">קריאה בלבד</span>
                         </th>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider bg-blue-50 dark:bg-blue-900/20">
+                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider bg-violet-50 dark:bg-violet-900/20">
                           אופן מימוש
                           <span className="block text-[10px] font-normal text-slate-500 mt-0.5">קריאה בלבד</span>
                         </th>
@@ -502,11 +502,11 @@ const BenefitsPartnerships = () => {
                         <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                           לינק למימוש
                         </th>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider bg-blue-50 dark:bg-blue-900/20">
+                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider bg-violet-50 dark:bg-violet-900/20">
                           הנחיות מימוש
                           <span className="block text-[10px] font-normal text-slate-500 mt-0.5">קריאה בלבד</span>
                         </th>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider bg-blue-50 dark:bg-blue-900/20">
+                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider bg-violet-50 dark:bg-violet-900/20">
                           תקנון
                           <span className="block text-[10px] font-normal text-slate-500 mt-0.5">קריאה בלבד</span>
                         </th>
@@ -559,12 +559,12 @@ const BenefitsPartnerships = () => {
                               <div className="w-20 h-12 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"></div>
                             )}
                           </td>
-                          <td className="px-4 py-4 bg-blue-50/50 dark:bg-blue-900/10">
-                            <button className="text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+                          <td className="px-4 py-4 bg-violet-50/50 dark:bg-violet-900/10">
+                            <button className="text-sm font-semibold text-violet-600 dark:text-violet-400 hover:underline">
                               {benefit.businessName}
                             </button>
                           </td>
-                          <td className="px-4 py-4 bg-blue-50/50 dark:bg-blue-900/10">
+                          <td className="px-4 py-4 bg-violet-50/50 dark:bg-violet-900/10">
                             <span className="text-sm text-slate-700 dark:text-slate-300 font-medium">
                               {benefit.implementationMethod === 'voucher' && 'שובר'}
                               {benefit.implementationMethod === 'coupon' && 'קוד קופון'}
@@ -596,7 +596,7 @@ const BenefitsPartnerships = () => {
                                   key={idx}
                                   className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border ${
                                     isSystemDefined(term)
-                                      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
+                                      ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 border-violet-200 dark:border-violet-800'
                                       : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
                                   }`}
                                 >
@@ -672,14 +672,14 @@ const BenefitsPartnerships = () => {
                             <span className="text-sm text-slate-600 dark:text-slate-400">{benefit.endDate}</span>
                           </td>
                           <td className="px-4 py-4">
-                            <a href={benefit.implementationLink} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 dark:text-blue-400 hover:underline truncate block max-w-xs">
+                            <a href={benefit.implementationLink} target="_blank" rel="noopener noreferrer" className="text-sm text-violet-600 dark:text-violet-400 hover:underline truncate block max-w-xs">
                               {benefit.implementationLink}
                             </a>
                           </td>
-                          <td className="px-4 py-4 bg-blue-50/50 dark:bg-blue-900/10">
+                          <td className="px-4 py-4 bg-violet-50/50 dark:bg-violet-900/10">
                             <p className="text-xs text-slate-600 dark:text-slate-400 max-w-xs truncate">{benefit.implementationInstructions}</p>
                           </td>
-                          <td className="px-4 py-4 bg-blue-50/50 dark:bg-blue-900/10">
+                          <td className="px-4 py-4 bg-violet-50/50 dark:bg-violet-900/10">
                             <p className="text-xs text-slate-600 dark:text-slate-400 max-w-xs truncate">{benefit.terms}</p>
                           </td>
                           <td className="px-4 py-4 bg-green-50/50 dark:bg-green-900/10">
@@ -871,7 +871,7 @@ const BenefitsPartnerships = () => {
                             <span className="text-sm text-slate-700 dark:text-slate-300 font-mono">{business.businessId}</span>
                           </td>
                           <td className="px-4 py-4">
-                            <button className="flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 hover:underline">
+                            <button className="flex items-center gap-1 text-sm text-violet-600 dark:text-violet-400 hover:underline">
                               <span className="material-icons text-sm">location_on</span>
                               {business.locations.length} סניפים
                             </button>
@@ -892,7 +892,7 @@ const BenefitsPartnerships = () => {
                             </div>
                           </td>
                           <td className="px-4 py-4">
-                            <a href={`tel:${business.phone}`} className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
+                            <a href={`tel:${business.phone}`} className="text-sm text-violet-600 dark:text-violet-400 hover:underline">
                               {business.phone}
                             </a>
                           </td>
@@ -912,7 +912,7 @@ const BenefitsPartnerships = () => {
                             </div>
                           </td>
                           <td className="px-4 py-4">
-                            <button className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
+                            <button className="text-sm text-violet-600 dark:text-violet-400 hover:underline">
                               {business.reviews.length} ביקורות
                             </button>
                           </td>
@@ -1183,10 +1183,10 @@ const BenefitsPartnerships = () => {
               </div>
 
               {/* How to Use */}
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/30 rounded-xl p-4">
+              <div className="bg-violet-50 dark:bg-violet-900/20 border border-violet-100 dark:border-violet-900/30 rounded-xl p-4">
                 <div className="flex items-start gap-3">
-                  <span className="material-icons text-blue-600 dark:text-blue-400 text-xl">info</span>
-                  <div className="text-sm text-blue-700 dark:text-blue-300">
+                  <span className="material-icons text-violet-600 dark:text-violet-400 text-xl">info</span>
+                  <div className="text-sm text-violet-700 dark:text-violet-300">
                     <p className="font-semibold mb-1">איך משתמשים בהטבה?</p>
                     <a href={selectedBenefit.implementationLink} target="_blank" rel="noopener noreferrer" className="underline hover:no-underline">
                       לחץ כאן למימוש ההטבה

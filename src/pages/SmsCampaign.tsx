@@ -250,12 +250,12 @@ const SmsCampaign = () => {
 
           {/* Campaign Summary */}
           {selectedLists.length > 0 && (
-            <div className="bg-blue-50 dark:bg-[#635bff]/10 border border-blue-100 dark:border-[#635bff]/20 rounded-lg p-4">
+            <div className="bg-violet-50 dark:bg-[#635bff]/10 border border-violet-100 dark:border-[#635bff]/20 rounded-lg p-4">
               <div className="flex gap-3">
-                <span className="material-symbols-rounded text-blue-500">info</span>
+                <span className="material-symbols-rounded text-violet-500">info</span>
                 <div>
-                  <p className="text-sm font-semibold text-blue-900 dark:text-blue-200">{t('interimSummary')}</p>
-                  <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                  <p className="text-sm font-semibold text-violet-900 dark:text-violet-200">{t('interimSummary')}</p>
+                  <p className="text-xs text-violet-700 dark:text-violet-300 mt-1">
                     נבחרו {selectedLists.length} רשימות תפוצה. סה"כ {totalRecipients.toLocaleString()} נמענים יקבלו את ההודעה.
                   </p>
                 </div>

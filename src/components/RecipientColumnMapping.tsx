@@ -249,7 +249,7 @@ const RecipientColumnMapping = ({ onClose, onComplete, fileName }: RecipientColu
                   disabled={!canProceed}
                   className={`px-10 py-2.5 font-semibold rounded-lg shadow-lg transition-all active:scale-95 ${
                     canProceed
-                      ? 'bg-primary text-white shadow-primary/20 hover:bg-blue-700'
+                      ? 'bg-primary text-white shadow-primary/20 hover:bg-violet-700'
                       : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed shadow-none'
                   }`}
                 >

@@ -14,7 +14,7 @@ const PointsGifts = () => {
   }, []);
 
   const stats = [
-    { label: 'סה"כ נקודות שחולקו', value: '12,450', icon: 'trending_up', color: 'text-blue-600' },
+    { label: 'סה"כ נקודות שחולקו', value: '12,450', icon: 'trending_up', color: 'text-violet-600' },
     { label: 'מתנות שנשלחו', value: '86', icon: 'card_giftcard', color: 'text-green-600' },
     { label: 'יתרה נוכחית', value: '5,200 ₪', icon: 'account_balance_wallet', color: 'text-primary' },
     { label: 'משתמשים פעילים', value: '234', icon: 'people', color: 'text-purple-600' },
@@ -152,14 +152,14 @@ const PointsGifts = () => {
                 <tr key={gift.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-primary to-blue-400 rounded-full flex items-center justify-center text-white font-bold">
+                      <div className="w-10 h-10 bg-gradient-to-br from-primary to-violet-400 rounded-full flex items-center justify-center text-white font-bold">
                         {gift.recipient.charAt(0)}
                       </div>
                       <span className="font-medium">{gift.recipient}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <span className="px-3 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full text-sm font-medium">
+                    <span className="px-3 py-1 bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 rounded-full text-sm font-medium">
                       {gift.event}
                     </span>
                   </td>
@@ -179,15 +179,15 @@ const PointsGifts = () => {
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 p-6 rounded-2xl border border-blue-200 dark:border-blue-800">
-          <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center text-blue-600 mb-4">
+        <div className="bg-gradient-to-br from-violet-50 to-violet-100 dark:from-violet-950 dark:to-violet-900 p-6 rounded-2xl border border-violet-200 dark:border-violet-800">
+          <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center text-violet-600 mb-4">
             <span className="material-icons text-2xl">history</span>
           </div>
           <h3 className="font-bold text-lg mb-2">היסטוריית מתנות</h3>
           <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
             צפה בכל המתנות שנשלחו בעבר
           </p>
-          <button className="text-sm text-blue-600 dark:text-blue-400 hover:underline font-medium">
+          <button className="text-sm text-violet-600 dark:text-violet-400 hover:underline font-medium">
             עבור להיסטוריה →
           </button>
         </div>

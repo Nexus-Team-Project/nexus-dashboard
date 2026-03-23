@@ -192,7 +192,7 @@ const ColumnMapping = ({ onClose, onComplete }: ColumnMappingProps) => {
                 </button>
                 <button
                   onClick={onComplete}
-                  className="bg-primary text-white px-10 py-2.5 font-semibold rounded-lg shadow-lg shadow-primary/20 hover:bg-blue-700 transition-all active:scale-95"
+                  className="bg-primary text-white px-10 py-2.5 font-semibold rounded-lg shadow-lg shadow-primary/20 hover:bg-violet-700 transition-all active:scale-95"
                 >
                   הבא
                 </button>

@@ -319,6 +319,8 @@ const SearchBar = () => {
     const handleClickOutside = (e: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
         setIsOpen(false);
+        setIsExpanded(false);
+        setQuery('');
       }
     };
 
@@ -361,52 +363,45 @@ const SearchBar = () => {
     <div
       ref={searchRef}
       className="relative"
-      onMouseEnter={() => !isExpanded && setIsExpanded(true)}
     >
-      <div className="relative">
-        <input
-          ref={inputRef}
-          type="text"
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setIsOpen(true);
+      {/* Collapsed state: plain icon button — takes zero extra space */}
+      {!isExpanded && (
+        <button
+          className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md transition-colors"
+          onClick={() => {
             setIsExpanded(true);
+            setTimeout(() => inputRef.current?.focus(), 50);
           }}
-          onFocus={() => {
-            setIsExpanded(true);
-            if (query) setIsOpen(true);
-          }}
-          className={`ps-10 pe-10 py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-full text-sm focus:ring-2 focus:ring-primary outline-none transition-all duration-300 ${
-            isExpanded ? 'w-64 opacity-100 pointer-events-auto' : 'w-8 h-8 opacity-0 pointer-events-none'
-          }`}
-          placeholder={isExpanded ? t('searchUsers') : ''}
-          tabIndex={isExpanded ? 0 : -1}
-        />
+          title={language === 'he' ? 'חיפוש' : 'Search'}
+        >
+          <span className="material-symbols-rounded !text-[20px]">search</span>
+        </button>
+      )}
 
-        {/* Collapsed button - only show when not expanded */}
-        {!isExpanded && (
-          <div
-            className="absolute inset-0 w-8 h-8 bg-slate-100 dark:bg-slate-800 rounded-full transition-all duration-300 flex items-center justify-center cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700"
-            onClick={() => {
-              setIsExpanded(true);
-              setTimeout(() => inputRef.current?.focus(), 100);
+      {/* Expanded state: full input */}
+      {isExpanded && (
+        <div className="relative">
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setIsOpen(true);
             }}
-          >
+            onFocus={() => {
+              if (query) setIsOpen(true);
+            }}
+            className="w-64 ps-10 pe-10 py-1.5 bg-slate-100 dark:bg-slate-800 border-none rounded-md text-sm focus:ring-2 focus:ring-primary outline-none"
+            placeholder={t('searchUsers')}
+            autoFocus
+          />
+          {/* Search icon — right side in RTL */}
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none z-10">
             <span className="material-symbols-rounded text-slate-400 !text-[18px]">search</span>
           </div>
-        )}
-
-        {/* Search icon container - ALWAYS on the RIGHT in RTL (left in visual) */}
-        {isExpanded && (
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none z-10 flex items-center justify-center">
-            <span className="material-symbols-rounded text-slate-400 !text-[20px]">search</span>
-          </div>
-        )}
-
-        {/* X button container - ALWAYS on the LEFT in RTL (right in visual) */}
-        {isExpanded && (
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center">
+          {/* X button — left side in RTL */}
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 z-10">
             <button
               onMouseDown={(e) => {
                 e.preventDefault();
@@ -426,12 +421,12 @@ const SearchBar = () => {
               <span className="material-symbols-rounded !text-[20px]">close</span>
             </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Search Results */}
       {isOpen && results.length > 0 && (
-        <div className="absolute top-full end-0 mt-2 w-[400px] max-w-[calc(100vw-2rem)] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl overflow-hidden z-[150]">
+        <div className="absolute top-full start-0 mt-2 w-[400px] max-w-[calc(100vw-2rem)] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl overflow-hidden z-[150]">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100 dark:border-slate-700">
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">

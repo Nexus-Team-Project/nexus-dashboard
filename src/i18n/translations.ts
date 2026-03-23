@@ -84,6 +84,29 @@ export const translations = {
     recentUsers: 'Recent Users',
     recentContent: 'Recent Content',
 
+    // Transactions
+    transactionsTitle: 'Transaction Management',
+    transactionsSubtitle: 'Track and manage all your transactions in one place.',
+    grossVolume: 'Gross Volume',
+    successfulPayments: 'Successful Payments',
+    priorPeriod: 'prior period',
+    paymentsTab: 'Payments',
+    payoutsTab: 'Payouts',
+    topupsTab: 'Top-ups',
+    allActivityTab: 'All Activity',
+    periodOverview: 'Period Overview',
+    last7Days: 'Last 7 days',
+    last30Days: 'Last 30 days',
+    last90Days: 'Last 90 days',
+    filterTransactions: 'Filter Transactions',
+    filterTransactionsDesc: 'Filter transactions by various criteria',
+    searchTransaction: 'Search customer, product or ID...',
+    paymentMethodFilter: 'Payment Method',
+    amountRange: 'Amount Range',
+    minAmount: 'Minimum',
+    maxAmount: 'Maximum',
+    exportTransactions: 'Export to Excel',
+
     // Users
     searchUsers: 'Search...',
     addUser: '+ Add User',
@@ -172,6 +195,16 @@ export const translations = {
     saveAndContinue: 'Save & Continue',
     campaigns: 'Campaigns',
     callToAction: 'Call to Action',
+
+    // Shortcuts
+    shortcuts: 'Shortcuts',
+    pinned: 'Pinned',
+    showMore: 'Show more',
+    showLess: 'Show less',
+    noRecentPages: 'Visit pages to see shortcuts here',
+    rolesPermissions: 'Roles & Permissions',
+    organizations: 'Organizations',
+    reports: 'Reports',
   },
   he: {
     // App
@@ -257,6 +290,29 @@ export const translations = {
     published: 'פורסם',
     recentUsers: 'משתמשים אחרונים',
     recentContent: 'תוכן אחרון',
+
+    // Transactions
+    transactionsTitle: 'ניהול עסקאות',
+    transactionsSubtitle: 'עקוב ונהל את כל העסקאות שלך במקום אחד.',
+    grossVolume: 'נפח ברוטו',
+    successfulPayments: 'תשלומים מוצלחים',
+    priorPeriod: 'תקופה קודמת',
+    paymentsTab: 'תשלומים',
+    payoutsTab: 'תשלומים יוצאים',
+    topupsTab: 'טעינות',
+    allActivityTab: 'כל הפעילות',
+    periodOverview: 'סקירת תקופה',
+    last7Days: '7 ימים אחרונים',
+    last30Days: '30 ימים אחרונים',
+    last90Days: '90 ימים אחרונים',
+    filterTransactions: 'סינון עסקאות',
+    filterTransactionsDesc: 'סנן עסקאות לפי קריטריונים שונים',
+    searchTransaction: 'חיפוש לקוח, מוצר או מזהה...',
+    paymentMethodFilter: 'אמצעי תשלום',
+    amountRange: 'טווח סכום',
+    minAmount: 'מינימום',
+    maxAmount: 'מקסימום',
+    exportTransactions: 'ייצא לאקסל',
 
     // Users
     searchUsers: 'חיפוש...',
@@ -346,6 +402,16 @@ export const translations = {
     saveAndContinue: 'שמור והמשך',
     campaigns: 'קמפיינים',
     callToAction: 'כפתור הנעה לפעולה',
+
+    // Shortcuts
+    shortcuts: 'קיצורי דרך',
+    pinned: 'נעוץ',
+    showMore: 'הצג עוד',
+    showLess: 'הצג פחות',
+    noRecentPages: 'בקר בעמודים כדי לראות קיצורי דרך כאן',
+    rolesPermissions: 'תפקידים והרשאות',
+    organizations: 'ארגונים',
+    reports: 'דוחות',
   }
 };
 
