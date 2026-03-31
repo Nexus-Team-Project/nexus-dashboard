@@ -502,6 +502,32 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
               </>
             )}
           </button>
+
+          {/* Dev Playground Link — visible only when Dev Mode is on */}
+          {isDevMode && (
+            <NavLink
+              to="/dev"
+              className={({ isActive }) =>
+                `flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 mt-1 ${
+                  isCollapsed ? 'justify-center' : ''
+                } ${
+                  isActive
+                    ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-600 font-medium'
+                    : 'text-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20'
+                }`
+              }
+              title={isCollapsed ? 'Dev Playground' : undefined}
+            >
+              {({ isActive }) => (
+                <>
+                  <span className={`material-symbols-rounded !text-[16px] ${isActive ? 'text-purple-600' : 'text-purple-400'}`}>
+                    science
+                  </span>
+                  {isOpen && <span className="text-[13px] flex-1 truncate">Dev Playground</span>}
+                </>
+              )}
+            </NavLink>
+          )}
         </div>
       </nav>
 

@@ -32,6 +32,7 @@ import SmsCampaign from './pages/SmsCampaign';
 import Inbox from './pages/Inbox';
 import CreateProject from './pages/CreateProject';
 import Transactions from './pages/Transactions';
+import DevPlayground from './pages/DevPlayground';
 
 function App() {
   // Convert title attributes to data-tooltip for modern black tooltips
@@ -129,6 +130,7 @@ function App() {
                 <Route path="settings" element={<Settings />} />
                 <Route path="settings/roles-permissions" element={<RolesPermissions />} />
                 <Route path="settings/roles-permissions/invite" element={<InviteCollaborators />} />
+                <Route path="dev" element={<DevPlayground />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Route>
             </>
