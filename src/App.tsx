@@ -33,6 +33,7 @@ import Inbox from './pages/Inbox';
 import CreateProject from './pages/CreateProject';
 import Transactions from './pages/Transactions';
 import DevPlayground from './pages/DevPlayground';
+import BusinessSetupPage from './pages/BusinessSetupPage';
 
 function App() {
   // Convert title attributes to data-tooltip for modern black tooltips
@@ -107,6 +108,7 @@ function App() {
           ) : (
             <>
               <Route path="/api-docs" element={<ApiDocs />} />
+              <Route path="/business-setup" element={<BusinessSetupPage />} />
               <Route path="/" element={<DashboardLayout onLogout={handleLogout} />}>
                 <Route index element={<Home />} />
                 <Route path="projects" element={<Lobby />} />

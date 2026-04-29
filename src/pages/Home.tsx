@@ -262,7 +262,7 @@ const MiniChart = ({ color, gradientId, data }: LineChartProps) => {
 type DateRange = 'last30days' | 'lastWeek' | 'currentMonth' | 'currentWeek';
 
 const Home = () => {
-  const { isRTL } = useLanguage();
+  const { isRTL, t } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange>('last30days');
   const [showDateRangeMenu, setShowDateRangeMenu] = useState(false);
@@ -275,7 +275,7 @@ const Home = () => {
 
     if (hour >= 5 && hour < 12) {
       return {
-        period: isRTL ? 'בוקר טוב' : 'Good morning',
+        period: t('home_goodMorning'),
         emoji: '☀️',
         textColor: 'text-amber-900',
         subTextColor: 'text-amber-700',
@@ -284,7 +284,7 @@ const Home = () => {
       };
     } else if (hour >= 12 && hour < 17) {
       return {
-        period: isRTL ? 'אחר צהריים טובים' : 'Good afternoon',
+        period: t('home_goodAfternoon'),
         emoji: '🌤️',
         textColor: 'text-violet-900',
         subTextColor: 'text-violet-700',
@@ -293,7 +293,7 @@ const Home = () => {
       };
     } else if (hour >= 17 && hour < 21) {
       return {
-        period: isRTL ? 'ערב טוב' : 'Good evening',
+        period: t('home_goodEvening'),
         emoji: '🌆',
         textColor: 'text-purple-900',
         subTextColor: 'text-purple-700',
@@ -302,7 +302,7 @@ const Home = () => {
       };
     } else {
       return {
-        period: isRTL ? 'לילה טוב' : 'Good night',
+        period: t('home_goodNight'),
         emoji: '🌙',
         textColor: 'text-white',
         subTextColor: 'text-slate-200',
@@ -313,7 +313,7 @@ const Home = () => {
   };
 
   const theme = getTimeBasedTheme();
-  const userName = 'דניאל'; // TODO: Replace with actual user name from auth context
+  const userName = t('home_userName'); // TODO: Replace with actual user name from auth context
   const userImage = undefined; // TODO: Replace with actual user image from auth context
 
   // Simulate loading
@@ -408,10 +408,10 @@ const Home = () => {
   const { labels, storeVisits, purchases, userGrowth } = generateData(dateRange);
 
   const dateRangeLabels: Record<DateRange, string> = {
-    last30days: '30 הימים האחרונים',
-    lastWeek: 'השבוע האחרון',
-    currentMonth: 'החודש הנוכחי',
-    currentWeek: 'השבוע הנוכחי',
+    last30days: t('home_last30days'),
+    lastWeek: t('home_lastWeek'),
+    currentMonth: t('home_currentMonth'),
+    currentWeek: t('home_currentWeek'),
   };
 
   if (loading) {
@@ -653,7 +653,7 @@ const Home = () => {
                 <span>{theme.period}, {userName}</span>
               </h1>
               <p className={`text-base ${theme.subTextColor} font-medium`}>
-                {isRTL ? 'שמחים לראות אותך שוב' : 'Happy to see you again'}
+                {t('home_happyToSeeYou')}
               </p>
             </div>
           </div>
@@ -664,13 +664,13 @@ const Home = () => {
       {/* Welcome Section */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-1">שלום דניאל!</h1>
-          <p className="text-slate-500 dark:text-slate-400">הנה איך העסק שלך מתפקד בזמן אמת.</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-1">{t('home_helloUser')}</h1>
+          <p className="text-slate-500 dark:text-slate-400">{t('home_businessOverview')}</p>
         </div>
         <div className="flex gap-3 flex-wrap">
           <div className="flex items-center gap-4 bg-white dark:bg-card-dark p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm min-w-[180px]">
             <div>
-              <p className="text-xs text-slate-500 uppercase font-semibold">מבקרים</p>
+              <p className="text-xs text-slate-500 uppercase font-semibold">{t('home_visitors')}</p>
               <p className="text-2xl font-bold">223</p>
             </div>
             <div className="w-16 h-12">
@@ -679,7 +679,7 @@ const Home = () => {
           </div>
           <div className="flex items-center gap-4 bg-white dark:bg-card-dark p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm min-w-[180px]">
             <div>
-              <p className="text-xs text-slate-500 uppercase font-semibold">מכירות</p>
+              <p className="text-xs text-slate-500 uppercase font-semibold">{t('home_sales')}</p>
               <p className="text-2xl font-bold">156</p>
             </div>
             <div className="w-16 h-12">
@@ -688,7 +688,7 @@ const Home = () => {
           </div>
           <div className="flex items-center gap-4 bg-white dark:bg-card-dark p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm min-w-[180px]">
             <div>
-              <p className="text-xs text-slate-500 uppercase font-semibold">צ'ק-אין</p>
+              <p className="text-xs text-slate-500 uppercase font-semibold">{t('home_checkin')}</p>
               <p className="text-2xl font-bold">89</p>
             </div>
             <div className="w-16 h-12">
@@ -705,9 +705,9 @@ const Home = () => {
       <section className="bg-accent-violet/40 dark:bg-primary/5 rounded-[2rem] p-8 border border-accent-violet dark:border-primary/20">
         <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
           <div className="flex items-center gap-3">
-            <h2 className="text-2xl font-bold">אנליטיקס</h2>
+            <h2 className="text-2xl font-bold">{t('home_analytics')}</h2>
             <button className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm px-4 py-1.5 rounded-full text-xs font-semibold text-slate-600 dark:text-slate-300 border border-slate-200/50 dark:border-slate-700/50">
-              כל האנליטיקס
+              {t('home_allAnalytics')}
             </button>
           </div>
           <div className="relative" ref={dateRangeMenuRef}>
@@ -722,7 +722,7 @@ const Home = () => {
               </span>
             </button>
             {showDateRangeMenu && (
-              <div className="absolute left-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg z-10">
+              <div className="absolute start-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg z-10">
                 {(['last30days', 'lastWeek', 'currentMonth', 'currentWeek'] as DateRange[]).map((range) => (
                   <button
                     key={range}
@@ -730,7 +730,7 @@ const Home = () => {
                       setDateRange(range);
                       setShowDateRangeMenu(false);
                     }}
-                    className={`w-full text-right px-4 py-3 text-sm font-medium transition-colors first:rounded-t-xl last:rounded-b-xl ${
+                    className={`w-full text-start px-4 py-3 text-sm font-medium transition-colors first:rounded-t-xl last:rounded-b-xl ${
                       dateRange === range
                         ? 'bg-primary text-white'
                         : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
@@ -746,20 +746,20 @@ const Home = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Store Visits Card */}
           <div className="bg-white dark:bg-card-dark p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800">
-            <h3 className="font-bold text-slate-800 dark:text-slate-200 mb-4">ביקורים בחנות</h3>
+            <h3 className="font-bold text-slate-800 dark:text-slate-200 mb-4">{t('home_storeVisits')}</h3>
             <div className="w-full h-32 mb-6 px-2">
               <LineChart color="#0066cc" gradientId="storeVisitsGradient" data={storeVisits} labels={labels} />
             </div>
             <div className="space-y-3">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-500">חודש נוכחי</span>
+                <span className="text-slate-500">{t('home_currentMonthLabel')}</span>
                 <span className="font-bold text-green-500">+20%</span>
               </div>
               <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
                 <div className="bg-primary h-full w-[80%] rounded-full"></div>
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-500">חודש קודם</span>
+                <span className="text-slate-500">{t('home_previousMonthLabel')}</span>
                 <span className="font-bold">+15%</span>
               </div>
               <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
@@ -770,20 +770,20 @@ const Home = () => {
 
           {/* Purchases Card */}
           <div className="bg-white dark:bg-card-dark p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800">
-            <h3 className="font-bold text-slate-800 dark:text-slate-200 mb-4">רכישות</h3>
+            <h3 className="font-bold text-slate-800 dark:text-slate-200 mb-4">{t('home_purchases')}</h3>
             <div className="w-full h-32 mb-6 px-2">
               <LineChart color="#22c55e" gradientId="purchasesGradient" data={purchases} labels={labels} />
             </div>
             <div className="space-y-3">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-500">חודש נוכחי</span>
+                <span className="text-slate-500">{t('home_currentMonthLabel')}</span>
                 <span className="font-bold text-green-500">+25%</span>
               </div>
               <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
                 <div className="bg-green-500 h-full w-[85%] rounded-full"></div>
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-500">חודש קודם</span>
+                <span className="text-slate-500">{t('home_previousMonthLabel')}</span>
                 <span className="font-bold">+18%</span>
               </div>
               <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
@@ -794,20 +794,20 @@ const Home = () => {
 
           {/* User Growth Card */}
           <div className="bg-white dark:bg-card-dark p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800">
-            <h3 className="font-bold text-slate-800 dark:text-slate-200 mb-4">צמיחת משתמשים</h3>
+            <h3 className="font-bold text-slate-800 dark:text-slate-200 mb-4">{t('home_userGrowth')}</h3>
             <div className="w-full h-32 mb-6 px-2">
               <LineChart color="#a855f7" gradientId="userGrowthGradient" data={userGrowth} labels={labels} />
             </div>
             <div className="space-y-3">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-500">חודש נוכחי</span>
+                <span className="text-slate-500">{t('home_currentMonthLabel')}</span>
                 <span className="font-bold text-green-500">+32%</span>
               </div>
               <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
                 <div className="bg-purple-500 h-full w-[90%] rounded-full"></div>
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-500">חודש קודם</span>
+                <span className="text-slate-500">{t('home_previousMonthLabel')}</span>
                 <span className="font-bold">+22%</span>
               </div>
               <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
@@ -822,7 +822,7 @@ const Home = () => {
       <div className="grid grid-cols-12 gap-6">
         {/* Store Visitors Donut */}
         <div className="col-span-12 md:col-span-3 bg-white dark:bg-card-dark p-6 rounded-3xl border border-slate-100 dark:border-slate-800">
-          <h3 className="font-bold mb-6">מבקרי החנות</h3>
+          <h3 className="font-bold mb-6">{t('home_storeVisitors')}</h3>
           <div className="relative flex justify-center mb-6">
             <svg className="w-40 h-40 transform -rotate-90">
               <circle className="stroke-slate-200 dark:stroke-slate-800" cx="80" cy="80" fill="transparent" r="70" strokeWidth="20"></circle>
@@ -831,28 +831,28 @@ const Home = () => {
             </svg>
             <div className="absolute inset-0 flex items-center justify-center flex-col">
               <span className="text-2xl font-bold">1,420</span>
-              <span className="text-[10px] text-slate-500 font-medium">סה"כ</span>
+              <span className="text-[10px] text-slate-500 font-medium">{t('home_total')}</span>
             </div>
           </div>
           <div className="space-y-3">
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-full bg-primary"></span>
-                <span className="text-slate-600 dark:text-slate-400">פייסבוק</span>
+                <span className="text-slate-600 dark:text-slate-400">{t('home_facebook')}</span>
               </div>
               <span className="font-bold">45%</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-full bg-accent-violet"></span>
-                <span className="text-slate-600 dark:text-slate-400">אינסטגרם</span>
+                <span className="text-slate-600 dark:text-slate-400">{t('home_instagram')}</span>
               </div>
               <span className="font-bold">30%</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-full bg-slate-700"></span>
-                <span className="text-slate-600 dark:text-slate-400">טוויטר</span>
+                <span className="text-slate-600 dark:text-slate-400">{t('home_twitter')}</span>
               </div>
               <span className="font-bold">25%</span>
             </div>
@@ -863,68 +863,68 @@ const Home = () => {
         <div className="col-span-12 md:col-span-3 space-y-6">
           <div className="bg-white dark:bg-card-dark p-6 rounded-3xl border border-slate-100 dark:border-slate-800">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold">קטגוריות מובילות</h3>
-              <button className="text-[10px] px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded font-bold uppercase">הצג הכל</button>
+              <h3 className="font-bold">{t('home_topCategories')}</h3>
+              <button className="text-[10px] px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded font-bold uppercase">{t('home_showAll')}</button>
             </div>
             <div className="space-y-4">
               <div className="space-y-1">
                 <div className="flex justify-between text-[11px] font-bold">
-                  <span>אלקטרוניקה</span>
+                  <span>{t('home_electronics')}</span>
                   <span>₪1,200</span>
                 </div>
                 <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                   <div className="bg-primary h-full w-[75%] rounded-full"></div>
                 </div>
                 <div className="flex justify-between text-[9px] text-slate-400">
-                  <span>300 הזמנות</span>
-                  <span>יעד: 500</span>
+                  <span>300 {t('home_orders')}</span>
+                  <span>{t('home_target')}: 500</span>
                 </div>
               </div>
               <div className="space-y-1">
                 <div className="flex justify-between text-[11px] font-bold">
-                  <span>אופנה</span>
+                  <span>{t('home_fashion')}</span>
                   <span>₪980</span>
                 </div>
                 <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                   <div className="bg-primary h-full w-[60%] rounded-full"></div>
                 </div>
                 <div className="flex justify-between text-[9px] text-slate-400">
-                  <span>240 הזמנות</span>
-                  <span>יעד: 400</span>
+                  <span>240 {t('home_orders')}</span>
+                  <span>{t('home_target')}: 400</span>
                 </div>
               </div>
             </div>
           </div>
           <div className="bg-white dark:bg-card-dark p-6 rounded-3xl border border-slate-100 dark:border-slate-800">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold">מוצרים מובילים</h3>
-              <button className="text-[10px] px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded font-bold uppercase">הצג הכל</button>
+              <h3 className="font-bold">{t('home_topProducts')}</h3>
+              <button className="text-[10px] px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded font-bold uppercase">{t('home_showAll')}</button>
             </div>
             <div className="space-y-4">
               <div className="space-y-1">
                 <div className="flex justify-between text-[11px] font-bold">
-                  <span>שעון חכם X</span>
+                  <span>{t('home_smartwatchX')}</span>
                   <span>₪1,200</span>
                 </div>
                 <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                   <div className="bg-primary h-full w-[85%] rounded-full"></div>
                 </div>
                 <div className="flex justify-between text-[9px] text-slate-400">
-                  <span>300 מכירות</span>
-                  <span>יעד: 500</span>
+                  <span>300 {t('home_salesUnit')}</span>
+                  <span>{t('home_target')}: 500</span>
                 </div>
               </div>
               <div className="space-y-1">
                 <div className="flex justify-between text-[11px] font-bold">
-                  <span>אוזניות Pro</span>
+                  <span>{t('home_proHeadphones')}</span>
                   <span>₪450</span>
                 </div>
                 <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                   <div className="bg-primary h-full w-[45%] rounded-full"></div>
                 </div>
                 <div className="flex justify-between text-[9px] text-slate-400">
-                  <span>180 מכירות</span>
-                  <span>יעד: 400</span>
+                  <span>180 {t('home_salesUnit')}</span>
+                  <span>{t('home_target')}: 400</span>
                 </div>
               </div>
             </div>
@@ -934,58 +934,58 @@ const Home = () => {
         {/* System Reports Table */}
         <div className="col-span-12 md:col-span-6 bg-white dark:bg-card-dark p-6 rounded-3xl border border-slate-100 dark:border-slate-800">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="font-bold">דוחות מערכת</h3>
-            <button className="text-[10px] px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded font-bold uppercase">הצג הכל</button>
+            <h3 className="font-bold">{t('home_systemReports')}</h3>
+            <button className="text-[10px] px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded font-bold uppercase">{t('home_showAll')}</button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-start text-xs">
               <thead>
                 <tr className="text-slate-400 uppercase tracking-wider">
-                  <th className="pb-4 font-semibold text-start">קטגוריה</th>
-                  <th className="pb-4 font-semibold text-start">הודעה</th>
-                  <th className="pb-4 font-semibold text-start">סטטוס</th>
-                  <th className="pb-4 font-semibold text-start">מנהל</th>
+                  <th className="pb-4 font-semibold text-start">{t('home_category')}</th>
+                  <th className="pb-4 font-semibold text-start">{t('home_message')}</th>
+                  <th className="pb-4 font-semibold text-start">{t('home_statusCol')}</th>
+                  <th className="pb-4 font-semibold text-start">{t('home_manager')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
                 <tr className="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                   <td className="py-4">
-                    <span className="px-2.5 py-1 bg-violet-100 dark:bg-violet-900/30 text-violet-600 rounded-full font-bold">תחזוקה</span>
+                    <span className="px-2.5 py-1 bg-violet-100 dark:bg-violet-900/30 text-violet-600 rounded-full font-bold">{t('home_maintenance')}</span>
                   </td>
-                  <td className="py-4 text-slate-600 dark:text-slate-300">נדרש אופטימיזציה למסד נתונים.</td>
+                  <td className="py-4 text-slate-600 dark:text-slate-300">{t('home_dbOptNeeded')}</td>
                   <td className="py-4">
                     <div className="flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-violet-500"></span>
-                      <span>בתהליך</span>
+                      <span>{t('home_inProgress')}</span>
                     </div>
                   </td>
-                  <td className="py-4 font-medium">דניאל ר.</td>
+                  <td className="py-4 font-medium">{t('home_danielR')}</td>
                 </tr>
                 <tr className="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                   <td className="py-4">
-                    <span className="px-2.5 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-600 rounded-full font-bold">אבטחה</span>
+                    <span className="px-2.5 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-600 rounded-full font-bold">{t('home_security')}</span>
                   </td>
-                  <td className="py-4 text-slate-600 dark:text-slate-300">תעודת SSL פג תוקפה בעוד 3 ימים.</td>
+                  <td className="py-4 text-slate-600 dark:text-slate-300">{t('home_sslExpiring')}</td>
                   <td className="py-4">
                     <div className="flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-orange-500"></span>
-                      <span>ממתין</span>
+                      <span>{t('home_pendingStatus')}</span>
                     </div>
                   </td>
-                  <td className="py-4 font-medium">דניאל ר.</td>
+                  <td className="py-4 font-medium">{t('home_danielR')}</td>
                 </tr>
                 <tr className="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                   <td className="py-4">
-                    <span className="px-2.5 py-1 bg-green-100 dark:bg-green-900/30 text-green-600 rounded-full font-bold">עדכונים</span>
+                    <span className="px-2.5 py-1 bg-green-100 dark:bg-green-900/30 text-green-600 rounded-full font-bold">{t('home_updatesCat')}</span>
                   </td>
-                  <td className="py-4 text-slate-600 dark:text-slate-300">גרסה 2.4.0 הועלתה בהצלחה.</td>
+                  <td className="py-4 text-slate-600 dark:text-slate-300">{t('home_versionUploaded')}</td>
                   <td className="py-4">
                     <div className="flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                      <span>הושלם</span>
+                      <span>{t('home_completedStatus')}</span>
                     </div>
                   </td>
-                  <td className="py-4 font-medium">דניאל ר.</td>
+                  <td className="py-4 font-medium">{t('home_danielR')}</td>
                 </tr>
               </tbody>
             </table>

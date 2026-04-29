@@ -119,7 +119,7 @@ const AiChatPanel = ({ isOpen, onClose }: AiChatPanelProps) => {
   };
 
   const hasMessages = messages.length > 0;
-  const userName = 'דניאל';
+  const userName = isHe ? 'דניאל' : 'Daniel';
 
   const suggestions = isHe
     ? ['איפה הדוחות שלי?', 'סטטוס האימות שלי', 'עזרה בהגדרות']

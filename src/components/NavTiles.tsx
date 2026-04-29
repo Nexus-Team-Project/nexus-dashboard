@@ -8,11 +8,11 @@ const NavTiles = () => {
     { to: '/', icon: 'dashboard', label: t('dashboard') },
     { to: '/users', icon: 'people_alt', label: t('users') },
     { to: '/content', icon: 'article', label: t('content') },
-    { to: '/reports', icon: 'assessment', label: 'דוחות' },
-    { to: '/marketing', icon: 'campaign', label: 'שיווק' },
-    { to: '/premium', icon: 'diamond', label: 'פרימיום' },
-    { to: '/updates', icon: 'sync', label: 'עדכונים' },
-    { to: '/chat', icon: 'chat', label: 'צ\'אט' },
+    { to: '/reports', icon: 'assessment', label: t('sb_reports') },
+    { to: '/marketing', icon: 'campaign', label: t('marketing') },
+    { to: '/premium', icon: 'diamond', label: t('nt_premium') },
+    { to: '/updates', icon: 'sync', label: t('sb_updates') },
+    { to: '/chat', icon: 'chat', label: t('nt_chat') },
     { to: '/settings', icon: 'settings', label: t('settings') },
   ];
 
@@ -36,7 +36,7 @@ const NavTiles = () => {
         </NavLink>
       ))}
       <div className="flex-grow bg-slate-200 dark:bg-slate-800 rounded-xl h-24 flex items-center justify-center px-6 min-w-[200px]">
-        <p className="text-slate-700 dark:text-slate-300 font-medium text-sm">רוצה תוצאות טובות יותר? שדרג עכשיו!</p>
+        <p className="text-slate-700 dark:text-slate-300 font-medium text-sm">{t('nt_upgradePromo')}</p>
       </div>
     </nav>
   );

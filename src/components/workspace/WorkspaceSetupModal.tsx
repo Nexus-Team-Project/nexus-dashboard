@@ -14,12 +14,11 @@ type Phase = 'wizard' | 'animation' | 'schedule';
 const WorkspaceSetupModal = ({ onClose }: WorkspaceSetupModalProps) => {
   const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>('wizard');
-  const [onboardingData, setOnboardingData] = useState<OnboardingData | null>(null);
+  const [, setOnboardingData] = useState<OnboardingData | null>(null);
 
   const handleWizardComplete = (data: OnboardingData) => {
     setOnboardingData(data);
     console.log('📦 Workspace setup data:', data);
-    // In production: POST /api/user/workspace/setup
     setPhase('animation');
   };
 
@@ -33,68 +32,88 @@ const WorkspaceSetupModal = ({ onClose }: WorkspaceSetupModalProps) => {
   };
 
   const handleSchedule = () => {
-    // In production: open Calendly link
     onClose();
     navigate('/');
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center">
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100 }}>
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300"
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }}
         onClick={phase === 'wizard' ? onClose : undefined}
       />
 
-      {/* Modal */}
-      <div className="relative bg-white dark:bg-card-dark rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-300 mx-4">
-        {/* Header */}
-        <div className="flex items-center justify-between px-8 pt-6 pb-2">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-primary to-violet-600 rounded-xl flex items-center justify-center">
-              <span className="material-symbols-rounded text-white !text-xl">domain_add</span>
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-slate-900 dark:text-white">Workspace Setup</h1>
-              <p className="text-xs text-slate-400">
-                {phase === 'wizard' && 'הגדרת בית עסק חדש'}
-                {phase === 'animation' && 'מכינים הכל בשבילכם...'}
-                {phase === 'schedule' && 'הכל מוכן!'}
-              </p>
-            </div>
-          </div>
+      {/* Modal content — centered with padding */}
+      <div
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '7vh 1rem', overflowY: 'auto' }}
+      >
+        {phase === 'wizard' && (
+          <OnboardingWizard
+            onComplete={handleWizardComplete}
+            onBack={onClose}
+            firstName="רז"
+          />
+        )}
 
-          {phase === 'wizard' && (
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
-            >
-              <span className="material-symbols-rounded text-slate-400 !text-xl">close</span>
-            </button>
-          )}
-        </div>
+        {phase === 'animation' && (
+          <SetupAnimation onComplete={handleAnimationComplete} />
+        )}
 
-        {/* Content */}
-        <div className="px-8 pb-8 overflow-y-auto max-h-[calc(90vh-80px)]">
-          {phase === 'wizard' && (
-            <OnboardingWizard
-              onComplete={handleWizardComplete}
-              onBack={onClose}
-            />
-          )}
-
-          {phase === 'animation' && (
-            <SetupAnimation onComplete={handleAnimationComplete} />
-          )}
-
-          {phase === 'schedule' && (
-            <ScheduleStep
-              onExplore={handleExplore}
-              onSchedule={handleSchedule}
-            />
-          )}
-        </div>
+        {phase === 'schedule' && (
+          <ScheduleStep
+            onBackToSite={handleSchedule}
+            onExplore={handleExplore}
+          />
+        )}
       </div>
+
+      {/* ── Shared modal card styles ──────────────────────────────────── */}
+      <style>{`
+        .ws-modal {
+          background: #ffffff;
+          border-radius: 12px;
+          width: 100%;
+          max-width: min(92vw, 1100px);
+          min-height: 600px;
+          max-height: 86vh;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+          box-shadow: 0 32px 64px -12px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.06);
+          animation: wsIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        .ws-content {
+          flex: 1;
+          overflow-y: auto;
+          padding: 2.5rem 3rem;
+        }
+        .ws-footer {
+          border-top: 1px solid #f1f5f9;
+          padding: 1rem 2rem;
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 0.75rem;
+          flex-shrink: 0;
+          position: relative;
+          z-index: 10;
+        }
+        .ws-footer-between {
+          border-top: 1px solid #f1f5f9;
+          padding: 1rem 2rem;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-shrink: 0;
+          position: relative;
+          z-index: 10;
+        }
+        @keyframes wsIn {
+          from { opacity: 0; transform: translateY(20px) scale(0.97); }
+          to   { opacity: 1; transform: translateY(0)    scale(1);    }
+        }
+      `}</style>
     </div>
   );
 };

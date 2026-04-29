@@ -1,326 +1,487 @@
-import { useState, useEffect } from 'react';
+import { useState, useRef } from 'react';
+import nexusBlackLogo from '../../assets/logos/Nexus_wide_logo_blak.png';
+
+const TOTAL_STEPS = 3;
 
 export interface OnboardingData {
   org_name: string;
-  website?: string;
+  website: string;
   business_desc: string;
-  primary_use_cases?: string[];
-  phone?: string;
-  role?: string;
+  primary_use_cases: string[];
+  phone: string;
+  role: string;
 }
 
+// ── Use-case option definitions ────────────────────────────────────────────
+const USE_CASES = [
+  { id: 'benefits_club',  label: 'מועדון הטבות',                     why: 'מתאים לארגונים המבקשים לחבר קהילות ולהעניק הטבות לחברים',            keywords: /קהילה|עמותה|ארגון|חברים|מועדון/i },
+  { id: 'digital_wallet', label: 'ארנק דיגיטלי',                     why: 'מתאים לעסקים המנהלים תשלומים דיגיטליים ותקציבים',                    keywords: /ארנק|תשלום|pay|wallet|דיגיטל/i },
+  { id: 'vouchers',       label: 'תוכנית שוברים',                    why: 'מתאים לחברות המנפיקות שוברים, קופונים או כרטיסי מתנה',              keywords: /שובר|קופון|voucher|coupon/i },
+  { id: 'employee_gifts', label: 'מתנות לעובדים / מתנות לחגים',     why: 'מתאים לחברות המחפשות פתרון להענקת מתנות ומוטיבציה לצוות',          keywords: /עובד|employee|חג|gift|מתנה|staff|צוות/i },
+  { id: 'loyalty',        label: 'תוכנית נאמנות',                    why: 'מתאים לעסקי קמעונאות ומסחר הרוצים לשמר לקוחות ולפתח תגמולים',      keywords: /נאמנות|loyalty|נקודות|חנות|store|retail|מסחר|לקוח/i },
+  { id: 'prepaid_card',   label: 'כרטיס פרי-פייד / ממותג',          why: 'מתאים לבנקים וחברות פיננסיות המנפיקות כרטיסים ממותגים',            keywords: /כרטיס|card|בנק|bank|פרי.פייד|prepaid/i },
+  { id: 'payment',        label: 'עיבוד תשלומים לעסק שלי',          why: 'מתאים לעסקים הזקוקים לתשתית סליקה ועיבוד תשלומים',                  keywords: /תשלום|payment|סליקה|processing/i },
+  { id: 'not_sure',       label: 'עדיין לא בטוח',                    why: '',                                                                    keywords: null as RegExp | null },
+];
+
+function getSuggested(desc: string): string[] {
+  const matched = USE_CASES.filter(o => o.keywords && o.keywords.test(desc)).map(o => o.id);
+  return matched.length > 0 ? matched : ['benefits_club', 'loyalty'];
+}
+
+// ── UI text ──────────────────────────────────────────────────────────────
+const c = {
+  welcomeTitle: (firstName?: string) => firstName ? `ברוכים הבאים לנקסוס, ${firstName}.` : 'ברוכים הבאים לנקסוס.',
+  welcomeSubtitle: 'ספרו לנו קצת על הארגון שלכם כדי להתאים את הסביבה. תמיד ניתן לשנות זאת מאוחר יותר.',
+  orgNameLabel: 'שם הארגון',
+  orgNamePlaceholder: 'נקסוס בע"מ',
+  websiteLabel: 'אתר',
+  websitePlaceholder: 'www.example.com',
+  websiteError: 'כתובת האתר אינה תקינה',
+  businessLabel: 'איזה סוג עסק אתם ומה אתם מציעים?',
+  businessPlaceholder: 'לדוגמה: רשת קמעונאית המציעה מוצרי אלקטרוניקה ורוצה לפתח תוכנית נאמנות ללקוחות...',
+  step1Title: 'אלו הפתרונות שנראים הכי רלוונטיים לכם',
+  step1Sub: 'בחרו את כל האפשרויות הרלוונטיות',
+  suggested: 'מומלץ',
+  whyTitle: 'למה מומלץ?',
+  step2Title: 'כמה פרטים עליכם',
+  step2Sub: 'כדי שנוכל להתאים את החוויה שלכם טוב יותר. שלב זה הוא אופציונלי.',
+  phoneLabel: 'טלפון',
+  phonePlaceholder: '+972 50-000-0000',
+  roleLabel: 'תפקיד',
+  rolePlaceholder: 'לדוגמה: מנכ"ל, מנהל שיווק...',
+  back: 'חזרה',
+  skip: 'דלג לעת עתה',
+  continue: 'המשך',
+  finish: 'סיים הגדרה',
+  tooltipMsg: 'אנחנו צריכים עוד פרטים כדי להתקדם',
+};
+
+// ── Component ──────────────────────────────────────────────────────────────
 interface OnboardingWizardProps {
   onComplete: (data: OnboardingData) => void;
   onBack: () => void;
+  firstName?: string;
 }
 
-interface UseCase {
-  id: string;
-  label: string;
-  labelHe: string;
-  icon: string;
-  keywords: RegExp;
-}
+export default function OnboardingWizard({ onComplete, firstName }: OnboardingWizardProps) {
+  const direction = 'rtl';
+  const useCases = USE_CASES;
 
-const USE_CASES: UseCase[] = [
-  { id: 'benefits_club', label: 'Benefits Club', labelHe: 'מועדון הטבות', icon: 'loyalty', keywords: /benefit|club|incentive|perks|הטב|מועדון/i },
-  { id: 'digital_wallet', label: 'Digital Wallet', labelHe: 'ארנק דיגיטלי', icon: 'account_balance_wallet', keywords: /wallet|ארנק|דיגיטלי|digital/i },
-  { id: 'vouchers', label: 'Vouchers', labelHe: 'קופונים', icon: 'confirmation_number', keywords: /voucher|coupon|קופון|שובר/i },
-  { id: 'employee_gifts', label: 'Employee Gifts', labelHe: 'מתנות לעובדים', icon: 'card_giftcard', keywords: /gift|employee|עובד|מתנ|reward/i },
-  { id: 'loyalty', label: 'Loyalty Program', labelHe: 'תוכנית נאמנות', icon: 'star', keywords: /loyal|נאמנות|retention|program/i },
-  { id: 'prepaid_card', label: 'Prepaid Card', labelHe: 'כרטיס נטען', icon: 'credit_card', keywords: /prepaid|card|כרטיס|נטען|טעינ/i },
-  { id: 'payment', label: 'Payment Solutions', labelHe: 'פתרונות תשלום', icon: 'payments', keywords: /payment|pay|תשלום|סליקה/i },
-  { id: 'not_sure', label: 'Not sure yet', labelHe: 'עדיין לא בטוח/ה', icon: 'help_outline', keywords: /(?!x)x/ },
-];
-
-const OnboardingWizard = ({ onComplete, onBack }: OnboardingWizardProps) => {
   const [step, setStep] = useState(0);
 
   // Step 0 fields
-  const [orgName, setOrgName] = useState('');
-  const [website, setWebsite] = useState('');
+  const [orgName, setOrgName]           = useState('');
+  const [website, setWebsite]           = useState('');
+  const [websiteError, setWebsiteError] = useState(false);
   const [businessDesc, setBusinessDesc] = useState('');
-  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Step 1 fields
-  const [selectedUseCases, setSelectedUseCases] = useState<string[]>([]);
-  const [suggestedUseCases, setSuggestedUseCases] = useState<string[]>([]);
+  // Step 1
+  const [primarySelected, setPrimarySelected]   = useState<string[]>([]);
+  const [primarySuggested, setPrimarySuggested] = useState<string[]>([]);
+
+  // "Why recommended" tooltip (fixed-position, above everything)
+  const [hoveredWhyId, setHoveredWhyId]   = useState<string | null>(null);
+  const [whyPos, setWhyPos]               = useState({ top: 0, left: 0 });
 
   // Step 2 fields
   const [phone, setPhone] = useState('');
-  const [role, setRole] = useState('');
+  const [role, setRole]   = useState('');
 
-  // Auto-suggest use cases based on business description
-  useEffect(() => {
-    const suggested = USE_CASES
-      .filter(uc => uc.keywords.test(businessDesc))
-      .map(uc => uc.id);
-    setSuggestedUseCases(suggested);
-  }, [businessDesc]);
+  // Disabled-continue tooltip (fixed-position)
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [tooltipPos, setTooltipPos]   = useState({ top: 0, left: 0 });
+  const btnRef = useRef<HTMLButtonElement>(null);
 
-  // When entering step 1, auto-select suggested cases
-  useEffect(() => {
-    if (step === 1 && selectedUseCases.length === 0 && suggestedUseCases.length > 0) {
-      setSelectedUseCases(suggestedUseCases);
+  // ── URL validation ────────────────────────────────────────────────────────
+  const validateWebsite = (val: string) => {
+    if (!val.trim()) { setWebsiteError(false); return; }
+    try {
+      const url = val.startsWith('http') ? val : `https://${val}`;
+      const parsed = new URL(url);
+      setWebsiteError(!parsed.hostname.includes('.') || parsed.hostname.length < 4);
+    } catch {
+      setWebsiteError(true);
     }
-  }, [step]);
-
-  const validateStep0 = () => {
-    const newErrors: Record<string, string> = {};
-    if (!orgName.trim()) newErrors.orgName = 'שם הארגון הוא שדה חובה';
-    if (!businessDesc.trim()) newErrors.businessDesc = 'תיאור העסק הוא שדה חובה';
-    if (website && !/^https?:\/\/.+\..+/.test(website) && !/^.+\..+/.test(website)) {
-      newErrors.website = 'כתובת אתר לא תקינה';
-    }
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
   };
 
+  const canContinue =
+    step === 0 ? orgName.trim() !== '' && businessDesc.trim() !== '' && !websiteError :
+    step === 1 ? primarySelected.length > 0 :
+    true; // step 2 is optional — always continuable
+
+  // ── Navigation ────────────────────────────────────────────────────────────
   const handleNext = () => {
+    if (!canContinue) return;
     if (step === 0) {
-      if (!validateStep0()) return;
+      const suggested = getSuggested(businessDesc);
+      setPrimarySuggested(suggested);
+      setPrimarySelected(suggested);
       setStep(1);
     } else if (step === 1) {
-      if (selectedUseCases.length === 0) {
-        setErrors({ useCases: 'יש לבחור לפחות תחום שימוש אחד' });
-        return;
-      }
-      setErrors({});
       setStep(2);
-    } else if (step === 2) {
+    } else {
       onComplete({
-        org_name: orgName.trim(),
-        website: website.trim() || undefined,
-        business_desc: businessDesc.trim(),
-        primary_use_cases: selectedUseCases,
-        phone: phone.trim() || undefined,
-        role: role.trim() || undefined,
+        org_name: orgName,
+        website,
+        business_desc: businessDesc,
+        primary_use_cases: primarySelected,
+        phone,
+        role,
       });
     }
   };
 
-  const handleBack = () => {
+  const handleSkip = () => {
     if (step === 0) {
-      onBack();
-    } else {
-      setStep(step - 1);
+      setPrimarySelected([]);
+      setPrimarySuggested([]);
+      setStep(1);
+    } else if (step === 1) {
+      setStep(2);
     }
   };
 
-  const toggleUseCase = (id: string) => {
-    setSelectedUseCases(prev =>
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-    );
-    setErrors({});
+  const handleBack = () => {
+    if (step > 0) setStep(s => s - 1);
   };
 
+  // ── Tooltip helpers ───────────────────────────────────────────────────────
+  const handleContinueEnter = () => {
+    setShowTooltip(true);
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setTooltipPos({ top: r.top - 8, left: r.left + r.width / 2 });
+    }
+  };
+
+  const handleWhyEnter = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setHoveredWhyId(id);
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setWhyPos({ top: r.top - 8, left: r.left + r.width / 2 });
+  };
+
+  // ── Back arrow (direction-aware) ─────────────────────────────────────────
+  const BackArrow = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+      <path d="M5 12H19M12 5l7 7-7 7" />
+    </svg>
+  );
+
+  // ── Shared input classes ─────────────────────────────────────────────────
+  const inputBase = 'w-full px-3.5 py-2.5 border rounded-lg text-[14px] text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-2 transition-all';
+  const inputNormal = `${inputBase} border-slate-200 focus:ring-indigo-500/30 focus:border-indigo-400`;
+  const inputError  = `${inputBase} border-red-300 focus:ring-red-500/20 focus:border-red-400`;
+
   return (
-    <div className="animate-in fade-in duration-300">
-      {/* Step indicator */}
-      <div className="flex items-center justify-center gap-2 mb-8">
-        {[0, 1, 2].map(i => (
-          <div key={i} className="flex items-center gap-2">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
-              i === step
-                ? 'bg-primary text-white shadow-md shadow-primary/30'
-                : i < step
-                ? 'bg-green-500 text-white'
-                : 'bg-slate-200 dark:bg-slate-700 text-slate-400'
-            }`}>
-              {i < step ? (
-                <span className="material-symbols-rounded !text-[16px]">check</span>
-              ) : (
-                i + 1
-              )}
-            </div>
-            {i < 2 && (
-              <div className={`w-12 h-0.5 rounded-full transition-colors ${
-                i < step ? 'bg-green-500' : 'bg-slate-200 dark:bg-slate-700'
-              }`} />
-            )}
+    <div className="ws-modal" dir={direction}>
+
+      {/* ── Fixed tooltip: disabled Continue ─────────────────────────────── */}
+      {showTooltip && !canContinue && (
+        <div
+          style={{
+            position: 'fixed',
+            top: tooltipPos.top,
+            left: tooltipPos.left,
+            transform: 'translate(-50%, -100%)',
+            zIndex: 99999,
+            pointerEvents: 'none',
+          }}
+          className="bg-slate-800 text-white text-[12px] px-3 py-1.5 rounded-lg whitespace-nowrap shadow-lg"
+          dir={direction}
+        >
+          {c.tooltipMsg}
+          <div className="absolute top-full left-1/2 -translate-x-1/2 border-[5px] border-transparent border-t-slate-800" />
+        </div>
+      )}
+
+      {/* ── Fixed tooltip: "Why recommended?" ───────────────────────────── */}
+      {hoveredWhyId && (() => {
+        const opt = useCases.find(o => o.id === hoveredWhyId);
+        if (!opt?.why) return null;
+        return (
+          <div
+            style={{
+              position: 'fixed',
+              top: whyPos.top,
+              left: whyPos.left,
+              transform: 'translate(-50%, -100%)',
+              zIndex: 99998,
+              pointerEvents: 'none',
+              maxWidth: '260px',
+            }}
+            className="bg-slate-800 text-white text-[12px] px-3 py-2 rounded-lg shadow-lg leading-relaxed"
+            dir={direction}
+          >
+            <div className="font-semibold text-indigo-300 mb-0.5">{c.whyTitle}</div>
+            {opt.why}
+            <div className="absolute top-full left-1/2 -translate-x-1/2 border-[5px] border-transparent border-t-slate-800" />
           </div>
-        ))}
+        );
+      })()}
+
+      {/* ── Header — always LTR: logo LEFT, bars RIGHT ───────────────────── */}
+      <div
+        className="flex items-center justify-between px-8 py-4 border-b border-slate-100 shrink-0"
+        dir="ltr"
+      >
+        <img src={nexusBlackLogo} alt="Nexus" className="h-10 w-auto object-contain" />
+        <div className="flex gap-1.5">
+          {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
+            <div
+              key={i}
+              className={`w-10 h-[3px] rounded-full transition-colors duration-500 ${
+                i <= step ? 'bg-indigo-500' : 'bg-slate-200'
+              }`}
+            />
+          ))}
+        </div>
       </div>
 
-      {/* Step 0: Organization Info */}
-      {step === 0 && (
-        <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
-          <div className="text-center mb-6">
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">פרטי הארגון</h2>
-            <p className="text-slate-500 dark:text-slate-400 mt-1">ספרו לנו קצת על בית העסק שלכם</p>
-          </div>
+      {/* ── Scrollable content ────────────────────────────────────────────── */}
+      <div className="ws-content">
 
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-              שם הארגון <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={orgName}
-              onChange={e => { setOrgName(e.target.value); setErrors(prev => ({ ...prev, orgName: '' })); }}
-              placeholder="לדוגמה: נקסוס טכנולוגיות"
-              autoFocus
-              className={`w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all ${
-                errors.orgName ? 'border-red-400' : 'border-slate-200 dark:border-slate-700'
-              }`}
-            />
-            {errors.orgName && <p className="text-red-500 text-xs mt-1">{errors.orgName}</p>}
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-              אתר אינטרנט
-            </label>
-            <input
-              type="url"
-              value={website}
-              onChange={e => { setWebsite(e.target.value); setErrors(prev => ({ ...prev, website: '' })); }}
-              placeholder="https://www.example.com"
-              dir="ltr"
-              className={`w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-left ${
-                errors.website ? 'border-red-400' : 'border-slate-200 dark:border-slate-700'
-              }`}
-            />
-            {errors.website && <p className="text-red-500 text-xs mt-1">{errors.website}</p>}
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-              תיאור העסק <span className="text-red-500">*</span>
-            </label>
-            <textarea
-              value={businessDesc}
-              onChange={e => { setBusinessDesc(e.target.value); setErrors(prev => ({ ...prev, businessDesc: '' })); }}
-              placeholder="במה עוסק בית העסק? מה אתם מחפשים להשיג?"
-              rows={4}
-              className={`w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all resize-none ${
-                errors.businessDesc ? 'border-red-400' : 'border-slate-200 dark:border-slate-700'
-              }`}
-            />
-            {errors.businessDesc && <p className="text-red-500 text-xs mt-1">{errors.businessDesc}</p>}
-          </div>
-        </div>
-      )}
-
-      {/* Step 1: Use Cases */}
-      {step === 1 && (
-        <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
-          <div className="text-center mb-6">
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">תחומי שימוש</h2>
-            <p className="text-slate-500 dark:text-slate-400 mt-1">מה תרצו לעשות עם Nexus?</p>
-          </div>
-
-          {errors.useCases && (
-            <p className="text-red-500 text-sm text-center">{errors.useCases}</p>
-          )}
-
-          <div className="grid grid-cols-2 gap-3">
-            {USE_CASES.map(uc => {
-              const isSelected = selectedUseCases.includes(uc.id);
-              const isSuggested = suggestedUseCases.includes(uc.id);
-              return (
-                <button
-                  key={uc.id}
-                  onClick={() => toggleUseCase(uc.id)}
-                  className={`relative p-4 rounded-2xl border-2 text-right transition-all duration-200 ${
-                    uc.id === 'not_sure' ? 'col-span-2' : ''
-                  } ${
-                    isSelected
-                      ? 'border-primary bg-primary/5 shadow-sm'
-                      : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
-                      isSelected ? 'bg-primary/10 text-primary' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
-                    }`}>
-                      <span className="material-symbols-rounded !text-xl">{uc.icon}</span>
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-semibold text-sm text-slate-900 dark:text-white">{uc.labelHe}</div>
-                      <div className="text-xs text-slate-400">{uc.label}</div>
-                    </div>
-                    {isSelected && (
-                      <span className="material-symbols-rounded text-primary !text-xl">check_circle</span>
-                    )}
-                  </div>
-                  {isSuggested && !isSelected && (
-                    <div className="absolute -top-2 -right-2 px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold rounded-full">
-                      מומלץ
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Step 2: Personal Details */}
-      {step === 2 && (
-        <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
-          <div className="text-center mb-6">
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">פרטים אישיים</h2>
-            <p className="text-slate-500 dark:text-slate-400 mt-1">אופציונלי — ניתן לדלג</p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-              טלפון
-            </label>
-            <input
-              type="tel"
-              value={phone}
-              onChange={e => setPhone(e.target.value)}
-              placeholder="050-1234567"
-              dir="ltr"
-              className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-left"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-              תפקיד
-            </label>
-            <input
-              type="text"
-              value={role}
-              onChange={e => setRole(e.target.value)}
-              placeholder="לדוגמה: מנכ״ל, סמנכ״ל שיווק..."
-              className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
-            />
-          </div>
-
-          <div className="p-4 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-xl">
-            <div className="flex items-start gap-3">
-              <span className="material-symbols-rounded text-violet-600 !text-xl">info</span>
-              <p className="text-sm text-violet-700 dark:text-violet-300">
-                השדות האלה אופציונליים. תוכלו להשלים אותם מאוחר יותר בהגדרות הפרופיל.
+        {/* ── Step 0: Welcome + Org form ─────────────────────────────────── */}
+        {step === 0 && (
+          <>
+            <div className="mb-7">
+              <h1 className="text-[26px] font-bold text-indigo-600 leading-tight mb-2">
+                {c.welcomeTitle(firstName)}
+              </h1>
+              <p className="text-[14px] text-slate-500 leading-relaxed">
+                {c.welcomeSubtitle}
               </p>
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* Footer Actions */}
-      <div className="flex items-center justify-between mt-8 pt-6 border-t border-slate-200 dark:border-slate-800">
-        <button
-          onClick={handleBack}
-          className="flex items-center gap-1 px-4 py-2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors text-sm font-medium"
-        >
-          <span className="material-symbols-rounded !text-[18px]">arrow_forward</span>
-          <span>חזרה</span>
-        </button>
+            <div className="space-y-4">
+              {/* Org name */}
+              <div>
+                <label className="block text-[13px] font-medium text-slate-700 mb-1.5">
+                  {c.orgNameLabel}
+                </label>
+                <input
+                  type="text"
+                  value={orgName}
+                  onChange={e => setOrgName(e.target.value)}
+                  placeholder={c.orgNamePlaceholder}
+                  className={inputNormal}
+                />
+              </div>
 
-        <button
-          onClick={handleNext}
-          className="px-8 py-3 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-lg shadow-primary/20 transition-all text-sm"
-        >
-          {step === 2 ? 'סיום הגדרה' : 'המשך'}
-        </button>
+              {/* Website + validation */}
+              <div>
+                <label className="block text-[13px] font-medium text-slate-700 mb-1.5">
+                  {c.websiteLabel}
+                </label>
+                <input
+                  type="text"
+                  value={website}
+                  onChange={e => { setWebsite(e.target.value); validateWebsite(e.target.value); }}
+                  onBlur={() => validateWebsite(website)}
+                  placeholder={c.websitePlaceholder}
+                  dir="ltr"
+                  className={websiteError ? inputError : inputNormal}
+                />
+                {websiteError && (
+                  <p className="text-[12px] text-red-500 mt-1">{c.websiteError}</p>
+                )}
+              </div>
+
+              {/* Business description */}
+              <div>
+                <label className="block text-[13px] font-medium text-slate-700 mb-1.5">
+                  {c.businessLabel}
+                </label>
+                <textarea
+                  value={businessDesc}
+                  onChange={e => setBusinessDesc(e.target.value)}
+                  rows={4}
+                  placeholder={c.businessPlaceholder}
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-[14px] text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all resize-none leading-relaxed"
+                />
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ── Step 1: Solutions — 2-column grid ─────────────────────────── */}
+        {step === 1 && (
+          <>
+            <h2 className="text-[21px] font-semibold text-slate-900 leading-snug mb-1.5">
+              {c.step1Title}
+            </h2>
+            <p className="text-[13px] text-slate-400 mb-5">{c.step1Sub}</p>
+
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                ...useCases.filter(o => primarySuggested.includes(o.id)),
+                ...useCases.filter(o => !primarySuggested.includes(o.id)),
+              ].map(option => {
+                const isSelected   = primarySelected.includes(option.id);
+                const isSuggested  = primarySuggested.includes(option.id);
+                const isNotSure    = option.id === 'not_sure';
+
+                return (
+                  <div
+                    key={option.id}
+                    role="checkbox"
+                    aria-checked={isSelected}
+                    tabIndex={0}
+                    onClick={() =>
+                      setPrimarySelected(prev =>
+                        prev.includes(option.id)
+                          ? prev.filter(x => x !== option.id)
+                          : [...prev, option.id]
+                      )
+                    }
+                    onKeyDown={e => {
+                      if (e.key === ' ' || e.key === 'Enter') {
+                        e.preventDefault();
+                        setPrimarySelected(prev =>
+                          prev.includes(option.id)
+                            ? prev.filter(x => x !== option.id)
+                            : [...prev, option.id]
+                        );
+                      }
+                    }}
+                    className={`${isNotSure ? 'col-span-2' : ''} cursor-pointer text-start px-4 py-3 rounded-lg border text-[14px] transition-all select-none ${
+                      isSelected
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                        : 'border-slate-200 text-slate-700 hover:border-indigo-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      {/* Checkbox square */}
+                      <div className={`w-4 h-4 rounded-[4px] border-2 flex items-center justify-center shrink-0 transition-all ${
+                        isSelected ? 'border-indigo-500 bg-indigo-500' : 'border-slate-300'
+                      }`}>
+                        {isSelected && (
+                          <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
+                            <path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        )}
+                      </div>
+
+                      <span className="flex-1 leading-tight">{option.label}</span>
+
+                      {/* Suggested badge + why info button */}
+                      {isSuggested && option.why && (
+                        <div className="flex items-center gap-1.5 shrink-0 ms-auto">
+                          <span className="text-[10px] font-semibold text-indigo-500 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded-full">
+                            {c.suggested}
+                          </span>
+                          {/* Info button — stops click from toggling option */}
+                          <button
+                            type="button"
+                            tabIndex={-1}
+                            onClick={e => e.stopPropagation()}
+                            onMouseEnter={e => handleWhyEnter(option.id, e)}
+                            onMouseLeave={() => setHoveredWhyId(null)}
+                            className="w-4 h-4 rounded-full bg-indigo-100 text-indigo-500 text-[10px] font-bold flex items-center justify-center hover:bg-indigo-200 transition-colors leading-none"
+                          >
+                            ?
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {/* ── Step 2: User details ───────────────────────────────────────── */}
+        {step === 2 && (
+          <>
+            <div className="mb-7">
+              <h2 className="text-[21px] font-semibold text-slate-900 leading-snug mb-1.5">
+                {c.step2Title}
+              </h2>
+              <p className="text-[13px] text-slate-400 leading-relaxed">
+                {c.step2Sub}
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[13px] font-medium text-slate-700 mb-1.5">
+                  {c.phoneLabel}
+                </label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={e => setPhone(e.target.value)}
+                  placeholder={c.phonePlaceholder}
+                  dir="ltr"
+                  className={inputNormal}
+                />
+              </div>
+
+              <div>
+                <label className="block text-[13px] font-medium text-slate-700 mb-1.5">
+                  {c.roleLabel}
+                </label>
+                <input
+                  type="text"
+                  value={role}
+                  onChange={e => setRole(e.target.value)}
+                  placeholder={c.rolePlaceholder}
+                  className={inputNormal}
+                />
+              </div>
+            </div>
+          </>
+        )}
+
       </div>
+
+      {/* ── Footer ────────────────────────────────────────────────────────── */}
+      <div className="ws-footer-between">
+
+        {/* Back button — hidden on step 0 */}
+        {step > 0 ? (
+          <button
+            onClick={handleBack}
+            className="text-[14px] text-slate-400 hover:text-slate-600 transition-colors flex items-center gap-1.5"
+          >
+            <BackArrow />
+            {c.back}
+          </button>
+        ) : (
+          <div />
+        )}
+
+        <div className="flex items-center gap-3">
+          {/* Skip — only on steps 0 and 1 */}
+          {step < TOTAL_STEPS - 1 && (
+            <button
+              onClick={handleSkip}
+              className="text-[14px] text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              {c.skip}
+            </button>
+          )}
+
+          {/* Continue / Finish — tooltip when disabled */}
+          <button
+            ref={btnRef}
+            onClick={handleNext}
+            onMouseEnter={handleContinueEnter}
+            onMouseLeave={() => setShowTooltip(false)}
+            disabled={!canContinue}
+            className={`px-6 py-2.5 text-[14px] font-semibold rounded-lg transition-colors ${
+              canContinue
+                ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+            }`}
+          >
+            {step < TOTAL_STEPS - 1 ? c.continue : c.finish}
+          </button>
+        </div>
+      </div>
+
     </div>
   );
-};
-
-export default OnboardingWizard;
+}

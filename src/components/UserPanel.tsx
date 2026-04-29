@@ -65,7 +65,7 @@ const UserPanel = ({ isOpen, onClose, onLogout, anchorRef }: UserPanelProps) => 
   const pos = getPosition();
 
   const menuItems = [
-    { icon: 'manage_accounts', label: 'הגדרות חשבון', action: () => { navigate('/settings'); onClose(); } },
+    { icon: 'manage_accounts', label: t('up_accountSettings'), action: () => { navigate('/settings'); onClose(); } },
     { icon: 'notifications', label: t('notifications'), action: () => { navigate('/settings'); onClose(); } },
     { icon: 'language', label: t('language'), action: () => { navigate('/settings'); onClose(); } },
   ];
@@ -79,11 +79,11 @@ const UserPanel = ({ isOpen, onClose, onLogout, anchorRef }: UserPanelProps) => 
       {/* User info */}
       <div className="p-4 flex items-center gap-3 bg-gradient-to-b from-violet-50 to-white">
         <div className="w-10 h-10 bg-gradient-to-br from-primary to-violet-400 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0">
-          ד
+          {t('headerUserInitial')}
         </div>
         <div className="min-w-0">
-          <p className="text-[13px] font-semibold text-slate-800 truncate">דניאל רביב</p>
-          <p className="text-[11px] text-slate-500 truncate">daniel@nexus.com</p>
+          <p className="text-[13px] font-semibold text-slate-800 truncate">{t('headerUserName')}</p>
+          <p className="text-[11px] text-slate-500 truncate">{t('up_userEmail')}</p>
         </div>
       </div>
 

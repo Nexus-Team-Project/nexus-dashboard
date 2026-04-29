@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="he" dir="rtl">
+<html>
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
@@ -10,6 +10,22 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet"/>
+    <script>
+      // Set lang/dir before React mounts to avoid FOUC.
+      (function () {
+        try {
+          var saved = localStorage.getItem('language');
+          var lang = saved === 'en' || saved === 'he'
+            ? saved
+            : ((navigator.language || 'he').toLowerCase().indexOf('he') === 0 ? 'he' : 'en');
+          document.documentElement.lang = lang;
+          document.documentElement.dir = lang === 'he' ? 'rtl' : 'ltr';
+        } catch (e) {
+          document.documentElement.lang = 'he';
+          document.documentElement.dir = 'rtl';
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

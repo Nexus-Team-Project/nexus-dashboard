@@ -396,12 +396,12 @@ const SearchBar = () => {
             placeholder={t('searchUsers')}
             autoFocus
           />
-          {/* Search icon — right side in RTL */}
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none z-10">
+          {/* Search icon — start side (right in RTL, left in LTR) */}
+          <div className="absolute start-3 top-1/2 -translate-y-1/2 pointer-events-none z-10">
             <span className="material-symbols-rounded text-slate-400 !text-[18px]">search</span>
           </div>
-          {/* X button — left side in RTL */}
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 z-10">
+          {/* X button — end side (left in RTL, right in LTR) */}
+          <div className="absolute end-3 top-1/2 -translate-y-1/2 z-10">
             <button
               onMouseDown={(e) => {
                 e.preventDefault();

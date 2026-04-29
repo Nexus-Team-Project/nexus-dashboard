@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface Project {
   id: string;
@@ -8,6 +9,7 @@ interface Project {
 }
 
 const ProjectSwitcher = () => {
+  const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -86,7 +88,7 @@ const ProjectSwitcher = () => {
           {/* Current Project Header */}
           <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
             <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-              פרויקט נוכחי
+              {t('ps_currentProject')}
             </p>
             <p className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
               {currentProject.name}
@@ -99,7 +101,7 @@ const ProjectSwitcher = () => {
           {/* Recent Projects */}
           <div className="py-2">
             <p className="px-4 py-2 text-xs font-medium text-slate-500 dark:text-slate-400">
-              פרויקטים אחרונים
+              {t('ps_recentProjects')}
             </p>
             {recentProjects.map((project) => (
               <button
@@ -131,7 +133,7 @@ const ProjectSwitcher = () => {
               className="w-full px-4 py-2.5 flex items-center justify-center gap-2 text-sm font-semibold text-primary hover:bg-primary/10 rounded-lg transition-colors"
             >
               <span className="material-icons text-[18px]">grid_view</span>
-              <span>כל הפרויקטים</span>
+              <span>{t('ps_allProjects')}</span>
             </button>
           </div>
         </div>

@@ -3,6 +3,8 @@ import ColumnMapping from '../components/ColumnMapping';
 import excelLogo from '../assets/logos/excel_logo.png';
 import nexusLogo from '../assets/logos/nexus_logo.png';
 import { usersApi, type AdminUser, type UserRole, type Address, type TaxId, type TaxStatus } from '../lib/api';
+import { useLanguage } from '../i18n/LanguageContext';
+import type { TranslationKey } from '../i18n/translations';
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -39,98 +41,98 @@ interface User {
 // ─── Constants ───────────────────────────────────────────────────
 
 const COUNTRIES = [
-  { code: 'IL', name: 'ישראל' }, { code: 'US', name: 'ארצות הברית' }, { code: 'GB', name: 'בריטניה' },
-  { code: 'DE', name: 'גרמניה' }, { code: 'FR', name: 'צרפת' }, { code: 'IT', name: 'איטליה' },
-  { code: 'ES', name: 'ספרד' }, { code: 'NL', name: 'הולנד' }, { code: 'BE', name: 'בלגיה' },
-  { code: 'AT', name: 'אוסטריה' }, { code: 'CH', name: 'שוויץ' }, { code: 'SE', name: 'שוודיה' },
-  { code: 'NO', name: 'נורווגיה' }, { code: 'DK', name: 'דנמרק' }, { code: 'FI', name: 'פינלנד' },
-  { code: 'PT', name: 'פורטוגל' }, { code: 'GR', name: 'יוון' }, { code: 'PL', name: 'פולין' },
-  { code: 'CZ', name: 'צ\'כיה' }, { code: 'RO', name: 'רומניה' }, { code: 'HU', name: 'הונגריה' },
-  { code: 'BG', name: 'בולגריה' }, { code: 'HR', name: 'קרואטיה' }, { code: 'IE', name: 'אירלנד' },
-  { code: 'CA', name: 'קנדה' }, { code: 'AU', name: 'אוסטרליה' }, { code: 'NZ', name: 'ניו זילנד' },
-  { code: 'JP', name: 'יפן' }, { code: 'CN', name: 'סין' }, { code: 'KR', name: 'דרום קוריאה' },
-  { code: 'IN', name: 'הודו' }, { code: 'BR', name: 'ברזיל' }, { code: 'MX', name: 'מקסיקו' },
-  { code: 'AR', name: 'ארגנטינה' }, { code: 'CL', name: 'צ\'ילה' }, { code: 'CO', name: 'קולומביה' },
-  { code: 'ZA', name: 'דרום אפריקה' }, { code: 'AE', name: 'איחוד האמירויות' }, { code: 'SA', name: 'ערב הסעודית' },
-  { code: 'EG', name: 'מצרים' }, { code: 'TR', name: 'טורקיה' }, { code: 'RU', name: 'רוסיה' },
-  { code: 'UA', name: 'אוקראינה' }, { code: 'TH', name: 'תאילנד' }, { code: 'SG', name: 'סינגפור' },
-  { code: 'MY', name: 'מלזיה' }, { code: 'PH', name: 'פיליפינים' }, { code: 'ID', name: 'אינדונזיה' },
-  { code: 'VN', name: 'וייטנאם' }, { code: 'TW', name: 'טייוואן' }, { code: 'HK', name: 'הונג קונג' },
+  { code: 'IL', name: 'ישראל', nameEn: 'Israel' }, { code: 'US', name: 'ארצות הברית', nameEn: 'United States' }, { code: 'GB', name: 'בריטניה', nameEn: 'United Kingdom' },
+  { code: 'DE', name: 'גרמניה', nameEn: 'Germany' }, { code: 'FR', name: 'צרפת', nameEn: 'France' }, { code: 'IT', name: 'איטליה', nameEn: 'Italy' },
+  { code: 'ES', name: 'ספרד', nameEn: 'Spain' }, { code: 'NL', name: 'הולנד', nameEn: 'Netherlands' }, { code: 'BE', name: 'בלגיה', nameEn: 'Belgium' },
+  { code: 'AT', name: 'אוסטריה', nameEn: 'Austria' }, { code: 'CH', name: 'שוויץ', nameEn: 'Switzerland' }, { code: 'SE', name: 'שוודיה', nameEn: 'Sweden' },
+  { code: 'NO', name: 'נורווגיה', nameEn: 'Norway' }, { code: 'DK', name: 'דנמרק', nameEn: 'Denmark' }, { code: 'FI', name: 'פינלנד', nameEn: 'Finland' },
+  { code: 'PT', name: 'פורטוגל', nameEn: 'Portugal' }, { code: 'GR', name: 'יוון', nameEn: 'Greece' }, { code: 'PL', name: 'פולין', nameEn: 'Poland' },
+  { code: 'CZ', name: 'צ\'כיה', nameEn: 'Czechia' }, { code: 'RO', name: 'רומניה', nameEn: 'Romania' }, { code: 'HU', name: 'הונגריה', nameEn: 'Hungary' },
+  { code: 'BG', name: 'בולגריה', nameEn: 'Bulgaria' }, { code: 'HR', name: 'קרואטיה', nameEn: 'Croatia' }, { code: 'IE', name: 'אירלנד', nameEn: 'Ireland' },
+  { code: 'CA', name: 'קנדה', nameEn: 'Canada' }, { code: 'AU', name: 'אוסטרליה', nameEn: 'Australia' }, { code: 'NZ', name: 'ניו זילנד', nameEn: 'New Zealand' },
+  { code: 'JP', name: 'יפן', nameEn: 'Japan' }, { code: 'CN', name: 'סין', nameEn: 'China' }, { code: 'KR', name: 'דרום קוריאה', nameEn: 'South Korea' },
+  { code: 'IN', name: 'הודו', nameEn: 'India' }, { code: 'BR', name: 'ברזיל', nameEn: 'Brazil' }, { code: 'MX', name: 'מקסיקו', nameEn: 'Mexico' },
+  { code: 'AR', name: 'ארגנטינה', nameEn: 'Argentina' }, { code: 'CL', name: 'צ\'ילה', nameEn: 'Chile' }, { code: 'CO', name: 'קולומביה', nameEn: 'Colombia' },
+  { code: 'ZA', name: 'דרום אפריקה', nameEn: 'South Africa' }, { code: 'AE', name: 'איחוד האמירויות', nameEn: 'United Arab Emirates' }, { code: 'SA', name: 'ערב הסעודית', nameEn: 'Saudi Arabia' },
+  { code: 'EG', name: 'מצרים', nameEn: 'Egypt' }, { code: 'TR', name: 'טורקיה', nameEn: 'Turkey' }, { code: 'RU', name: 'רוסיה', nameEn: 'Russia' },
+  { code: 'UA', name: 'אוקראינה', nameEn: 'Ukraine' }, { code: 'TH', name: 'תאילנד', nameEn: 'Thailand' }, { code: 'SG', name: 'סינגפור', nameEn: 'Singapore' },
+  { code: 'MY', name: 'מלזיה', nameEn: 'Malaysia' }, { code: 'PH', name: 'פיליפינים', nameEn: 'Philippines' }, { code: 'ID', name: 'אינדונזיה', nameEn: 'Indonesia' },
+  { code: 'VN', name: 'וייטנאם', nameEn: 'Vietnam' }, { code: 'TW', name: 'טייוואן', nameEn: 'Taiwan' }, { code: 'HK', name: 'הונג קונג', nameEn: 'Hong Kong' },
 ];
 
 const CURRENCIES = [
-  { code: 'ILS', symbol: '₪', name: 'שקל חדש' }, { code: 'USD', symbol: '$', name: 'דולר אמריקאי' },
-  { code: 'EUR', symbol: '€', name: 'יורו' }, { code: 'GBP', symbol: '£', name: 'ליש"ט' },
-  { code: 'CHF', symbol: 'CHF', name: 'פרנק שוויצרי' }, { code: 'CAD', symbol: 'C$', name: 'דולר קנדי' },
-  { code: 'AUD', symbol: 'A$', name: 'דולר אוסטרלי' }, { code: 'JPY', symbol: '¥', name: 'ין יפני' },
-  { code: 'CNY', symbol: '¥', name: 'יואן סיני' }, { code: 'INR', symbol: '₹', name: 'רופי הודי' },
-  { code: 'BRL', symbol: 'R$', name: 'ריאל ברזילאי' }, { code: 'KRW', symbol: '₩', name: 'וון דרום קוריאני' },
-  { code: 'TRY', symbol: '₺', name: 'לירה טורקית' }, { code: 'AED', symbol: 'د.إ', name: 'דירהם' },
-  { code: 'SAR', symbol: '﷼', name: 'ריאל סעודי' }, { code: 'PLN', symbol: 'zł', name: 'זלוטי פולני' },
-  { code: 'SEK', symbol: 'kr', name: 'כתר שוודי' }, { code: 'NOK', symbol: 'kr', name: 'כתר נורווגי' },
-  { code: 'DKK', symbol: 'kr', name: 'כתר דני' }, { code: 'MXN', symbol: '$', name: 'פזו מקסיקני' },
-  { code: 'SGD', symbol: 'S$', name: 'דולר סינגפורי' }, { code: 'HKD', symbol: 'HK$', name: 'דולר הונג קונגי' },
-  { code: 'ZAR', symbol: 'R', name: 'רנד דרום אפריקאי' }, { code: 'RUB', symbol: '₽', name: 'רובל רוסי' },
+  { code: 'ILS', symbol: '₪', name: 'שקל חדש', nameEn: 'New Shekel' }, { code: 'USD', symbol: '$', name: 'דולר אמריקאי', nameEn: 'US Dollar' },
+  { code: 'EUR', symbol: '€', name: 'יורו', nameEn: 'Euro' }, { code: 'GBP', symbol: '£', name: 'ליש"ט', nameEn: 'British Pound' },
+  { code: 'CHF', symbol: 'CHF', name: 'פרנק שוויצרי', nameEn: 'Swiss Franc' }, { code: 'CAD', symbol: 'C$', name: 'דולר קנדי', nameEn: 'Canadian Dollar' },
+  { code: 'AUD', symbol: 'A$', name: 'דולר אוסטרלי', nameEn: 'Australian Dollar' }, { code: 'JPY', symbol: '¥', name: 'ין יפני', nameEn: 'Japanese Yen' },
+  { code: 'CNY', symbol: '¥', name: 'יואן סיני', nameEn: 'Chinese Yuan' }, { code: 'INR', symbol: '₹', name: 'רופי הודי', nameEn: 'Indian Rupee' },
+  { code: 'BRL', symbol: 'R$', name: 'ריאל ברזילאי', nameEn: 'Brazilian Real' }, { code: 'KRW', symbol: '₩', name: 'וון דרום קוריאני', nameEn: 'South Korean Won' },
+  { code: 'TRY', symbol: '₺', name: 'לירה טורקית', nameEn: 'Turkish Lira' }, { code: 'AED', symbol: 'د.إ', name: 'דירהם', nameEn: 'UAE Dirham' },
+  { code: 'SAR', symbol: '﷼', name: 'ריאל סעודי', nameEn: 'Saudi Riyal' }, { code: 'PLN', symbol: 'zł', name: 'זלוטי פולני', nameEn: 'Polish Zloty' },
+  { code: 'SEK', symbol: 'kr', name: 'כתר שוודי', nameEn: 'Swedish Krona' }, { code: 'NOK', symbol: 'kr', name: 'כתר נורווגי', nameEn: 'Norwegian Krone' },
+  { code: 'DKK', symbol: 'kr', name: 'כתר דני', nameEn: 'Danish Krone' }, { code: 'MXN', symbol: '$', name: 'פזו מקסיקני', nameEn: 'Mexican Peso' },
+  { code: 'SGD', symbol: 'S$', name: 'דולר סינגפורי', nameEn: 'Singapore Dollar' }, { code: 'HKD', symbol: 'HK$', name: 'דולר הונג קונגי', nameEn: 'Hong Kong Dollar' },
+  { code: 'ZAR', symbol: 'R', name: 'רנד דרום אפריקאי', nameEn: 'South African Rand' }, { code: 'RUB', symbol: '₽', name: 'רובל רוסי', nameEn: 'Russian Ruble' },
 ];
 
 const TIMEZONES = [
-  { value: 'Pacific/Midway', label: '(GMT-11:00) מידוויי' },
-  { value: 'Pacific/Honolulu', label: '(GMT-10:00) הוואי' },
-  { value: 'America/Anchorage', label: '(GMT-9:00) אלסקה' },
-  { value: 'America/Los_Angeles', label: '(GMT-8:00) לוס אנג\'לס' },
-  { value: 'America/Denver', label: '(GMT-7:00) דנוור' },
-  { value: 'America/Chicago', label: '(GMT-6:00) שיקגו' },
-  { value: 'America/New_York', label: '(GMT-5:00) ניו יורק' },
-  { value: 'America/Sao_Paulo', label: '(GMT-3:00) סאו פאולו' },
-  { value: 'America/Argentina/Buenos_Aires', label: '(GMT-3:00) בואנוס איירס' },
-  { value: 'Atlantic/Cape_Verde', label: '(GMT-1:00) כף ורדה' },
-  { value: 'Europe/London', label: '(GMT+0:00) לונדון' },
-  { value: 'Europe/Paris', label: '(GMT+1:00) פריז' },
-  { value: 'Europe/Berlin', label: '(GMT+1:00) ברלין' },
-  { value: 'Europe/Amsterdam', label: '(GMT+1:00) אמסטרדם' },
-  { value: 'Europe/Rome', label: '(GMT+1:00) רומא' },
-  { value: 'Europe/Madrid', label: '(GMT+1:00) מדריד' },
-  { value: 'Europe/Athens', label: '(GMT+2:00) אתונה' },
-  { value: 'Europe/Helsinki', label: '(GMT+2:00) הלסינקי' },
-  { value: 'Europe/Bucharest', label: '(GMT+2:00) בוקרשט' },
-  { value: 'Asia/Jerusalem', label: '(GMT+2:00) ירושלים' },
-  { value: 'Africa/Cairo', label: '(GMT+2:00) קהיר' },
-  { value: 'Europe/Moscow', label: '(GMT+3:00) מוסקבה' },
-  { value: 'Asia/Riyadh', label: '(GMT+3:00) ריאד' },
-  { value: 'Asia/Dubai', label: '(GMT+4:00) דובאי' },
-  { value: 'Asia/Karachi', label: '(GMT+5:00) קראצ\'י' },
-  { value: 'Asia/Kolkata', label: '(GMT+5:30) מומבאי' },
-  { value: 'Asia/Bangkok', label: '(GMT+7:00) בנגקוק' },
-  { value: 'Asia/Singapore', label: '(GMT+8:00) סינגפור' },
-  { value: 'Asia/Hong_Kong', label: '(GMT+8:00) הונג קונג' },
-  { value: 'Asia/Shanghai', label: '(GMT+8:00) שנגחאי' },
-  { value: 'Asia/Tokyo', label: '(GMT+9:00) טוקיו' },
-  { value: 'Asia/Seoul', label: '(GMT+9:00) סיאול' },
-  { value: 'Australia/Sydney', label: '(GMT+10:00) סידני' },
-  { value: 'Pacific/Auckland', label: '(GMT+12:00) אוקלנד' },
+  { value: 'Pacific/Midway', label: '(GMT-11:00) מידוויי', labelEn: '(GMT-11:00) Midway' },
+  { value: 'Pacific/Honolulu', label: '(GMT-10:00) הוואי', labelEn: '(GMT-10:00) Hawaii' },
+  { value: 'America/Anchorage', label: '(GMT-9:00) אלסקה', labelEn: '(GMT-9:00) Alaska' },
+  { value: 'America/Los_Angeles', label: '(GMT-8:00) לוס אנג\'לס', labelEn: '(GMT-8:00) Los Angeles' },
+  { value: 'America/Denver', label: '(GMT-7:00) דנוור', labelEn: '(GMT-7:00) Denver' },
+  { value: 'America/Chicago', label: '(GMT-6:00) שיקגו', labelEn: '(GMT-6:00) Chicago' },
+  { value: 'America/New_York', label: '(GMT-5:00) ניו יורק', labelEn: '(GMT-5:00) New York' },
+  { value: 'America/Sao_Paulo', label: '(GMT-3:00) סאו פאולו', labelEn: '(GMT-3:00) São Paulo' },
+  { value: 'America/Argentina/Buenos_Aires', label: '(GMT-3:00) בואנוס איירס', labelEn: '(GMT-3:00) Buenos Aires' },
+  { value: 'Atlantic/Cape_Verde', label: '(GMT-1:00) כף ורדה', labelEn: '(GMT-1:00) Cape Verde' },
+  { value: 'Europe/London', label: '(GMT+0:00) לונדון', labelEn: '(GMT+0:00) London' },
+  { value: 'Europe/Paris', label: '(GMT+1:00) פריז', labelEn: '(GMT+1:00) Paris' },
+  { value: 'Europe/Berlin', label: '(GMT+1:00) ברלין', labelEn: '(GMT+1:00) Berlin' },
+  { value: 'Europe/Amsterdam', label: '(GMT+1:00) אמסטרדם', labelEn: '(GMT+1:00) Amsterdam' },
+  { value: 'Europe/Rome', label: '(GMT+1:00) רומא', labelEn: '(GMT+1:00) Rome' },
+  { value: 'Europe/Madrid', label: '(GMT+1:00) מדריד', labelEn: '(GMT+1:00) Madrid' },
+  { value: 'Europe/Athens', label: '(GMT+2:00) אתונה', labelEn: '(GMT+2:00) Athens' },
+  { value: 'Europe/Helsinki', label: '(GMT+2:00) הלסינקי', labelEn: '(GMT+2:00) Helsinki' },
+  { value: 'Europe/Bucharest', label: '(GMT+2:00) בוקרשט', labelEn: '(GMT+2:00) Bucharest' },
+  { value: 'Asia/Jerusalem', label: '(GMT+2:00) ירושלים', labelEn: '(GMT+2:00) Jerusalem' },
+  { value: 'Africa/Cairo', label: '(GMT+2:00) קהיר', labelEn: '(GMT+2:00) Cairo' },
+  { value: 'Europe/Moscow', label: '(GMT+3:00) מוסקבה', labelEn: '(GMT+3:00) Moscow' },
+  { value: 'Asia/Riyadh', label: '(GMT+3:00) ריאד', labelEn: '(GMT+3:00) Riyadh' },
+  { value: 'Asia/Dubai', label: '(GMT+4:00) דובאי', labelEn: '(GMT+4:00) Dubai' },
+  { value: 'Asia/Karachi', label: '(GMT+5:00) קראצ\'י', labelEn: '(GMT+5:00) Karachi' },
+  { value: 'Asia/Kolkata', label: '(GMT+5:30) מומבאי', labelEn: '(GMT+5:30) Mumbai' },
+  { value: 'Asia/Bangkok', label: '(GMT+7:00) בנגקוק', labelEn: '(GMT+7:00) Bangkok' },
+  { value: 'Asia/Singapore', label: '(GMT+8:00) סינגפור', labelEn: '(GMT+8:00) Singapore' },
+  { value: 'Asia/Hong_Kong', label: '(GMT+8:00) הונג קונג', labelEn: '(GMT+8:00) Hong Kong' },
+  { value: 'Asia/Shanghai', label: '(GMT+8:00) שנגחאי', labelEn: '(GMT+8:00) Shanghai' },
+  { value: 'Asia/Tokyo', label: '(GMT+9:00) טוקיו', labelEn: '(GMT+9:00) Tokyo' },
+  { value: 'Asia/Seoul', label: '(GMT+9:00) סיאול', labelEn: '(GMT+9:00) Seoul' },
+  { value: 'Australia/Sydney', label: '(GMT+10:00) סידני', labelEn: '(GMT+10:00) Sydney' },
+  { value: 'Pacific/Auckland', label: '(GMT+12:00) אוקלנד', labelEn: '(GMT+12:00) Auckland' },
 ];
 
 const TAX_ID_TYPES = [
-  { code: 'il_vat', name: 'ע.מ ישראלי (IL VAT)' },
-  { code: 'eu_vat', name: 'EU VAT' },
-  { code: 'gb_vat', name: 'GB VAT' },
-  { code: 'us_ein', name: 'US EIN' },
-  { code: 'au_abn', name: 'AU ABN' },
-  { code: 'br_cnpj', name: 'BR CNPJ' },
-  { code: 'ca_bn', name: 'CA BN' },
-  { code: 'ch_vat', name: 'CH VAT' },
-  { code: 'in_gst', name: 'IN GST' },
-  { code: 'jp_cn', name: 'JP Corporate Number' },
-  { code: 'kr_brn', name: 'KR BRN' },
-  { code: 'mx_rfc', name: 'MX RFC' },
-  { code: 'nz_gst', name: 'NZ GST' },
-  { code: 'sg_uen', name: 'SG UEN' },
-  { code: 'za_vat', name: 'ZA VAT' },
-  { code: 'other', name: 'אחר' },
+  { code: 'il_vat', name: 'ע.מ ישראלי (IL VAT)', nameEn: 'IL VAT' },
+  { code: 'eu_vat', name: 'EU VAT', nameEn: 'EU VAT' },
+  { code: 'gb_vat', name: 'GB VAT', nameEn: 'GB VAT' },
+  { code: 'us_ein', name: 'US EIN', nameEn: 'US EIN' },
+  { code: 'au_abn', name: 'AU ABN', nameEn: 'AU ABN' },
+  { code: 'br_cnpj', name: 'BR CNPJ', nameEn: 'BR CNPJ' },
+  { code: 'ca_bn', name: 'CA BN', nameEn: 'CA BN' },
+  { code: 'ch_vat', name: 'CH VAT', nameEn: 'CH VAT' },
+  { code: 'in_gst', name: 'IN GST', nameEn: 'IN GST' },
+  { code: 'jp_cn', name: 'JP Corporate Number', nameEn: 'JP Corporate Number' },
+  { code: 'kr_brn', name: 'KR BRN', nameEn: 'KR BRN' },
+  { code: 'mx_rfc', name: 'MX RFC', nameEn: 'MX RFC' },
+  { code: 'nz_gst', name: 'NZ GST', nameEn: 'NZ GST' },
+  { code: 'sg_uen', name: 'SG UEN', nameEn: 'SG UEN' },
+  { code: 'za_vat', name: 'ZA VAT', nameEn: 'ZA VAT' },
+  { code: 'other', name: 'אחר', nameEn: 'Other' },
 ];
 
 const LANGUAGES = [
-  { code: 'he', name: 'עברית' }, { code: 'en', name: 'English' },
+  { code: 'he', name: 'עברית', nameEn: 'Hebrew' }, { code: 'en', name: 'English', nameEn: 'English' },
   { code: 'ar', name: 'العربية' }, { code: 'ru', name: 'Русский' },
   { code: 'fr', name: 'Français' }, { code: 'de', name: 'Deutsch' },
   { code: 'es', name: 'Español' }, { code: 'pt', name: 'Português' },
@@ -151,10 +153,10 @@ const EMPTY_CONTACT_DATA = {
   shippingStreet: '', shippingCity: '', shippingState: '', shippingZip: '', shippingCountry: '', shippingPhone: '',
 };
 
-const SYSTEM_ROLE_LABELS: Record<UserRole, string> = {
-  USER:  'משתמש',
-  ADMIN: 'מנהל מערכת',
-  AGENT: 'סוכן',
+const SYSTEM_ROLE_LABEL_KEYS: Record<UserRole, TranslationKey> = {
+  USER:  'u_role_user',
+  ADMIN: 'u_role_admin',
+  AGENT: 'u_role_agent',
 };
 
 const SYSTEM_ROLE_COLORS: Record<UserRole, string> = {
@@ -163,27 +165,30 @@ const SYSTEM_ROLE_COLORS: Record<UserRole, string> = {
   AGENT: 'bg-violet-100 text-violet-700',
 };
 
-const ORG_ROLE_LABELS: Record<string, string> = {
-  OWNER:  'בעלים',
-  ADMIN:  'מנהל',
-  MEMBER: 'חבר',
+const ORG_ROLE_LABEL_KEYS: Record<string, TranslationKey> = {
+  OWNER:  'u_orgRole_owner',
+  ADMIN:  'u_orgRole_admin',
+  MEMBER: 'u_orgRole_member',
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────
 
-function relativeTime(dateStr: string | undefined): string {
-  if (!dateStr) return 'אף פעם';
+function relativeTime(dateStr: string | undefined, t: (key: TranslationKey) => string, isRTL: boolean): string {
+  if (!dateStr) return t('u_never');
   const diff = Date.now() - new Date(dateStr).getTime();
   const min  = Math.floor(diff / 60000);
   const hr   = Math.floor(diff / 3600000);
   const day  = Math.floor(diff / 86400000);
-  if (min < 2)   return 'לפני רגע';
-  if (min < 60)  return `לפני ${min} דקות`;
-  if (hr  < 24)  return `לפני ${hr} שעות`;
-  if (day < 7)   return `לפני ${day} ימים`;
-  if (day < 30)  return `לפני ${Math.floor(day / 7)} שבועות`;
-  if (day < 365) return `לפני ${Math.floor(day / 30)} חודשים`;
-  return `לפני ${Math.floor(day / 365)} שנים`;
+  // Hebrew uses "לפני N units"; English uses "N units ago".
+  const fmt = (n: number, unitKey: TranslationKey) =>
+    isRTL ? `לפני ${n} ${t(unitKey)}` : `${n} ${t(unitKey)}`;
+  if (min < 2)   return t('u_justNow');
+  if (min < 60)  return fmt(min, 'u_minutesAgo');
+  if (hr  < 24)  return fmt(hr, 'u_hoursAgo');
+  if (day < 7)   return fmt(day, 'u_daysAgo');
+  if (day < 30)  return fmt(Math.floor(day / 7), 'u_weeksAgo');
+  if (day < 365) return fmt(Math.floor(day / 30), 'u_monthsAgo');
+  return fmt(Math.floor(day / 365), 'u_yearsAgo');
 }
 
 function formatDate(dateStr: string): string {
@@ -191,7 +196,7 @@ function formatDate(dateStr: string): string {
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 }
 
-function mapAdminUser(u: AdminUser): User {
+function mapAdminUser(u: AdminUser, t: (key: TranslationKey) => string, isRTL: boolean): User {
   return {
     id:           u.id,
     name:         u.fullName,
@@ -199,7 +204,7 @@ function mapAdminUser(u: AdminUser): User {
     phone:        u.phone ?? '',
     status:       u.status,
     address:      u.country,
-    lastActivity: relativeTime(u.lastLoginAt),
+    lastActivity: relativeTime(u.lastLoginAt, t, isRTL),
     firstJoined:  formatDate(u.createdAt),
     userType:     u.orgMemberships.length > 0 ? 'member' : 'contact',
     systemRole:   u.role,
@@ -227,6 +232,7 @@ interface Activity {
 }
 
 const Users = () => {
+  const { t, isRTL, language } = useLanguage();
   // ─── API state ─────────────────────────────────────────────────
   const [users, setUsers] = useState<User[]>([]);
   const [usersTotal, setUsersTotal] = useState(0);
@@ -446,33 +452,33 @@ const Users = () => {
         page:   currentPage,
         limit:  50,
       });
-      setUsers(res.users.map(mapAdminUser));
+      setUsers(res.users.map(u => mapAdminUser(u, t, isRTL)));
       setUsersTotal(res.total);
     } catch (err) {
       setApiError((err as Error).message);
     } finally {
       setIsTableLoading(false);
     }
-  }, [filters.searchText, filters.status, currentPage]);
+  }, [filters.searchText, filters.status, currentPage, t, isRTL]);
 
   useEffect(() => {
     // Debounce search to avoid too many API calls
-    const t = setTimeout(() => { loadUsers(); }, filters.searchText ? 400 : 0);
-    return () => clearTimeout(t);
+    const handle = setTimeout(() => { loadUsers(); }, filters.searchText ? 400 : 0);
+    return () => clearTimeout(handle);
   }, [loadUsers]);
 
 
   const activities: Activity[] = [
     {
       id: '1',
-      title: 'רכישה בוצעה',
-      description: 'לפני 2 דקות - מוצר #402',
+      title: t('u_act_purchase'),
+      description: t('u_act_purchaseDesc'),
       color: 'bg-emerald-400'
     },
     {
       id: '2',
-      title: 'התחברות למערכת',
-      description: 'היום, 09:41',
+      title: t('u_act_login'),
+      description: t('u_act_loginDesc'),
       color: 'bg-violet-400'
     }
   ];
@@ -484,10 +490,10 @@ const Users = () => {
       pending: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
     };
 
-    const labels = {
-      active: 'פעיל',
-      inactive: 'לא פעיל',
-      pending: 'בהמתנה'
+    const labels: Record<string, string> = {
+      active: t('u_status_active'),
+      inactive: t('u_status_inactive'),
+      pending: t('u_status_pending')
     };
 
     return (
@@ -635,7 +641,7 @@ const Users = () => {
     if (allBodyRows.length > maxRows) {
       const moreRow = document.createElement('tr');
       const moreTd = document.createElement('td');
-      moreTd.textContent = `+${allBodyRows.length - maxRows} עוד`;
+      moreTd.textContent = `+${allBodyRows.length - maxRows} ${t('u_more')}`;
       moreTd.style.cssText = `padding:6px 12px;font-size:11px;color:#94a3b8;text-align:center;background:#f8fafc;border:none;`;
       moreRow.appendChild(moreTd);
       cloneTbody.appendChild(moreRow);
@@ -704,86 +710,94 @@ const Users = () => {
   // ─── COLUMN_CONFIG — data-driven column rendering ─────────────
   const COLUMN_CONFIG: Record<string, { label: string; cellClass: string; render: (user: User) => React.ReactNode }> = {
     name: {
-      label: 'שם מלא',
+      label: t('u_col_name'),
       cellClass: 'text-sm font-medium text-slate-900 dark:text-white',
       render: (user) => user.name,
     },
     email: {
-      label: 'אימייל',
+      label: t('u_col_email'),
       cellClass: 'text-sm text-slate-500 dark:text-slate-400',
       render: (user) => user.email,
     },
     status: {
-      label: 'סטטוס',
+      label: t('u_col_status'),
       cellClass: '',
       render: (user) => getStatusBadge(user.status),
     },
     address: {
-      label: 'כתובת',
+      label: t('u_col_address'),
       cellClass: 'text-sm text-slate-500 dark:text-slate-400',
       render: (user) => user.address,
     },
     lastActivity: {
-      label: 'פעילות אחרונה',
+      label: t('u_col_lastActivity'),
       cellClass: 'text-sm text-slate-500 dark:text-slate-400',
       render: (user) => user.lastActivity,
     },
     firstJoined: {
-      label: 'כניסה ראשונה',
+      label: t('u_col_firstJoined'),
       cellClass: 'text-sm text-slate-500 dark:text-slate-400',
       render: (user) => user.firstJoined,
     },
     displayName: {
-      label: 'שם תצוגה',
+      label: t('u_col_displayName'),
       cellClass: 'text-sm text-slate-500 dark:text-slate-400',
       render: (user) => user.displayName || '—',
     },
     language: {
-      label: 'שפה',
+      label: t('u_col_language'),
       cellClass: 'text-sm text-slate-500 dark:text-slate-400',
-      render: (user) => user.language ? LANGUAGES.find(l => l.code === user.language)?.name || user.language : '—',
+      render: (user) => {
+        if (!user.language) return '—';
+        const lang = LANGUAGES.find(l => l.code === user.language);
+        if (!lang) return user.language;
+        return language === 'he' ? lang.name : lang.nameEn;
+      },
     },
     businessName: {
-      label: 'שם עסק',
+      label: t('u_col_businessName'),
       cellClass: 'text-sm text-slate-500 dark:text-slate-400',
       render: (user) => user.businessName || '—',
     },
     description: {
-      label: 'תיאור',
+      label: t('u_col_description'),
       cellClass: 'text-sm text-slate-500 dark:text-slate-400',
       render: (user) => user.description || '—',
     },
     billingEmail: {
-      label: 'אימייל חיוב',
+      label: t('u_col_billingEmail'),
       cellClass: 'text-sm text-slate-500 dark:text-slate-400',
       render: (user) => user.billingEmail || '—',
     },
     billingAddress: {
-      label: 'כתובת חיוב',
+      label: t('u_col_billingAddress'),
       cellClass: 'text-sm text-slate-500 dark:text-slate-400',
       render: (user) => user.billingAddress
         ? [user.billingAddress.street, user.billingAddress.city, user.billingAddress.country].filter(Boolean).join(', ')
         : '—',
     },
     billingPhone: {
-      label: 'טלפון חיוב',
+      label: t('u_col_billingPhone'),
       cellClass: 'text-sm text-slate-500 dark:text-slate-400',
       render: () => '—',
     },
     currency: {
-      label: 'מטבע',
+      label: t('u_col_currency'),
       cellClass: 'text-sm text-slate-500 dark:text-slate-400',
       render: (user) => user.currency || '—',
     },
     timezone: {
-      label: 'אזור זמן',
+      label: t('u_col_timezone'),
       cellClass: 'text-sm text-slate-500 dark:text-slate-400',
-      render: (user) => user.timezone
-        ? TIMEZONES.find(tz => tz.value === user.timezone)?.label || user.timezone
-        : '—',
+      render: (user) => {
+        if (!user.timezone) return '—';
+        const tz = TIMEZONES.find(z => z.value === user.timezone);
+        if (!tz) return user.timezone;
+        return language === 'he' ? tz.label : tz.labelEn;
+      },
     },
     taxStatus: {
-      label: 'סטטוס מס',
+      label: t('u_col_taxStatus'),
       cellClass: '',
       render: (user) => user.taxStatus ? (
         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -791,19 +805,19 @@ const Users = () => {
           user.taxStatus === 'exempt' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
           'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400'
         }`}>
-          {user.taxStatus === 'taxable' ? 'חייב' : user.taxStatus === 'exempt' ? 'פטור' : 'חיוב הפוך'}
+          {user.taxStatus === 'taxable' ? t('u_tax_taxable') : user.taxStatus === 'exempt' ? t('u_tax_exempt') : t('u_tax_reverseCharge')}
         </span>
       ) : <span className="text-slate-400 italic">—</span>,
     },
     shippingAddress: {
-      label: 'כתובת משלוח',
+      label: t('u_col_shippingAddress'),
       cellClass: 'text-sm text-slate-500 dark:text-slate-400',
       render: (user) => user.shippingAddress
         ? [user.shippingAddress.street, user.shippingAddress.city, user.shippingAddress.country].filter(Boolean).join(', ')
         : '—',
     },
     shippingPhone: {
-      label: 'טלפון משלוח',
+      label: t('u_col_shippingPhone'),
       cellClass: 'text-sm text-slate-500 dark:text-slate-400',
       render: (user) => user.shippingPhone || '—',
     },
@@ -900,7 +914,7 @@ const Users = () => {
     const isValidType = validTypes.includes(file.type) || ['xlsx', 'xls', 'csv'].includes(fileExtension || '');
 
     if (!isValidType) {
-      alert('אנא העלה קובץ Excel או CSV בלבד');
+      alert(t('u_alert_excelOnly'));
       return;
     }
 
@@ -956,7 +970,7 @@ const Users = () => {
     });
 
     // Simulate success
-    alert(`ייצוא הושלם בהצלחה! ${usersToExport.length} משתמשים יוצאו${sendEmailCopy ? ' ונשלחו למייל' : ''}.`);
+    alert(`${t('u_alert_exportSuccess')} ${usersToExport.length} ${t('u_alert_usersExported')}${sendEmailCopy ? t('u_alert_andEmailed') : ''}.`);
 
     setIsExporting(false);
     setShowExportModal(false);
@@ -966,7 +980,7 @@ const Users = () => {
 
   const handleAddCustomField = () => {
     if (!customFieldName.trim()) {
-      alert('אנא הזן שם לשדה');
+      alert(t('u_alert_enterFieldName'));
       return;
     }
 
@@ -992,13 +1006,13 @@ const Users = () => {
 
   const handleManualRegistration = () => {
     if (!manualContactData.name || !manualContactData.email) {
-      alert('אנא מלא שם ואימייל לפחות');
+      alert(t('u_alert_fillNameEmail'));
       return;
     }
 
     // In a real app, this would add the user to the database as a contact
     console.log('Registering new contact:', { ...manualContactData, userType: 'contact' });
-    alert(`איש קשר "${manualContactData.name}" נוסף בהצלחה!`);
+    alert(`${t('u_alert_contactPrefix')} "${manualContactData.name}" ${t('u_alert_contactAdded')}`);
 
     setShowManualRegistrationModal(false);
     setManualContactData({ ...EMPTY_CONTACT_DATA });
@@ -1019,7 +1033,7 @@ const Users = () => {
       setUsersTotal(prev => prev - 1);
       if (selectedUser?.id === user.id) setSelectedUser(null);
     } catch (err) {
-      alert(`שגיאה במחיקת המשתמש: ${(err as Error).message}`);
+      alert(`${t('u_alert_deleteError')}: ${(err as Error).message}`);
     } finally {
       setIsDeleting(false);
       setShowDeleteConfirm(null);
@@ -1032,11 +1046,11 @@ const Users = () => {
     setRoleChanging(true);
     try {
       const updated = await usersApi.update(user.id, { role: newRole });
-      const mapped = mapAdminUser(updated);
+      const mapped = mapAdminUser(updated, t, isRTL);
       setUsers(prev => prev.map(u => u.id === user.id ? mapped : u));
       setSelectedUser(mapped);
     } catch (err) {
-      alert(`שגיאה בשינוי תפקיד: ${(err as Error).message}`);
+      alert(`${t('u_alert_roleError')}: ${(err as Error).message}`);
     } finally {
       setRoleChanging(false);
     }
@@ -1051,10 +1065,10 @@ const Users = () => {
             <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mx-auto mb-4">
               <span className="material-symbols-rounded text-red-500 text-2xl">delete_forever</span>
             </div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">מחיקת משתמש</h3>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">{t('u_delete_title')}</h3>
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
-              האם למחוק את <span className="font-semibold text-slate-700 dark:text-slate-300">{showDeleteConfirm.name}</span>?<br/>
-              פעולה זו אינה הפיכה.
+              {t('u_delete_q1')} <span className="font-semibold text-slate-700 dark:text-slate-300">{showDeleteConfirm.name}</span>{t('u_delete_q2')}<br/>
+              {t('u_delete_irreversible')}
             </p>
             <div className="flex gap-3">
               <button
@@ -1062,7 +1076,7 @@ const Users = () => {
                 disabled={isDeleting}
                 className="flex-1 py-2.5 text-sm font-medium border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
               >
-                ביטול
+                {t('u_cancel')}
               </button>
               <button
                 onClick={() => handleDeleteUser(showDeleteConfirm)}
@@ -1070,7 +1084,7 @@ const Users = () => {
                 className="flex-1 py-2.5 text-sm font-medium bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {isDeleting && <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
-                מחק
+                {t('u_delete')}
               </button>
             </div>
           </div>
@@ -1088,7 +1102,7 @@ const Users = () => {
             setShowColumnMapping(false);
             setUploadedFile(null);
             // Show success message or redirect
-            alert('ייבוא הושלם בהצלחה!');
+            alert(t('u_alert_importSuccess'));
           }}
           fileName={uploadedFile?.name}
         />
@@ -1107,8 +1121,8 @@ const Users = () => {
                     <img src={excelLogo} alt="Excel" className="w-full h-full object-contain opacity-70 dark:opacity-50 grayscale" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-slate-900 dark:text-white">ייצא לאקסל</h2>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">ייצא משתמשים לקובץ Excel</p>
+                    <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('u_export_title')}</h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{t('u_export_subtitle')}</p>
                   </div>
                 </div>
                 <button
@@ -1126,7 +1140,7 @@ const Users = () => {
               {/* Export Options */}
               <div>
                 <label className="block text-sm font-semibold mb-2 text-slate-700 dark:text-slate-300">
-                  מה לייצא?
+                  {t('u_export_whatToExport')}
                 </label>
                 <div className="space-y-2">
                   <label className="flex items-center gap-3 cursor-pointer group p-3 border-2 rounded-lg transition-all hover:border-[#635bff] hover:bg-[#635bff]/5">
@@ -1138,9 +1152,9 @@ const Users = () => {
                       className="w-5 h-5 text-[#635bff] focus:ring-[#635bff] cursor-pointer"
                     />
                     <div className="flex-1">
-                      <span className="text-base font-medium text-slate-900 dark:text-white block">ייצא הכל</span>
+                      <span className="text-base font-medium text-slate-900 dark:text-white block">{t('u_export_all')}</span>
                       <span className="text-sm text-slate-500 dark:text-slate-400">
-                        {filteredUsers.length} משתמשים יוצאו
+                        {filteredUsers.length} {t('u_export_allDesc')}
                       </span>
                     </div>
                     <span className="material-symbols-rounded text-slate-400 group-hover:text-[#635bff] transition-colors">
@@ -1163,10 +1177,10 @@ const Users = () => {
                     />
                     <div className="flex-1">
                       <span className="text-base font-medium text-slate-900 dark:text-white block">
-                        ייצא רק שורות מסומנות
+                        {t('u_export_selected')}
                       </span>
                       <span className="text-sm text-slate-500 dark:text-slate-400">
-                        {selectedIds.length === 0 ? 'לא נבחרו שורות' : `${selectedIds.length} משתמשים מסומנים`}
+                        {selectedIds.length === 0 ? t('u_export_selectedNone') : `${selectedIds.length} ${t('u_export_selectedDesc')}`}
                       </span>
                     </div>
                     <span className="material-symbols-rounded text-slate-400 group-hover:text-[#635bff] transition-colors">
@@ -1189,11 +1203,11 @@ const Users = () => {
                     <div className="flex items-center gap-2">
                       <span className="material-symbols-rounded text-violet-600 dark:text-violet-400 text-base">email</span>
                       <span className="text-sm font-medium text-violet-900 dark:text-violet-100">
-                        שלח עותק למייל שלי
+                        {t('u_export_emailMe')}
                       </span>
                     </div>
                     <p className="text-xs text-violet-700 dark:text-violet-300 mt-1">
-                      הקובץ ישלח אליך במייל בנוסף להורדה ישירה
+                      {t('u_export_emailMeDesc')}
                     </p>
                   </div>
                 </label>
@@ -1205,7 +1219,7 @@ const Users = () => {
                   <span className="material-symbols-rounded text-slate-500 dark:text-slate-400 text-lg">info</span>
                   <div className="flex-1">
                     <p className="text-xs text-slate-700 dark:text-slate-300 font-medium">
-                      הקובץ יכלול את כל העמודות הנראות: שם, אימייל, סטטוס, כתובת ותאריכים
+                      {t('u_export_includes')}
                     </p>
                   </div>
                 </div>
@@ -1218,7 +1232,7 @@ const Users = () => {
                 onClick={() => setShowExportModal(false)}
                 className="px-6 py-2.5 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg font-medium transition-colors"
               >
-                ביטול
+                {t('u_cancel')}
               </button>
               <button
                 onClick={handleExport}
@@ -1232,12 +1246,12 @@ const Users = () => {
                 {isExporting ? (
                   <>
                     <span className="material-symbols-rounded text-sm animate-spin">refresh</span>
-                    מייצא...
+                    {t('u_export_exporting')}
                   </>
                 ) : (
                   <>
                     <span className="material-symbols-rounded text-sm">file_download</span>
-                    ייצא לאקסל
+                    {t('u_export_action')}
                   </>
                 )}
               </button>
@@ -1258,8 +1272,8 @@ const Users = () => {
                     <span className="material-symbols-rounded text-[#635bff] text-xl">person_add</span>
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-slate-900 dark:text-white">הרשמה ידנית</h2>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">הוסף איש קשר חדש למערכת</p>
+                    <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('u_man_title')}</h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{t('u_man_subtitle')}</p>
                   </div>
                 </div>
                 <button
@@ -1279,19 +1293,19 @@ const Users = () => {
               {/* ── Basic Info (always visible) ── */}
               <div>
                 <label className="block text-sm font-semibold mb-2 text-slate-700 dark:text-slate-300">
-                  שם מלא <span className="text-red-500">*</span>
+                  {t('u_man_fullName')} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={manualContactData.name}
                   onChange={(e) => setManualContactData({ ...manualContactData, name: e.target.value })}
-                  placeholder="לדוגמה: יוסי כהן"
+                  placeholder={t('u_man_fullName_ph')}
                   className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all"
                 />
               </div>
               <div>
                 <label className="block text-sm font-semibold mb-2 text-slate-700 dark:text-slate-300">
-                  אימייל <span className="text-red-500">*</span>
+                  {t('u_man_email')} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="email"
@@ -1302,7 +1316,7 @@ const Users = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold mb-2 text-slate-700 dark:text-slate-300">טלפון</label>
+                <label className="block text-sm font-semibold mb-2 text-slate-700 dark:text-slate-300">{t('u_man_phone')}</label>
                 <input
                   type="tel"
                   value={manualContactData.phone}
@@ -1312,12 +1326,12 @@ const Users = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold mb-2 text-slate-700 dark:text-slate-300">כתובת</label>
+                <label className="block text-sm font-semibold mb-2 text-slate-700 dark:text-slate-300">{t('u_man_address')}</label>
                 <input
                   type="text"
                   value={manualContactData.address}
                   onChange={(e) => setManualContactData({ ...manualContactData, address: e.target.value })}
-                  placeholder="תל אביב, הרצל 12"
+                  placeholder={t('u_man_address_ph')}
                   className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all"
                 />
               </div>
@@ -1331,34 +1345,34 @@ const Users = () => {
                 >
                   <span className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
                     <span className="material-symbols-rounded text-base text-[#635bff]">person</span>
-                    פרטי חשבון
+                    {t('u_man_accountDetails')}
                   </span>
                   <span className={`material-symbols-rounded text-slate-400 text-base transition-transform ${expandedFormSections.account ? 'rotate-180' : ''}`}>expand_more</span>
                 </button>
                 {expandedFormSections.account && (
                   <div className="p-4 space-y-3 border-t border-slate-200 dark:border-slate-700">
                     <div>
-                      <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">שם תצוגה</label>
-                      <input type="text" value={manualContactData.displayName} onChange={(e) => setManualContactData({ ...manualContactData, displayName: e.target.value })} placeholder="שם שמופיע בחשבוניות" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
+                      <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">{t('u_man_displayName')}</label>
+                      <input type="text" value={manualContactData.displayName} onChange={(e) => setManualContactData({ ...manualContactData, displayName: e.target.value })} placeholder={t('u_man_displayName_ph')} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">שפה</label>
+                      <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">{t('u_man_language')}</label>
                       <select value={manualContactData.language} onChange={(e) => setManualContactData({ ...manualContactData, language: e.target.value })} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all">
-                        <option value="">בחר שפה...</option>
-                        {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.name}</option>)}
+                        <option value="">{t('u_man_chooseLang')}</option>
+                        {LANGUAGES.map(l => <option key={l.code} value={l.code}>{language === 'he' ? l.name : l.nameEn}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">שם עסק</label>
-                      <input type="text" value={manualContactData.businessName} onChange={(e) => setManualContactData({ ...manualContactData, businessName: e.target.value })} placeholder="שם החברה או העסק" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
+                      <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">{t('u_man_businessName')}</label>
+                      <input type="text" value={manualContactData.businessName} onChange={(e) => setManualContactData({ ...manualContactData, businessName: e.target.value })} placeholder={t('u_man_businessName_ph')} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">שם פרטי (אדם פרטי)</label>
-                      <input type="text" value={manualContactData.individualName} onChange={(e) => setManualContactData({ ...manualContactData, individualName: e.target.value })} placeholder="שם פרטי של איש הקשר" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
+                      <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">{t('u_man_individualName')}</label>
+                      <input type="text" value={manualContactData.individualName} onChange={(e) => setManualContactData({ ...manualContactData, individualName: e.target.value })} placeholder={t('u_man_individualName_ph')} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">תיאור</label>
-                      <textarea value={manualContactData.description} onChange={(e) => setManualContactData({ ...manualContactData, description: e.target.value })} placeholder="הערות פנימיות על הלקוח" rows={2} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all resize-none" />
+                      <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">{t('u_man_description')}</label>
+                      <textarea value={manualContactData.description} onChange={(e) => setManualContactData({ ...manualContactData, description: e.target.value })} placeholder={t('u_man_description_ph')} rows={2} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all resize-none" />
                     </div>
                   </div>
                 )}
@@ -1373,60 +1387,60 @@ const Users = () => {
                 >
                   <span className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
                     <span className="material-symbols-rounded text-base text-[#635bff]">receipt_long</span>
-                    פרטי חיוב
+                    {t('u_man_billing')}
                   </span>
                   <span className={`material-symbols-rounded text-slate-400 text-base transition-transform ${expandedFormSections.billing ? 'rotate-180' : ''}`}>expand_more</span>
                 </button>
                 {expandedFormSections.billing && (
                   <div className="p-4 space-y-3 border-t border-slate-200 dark:border-slate-700">
                     <div>
-                      <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">אימייל לחיוב</label>
+                      <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">{t('u_man_billingEmail')}</label>
                       <input type="email" value={manualContactData.billingEmail} onChange={(e) => setManualContactData({ ...manualContactData, billingEmail: e.target.value })} placeholder="billing@company.com" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">רחוב</label>
-                        <input type="text" value={manualContactData.billingStreet} onChange={(e) => setManualContactData({ ...manualContactData, billingStreet: e.target.value })} placeholder="הרצל 12" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
+                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">{t('u_man_street')}</label>
+                        <input type="text" value={manualContactData.billingStreet} onChange={(e) => setManualContactData({ ...manualContactData, billingStreet: e.target.value })} placeholder={t('u_man_street_ph')} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">עיר</label>
-                        <input type="text" value={manualContactData.billingCity} onChange={(e) => setManualContactData({ ...manualContactData, billingCity: e.target.value })} placeholder="תל אביב" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
+                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">{t('u_man_city')}</label>
+                        <input type="text" value={manualContactData.billingCity} onChange={(e) => setManualContactData({ ...manualContactData, billingCity: e.target.value })} placeholder={t('u_man_city_ph')} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
                       </div>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       <div>
-                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">מדינה/מחוז</label>
+                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">{t('u_man_stateProvince')}</label>
                         <input type="text" value={manualContactData.billingState} onChange={(e) => setManualContactData({ ...manualContactData, billingState: e.target.value })} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">מיקוד</label>
+                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">{t('u_man_zip')}</label>
                         <input type="text" value={manualContactData.billingZip} onChange={(e) => setManualContactData({ ...manualContactData, billingZip: e.target.value })} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">ארץ</label>
+                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">{t('u_man_country')}</label>
                         <select value={manualContactData.billingCountry} onChange={(e) => setManualContactData({ ...manualContactData, billingCountry: e.target.value })} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all">
-                          <option value="">בחר ארץ...</option>
-                          {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
+                          <option value="">{t('u_man_chooseCountry')}</option>
+                          {COUNTRIES.map(c => <option key={c.code} value={c.code}>{language === 'he' ? c.name : c.nameEn}</option>)}
                         </select>
                       </div>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">טלפון לחיוב</label>
+                      <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">{t('u_man_billingPhone')}</label>
                       <input type="tel" value={manualContactData.billingPhone} onChange={(e) => setManualContactData({ ...manualContactData, billingPhone: e.target.value })} placeholder="+972-50-1234567" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">מטבע</label>
+                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">{t('u_man_currency')}</label>
                         <select value={manualContactData.currency} onChange={(e) => setManualContactData({ ...manualContactData, currency: e.target.value })} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all">
-                          <option value="">בחר מטבע...</option>
-                          {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol} {c.name} ({c.code})</option>)}
+                          <option value="">{t('u_man_chooseCurrency')}</option>
+                          {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol} {language === 'he' ? c.name : c.nameEn} ({c.code})</option>)}
                         </select>
                       </div>
                       <div>
-                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">אזור זמן</label>
+                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">{t('u_man_timezone')}</label>
                         <select value={manualContactData.timezone} onChange={(e) => setManualContactData({ ...manualContactData, timezone: e.target.value })} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all">
-                          <option value="">בחר אזור זמן...</option>
-                          {TIMEZONES.map(tz => <option key={tz.value} value={tz.value}>{tz.label}</option>)}
+                          <option value="">{t('u_man_chooseTimezone')}</option>
+                          {TIMEZONES.map(tz => <option key={tz.value} value={tz.value}>{language === 'he' ? tz.label : tz.labelEn}</option>)}
                         </select>
                       </div>
                     </div>
@@ -1443,16 +1457,16 @@ const Users = () => {
                 >
                   <span className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
                     <span className="material-symbols-rounded text-base text-[#635bff]">calculate</span>
-                    מידע מס
+                    {t('u_man_taxInfo')}
                   </span>
                   <span className={`material-symbols-rounded text-slate-400 text-base transition-transform ${expandedFormSections.tax ? 'rotate-180' : ''}`}>expand_more</span>
                 </button>
                 {expandedFormSections.tax && (
                   <div className="p-4 space-y-3 border-t border-slate-200 dark:border-slate-700">
                     <div>
-                      <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">סטטוס מס</label>
+                      <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">{t('u_man_taxStatus')}</label>
                       <div className="flex gap-2">
-                        {([['taxable', 'חייב במס'], ['exempt', 'פטור'], ['reverse_charge', 'חיוב הפוך']] as const).map(([val, label]) => (
+                        {([['taxable', t('u_tax_taxable')], ['exempt', t('u_tax_exempt')], ['reverse_charge', t('u_tax_reverseCharge')]] as const).map(([val, label]) => (
                           <button
                             key={val}
                             type="button"
@@ -1465,13 +1479,13 @@ const Users = () => {
                       </div>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">מזהי מס</label>
+                      <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">{t('u_man_taxIds')}</label>
                       {manualContactData.taxIds.map((tid, idx) => (
                         <div key={idx} className="grid grid-cols-6 gap-2 mb-2">
                           <div className="col-span-2">
                             <select value={tid.type} onChange={(e) => { const ids = [...manualContactData.taxIds]; ids[idx] = { ...ids[idx], type: e.target.value }; setManualContactData({ ...manualContactData, taxIds: ids }); }} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all">
-                              <option value="">סוג...</option>
-                              {TAX_ID_TYPES.map(t => <option key={t.code} value={t.code}>{t.name}</option>)}
+                              <option value="">{t('u_man_typeDots')}</option>
+                              {TAX_ID_TYPES.map(ti => <option key={ti.code} value={ti.code}>{language === 'he' ? ti.name : ti.nameEn}</option>)}
                             </select>
                           </div>
                           <div className="col-span-3">
@@ -1484,7 +1498,7 @@ const Users = () => {
                       ))}
                       <button type="button" onClick={() => setManualContactData({ ...manualContactData, taxIds: [...manualContactData.taxIds, { type: '', value: '' }] })} className="flex items-center gap-1 text-xs text-[#635bff] hover:text-[#635bff]/80 font-medium mt-1">
                         <span className="material-symbols-rounded text-sm">add</span>
-                        הוסף מזהה מס
+                        {t('u_man_addTaxId')}
                       </button>
                     </div>
                   </div>
@@ -1500,7 +1514,7 @@ const Users = () => {
                 >
                   <span className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
                     <span className="material-symbols-rounded text-base text-[#635bff]">local_shipping</span>
-                    פרטי משלוח
+                    {t('u_man_shipping')}
                   </span>
                   <span className={`material-symbols-rounded text-slate-400 text-base transition-transform ${expandedFormSections.shipping ? 'rotate-180' : ''}`}>expand_more</span>
                 </button>
@@ -1508,33 +1522,33 @@ const Users = () => {
                   <div className="p-4 space-y-3 border-t border-slate-200 dark:border-slate-700">
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">רחוב</label>
-                        <input type="text" value={manualContactData.shippingStreet} onChange={(e) => setManualContactData({ ...manualContactData, shippingStreet: e.target.value })} placeholder="הרצל 12" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
+                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">{t('u_man_street')}</label>
+                        <input type="text" value={manualContactData.shippingStreet} onChange={(e) => setManualContactData({ ...manualContactData, shippingStreet: e.target.value })} placeholder={t('u_man_street_ph')} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">עיר</label>
-                        <input type="text" value={manualContactData.shippingCity} onChange={(e) => setManualContactData({ ...manualContactData, shippingCity: e.target.value })} placeholder="תל אביב" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
+                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">{t('u_man_city')}</label>
+                        <input type="text" value={manualContactData.shippingCity} onChange={(e) => setManualContactData({ ...manualContactData, shippingCity: e.target.value })} placeholder={t('u_man_city_ph')} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
                       </div>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       <div>
-                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">מדינה/מחוז</label>
+                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">{t('u_man_stateProvince')}</label>
                         <input type="text" value={manualContactData.shippingState} onChange={(e) => setManualContactData({ ...manualContactData, shippingState: e.target.value })} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">מיקוד</label>
+                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">{t('u_man_zip')}</label>
                         <input type="text" value={manualContactData.shippingZip} onChange={(e) => setManualContactData({ ...manualContactData, shippingZip: e.target.value })} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">ארץ</label>
+                        <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">{t('u_man_country')}</label>
                         <select value={manualContactData.shippingCountry} onChange={(e) => setManualContactData({ ...manualContactData, shippingCountry: e.target.value })} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all">
-                          <option value="">בחר ארץ...</option>
-                          {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
+                          <option value="">{t('u_man_chooseCountry')}</option>
+                          {COUNTRIES.map(c => <option key={c.code} value={c.code}>{language === 'he' ? c.name : c.nameEn}</option>)}
                         </select>
                       </div>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">טלפון למשלוח</label>
+                      <label className="block text-xs font-medium mb-1.5 text-slate-600 dark:text-slate-400">{t('u_man_shippingPhone')}</label>
                       <input type="tel" value={manualContactData.shippingPhone} onChange={(e) => setManualContactData({ ...manualContactData, shippingPhone: e.target.value })} placeholder="050-1234567" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all" />
                     </div>
                   </div>
@@ -1546,7 +1560,7 @@ const Users = () => {
                 <div className="flex gap-2 items-start">
                   <span className="material-symbols-rounded text-violet-600 dark:text-violet-400 text-base">info</span>
                   <p className="text-xs text-violet-700 dark:text-violet-300 flex-1">
-                    המשתמש ייווצר כאיש קשר. תוכל להפוך אותו לחבר רשום מאוחר יותר.
+                    {t('u_man_disclaimer')}
                   </p>
                 </div>
               </div>
@@ -1561,7 +1575,7 @@ const Users = () => {
                 }}
                 className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg font-medium transition-colors text-sm"
               >
-                ביטול
+                {t('u_cancel')}
               </button>
               <button
                 onClick={handleManualRegistration}
@@ -1569,7 +1583,7 @@ const Users = () => {
                 className="px-6 py-2 bg-[#635bff] hover:bg-[#635bff]/90 text-white rounded-lg font-semibold flex items-center gap-1.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
               >
                 <span className="material-symbols-rounded text-sm">person_add</span>
-                הוסף משתמש
+                {t('u_man_addUser')}
               </button>
             </div>
           </div>
@@ -1588,8 +1602,8 @@ const Users = () => {
                     <span className="material-symbols-rounded text-violet-600 dark:text-violet-400 text-lg">add_circle</span>
                   </div>
                   <div>
-                    <h2 className="text-lg font-bold text-slate-900 dark:text-white">הוסף שדה מותאם אישית</h2>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">צור שדה חדש לטבלה</p>
+                    <h2 className="text-lg font-bold text-slate-900 dark:text-white">{t('u_cf_title')}</h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{t('u_cf_subtitle')}</p>
                   </div>
                 </div>
                 <button
@@ -1610,13 +1624,13 @@ const Users = () => {
               {/* Field Name */}
               <div>
                 <label className="block text-sm font-semibold mb-2 text-slate-700 dark:text-slate-300">
-                  שם השדה <span className="text-red-500">*</span>
+                  {t('u_cf_fieldName')} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={customFieldName}
                   onChange={(e) => setCustomFieldName(e.target.value)}
-                  placeholder="לדוגמה: חברת עבודה..."
+                  placeholder={t('u_cf_fieldName_ph')}
                   className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all"
                 />
               </div>
@@ -1624,7 +1638,7 @@ const Users = () => {
               {/* Field Type */}
               <div>
                 <label className="block text-sm font-semibold mb-2 text-slate-700 dark:text-slate-300">
-                  סוג השדה <span className="text-red-500">*</span>
+                  {t('u_cf_fieldType')} <span className="text-red-500">*</span>
                 </label>
                 <div className="space-y-1.5">
                   {/* Text */}
@@ -1638,8 +1652,8 @@ const Users = () => {
                     />
                     <span className="material-symbols-rounded text-slate-500 dark:text-slate-400 text-base">text_fields</span>
                     <div className="flex-1">
-                      <span className="text-sm font-medium text-slate-900 dark:text-white">טקסט</span>
-                      <span className="text-xs text-slate-500 dark:text-slate-400 block">שדה טקסט חופשי</span>
+                      <span className="text-sm font-medium text-slate-900 dark:text-white">{t('u_cf_text')}</span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400 block">{t('u_cf_textDesc')}</span>
                     </div>
                   </label>
 
@@ -1654,8 +1668,8 @@ const Users = () => {
                     />
                     <span className="material-symbols-rounded text-slate-500 dark:text-slate-400 text-base">tag</span>
                     <div className="flex-1">
-                      <span className="text-sm font-medium text-slate-900 dark:text-white">מספר</span>
-                      <span className="text-xs text-slate-500 dark:text-slate-400 block">ערכים מספריים</span>
+                      <span className="text-sm font-medium text-slate-900 dark:text-white">{t('u_cf_number')}</span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400 block">{t('u_cf_numberDesc')}</span>
                     </div>
                   </label>
 
@@ -1670,8 +1684,8 @@ const Users = () => {
                     />
                     <span className="material-symbols-rounded text-slate-500 dark:text-slate-400 text-base">link</span>
                     <div className="flex-1">
-                      <span className="text-sm font-medium text-slate-900 dark:text-white">קישור</span>
-                      <span className="text-xs text-slate-500 dark:text-slate-400 block">כתובת URL</span>
+                      <span className="text-sm font-medium text-slate-900 dark:text-white">{t('u_cf_link')}</span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400 block">{t('u_cf_linkDesc')}</span>
                     </div>
                   </label>
 
@@ -1686,8 +1700,8 @@ const Users = () => {
                     />
                     <span className="material-symbols-rounded text-slate-500 dark:text-slate-400 text-base">calendar_today</span>
                     <div className="flex-1">
-                      <span className="text-sm font-medium text-slate-900 dark:text-white">תאריך</span>
-                      <span className="text-xs text-slate-500 dark:text-slate-400 block">תאריך ספציפי</span>
+                      <span className="text-sm font-medium text-slate-900 dark:text-white">{t('u_cf_date')}</span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400 block">{t('u_cf_dateDesc')}</span>
                     </div>
                   </label>
 
@@ -1702,8 +1716,8 @@ const Users = () => {
                     />
                     <span className="material-symbols-rounded text-slate-500 dark:text-slate-400 text-base">arrow_drop_down_circle</span>
                     <div className="flex-1">
-                      <span className="text-sm font-medium text-slate-900 dark:text-white">תפריט נפתח</span>
-                      <span className="text-xs text-slate-500 dark:text-slate-400 block">בחירה מרשימה</span>
+                      <span className="text-sm font-medium text-slate-900 dark:text-white">{t('u_cf_dropdown')}</span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400 block">{t('u_cf_dropdownDesc')}</span>
                     </div>
                   </label>
                 </div>
@@ -1714,7 +1728,7 @@ const Users = () => {
                 <div className="flex gap-2 items-start">
                   <span className="material-symbols-rounded text-violet-600 dark:text-violet-400 text-base">info</span>
                   <p className="text-xs text-violet-700 dark:text-violet-300 flex-1">
-                    השדה יתווסף לטבלת המשתמשים
+                    {t('u_cf_disclaimer')}
                   </p>
                 </div>
               </div>
@@ -1730,7 +1744,7 @@ const Users = () => {
                 }}
                 className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg font-medium transition-colors text-sm"
               >
-                ביטול
+                {t('u_cancel')}
               </button>
               <button
                 onClick={handleAddCustomField}
@@ -1738,7 +1752,7 @@ const Users = () => {
                 className="px-6 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg font-semibold flex items-center gap-1.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
               >
                 <span className="material-symbols-rounded text-sm">add</span>
-                הוסף שדה
+                {t('u_cf_addField')}
               </button>
             </div>
           </div>
@@ -1763,9 +1777,9 @@ const Users = () => {
                 <div className="flex items-center gap-6 text-sm">
                   <button className="flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
                     <span className="material-symbols-rounded text-lg">chat_bubble_outline</span>
-                    תן משוב
+                    {t('u_imp_giveFeedback')}
                   </button>
-                  <span className="text-slate-500 dark:text-slate-400 font-medium">שלב 1 מתוך 4</span>
+                  <span className="text-slate-500 dark:text-slate-400 font-medium">{t('u_imp_step1of4')}</span>
                   <button
                     onClick={() => setShowImportModal(false)}
                     className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
@@ -1778,10 +1792,10 @@ const Users = () => {
               {/* Main Content */}
               <div className="max-w-xl">
                 <h1 className="text-3xl md:text-4xl font-semibold text-slate-900 dark:text-white mb-4 tracking-tight">
-                  ייבוא נתונים מאקסל › ל-Nexus
+                  {t('u_imp_title')}
                 </h1>
                 <p className="text-base md:text-lg text-slate-600 dark:text-slate-400 mb-8">
-                  העבר נתונים מגיליון אלקטרוני של Excel לתוך לוחות העבודה הקיימים שלך ב-Nexus בצורה חלקה.
+                  {t('u_imp_desc')}
                 </p>
 
                 {/* Upload Area */}
@@ -1807,18 +1821,18 @@ const Users = () => {
                         <span className="material-symbols-rounded text-3xl">upload_file</span>
                       </div>
                       <p className="text-lg text-slate-900 dark:text-white font-medium">
-                        <span className="text-violet-600 hover:underline cursor-pointer">עיין בקבצים שלך</span> או גרור ושחרר כאן
+                        <span className="text-violet-600 hover:underline cursor-pointer">{t('u_imp_browseFiles')}</span>{t('u_imp_orDrag')}
                       </p>
                       <p className="mt-2 text-slate-500 dark:text-slate-400 text-sm">
-                        וודא שזה קובץ CSV, XLS, או XLSX.
+                        {t('u_imp_fileTypes')}
                       </p>
                     </div>
                   ) : (
                     <div className="py-16 md:py-20 flex items-center justify-center gap-3">
                       <span className="material-symbols-rounded text-green-600 text-3xl animate-in zoom-in">check_circle</span>
-                      <div className="text-right">
+                      <div className="text-start">
                         <p className="text-sm font-medium text-slate-900 dark:text-white">{uploadedFile.name}</p>
-                        <p className="text-xs text-slate-500">מעלה קובץ...</p>
+                        <p className="text-xs text-slate-500">{t('u_imp_uploading')}</p>
                       </div>
                     </div>
                   )}
@@ -1826,13 +1840,13 @@ const Users = () => {
 
                 {/* Help Section */}
                 <div className="mt-8 md:mt-12">
-                  <h3 className="font-semibold text-slate-900 dark:text-white mb-4">צריך עזרה להתחיל?</h3>
+                  <h3 className="font-semibold text-slate-900 dark:text-white mb-4">{t('u_imp_needHelp')}</h3>
                   <div className="flex flex-col gap-3">
                     <a className="flex items-center gap-2 text-violet-600 hover:underline text-sm font-medium" href="#">
-                      קרא ולמד <span className="text-slate-500 dark:text-slate-400 font-normal">על ייבוא לפלטפורמה</span>
+                      {t('u_imp_readLearn')} <span className="text-slate-500 dark:text-slate-400 font-normal">{t('u_imp_readLearn_sub')}</span>
                     </a>
                     <a className="flex items-center gap-2 text-violet-600 hover:underline text-sm font-medium" href="#">
-                      הורד <span className="text-slate-500 dark:text-slate-400 font-normal">קובץ Excel לדוגמה</span>
+                      {t('u_imp_download')} <span className="text-slate-500 dark:text-slate-400 font-normal">{t('u_imp_download_sub')}</span>
                     </a>
                   </div>
                 </div>
@@ -1848,13 +1862,13 @@ const Users = () => {
                       : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed'
                   }`}
                 >
-                  הבא
+                  {t('u_imp_next')}
                 </button>
               </div>
             </div>
 
             {/* Right Side - Animation */}
-            <div className="hidden lg:flex w-[42%] bg-slate-50 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex-col items-center justify-center p-12 overflow-hidden relative">
+            <div className="hidden lg:flex w-[42%] bg-slate-50 dark:bg-slate-800 border-e border-slate-200 dark:border-slate-700 flex-col items-center justify-center p-12 overflow-hidden relative">
               {/* Orbit Circles and Dots */}
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[450px] h-[450px]">
                 <div className="orbit-circle absolute inset-0 border-teal-100 dark:border-teal-900/30 scale-75 pulse-ring"></div>
@@ -1874,7 +1888,7 @@ const Users = () => {
                 </div>
                 <div className="flex flex-col items-center">
                   <div className="w-20 h-[3px] bg-gradient-to-l from-teal-400 to-green-500 rounded-full"></div>
-                  <span className="material-symbols-rounded text-teal-500 dark:text-teal-400 mt-2 text-2xl">arrow_back</span>
+                  <span className="material-symbols-rounded text-teal-500 dark:text-teal-400 mt-2 text-2xl ltr:rotate-180">arrow_back</span>
                 </div>
                 {/* Nexus Logo */}
                 <div className="w-24 h-24 md:w-28 md:h-28 bg-white dark:bg-slate-700 rounded-3xl shadow-xl flex items-center justify-center border border-slate-100 dark:border-slate-600 p-4">
@@ -1885,7 +1899,7 @@ const Users = () => {
               {/* Description */}
               <div className="mt-16 text-center max-w-[280px] relative z-10">
                 <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-                  מיפוי אוטומטי של עמודות וסוגים כדי לשמור על הנתונים שלך מאורגנים.
+                  {t('u_imp_autoMap')}
                 </p>
               </div>
             </div>
@@ -1896,8 +1910,8 @@ const Users = () => {
       <div className="mb-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">ניהול משתמשים</h2>
-            <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">נהל ועקוב אחר הלקוחות וחברי האתר שלך במקום אחד.</p>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{t('u_pageTitle')}</h2>
+            <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">{t('u_pageSubtitle')}</p>
           </div>
         </div>
       </div>
@@ -1913,7 +1927,7 @@ const Users = () => {
                 : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-md dark:text-slate-400 dark:hover:text-slate-300 dark:hover:bg-slate-800'
             }`}
           >
-            אנשי קשר
+            {t('u_tab_contacts')}
           </button>
           <button
             onClick={() => setActiveTab('members')}
@@ -1923,7 +1937,7 @@ const Users = () => {
                 : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-md dark:text-slate-400 dark:hover:text-slate-300 dark:hover:bg-slate-800'
             }`}
           >
-            חברים רשומים
+            {t('u_tab_members')}
             {/* Info Icon with Tooltip */}
             <div
               className="relative"
@@ -1936,9 +1950,9 @@ const Users = () => {
               {showMemberTooltip && (
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 animate-in fade-in zoom-in duration-200">
                   <div className="bg-slate-900 dark:bg-slate-800 text-white text-xs rounded-lg px-4 py-3 shadow-xl border border-slate-700 dark:border-slate-600 whitespace-nowrap">
-                    <div className="font-semibold mb-1">חבר רשום</div>
+                    <div className="font-semibold mb-1">{t('u_tooltip_member')}</div>
                     <div className="text-slate-300 dark:text-slate-400">
-                      משתמש שנרשם באתר ויש לו גישה מלאה למערכת
+                      {t('u_tooltip_memberDesc')}
                     </div>
                     <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px">
                       <div className="border-4 border-transparent border-t-slate-900 dark:border-t-slate-800"></div>
@@ -2012,7 +2026,7 @@ const Users = () => {
                   {/* Header */}
                   <div className="p-6 border-b border-slate-200 dark:border-slate-800">
                     <div className="flex items-center justify-between mb-2">
-                      <h2 className="text-xl font-bold">סינון משתמשים</h2>
+                      <h2 className="text-xl font-bold">{t('u_filter_title')}</h2>
                       <button
                         onClick={() => setShowFilterPanel(false)}
                         className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
@@ -2020,7 +2034,7 @@ const Users = () => {
                         <span className="material-symbols-rounded">close</span>
                       </button>
                     </div>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">סנן משתמשים לפי קריטריונים שונים</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">{t('u_filter_desc')}</p>
                   </div>
 
                   {/* Filter Content */}
@@ -2028,12 +2042,12 @@ const Users = () => {
                 {/* Active Filters Count */}
                 {activeFilterCount > 0 && (
                   <div className="flex items-center justify-between p-3 bg-[#635bff]/10 rounded-lg">
-                    <span className="text-sm font-medium text-[#635bff]">{activeFilterCount} סינונים פעילים</span>
+                    <span className="text-sm font-medium text-[#635bff]">{activeFilterCount} {t('u_activeFilters')}</span>
                     <button
                       onClick={clearFilters}
                       className="text-xs text-[#635bff] hover:underline font-medium"
                     >
-                      נקה הכל
+                      {t('u_clearAll')}
                     </button>
                   </div>
                 )}
@@ -2041,7 +2055,7 @@ const Users = () => {
                 {/* Search Input */}
                 <div>
                   <label className="block text-sm font-semibold mb-3 text-slate-700 dark:text-slate-300">
-                    חיפוש חופשי
+                    {t('u_filter_freeSearch')}
                   </label>
                   <div className="relative">
                     <span className="material-symbols-rounded absolute start-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">
@@ -2051,7 +2065,7 @@ const Users = () => {
                       type="text"
                       value={filters.searchText}
                       onChange={(e) => setFilters({ ...filters, searchText: e.target.value })}
-                      placeholder="שם, אימייל או כתובת..."
+                      placeholder={t('u_filter_freeSearch_ph')}
                       className="w-full ps-10 pe-3 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all"
                     />
                   </div>
@@ -2060,7 +2074,7 @@ const Users = () => {
                 {/* Status Filter */}
                 <div>
                   <label className="block text-sm font-semibold mb-3 text-slate-700 dark:text-slate-300">
-                    סטטוס
+                    {t('u_col_status')}
                   </label>
                   <div className="space-y-3">
                     <label className="flex items-center gap-3 cursor-pointer group p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors">
@@ -2071,7 +2085,7 @@ const Users = () => {
                         onChange={() => setFilters({ ...filters, status: 'all' })}
                         className="w-4 h-4 text-[#635bff] focus:ring-[#635bff] cursor-pointer"
                       />
-                      <span className="text-sm group-hover:text-[#635bff] transition-colors">הכל</span>
+                      <span className="text-sm group-hover:text-[#635bff] transition-colors">{t('u_all')}</span>
                     </label>
                     <label className="flex items-center gap-3 cursor-pointer group p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors">
                       <input
@@ -2083,7 +2097,7 @@ const Users = () => {
                       />
                       <span className="text-sm group-hover:text-[#635bff] transition-colors flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                        פעיל
+                        {t('u_active')}
                       </span>
                     </label>
                     <label className="flex items-center gap-3 cursor-pointer group p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors">
@@ -2096,7 +2110,7 @@ const Users = () => {
                       />
                       <span className="text-sm group-hover:text-[#635bff] transition-colors flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-slate-400"></span>
-                        לא פעיל
+                        {t('u_inactive')}
                       </span>
                     </label>
                     <label className="flex items-center gap-3 cursor-pointer group p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors">
@@ -2109,7 +2123,7 @@ const Users = () => {
                       />
                       <span className="text-sm group-hover:text-[#635bff] transition-colors flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                        בהמתנה
+                        {t('u_pending')}
                       </span>
                     </label>
                   </div>
@@ -2118,11 +2132,11 @@ const Users = () => {
                 {/* Date Range */}
                 <div>
                   <label className="block text-sm font-semibold mb-3 text-slate-700 dark:text-slate-300">
-                    תאריך הצטרפות
+                    {t('u_filter_joinDate')}
                   </label>
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">מתאריך</label>
+                      <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{t('u_fromDate')}</label>
                       <input
                         type="date"
                         value={filters.dateFrom}
@@ -2131,7 +2145,7 @@ const Users = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">עד תאריך</label>
+                      <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{t('u_toDate')}</label>
                       <input
                         type="date"
                         value={filters.dateTo}
@@ -2146,7 +2160,7 @@ const Users = () => {
                 {customFields.filter(f => f.visible).length > 0 && (
                   <div className="pt-4 border-t border-slate-200 dark:border-slate-800">
                     <label className="block text-sm font-semibold mb-3 text-slate-700 dark:text-slate-300">
-                      שדות מותאמים אישית
+                      {t('u_customFields')}
                     </label>
                     <div className="space-y-3">
                       {customFields.filter(f => f.visible).map(field => (
@@ -2166,7 +2180,7 @@ const Users = () => {
                               type="text"
                               value={customFieldFilters[field.id] || ''}
                               onChange={(e) => setCustomFieldFilters({ ...customFieldFilters, [field.id]: e.target.value })}
-                              placeholder={`חפש ${field.name}...`}
+                              placeholder={`${t('u_searchPlaceholder')} ${field.name}...`}
                               className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all"
                             />
                           ) : field.type === 'number' ? (
@@ -2174,7 +2188,7 @@ const Users = () => {
                               type="number"
                               value={customFieldFilters[field.id] || ''}
                               onChange={(e) => setCustomFieldFilters({ ...customFieldFilters, [field.id]: e.target.value })}
-                              placeholder={`סנן לפי ${field.name}...`}
+                              placeholder={`${t('u_filterByPlaceholder')} ${field.name}...`}
                               className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all"
                             />
                           ) : field.type === 'date' ? (
@@ -2190,10 +2204,10 @@ const Users = () => {
                               onChange={(e) => setCustomFieldFilters({ ...customFieldFilters, [field.id]: e.target.value })}
                               className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#635bff]/20 focus:border-[#635bff] outline-none transition-all"
                             >
-                              <option value="">הכל</option>
-                              <option value="אופציה 1">אופציה 1</option>
-                              <option value="אופציה 2">אופציה 2</option>
-                              <option value="אופציה 3">אופציה 3</option>
+                              <option value="">{t('u_all')}</option>
+                              <option value="option1">{t('u_option1')}</option>
+                              <option value="option2">{t('u_option2')}</option>
+                              <option value="option3">{t('u_option3')}</option>
                             </select>
                           ) : null}
                         </div>
@@ -2207,10 +2221,10 @@ const Users = () => {
                   <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
                     <div className="flex items-center justify-between">
                       <div className="text-sm text-slate-700 dark:text-slate-300 font-medium">
-                        תוצאות
+                        {t('u_results')}
                       </div>
                       <div className="text-sm text-slate-900 dark:text-white font-bold">
-                        {filteredUsers.length} מתוך {users.length}
+                        {filteredUsers.length} {t('u_resultsOf')} {users.length}
                       </div>
                     </div>
                   </div>
@@ -2260,7 +2274,7 @@ const Users = () => {
                   {/* Header */}
                   <div className="p-6 border-b border-slate-200 dark:border-slate-800">
                     <div className="flex items-center justify-between mb-2">
-                      <h2 className="text-xl font-bold">התאמה אישית של טבלה</h2>
+                      <h2 className="text-xl font-bold">{t('u_customize_title')}</h2>
                       <button
                         onClick={() => setShowCustomizePanel(false)}
                         className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
@@ -2268,12 +2282,12 @@ const Users = () => {
                         <span className="material-symbols-rounded">close</span>
                       </button>
                     </div>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">בחר אילו עמודות להציג בטבלה</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">{t('u_customize_desc')}</p>
                   </div>
 
                   {/* Column Checkboxes */}
                   <div className="p-6">
-                    <h3 className="text-sm font-semibold mb-4 text-slate-700 dark:text-slate-300">עמודות זמינות</h3>
+                    <h3 className="text-sm font-semibold mb-4 text-slate-700 dark:text-slate-300">{t('u_customize_available')}</h3>
                     <div className="space-y-3">
                       {COLUMN_LABELS.filter(([key]) => key !== 'checkbox' && !key.startsWith('cf_')).map(([key, label]) => (
                         <div key={key} className="flex items-center gap-2">
@@ -2293,7 +2307,7 @@ const Users = () => {
                                 ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400'
                                 : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                             }`}
-                            title={frozenColumns.includes(key) ? 'בטל הקפאה' : 'הקפא עמודה'}
+                            title={frozenColumns.includes(key) ? t('u_customize_unfreezeColumn') : t('u_customize_freezeColumn')}
                           >
                             <span className="material-symbols-rounded !text-[14px]">push_pin</span>
                           </button>
@@ -2304,7 +2318,7 @@ const Users = () => {
 
                   {/* Custom Fields */}
                   <div className="p-6 border-t border-slate-200 dark:border-slate-800">
-                    <h3 className="text-sm font-semibold mb-4 text-slate-700 dark:text-slate-300">שדות מותאמים אישית</h3>
+                    <h3 className="text-sm font-semibold mb-4 text-slate-700 dark:text-slate-300">{t('u_customize_customFields')}</h3>
 
                     {/* Display Custom Fields */}
                     {customFields.length > 0 && (
@@ -2327,11 +2341,11 @@ const Users = () => {
                               </span>
                               <span className="text-sm group-hover:text-[#635bff] transition-colors">{field.name}</span>
                               <span className="text-xs text-slate-400">
-                                ({field.type === 'text' && 'טקסט'}
-                                {field.type === 'number' && 'מספר'}
-                                {field.type === 'link' && 'קישור'}
-                                {field.type === 'date' && 'תאריך'}
-                                {field.type === 'dropdown' && 'תפריט'})
+                                ({field.type === 'text' && t('u_customize_type_text')}
+                                {field.type === 'number' && t('u_customize_type_number')}
+                                {field.type === 'link' && t('u_customize_type_link')}
+                                {field.type === 'date' && t('u_customize_type_date')}
+                                {field.type === 'dropdown' && t('u_customize_type_dropdown')})
                               </span>
                             </div>
                             <button
@@ -2342,7 +2356,7 @@ const Users = () => {
                                 setColumnOrder(prev => prev.filter(c => c !== `cf_${field.id}`));
                               }}
                               className="p-1 hover:bg-red-100 dark:hover:bg-red-900/20 rounded text-red-600 dark:text-red-400 transition-colors"
-                              title="מחק שדה"
+                              title={t('u_customize_deleteField')}
                             >
                               <span className="material-symbols-rounded text-sm">delete</span>
                             </button>
@@ -2357,7 +2371,7 @@ const Users = () => {
                       className="w-full py-3 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:border-[#635bff] hover:text-[#635bff] transition-colors flex items-center justify-center gap-2"
                     >
                       <span className="material-symbols-rounded text-lg">add</span>
-                      הוסף שדה מותאם אישית
+                      {t('u_customize_addCustomField')}
                     </button>
                   </div>
                 </>
@@ -2384,7 +2398,7 @@ const Users = () => {
                         setIsTableSearchExpanded(true);
                         setTimeout(() => tableSearchInputRef.current?.focus(), 50);
                       }}
-                      title="חיפוש"
+                      title={t('u_search')}
                     >
                       <span className="material-symbols-rounded !text-[16px]">search</span>
                     </button>
@@ -2396,7 +2410,7 @@ const Users = () => {
                         value={filters.searchText}
                         onChange={(e) => setFilters({ ...filters, searchText: e.target.value })}
                         className="w-52 ps-8 pe-8 py-1.5 bg-slate-100 dark:bg-slate-800 border-none rounded-md text-sm focus:ring-2 focus:ring-primary outline-none"
-                        placeholder="חיפוש משתמשים..."
+                        placeholder={t('u_searchUsers')}
                         autoFocus
                       />
                       <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
@@ -2438,7 +2452,7 @@ const Users = () => {
                       ? 'bg-[#635bff] text-white'
                       : 'text-[#635bff] hover:bg-[#635bff]/10'
                   }`}
-                  title="סינון"
+                  title={t('u_filter')}
                 >
                   <span className="material-symbols-rounded !text-[16px]">filter_list</span>
                   {activeFilterCount > 0 && (
@@ -2453,7 +2467,7 @@ const Users = () => {
                   <button
                     onClick={() => setShowImportExportMenu(!showImportExportMenu)}
                     className="w-8 h-8 rounded-md flex items-center justify-center text-[#635bff] hover:bg-[#635bff]/10 transition-colors"
-                    title="ייבוא/ייצוא"
+                    title={t('u_importExport')}
                   >
                     <span className="material-symbols-rounded !text-[16px]">swap_vert</span>
                   </button>
@@ -2476,7 +2490,7 @@ const Users = () => {
                           className="w-full px-4 py-3 text-right text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-3"
                         >
                           <span className="material-symbols-rounded text-sm text-[#635bff]">file_upload</span>
-                          <span>ייבוא משתמשים</span>
+                          <span>{t('u_importUsers')}</span>
                         </button>
                         <button
                           onClick={() => {
@@ -2486,7 +2500,7 @@ const Users = () => {
                           className="w-full px-4 py-3 text-right text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-3 border-t border-slate-100 dark:border-slate-700"
                         >
                           <span className="material-symbols-rounded text-sm text-[#635bff]">file_download</span>
-                          <span>ייצא לאקסל</span>
+                          <span>{t('u_exportToExcel')}</span>
                         </button>
                       </div>
                     </>
@@ -2501,7 +2515,7 @@ const Users = () => {
                     setTimeout(() => setIsCustomizeLoading(false), 600);
                   }}
                   className="w-8 h-8 rounded-md flex items-center justify-center text-[#635bff] hover:bg-[#635bff]/10 transition-colors"
-                  title="התאמה אישית"
+                  title={t('u_customize')}
                 >
                   <span className="material-symbols-rounded !text-[16px]">tune</span>
                 </button>
@@ -2521,7 +2535,7 @@ const Users = () => {
                   {showMoreActionsTooltip && !showMoreActionsMenu && (
                     <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 animate-in fade-in zoom-in duration-200">
                       <div className="bg-slate-900 dark:bg-slate-800 text-white text-xs rounded px-2 py-1 shadow-lg whitespace-nowrap">
-                        אפשרויות נוספות
+                        {t('u_moreActions')}
                         {/* Arrow */}
                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 -mb-px">
                           <div className="border-4 border-transparent border-b-slate-900 dark:border-b-slate-800"></div>
@@ -2549,21 +2563,21 @@ const Users = () => {
                         >
                           <span className="material-symbols-rounded text-sm text-[#635bff]">person_add</span>
                           <div>
-                            <div className="font-medium">הרשמה ידנית</div>
-                            <div className="text-xs text-slate-500 dark:text-slate-400">הוסף איש קשר חדש</div>
+                            <div className="font-medium">{t('u_manualReg')}</div>
+                            <div className="text-xs text-slate-500 dark:text-slate-400">{t('u_manualReg_desc')}</div>
                           </div>
                         </button>
                         <button
                           onClick={() => {
                             setShowMoreActionsMenu(false);
-                            alert('פעולה זו תהיה זמינה בקרוב');
+                            alert(t('u_alert_comingSoon'));
                           }}
                           className="w-full px-4 py-3 text-right text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-3 border-t border-slate-100 dark:border-slate-700"
                         >
                           <span className="material-symbols-rounded text-sm text-[#635bff]">email</span>
                           <div>
-                            <div className="font-medium">שלח הזמנה</div>
-                            <div className="text-xs text-slate-500 dark:text-slate-400">הזמן משתמשים חדשים</div>
+                            <div className="font-medium">{t('u_sendInvite')}</div>
+                            <div className="text-xs text-slate-500 dark:text-slate-400">{t('u_sendInvite_desc')}</div>
                           </div>
                         </button>
                       </div>
@@ -2572,7 +2586,7 @@ const Users = () => {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-xs text-slate-400">מציג {sortedUsers.length} מתוך {users.length} משתמשים</span>
+                <span className="text-xs text-slate-400">{t('u_showing')} {sortedUsers.length} {t('u_resultsOf')} {users.length} {t('u_users')}</span>
                 <div className="flex gap-1">
                   <button className="w-8 h-8 flex items-center justify-center text-[#635bff] hover:bg-[#635bff]/10 rounded-md transition-colors">
                     <span className="material-symbols-rounded !text-[16px]">chevron_right</span>
@@ -2669,36 +2683,36 @@ const Users = () => {
                               <button onClick={() => { setSortColumn(col); setSortDirection('asc'); setColumnMenuOpen(null); }}
                                 className={`w-full px-4 py-2.5 text-right hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2.5 ${sortColumn === col && sortDirection === 'asc' ? 'text-[#635bff] bg-[#635bff]/5' : 'text-slate-700 dark:text-slate-300'}`}>
                                 <span className="material-symbols-rounded !text-[16px]">arrow_upward</span>
-                                מיין לפי עולה
+                                {t('u_sortAsc')}
                               </button>
                               <button onClick={() => { setSortColumn(col); setSortDirection('desc'); setColumnMenuOpen(null); }}
                                 className={`w-full px-4 py-2.5 text-right hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2.5 ${sortColumn === col && sortDirection === 'desc' ? 'text-[#635bff] bg-[#635bff]/5' : 'text-slate-700 dark:text-slate-300'}`}>
                                 <span className="material-symbols-rounded !text-[16px]">arrow_downward</span>
-                                מיין לפי יורד
+                                {t('u_sortDesc')}
                               </button>
                               {sortColumn === col && (
                                 <button onClick={() => { setSortColumn(null); setColumnMenuOpen(null); }}
                                   className="w-full px-4 py-2.5 text-right hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2.5 text-slate-400">
                                   <span className="material-symbols-rounded !text-[16px]">close</span>
-                                  הסר מיון
+                                  {t('u_removeSort')}
                                 </button>
                               )}
                               <div className="border-t border-slate-100 dark:border-slate-700" />
                               <button onClick={() => { setShowFilterPanel(true); setShowCustomizePanel(false); setColumnMenuOpen(null); }}
-                                className="w-full px-4 py-2.5 text-right hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2.5 text-slate-700 dark:text-slate-300">
+                                className="w-full px-4 py-2.5 text-start hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2.5 text-slate-700 dark:text-slate-300">
                                 <span className="material-symbols-rounded !text-[16px]">filter_list</span>
-                                סנן
+                                {t('u_filterCol')}
                               </button>
                               <div className="border-t border-slate-100 dark:border-slate-700" />
                               <button onClick={() => { toggleColumnFreeze(col); setColumnMenuOpen(null); }}
-                                className={`w-full px-4 py-2.5 text-right hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2.5 ${frozenColumns.includes(col) ? 'text-[#635bff]' : 'text-slate-700 dark:text-slate-300'}`}>
+                                className={`w-full px-4 py-2.5 text-start hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2.5 ${frozenColumns.includes(col) ? 'text-[#635bff]' : 'text-slate-700 dark:text-slate-300'}`}>
                                 <span className="material-symbols-rounded !text-[16px]">push_pin</span>
-                                {frozenColumns.includes(col) ? 'בטל הקפאה' : 'הקפא עמודה'}
+                                {frozenColumns.includes(col) ? t('u_unfreezeColumn') : t('u_freezeColumn')}
                               </button>
                               <button onClick={() => { toggleColumnVisibility(col as keyof typeof visibleColumns); setColumnMenuOpen(null); }}
-                                className="w-full px-4 py-2.5 text-right hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2.5 text-slate-700 dark:text-slate-300">
+                                className="w-full px-4 py-2.5 text-start hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2.5 text-slate-700 dark:text-slate-300">
                                 <span className="material-symbols-rounded !text-[16px]">visibility_off</span>
-                                הסתר עמודה
+                                {t('u_hideColumn')}
                               </button>
                             </div>
                           </>
@@ -2728,7 +2742,7 @@ const Users = () => {
                         <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-600 dark:text-red-400 flex items-center gap-2">
                           <span className="material-symbols-rounded text-base">error_outline</span>
                           {apiError}
-                          <button onClick={loadUsers} className="mr-auto text-xs underline">נסה שוב</button>
+                          <button onClick={loadUsers} className="ms-auto text-xs underline">{t('u_retry')}</button>
                         </div>
                       </td>
                     </tr>
@@ -2753,8 +2767,8 @@ const Users = () => {
                       <td colSpan={100} className="px-6 py-12 text-center">
                         <div className="flex flex-col items-center gap-3">
                           <span className="material-symbols-rounded text-4xl text-slate-300">search_off</span>
-                          <p className="text-slate-500 dark:text-slate-400">לא נמצאו משתמשים התואמים לסינון</p>
-                          <button onClick={clearFilters} className="text-sm text-[#635bff] hover:underline">נקה סינון</button>
+                          <p className="text-slate-500 dark:text-slate-400">{t('u_noUsersMatch')}</p>
+                          <button onClick={clearFilters} className="text-sm text-[#635bff] hover:underline">{t('u_clearFilter')}</button>
                         </div>
                       </td>
                     </tr>
@@ -2824,19 +2838,19 @@ const Users = () => {
                             ></div>
 
                             {/* Dropdown Menu */}
-                            <div className="absolute left-0 mt-1 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-20 overflow-hidden">
+                            <div className="absolute start-0 mt-1 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-20 overflow-hidden">
                               {user.userType === 'contact' && (
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleConvertToMember(user.id, user.name);
                                   }}
-                                  className="w-full px-4 py-2.5 text-right text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-3"
+                                  className="w-full px-4 py-2.5 text-start text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-3"
                                 >
                                   <span className="material-symbols-rounded text-sm text-[#635bff]">upgrade</span>
                                   <div>
-                                    <div className="font-medium">הפוך לחבר רשום</div>
-                                    <div className="text-xs text-slate-500 dark:text-slate-400">תן גישה מלאה</div>
+                                    <div className="font-medium">{t('u_promoteToMember')}</div>
+                                    <div className="text-xs text-slate-500 dark:text-slate-400">{t('u_promoteToMember_desc')}</div>
                                   </div>
                                 </button>
                               )}
@@ -2844,30 +2858,30 @@ const Users = () => {
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setRowActionMenuId(null);
-                                  alert('פעולה זו תהיה זמינה בקרוב');
+                                  alert(t('u_alert_comingSoon'));
                                 }}
-                                className="w-full px-4 py-2.5 text-right text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-3 border-t border-slate-100 dark:border-slate-700"
+                                className="w-full px-4 py-2.5 text-start text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-3 border-t border-slate-100 dark:border-slate-700"
                               >
                                 <span className="material-symbols-rounded text-sm text-slate-500">edit</span>
                                 <div>
-                                  <div className="font-medium">ערוך פרטים</div>
-                                  <div className="text-xs text-slate-500 dark:text-slate-400">שנה מידע</div>
+                                  <div className="font-medium">{t('u_editDetails')}</div>
+                                  <div className="text-xs text-slate-500 dark:text-slate-400">{t('u_editDetails_desc')}</div>
                                 </div>
                               </button>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setRowActionMenuId(null);
-                                  if (confirm(`האם אתה בטוח שברצונך למחוק את ${user.name}?`)) {
-                                    alert('המשתמש נמחק בהצלחה');
+                                  if (confirm(`${t('u_confirmDelete_q')} ${user.name}?`)) {
+                                    alert(t('u_alert_userDeleted'));
                                   }
                                 }}
-                                className="w-full px-4 py-2.5 text-right text-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-3 border-t border-slate-100 dark:border-slate-700"
+                                className="w-full px-4 py-2.5 text-start text-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-3 border-t border-slate-100 dark:border-slate-700"
                               >
                                 <span className="material-symbols-rounded text-sm text-red-600">delete</span>
                                 <div>
-                                  <div className="font-medium text-red-600">מחק משתמש</div>
-                                  <div className="text-xs text-slate-500 dark:text-slate-400">הסרה לצמיתות</div>
+                                  <div className="font-medium text-red-600">{t('u_deleteUser')}</div>
+                                  <div className="text-xs text-slate-500 dark:text-slate-400">{t('u_deleteUser_desc')}</div>
                                 </div>
                               </button>
                             </div>
@@ -2884,24 +2898,24 @@ const Users = () => {
             {/* Pagination */}
             {usersTotal > 50 && (
               <div className="flex items-center justify-between px-6 py-3 border-t border-slate-100 dark:border-slate-800">
-                <span className="text-xs text-slate-400">{usersTotal} משתמשים סה"כ</span>
+                <span className="text-xs text-slate-400">{usersTotal} {t('u_totalUsers')}</span>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
                     className="w-8 h-8 flex items-center justify-center text-[#635bff] hover:bg-[#635bff]/10 rounded-md disabled:opacity-40 transition-colors"
-                    title="הקודם"
+                    title={t('u_previous')}
                   >
-                    <span className="material-symbols-rounded !text-[16px]">chevron_right</span>
+                    <span className="material-symbols-rounded !text-[16px] ltr:rotate-180">chevron_right</span>
                   </button>
-                  <span className="text-xs text-slate-500">עמוד {currentPage}</span>
+                  <span className="text-xs text-slate-500">{t('u_pageLabel')} {currentPage}</span>
                   <button
                     onClick={() => setCurrentPage(p => p + 1)}
                     disabled={currentPage * 50 >= usersTotal}
                     className="w-8 h-8 flex items-center justify-center text-[#635bff] hover:bg-[#635bff]/10 rounded-md disabled:opacity-40 transition-colors"
-                    title="הבא"
+                    title={t('u_next')}
                   >
-                    <span className="material-symbols-rounded !text-[16px]">chevron_left</span>
+                    <span className="material-symbols-rounded !text-[16px] ltr:rotate-180">chevron_left</span>
                   </button>
                 </div>
               </div>
@@ -3016,7 +3030,7 @@ const Users = () => {
 
                   <div className="flex gap-2 w-full">
                     <button className="flex-1 px-4 py-2 bg-[#635bff] text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity">
-                      שלח הודעה
+                      {t('u_sendMessage')}
                     </button>
                     <button className="p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
                       <span className="material-symbols-rounded !text-[20px]">mail</span>
@@ -3029,10 +3043,10 @@ const Users = () => {
 
                 {/* ── System Role ──────────────────────────────── */}
                 <div className="mb-4 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
-                  <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-2">תפקיד מערכת</p>
+                  <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-2">{t('u_systemRole')}</p>
                   <div className="flex items-center justify-between gap-2">
                     <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${SYSTEM_ROLE_COLORS[selectedUser!.systemRole]}`}>
-                      {SYSTEM_ROLE_LABELS[selectedUser!.systemRole]}
+                      {t(SYSTEM_ROLE_LABEL_KEYS[selectedUser!.systemRole])}
                     </span>
                     <select
                       value={selectedUser!.systemRole}
@@ -3040,18 +3054,18 @@ const Users = () => {
                       onChange={(e) => handleChangeSystemRole(selectedUser!, e.target.value as UserRole)}
                       className="text-xs border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-purple-400 disabled:opacity-50"
                     >
-                      <option value="USER">משתמש</option>
-                      <option value="AGENT">סוכן</option>
-                      <option value="ADMIN">מנהל מערכת</option>
+                      <option value="USER">{t('u_role_user')}</option>
+                      <option value="AGENT">{t('u_role_agent')}</option>
+                      <option value="ADMIN">{t('u_role_admin')}</option>
                     </select>
                   </div>
-                  <p className="text-[10px] text-slate-400 mt-1.5">תפקיד זה אינו קשור לתפקיד בארגון</p>
+                  <p className="text-[10px] text-slate-400 mt-1.5">{t('u_systemRole_note')}</p>
                 </div>
 
                 {/* ── Org Memberships ───────────────────────────── */}
                 {selectedUser!.orgs.length > 0 && (
                   <div className="mb-4 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
-                    <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-2">חברויות ארגוניות</p>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-2">{t('u_orgMemberships')}</p>
                     <div className="space-y-2">
                       {selectedUser!.orgs.map((m, i) => (
                         <div key={i} className="flex items-center justify-between">
@@ -3065,7 +3079,7 @@ const Users = () => {
                             <span className="text-xs text-slate-700 dark:text-slate-300 font-medium">{m.org.name}</span>
                           </div>
                           <span className="text-[10px] px-1.5 py-0.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-full text-slate-500 dark:text-slate-400">
-                            {ORG_ROLE_LABELS[m.role] ?? m.role}
+                            {ORG_ROLE_LABEL_KEYS[m.role] ? t(ORG_ROLE_LABEL_KEYS[m.role]) : m.role}
                           </span>
                         </div>
                       ))}
@@ -3079,7 +3093,7 @@ const Users = () => {
                     onClick={() => setShowDeleteConfirm(selectedUser!)}
                     className="w-full py-2 text-xs font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800 transition-colors"
                   >
-                    מחיקת משתמש
+                    {t('u_delete_title')}
                   </button>
                 </div>
 
@@ -3091,7 +3105,7 @@ const Users = () => {
                       onClick={() => toggleSection('purchases')}
                       className="w-full py-4 flex items-center justify-between font-medium text-slate-700 dark:text-slate-300"
                     >
-                      <span>סטטוס רכישות</span>
+                      <span>{t('u_purchaseStatus')}</span>
                       <span className="material-symbols-rounded text-slate-400">
                         {expandedSection === 'purchases' ? 'expand_less' : 'expand_more'}
                       </span>
@@ -3100,13 +3114,13 @@ const Users = () => {
                       <div className="pb-4 space-y-4">
                         <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
                           <div className="flex justify-between mb-2">
-                            <span className="text-xs text-slate-500">סך רכישות</span>
+                            <span className="text-xs text-slate-500">{t('u_totalPurchases')}</span>
                             <span className="text-xs font-bold">₪4,250</span>
                           </div>
                           <div className="h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                             <div className="bg-emerald-500 h-full w-2/3"></div>
                           </div>
-                          <p className="text-[11px] text-slate-400 mt-2">6 עסקאות הושלמו השנה</p>
+                          <p className="text-[11px] text-slate-400 mt-2">6 {t('u_completedYear')}</p>
                         </div>
                       </div>
                     )}
@@ -3118,7 +3132,7 @@ const Users = () => {
                       onClick={() => toggleSection('contact')}
                       className="w-full py-4 flex items-center justify-between font-medium text-slate-700 dark:text-slate-300"
                     >
-                      <span>פרטי קשר</span>
+                      <span>{t('u_contactInfo')}</span>
                       <span className="material-symbols-rounded text-slate-400">
                         {expandedSection === 'contact' ? 'expand_less' : 'expand_more'}
                       </span>
@@ -3131,7 +3145,7 @@ const Users = () => {
                       onClick={() => toggleSection('notes')}
                       className="w-full py-4 flex items-center justify-between font-medium text-slate-700 dark:text-slate-300"
                     >
-                      <span>הערות</span>
+                      <span>{t('u_notes')}</span>
                       <span className="material-symbols-rounded text-slate-400">
                         {expandedSection === 'notes' ? 'expand_less' : 'expand_more'}
                       </span>
@@ -3144,7 +3158,7 @@ const Users = () => {
                       onClick={() => toggleSection('tasks')}
                       className="w-full py-4 flex items-center justify-between font-medium text-slate-700 dark:text-slate-300"
                     >
-                      <span>משימות</span>
+                      <span>{t('u_tasks')}</span>
                       <span className="material-symbols-rounded text-slate-400">
                         {expandedSection === 'tasks' ? 'expand_less' : 'expand_more'}
                       </span>
@@ -3157,7 +3171,7 @@ const Users = () => {
                       onClick={() => toggleSection('groups')}
                       className="w-full py-4 flex items-center justify-between font-medium text-slate-700 dark:text-slate-300"
                     >
-                      <span>קבוצות יעד</span>
+                      <span>{t('u_targetGroups')}</span>
                       <span className="material-symbols-rounded text-slate-400">
                         {expandedSection === 'groups' ? 'expand_less' : 'expand_more'}
                       </span>
@@ -3168,7 +3182,7 @@ const Users = () => {
 
               {/* Recent Activity Card */}
               <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-[#e3e8ee] dark:border-slate-700 p-6">
-                <h3 className="font-semibold text-sm mb-4">פעילות אחרונה</h3>
+                <h3 className="font-semibold text-sm mb-4">{t('u_recentActivity')}</h3>
                 <div className="space-y-4">
                   {activities.map((activity) => (
                     <div key={activity.id} className="flex gap-4">

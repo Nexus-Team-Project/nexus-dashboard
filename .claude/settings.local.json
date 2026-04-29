@@ -4,7 +4,14 @@
       "mcp__Claude_Preview__preview_start",
       "Bash(npm install)",
       "Bash(npm run dev)",
-      "Bash(npx tsc --noEmit)"
+      "Bash(npx tsc --noEmit)",
+      "Bash(xargs wc -l)",
+      "Bash(npm install -g docx)",
+      "Bash(node generate-spec.js)",
+      "Bash(node generate-spec.cjs)",
+      "Bash(npm install docx --save-dev)",
+      "Bash(python \"C:\\\\Users\\\\IMOE001\\\\AppData\\\\Roaming\\\\Claude\\\\local-agent-mode-sessions\\\\skills-plugin\\\\89142779-02de-4565-975c-30bfab548ee5\\\\8dae8922-71d3-4361-9bc2-53f4bc31aca1\\\\skills\\\\docx\\\\scripts\\\\office\\\\validate.py\" \"/c/Users/IMOE001/screens-test-for-nexus/מסמך_איפיון_צאט.docx\")",
+      "Bash(grep -l \"[א-ת]\" /c/Users/IMOE001/screens-test-for-nexus/src/**/*.tsx)"
     ]
   }
 }

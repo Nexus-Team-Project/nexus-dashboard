@@ -6,6 +6,8 @@ import AiChatPanel from '../components/AiChatPanel';
 import BottomToolbar from '../components/BottomToolbar';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useDevMode } from '../contexts/DevModeContext';
+import BusinessSetupGuide from '../components/business-setup/BusinessSetupGuide';
+import SetupBanner from '../components/business-setup/SetupBanner';
 
 interface DashboardLayoutProps {
   onLogout: () => void;
@@ -31,10 +33,13 @@ const DashboardLayout = ({ onLogout }: DashboardLayoutProps) => {
       <div className="flex min-h-screen">
         {/* Gray strip near right edge */}
         <div className="w-2 shrink-0" />
-        {/* Full page (header + sidebar + content) */}
+        {/* Full page (banner + header + sidebar + content) */}
         <div className="flex-1 min-w-0 flex flex-col transition-all duration-300 ease-in-out">
+          <SetupBanner />
+          {/* Stripe-style rounded corners — thin decorative strip that overlaps the orange banner */}
+          <div className="h-2 -mt-2 rounded-t-2xl bg-[#edf1fc] dark:bg-background-dark relative z-[1] shrink-0" />
           <DashboardHeader onLogout={onLogout} isChatOpen={isChatOpen} onChatToggle={() => setIsChatOpen(!isChatOpen)} />
-          <div className="flex flex-1">
+          <div className="flex flex-1 min-h-0">
             <Sidebar
               onLogout={onLogout}
               state={sidebarState}
@@ -42,7 +47,7 @@ const DashboardLayout = ({ onLogout }: DashboardLayoutProps) => {
             />
             {/* Outer wrapper: non-scrollable, holds the border-highlight effect */}
             <div
-              className="flex-1 flex flex-col h-[calc(100vh-48px)] min-w-0 rounded-tr-xl relative border-highlight-card"
+              className="flex-1 flex flex-col min-h-0 min-w-0 rounded-tr-xl relative border-highlight-card"
               onMouseMove={handleContentMouseMove}
             >
               {/* Inner scrollable area */}
@@ -72,6 +77,7 @@ const DashboardLayout = ({ onLogout }: DashboardLayoutProps) => {
         </div>
       </div>
       <BottomToolbar />
+      <BusinessSetupGuide />
     </div>
   );
 };

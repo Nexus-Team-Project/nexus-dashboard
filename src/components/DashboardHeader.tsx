@@ -5,6 +5,7 @@ import SearchBar from './SearchBar';
 import NotificationsPanel from './NotificationsPanel';
 import InboxPanel from './InboxPanel';
 import UserPanel from './UserPanel';
+import LanguageSwitcher from './LanguageSwitcher';
 import nexusLogoAnimated from '../assets/logos/Nexus_Wide_Logo_Animation_Black_Whithout_Slogan.gif';
 import nexusLogoStatic from '../assets/logos/Nexus_wide_logo_blak.png';
 import orgLogo from '../assets/logos/Nexus_Logo_only_Icon_Black.png';
@@ -16,7 +17,7 @@ interface DashboardHeaderProps {
 }
 
 const DashboardHeader = ({ onLogout, isChatOpen, onChatToggle }: DashboardHeaderProps) => {
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [isLogoHovered, setIsLogoHovered] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -72,9 +73,9 @@ const DashboardHeader = ({ onLogout, isChatOpen, onChatToggle }: DashboardHeader
                   ? 'ring-2 ring-[#635bff]'
                   : 'hover:ring-2 hover:ring-slate-300'
               } bg-gradient-to-br from-primary to-violet-400`}
-              title="דניאל רביב"
+              title={t('headerUserName')}
             >
-              <span className="text-white font-semibold text-[12px]">ד</span>
+              <span className="text-white font-semibold text-[12px]">{t('headerUserInitial')}</span>
             </button>
           </div>
           <UserPanel
@@ -92,7 +93,7 @@ const DashboardHeader = ({ onLogout, isChatOpen, onChatToggle }: DashboardHeader
                 ? 'text-[#635bff] bg-[#635bff]/10'
                 : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200 dark:hover:text-slate-300'
             }`}
-            title={language === 'he' ? 'התראות' : 'Notifications'}
+            title={t('notificationsTitle')}
           >
             <span className="material-symbols-rounded !text-[20px]">notifications</span>
             <span className="absolute top-1 end-1 w-1.5 h-1.5 bg-red-500 rounded-full"></span>
@@ -110,7 +111,7 @@ const DashboardHeader = ({ onLogout, isChatOpen, onChatToggle }: DashboardHeader
                 ? 'text-[#635bff] bg-[#635bff]/10'
                 : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200 dark:hover:text-slate-300'
             }`}
-            title={language === 'he' ? 'הודעות' : 'Inbox'}
+            title={t('inbox')}
           >
             <span className="material-symbols-rounded !text-[20px]">inbox</span>
           </button>
@@ -121,7 +122,7 @@ const DashboardHeader = ({ onLogout, isChatOpen, onChatToggle }: DashboardHeader
           />
           <button
             className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-200 dark:hover:text-slate-300 rounded-md transition-colors"
-            title={language === 'he' ? 'צוות' : 'Team'}
+            title={t('headerTeam')}
           >
             <span className="material-symbols-rounded !text-[20px]">group</span>
           </button>
@@ -143,10 +144,11 @@ const DashboardHeader = ({ onLogout, isChatOpen, onChatToggle }: DashboardHeader
           >
             <span className="material-symbols-rounded !text-[20px]">settings</span>
           </button>
-          <button className="text-primary hover:text-white hover:bg-primary text-[12px] font-semibold flex items-center gap-1 px-2 py-1 rounded-md transition-colors leading-none" title={language === 'he' ? 'שדרג' : 'Upgrade'}>
+          <button className="text-primary hover:text-white hover:bg-primary text-[12px] font-semibold flex items-center gap-1 px-2 py-1 rounded-md transition-colors leading-none" title={t('headerUpgrade')}>
             <span className="material-symbols-rounded !text-[16px]">diamond</span>
-            {language === 'he' ? 'שדרג' : 'Upgrade'}
+            {t('headerUpgrade')}
           </button>
+          <LanguageSwitcher />
         </div>
 
         {/* Logo at far right */}

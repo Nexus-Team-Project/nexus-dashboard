@@ -1,57 +1,75 @@
 interface ScheduleStepProps {
+  onBackToSite: () => void;
   onExplore: () => void;
-  onSchedule: () => void;
 }
 
-const ScheduleStep = ({ onExplore, onSchedule }: ScheduleStepProps) => {
-  return (
-    <div className="flex flex-col items-center justify-center py-12 animate-in fade-in zoom-in-95 duration-500">
-      {/* Success icon */}
-      <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-6 shadow-lg shadow-green-200/50 dark:shadow-green-900/20">
-        <span className="material-symbols-rounded text-green-600 dark:text-green-400 !text-[40px]">check_circle</span>
-      </div>
-
-      {/* Title */}
-      <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
-        סביבת העבודה שלכם מוכנה! 🎉
-      </h2>
-      <p className="text-slate-500 dark:text-slate-400 text-center max-w-md mb-10">
-        הכל מוגדר ומוכן לשימוש. בחרו איך תרצו להמשיך.
-      </p>
-
-      {/* Action cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-lg">
-        {/* Explore Dashboard */}
-        <button
-          onClick={onExplore}
-          className="group p-6 bg-gradient-to-br from-primary/5 to-primary/10 border-2 border-primary/20 hover:border-primary rounded-2xl transition-all duration-200 hover:shadow-lg hover:shadow-primary/10 text-right"
-        >
-          <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary mb-4 group-hover:scale-110 transition-transform">
-            <span className="material-symbols-rounded !text-2xl">dashboard</span>
-          </div>
-          <h3 className="font-bold text-slate-900 dark:text-white mb-1">עבור לדאשבורד</h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400">התחילו לחקור את סביבת העבודה</p>
-        </button>
-
-        {/* Schedule Call */}
-        <button
-          onClick={onSchedule}
-          className="group p-6 bg-gradient-to-br from-violet-50 to-violet-100 dark:from-violet-950 dark:to-violet-900 border-2 border-violet-200 dark:border-violet-800 hover:border-violet-400 rounded-2xl transition-all duration-200 hover:shadow-lg text-right"
-        >
-          <div className="w-12 h-12 bg-violet-100 dark:bg-violet-800 rounded-xl flex items-center justify-center text-violet-600 mb-4 group-hover:scale-110 transition-transform">
-            <span className="material-symbols-rounded !text-2xl">calendar_month</span>
-          </div>
-          <h3 className="font-bold text-slate-900 dark:text-white mb-1">קבעו שיחת הדרכה</h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400">15 דקות אינטרו עם הצוות שלנו</p>
-        </button>
-      </div>
-
-      {/* Helper text */}
-      <p className="text-xs text-slate-400 mt-6">
-        תמיד אפשר לקבוע שיחה מאוחר יותר דרך הדאשבורד
-      </p>
-    </div>
-  );
+const t = {
+  title: 'הסביבה שלכם מוכנה! 🎉',
+  subtitle: 'הכל מוגדר ומוכן לשימוש. בחרו כיצד תרצו להמשיך.',
+  exploreCta: 'כניסה לדשבורד',
+  exploreDesc: 'התחילו לחקור את הסביבה שלכם',
+  scheduleCta: 'תיאום שיחת הדרכה',
+  scheduleDesc: 'שיחה קצרה של 15 דקות עם הצוות שלנו',
+  laterText: 'תמיד ניתן לתאם שיחה מאוחר יותר דרך הדשבורד',
 };
 
-export default ScheduleStep;
+export default function ScheduleStep({ onBackToSite, onExplore }: ScheduleStepProps) {
+  return (
+    <div className="ws-modal" dir="rtl">
+      <div className="ws-content flex flex-col items-center text-center">
+        {/* Success icon */}
+        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/30">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+            <path d="M5 13l4 4L19 7" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">{t.title}</h2>
+        <p className="text-sm text-gray-500 max-w-md mb-10">{t.subtitle}</p>
+
+        {/* Action cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-lg">
+          {/* Explore dashboard */}
+          <button
+            onClick={onExplore}
+            className="group flex flex-col items-center gap-3 rounded-xl border-2 border-indigo-200 bg-indigo-50/50 p-6 transition-all hover:border-indigo-400 hover:shadow-lg hover:shadow-indigo-500/10"
+          >
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
+                <rect x="3" y="3" width="7" height="7" rx="1"/>
+                <rect x="14" y="3" width="7" height="7" rx="1"/>
+                <rect x="3" y="14" width="7" height="7" rx="1"/>
+                <rect x="14" y="14" width="7" height="7" rx="1"/>
+              </svg>
+            </div>
+            <div>
+              <div className="font-semibold text-gray-900 text-[15px]">{t.exploreCta}</div>
+              <div className="text-xs text-gray-500 mt-1">{t.exploreDesc}</div>
+            </div>
+          </button>
+
+          {/* Schedule call */}
+          <button
+            onClick={onBackToSite}
+            className="group flex flex-col items-center gap-3 rounded-xl border-2 border-gray-200 bg-white p-6 transition-all hover:border-gray-300 hover:shadow-lg"
+          >
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center shadow-md">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
+                <rect x="3" y="4" width="18" height="18" rx="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+            </div>
+            <div>
+              <div className="font-semibold text-gray-900 text-[15px]">{t.scheduleCta}</div>
+              <div className="text-xs text-gray-500 mt-1">{t.scheduleDesc}</div>
+            </div>
+          </button>
+        </div>
+
+        <p className="text-xs text-gray-400 mt-8">{t.laterText}</p>
+      </div>
+    </div>
+  );
+}

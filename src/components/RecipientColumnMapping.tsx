@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface ColumnMapping {
   excelColumn: string;
@@ -13,18 +14,26 @@ interface RecipientColumnMappingProps {
   fileName?: string;
 }
 
+// Symbolic field identifiers (translated for display via t())
+const FIELD_FULL_NAME = 'fullName';
+const FIELD_EMAIL = 'email';
+const FIELD_PHONE = 'phone';
+const FIELD_GIFT_AMOUNT = 'giftAmount';
+const FIELD_PERSONAL_GREETING = 'personalGreeting';
+
 const RecipientColumnMapping = ({ onClose, onComplete, fileName }: RecipientColumnMappingProps) => {
+  const { t } = useLanguage();
   const [excludeFirstRow, setExcludeFirstRow] = useState(true);
   const [mappings, setMappings] = useState<ColumnMapping[]>([
     {
       excelColumn: 'Full Name',
-      systemColumn: 'שם מלא',
-      sample: 'יוסי כהן, שרה לוי',
+      systemColumn: FIELD_FULL_NAME,
+      sample: t('rcm_sampleNames'),
       isMapped: true
     },
     {
       excelColumn: 'Email',
-      systemColumn: 'אימייל',
+      systemColumn: FIELD_EMAIL,
       sample: 'example@email.com',
       isMapped: true
     },
@@ -43,18 +52,18 @@ const RecipientColumnMapping = ({ onClose, onComplete, fileName }: RecipientColu
     {
       excelColumn: 'Message',
       systemColumn: '',
-      sample: 'מזל טוב!',
+      sample: t('rcm_sampleGreeting'),
       isMapped: false
     }
   ]);
 
-  // Recipient-specific system columns
+  // Recipient-specific system columns (use symbolic value, translated label)
   const systemColumns = [
-    { value: 'שם מלא', label: 'שם מלא', required: true },
-    { value: 'אימייל', label: 'אימייל', required: false },
-    { value: 'טלפון', label: 'טלפון', required: false },
-    { value: 'סכום מתנה', label: 'סכום מתנה', required: false },
-    { value: 'ברכה אישית', label: 'ברכה אישית', required: false },
+    { value: FIELD_FULL_NAME, label: t('rcm_fullName'), required: true },
+    { value: FIELD_EMAIL, label: t('rcm_email'), required: false },
+    { value: FIELD_PHONE, label: t('rcm_phone'), required: false },
+    { value: FIELD_GIFT_AMOUNT, label: t('rcm_giftAmount'), required: false },
+    { value: FIELD_PERSONAL_GREETING, label: t('rcm_personalGreeting'), required: false },
   ];
 
   // Get already mapped system columns
@@ -89,9 +98,9 @@ const RecipientColumnMapping = ({ onClose, onComplete, fileName }: RecipientColu
   };
 
   const unmappedCount = mappings.filter(m => !m.isMapped).length;
-  const hasRequiredFields = mappings.some(m => m.isMapped && m.systemColumn === 'שם מלא');
+  const hasRequiredFields = mappings.some(m => m.isMapped && m.systemColumn === FIELD_FULL_NAME);
   const hasContactMethod = mappings.some(m =>
-    m.isMapped && (m.systemColumn === 'אימייל' || m.systemColumn === 'טלפון')
+    m.isMapped && (m.systemColumn === FIELD_EMAIL || m.systemColumn === FIELD_PHONE)
   );
   const canProceed = hasRequiredFields && hasContactMethod;
 
@@ -105,8 +114,8 @@ const RecipientColumnMapping = ({ onClose, onComplete, fileName }: RecipientColu
             <div className="flex justify-between items-center mb-10">
               <div className="flex items-center gap-2 text-slate-400">
                 <span className="material-icons text-lg">table_view</span>
-                <span className="material-icons text-sm">chevron_left</span>
-                <span className="text-xs font-medium uppercase tracking-wider">תהליך ייבוא נמענים</span>
+                <span className="material-icons text-sm rtl:rotate-180">chevron_left</span>
+                <span className="text-xs font-medium uppercase tracking-wider">{t('rcm_recipientImportProcess')}</span>
               </div>
               <div className="flex items-center gap-6">
                 <button
@@ -114,17 +123,17 @@ const RecipientColumnMapping = ({ onClose, onComplete, fileName }: RecipientColu
                   className="flex items-center gap-1 text-sm text-slate-500 hover:text-primary transition-colors"
                 >
                   <span className="material-icons text-base">close</span>
-                  <span>סגור</span>
+                  <span>{t('cm_close')}</span>
                 </button>
                 <span className="text-xs font-semibold bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full text-slate-500">
-                  שלב 2 מתוך 2
+                  {t('rcm_step2of2')}
                 </span>
               </div>
             </div>
 
-            <h1 className="text-3xl font-semibold mb-2 tracking-tight">שיוך עמודות לנמענים</h1>
+            <h1 className="text-3xl font-semibold mb-2 tracking-tight">{t('rcm_title')}</h1>
             <p className="text-slate-500 dark:text-slate-400 mb-8">
-              התאם את כותרות הטבלה שלך לשדות הנמענים במערכת.
+              {t('rcm_desc')}
             </p>
 
             {/* Exclude First Row Checkbox */}
@@ -140,15 +149,15 @@ const RecipientColumnMapping = ({ onClose, onComplete, fileName }: RecipientColu
                 className="text-sm font-medium text-slate-600 dark:text-slate-300 cursor-pointer"
                 htmlFor="exclude-row"
               >
-                אל תייבא את השורה הראשונה (כותרות)
+                {t('cm_excludeFirstRow')}
               </label>
             </div>
 
             {/* Column Mappings */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar pl-4 -ml-4">
+            <div className="flex-1 overflow-y-auto custom-scrollbar ps-4 -ms-4">
               <div className="grid grid-cols-2 gap-4 mb-4 text-[11px] font-bold uppercase tracking-widest text-slate-400 px-2">
-                <div className="text-right">עמודות Excel</div>
-                <div className="text-right">שדות נמענים</div>
+                <div className="text-start">{t('cm_excelColumns')}</div>
+                <div className="text-start">{t('rcm_recipientFields')}</div>
               </div>
 
               <div className="space-y-4">
@@ -168,7 +177,7 @@ const RecipientColumnMapping = ({ onClose, onComplete, fileName }: RecipientColu
                         <span className="font-medium text-slate-800 dark:text-slate-200">
                           {mapping.excelColumn}
                         </span>
-                        <span className="text-xs text-slate-400">דוגמה: {mapping.sample}</span>
+                        <span className="text-xs text-slate-400">{t('cm_example')}: {mapping.sample}</span>
                       </div>
                       <span className="material-icons text-slate-300 dark:text-slate-600">
                         arrow_back
@@ -186,14 +195,14 @@ const RecipientColumnMapping = ({ onClose, onComplete, fileName }: RecipientColu
                               backgroundImage: 'none'
                             }}
                           >
-                            <option value="" className="text-slate-400">בחר שדה...</option>
+                            <option value="" className="text-slate-400">{t('rcm_chooseField')}</option>
                             {availableColumns.map((col) => (
                               <option key={col.value} value={col.value} className="text-slate-900 dark:text-white font-normal">
                                 {col.label} {col.required && '*'}
                               </option>
                             ))}
                           </select>
-                          <span className="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-lg">
+                          <span className="material-icons absolute end-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-lg">
                             expand_more
                           </span>
                         </div>
@@ -203,7 +212,7 @@ const RecipientColumnMapping = ({ onClose, onComplete, fileName }: RecipientColu
                           <button
                             onClick={() => handleClearMapping(index)}
                             className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 rounded-lg transition-colors flex-shrink-0"
-                            title="נקה שיוך"
+                            title={t('rcm_clearMapping')}
                           >
                             <span className="material-icons text-lg">close</span>
                           </button>
@@ -221,20 +230,20 @@ const RecipientColumnMapping = ({ onClose, onComplete, fileName }: RecipientColu
                 <div className="flex items-center text-red-600 dark:text-red-500 gap-2">
                   <span className="material-icons text-lg">error</span>
                   <span className="text-sm font-medium">
-                    נדרש שיוך שם מלא + אימייל או טלפון
+                    {t('rcm_requiredError')}
                   </span>
                 </div>
               ) : unmappedCount > 0 ? (
                 <div className="flex items-center text-amber-600 dark:text-amber-500 gap-2">
                   <span className="material-icons text-lg">warning_amber</span>
                   <span className="text-sm font-medium">
-                    {unmappedCount} עמודות ללא שיוך לא ייובאו
+                    {unmappedCount} {t('cm_unmappedWarning')}
                   </span>
                 </div>
               ) : (
                 <div className="flex items-center text-green-600 dark:text-green-500 gap-2">
                   <span className="material-icons text-lg">check_circle</span>
-                  <span className="text-sm font-medium">כל העמודות משוייכות</span>
+                  <span className="text-sm font-medium">{t('cm_allMapped')}</span>
                 </div>
               )}
               <div className="flex items-center gap-4">
@@ -242,7 +251,7 @@ const RecipientColumnMapping = ({ onClose, onComplete, fileName }: RecipientColu
                   onClick={onClose}
                   className="px-6 py-2.5 font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
                 >
-                  חזור
+                  {t('cm_back')}
                 </button>
                 <button
                   onClick={onComplete}
@@ -253,14 +262,14 @@ const RecipientColumnMapping = ({ onClose, onComplete, fileName }: RecipientColu
                       : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed shadow-none'
                   }`}
                 >
-                  ייבא נמענים
+                  {t('rcm_importRecipients')}
                 </button>
               </div>
             </div>
           </div>
 
           {/* Right Side - Visual Illustration */}
-          <div className="hidden md:flex w-2/5 bg-slate-50 dark:bg-slate-900/40 items-center justify-center p-12 border-r border-slate-200 dark:border-slate-800">
+          <div className="hidden md:flex w-2/5 bg-slate-50 dark:bg-slate-900/40 items-center justify-center p-12 border-e border-slate-200 dark:border-slate-800">
             <div className="relative w-full max-w-sm flex flex-col items-center">
               <div className="w-full space-y-8">
                 {/* Excel File Visual */}
@@ -318,10 +327,10 @@ const RecipientColumnMapping = ({ onClose, onComplete, fileName }: RecipientColu
 
               <div className="mt-12 text-center">
                 <h3 className="text-lg font-medium text-slate-800 dark:text-slate-200">
-                  ייבוא נמענים חכם
+                  {t('rcm_smartImport')}
                 </h3>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 max-w-xs">
-                  אנחנו מתאימים אוטומטית את שמות העמודות כדי לחסוך לך זמן.
+                  {t('cm_autoMatchDesc')}
                 </p>
               </div>
             </div>

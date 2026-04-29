@@ -45,6 +45,15 @@ const DevPlayground = () => {
       action: () => navigate('/company-setup'),
     },
     {
+      id: 'business-setup',
+      title: 'Business Setup',
+      description: 'תהליך הפעלת חשבון בסגנון Stripe — 5 שלבי ראשי, 11 תת-שלבים, 91 שדות',
+      icon: 'verified',
+      color: 'text-indigo-600',
+      bgGradient: 'from-indigo-50 to-indigo-100 dark:from-indigo-950 dark:to-indigo-900 border-indigo-200 dark:border-indigo-800',
+      action: () => navigate('/business-setup'),
+    },
+    {
       id: 'loader',
       title: 'Loader Animation',
       description: 'אנימציית הטעינה שמופיעה אחרי התחברות',

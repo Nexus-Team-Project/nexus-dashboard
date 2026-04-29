@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { TransactionStatus, TransactionType, PaymentMethod, TransactionChannel } from '../lib/api';
+import { useLanguage } from '../i18n/LanguageContext';
+import type { TranslationKey } from '../i18n/translations';
 
 // ─── Constants ───────────────────────────────────────────────────
 
@@ -14,31 +16,35 @@ const STATUS_STYLES: Record<TransactionStatus, string> = {
   voided: 'bg-slate-100 text-slate-600 dark:bg-slate-700/30 dark:text-slate-400',
 };
 
-const STATUS_LABELS: Record<TransactionStatus, string> = {
-  pending: 'ממתין',
-  successful: 'הושלם',
-  declined: 'נדחה',
-  refunded: 'הוחזר',
-  chargeback: 'צ\'ארג\'בק',
-  authorized: 'מאושר',
-  voided: 'בוטל',
+const STATUS_LABEL_KEYS: Record<TransactionStatus, TranslationKey> = {
+  pending: 'tx_status_pending',
+  successful: 'tx_status_successful',
+  declined: 'tx_status_declined',
+  refunded: 'tx_status_refunded',
+  chargeback: 'tx_status_chargeback',
+  authorized: 'tx_status_authorized',
+  voided: 'tx_status_voided',
 };
 
-const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+// Methods with translatable labels (others are brand names — fixed strings)
+const PAYMENT_METHOD_LABEL_KEYS: Partial<Record<PaymentMethod, TranslationKey>> = {
+  credit_card: 'tx_pm_credit_card',
+  il_direct_debit: 'tx_pm_il_direct_debit',
+  bank_transfer: 'tx_pm_bank_transfer',
+  cash: 'tx_pm_cash',
+  check: 'tx_pm_check',
+  multi: 'tx_pm_multi',
+};
+
+const PAYMENT_METHOD_BRAND_LABELS: Partial<Record<PaymentMethod, string>> = {
   bit: 'Bit',
   apple_pay: 'Apple Pay',
   google_pay: 'Google Pay',
   paypal: 'PayPal',
   alipay_qr: 'AliPay QR-Code',
-  credit_card: 'כרטיס אשראי',
-  il_direct_debit: 'הוראת קבע',
-  bank_transfer: 'העברה בנקאית',
   funds_transfer: 'Funds Transfer',
-  cash: 'כסף מזומן',
-  check: 'שיק',
   pos: 'POS',
   echeck: 'eCheck',
-  multi: 'מרובה',
 };
 
 // ─── Payment method icons (real logos from nexus-website + Material Symbols for generic) ───
@@ -91,27 +97,81 @@ const PaymentMethodIcon = ({ method, txId }: { method: PaymentMethod; txId?: str
     if (rounded) {
       return (
         <span className="inline-flex shrink-0 rounded-[5px] overflow-hidden" style={{ height: 20 }}>
-          <img src={cfg.src} alt={PAYMENT_METHOD_LABELS[method]} className="h-full w-auto object-cover" />
+          <img src={cfg.src} alt={method} className="h-full w-auto object-cover" />
         </span>
       );
     }
-    return <img src={cfg.src} alt={PAYMENT_METHOD_LABELS[method]} className="h-5 w-auto shrink-0 object-contain" />;
+    return <img src={cfg.src} alt={method} className="h-5 w-auto shrink-0 object-contain" />;
   }
   return <span className={`material-symbols-rounded !text-[18px] ${cfg.color} shrink-0`}>{cfg.icon}</span>;
 };
 
-const TYPE_LABELS: Record<TransactionType, string> = {
-  payment: 'תשלום',
-  payout: 'הוצאה',
-  topup: 'טעינה',
-  refund: 'החזר',
-  third_party: 'צד שלישי',
+const TYPE_LABEL_KEYS: Record<TransactionType, TranslationKey> = {
+  payment: 'tx_type_payment',
+  payout: 'tx_type_payout',
+  topup: 'tx_type_topup',
+  refund: 'tx_type_refund',
+  third_party: 'tx_type_third_party',
 };
 
-const CHANNEL_LABELS: Record<TransactionChannel, string> = {
-  club: 'מועדון',
-  direct: 'ישיר',
+const CHANNEL_LABEL_KEYS: Record<TransactionChannel, TranslationKey> = {
+  club: 'tx_channel_club',
+  direct: 'tx_channel_direct',
 };
+
+// Helper: resolve a payment method to its display label given a `t` function
+function getPaymentMethodLabel(method: PaymentMethod, t: (key: TranslationKey) => string): string {
+  const key = PAYMENT_METHOD_LABEL_KEYS[method];
+  if (key) return t(key);
+  return PAYMENT_METHOD_BRAND_LABELS[method] ?? method;
+}
+
+// Mock data Hebrew → translation key map. The mock customer/product/campaign
+// fields are stored in Hebrew; this map lets the renderer resolve them via t().
+// Strings not present in the map (e.g. already-English values like "yoav nex"
+// or "TestProduct2") pass through unchanged.
+const MOCK_FIELD_KEY_MAP: Record<string, TranslationKey> = {
+  // Customers
+  'אהרון צבאח': 'tx_cust_aharon',
+  'יונן זריאן': 'tx_cust_yonen',
+  'דנה לוי': 'tx_cust_dana',
+  'משה כהן': 'tx_cust_moshe',
+  'שרה דוד': 'tx_cust_sara',
+  'אבי מזרחי': 'tx_cust_avi',
+  'נועה פרץ': 'tx_cust_noa',
+  'רחל אברהם': 'tx_cust_rachel',
+  'יוסי שמעון': 'tx_cust_yossi',
+  'עמית גולן': 'tx_cust_amit',
+  'מיכל רוזן': 'tx_cust_michal',
+  'דני ישראלי': 'tx_cust_dani',
+  'טל ברקוביץ': 'tx_cust_tal',
+  'ליאור חדד': 'tx_cust_lior',
+  'שירות משלוחים מהיר': 'tx_cust_courier',
+  'סליקת אשראי בע"מ': 'tx_cust_acquirer',
+  // Products
+  'התו המלא x 2': 'tx_prod_fullPass2',
+  'שובר ורדימן נעמן': 'tx_prod_voucherVardiman',
+  'מנוי חודשי Premium': 'tx_prod_premiumMonthly',
+  'שובר מתנה 500': 'tx_prod_giftVoucher500',
+  'התו המלא': 'tx_prod_fullPass',
+  'חבילת עסקית': 'tx_prod_businessPackage',
+  'מנוי שנתי': 'tx_prod_yearlySubscription',
+  'חבילת בסיסית': 'tx_prod_basicPackage',
+  'העברת כספים': 'tx_prod_fundsTransfer',
+  'טעינת חשבון': 'tx_prod_accountTopup',
+  'שובר מתנה 200': 'tx_prod_giftVoucher200',
+  'עמלת שילוח': 'tx_prod_shippingFee',
+  'עמלת סליקה': 'tx_prod_acquiringFee',
+  // Campaigns
+  'חג הפסח 2025': 'tx_camp_passover2025',
+  'מבצע אביב': 'tx_camp_springSale',
+};
+
+function translateMockField(value: string | undefined, t: (key: TranslationKey) => string): string {
+  if (!value) return '';
+  const key = MOCK_FIELD_KEY_MAP[value];
+  return key ? t(key) : value;
+}
 
 const CHANNEL_STYLES: Record<TransactionChannel, string> = {
   club: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
@@ -255,6 +315,7 @@ const MOCK_TRANSACTIONS: LocalTransaction[] = [
 // ─── Component ──────────────────────────────────────────────────
 
 const Transactions = () => {
+  const { t } = useLanguage();
   // Data state
   const [transactions] = useState<LocalTransaction[]>(MOCK_TRANSACTIONS);
   const [isTableLoading, setIsTableLoading] = useState(true);
@@ -415,10 +476,19 @@ const Transactions = () => {
     if (activeTab === 'topups' && tx.type !== 'topup') return false;
     if (activeTab === 'third_party' && tx.type !== 'third_party') return false;
 
-    // Search
+    // Search — match against both raw and translated customer/product so users
+    // can find rows by either Hebrew or English names regardless of UI language.
     if (filters.searchText) {
       const s = filters.searchText.toLowerCase();
-      if (!tx.customer.toLowerCase().includes(s) && !tx.product.toLowerCase().includes(s) && !tx.transactionId.toLowerCase().includes(s)) return false;
+      const customerTr = translateMockField(tx.customer, t).toLowerCase();
+      const productTr = translateMockField(tx.product, t).toLowerCase();
+      if (
+        !tx.customer.toLowerCase().includes(s) &&
+        !customerTr.includes(s) &&
+        !tx.product.toLowerCase().includes(s) &&
+        !productTr.includes(s) &&
+        !tx.transactionId.toLowerCase().includes(s)
+      ) return false;
     }
 
     // Status
@@ -691,7 +761,7 @@ const Transactions = () => {
     if (allBodyRows.length > maxRows) {
       const moreRow = document.createElement('tr');
       const moreTd = document.createElement('td');
-      moreTd.textContent = `+${allBodyRows.length - maxRows} עוד`;
+      moreTd.textContent = `+${allBodyRows.length - maxRows} ${t('tx_more')}`;
       moreTd.style.cssText = `padding:6px 12px;font-size:11px;color:#94a3b8;text-align:center;background:#f8fafc;border:none;`;
       moreRow.appendChild(moreTd);
       cloneTbody.appendChild(moreRow);
@@ -753,7 +823,7 @@ const Transactions = () => {
 
   const getStatusBadge = (status: TransactionStatus) => (
     <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_STYLES[status]}`}>
-      {STATUS_LABELS[status]}
+      {t(STATUS_LABEL_KEYS[status])}
     </span>
   );
 
@@ -775,58 +845,61 @@ const Transactions = () => {
   // ─── Column config (labels + renderers) ─────────────────────
 
   const COLUMN_CONFIG: Record<string, { label: string; cellClass: string; render: (tx: LocalTransaction) => React.ReactNode }> = {
-    date: { label: 'תאריך תשלום', cellClass: 'text-sm text-slate-600 dark:text-slate-400', render: tx => tx.date },
-    customer: { label: 'לקוח', cellClass: 'text-sm font-medium text-slate-900 dark:text-white', render: tx => (
-      <span className="flex items-center gap-2">
-        <span className={`w-6 h-6 rounded-full ${getAvatarColor(tx.customer)} text-white text-[10px] font-bold flex items-center justify-center shrink-0 leading-none`}>
-          {getInitials(tx.customer)}
+    date: { label: t('tx_col_date'), cellClass: 'text-sm text-slate-600 dark:text-slate-400', render: tx => tx.date },
+    customer: { label: t('tx_col_customer'), cellClass: 'text-sm font-medium text-slate-900 dark:text-white', render: tx => {
+      const customerName = translateMockField(tx.customer, t);
+      return (
+        <span className="flex items-center gap-2">
+          <span className={`w-6 h-6 rounded-full ${getAvatarColor(customerName)} text-white text-[10px] font-bold flex items-center justify-center shrink-0 leading-none`}>
+            {getInitials(customerName)}
+          </span>
+          <span className="truncate">{customerName}</span>
         </span>
-        <span className="truncate">{tx.customer}</span>
-      </span>
-    ) },
-    product: { label: 'מוצר/שירות', cellClass: 'text-sm text-slate-600 dark:text-slate-400', render: tx => (
+      );
+    } },
+    product: { label: t('tx_col_product'), cellClass: 'text-sm text-slate-600 dark:text-slate-400', render: tx => (
       <span className="flex items-center gap-2">
         <span className="w-6 h-6 rounded-[5px] bg-gradient-to-b from-[#fdfeff] to-[#edf1fc] border border-slate-200 flex items-center justify-center shrink-0 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
           <span className="material-symbols-rounded !text-[14px] text-[#676879]">shopping_bag</span>
         </span>
-        <span className="truncate">{tx.product}</span>
+        <span className="truncate">{translateMockField(tx.product, t)}</span>
       </span>
     ) },
-    paymentMethod: { label: 'אמצעי תשלום', cellClass: 'text-sm text-slate-600 dark:text-slate-400', render: tx => (
+    paymentMethod: { label: t('tx_col_paymentMethod'), cellClass: 'text-sm text-slate-600 dark:text-slate-400', render: tx => (
       <span className="flex items-center gap-2">
         <PaymentMethodIcon method={tx.paymentMethod} txId={tx.id} />
-        <span>{PAYMENT_METHOD_LABELS[tx.paymentMethod]}</span>
+        <span>{getPaymentMethodLabel(tx.paymentMethod, t)}</span>
       </span>
     ) },
-    status: { label: 'סטטוס', cellClass: '', render: tx => getStatusBadge(tx.status) },
-    transactionDate: { label: 'תאריך עסקה', cellClass: 'text-sm text-slate-600 dark:text-slate-400', render: tx => tx.transactionDate },
-    amount: { label: 'סכום', cellClass: 'text-sm font-medium text-slate-900 dark:text-white', render: tx => formatCurrencyByCode(tx.amount, tx.currency) },
-    currency: { label: 'מטבע', cellClass: 'text-sm text-slate-600 dark:text-slate-400', render: tx => <CurrencyCell currencyCode={tx.currency} /> },
-    transactionId: { label: 'מזהה עסקה', cellClass: 'text-sm text-slate-500 dark:text-slate-400 font-mono text-xs', render: tx => tx.transactionId },
-    paymentId: { label: 'מזהה תשלום', cellClass: 'text-sm text-slate-500 dark:text-slate-400 font-mono text-xs', render: tx => tx.paymentId },
-    paymentMethodId: { label: 'מזהה אמצעי תשלום', cellClass: 'text-sm text-slate-500 dark:text-slate-400 font-mono text-xs', render: tx => (
+    status: { label: t('tx_col_status'), cellClass: '', render: tx => getStatusBadge(tx.status) },
+    transactionDate: { label: t('tx_col_transactionDate'), cellClass: 'text-sm text-slate-600 dark:text-slate-400', render: tx => tx.transactionDate },
+    amount: { label: t('tx_col_amount'), cellClass: 'text-sm font-medium text-slate-900 dark:text-white', render: tx => formatCurrencyByCode(tx.amount, tx.currency) },
+    currency: { label: t('tx_col_currency'), cellClass: 'text-sm text-slate-600 dark:text-slate-400', render: tx => <CurrencyCell currencyCode={tx.currency} /> },
+    transactionId: { label: t('tx_col_transactionId'), cellClass: 'text-sm text-slate-500 dark:text-slate-400 font-mono text-xs', render: tx => tx.transactionId },
+    paymentId: { label: t('tx_col_paymentId'), cellClass: 'text-sm text-slate-500 dark:text-slate-400 font-mono text-xs', render: tx => tx.paymentId },
+    paymentMethodId: { label: t('tx_col_paymentMethodId'), cellClass: 'text-sm text-slate-500 dark:text-slate-400 font-mono text-xs', render: tx => (
       <span className="flex items-center gap-1 tracking-wider" dir="ltr">
         <span className="text-slate-400 text-[11px] leading-none" style={{ letterSpacing: '1.5px' }}>••••</span>
         <span>{tx.paymentMethodId}</span>
       </span>
     ) },
-    type: { label: 'סוג', cellClass: 'text-sm text-slate-600 dark:text-slate-400', render: tx => TYPE_LABELS[tx.type] },
-    channel: { label: 'ערוץ', cellClass: '', render: tx => (
+    type: { label: t('tx_col_type'), cellClass: 'text-sm text-slate-600 dark:text-slate-400', render: tx => t(TYPE_LABEL_KEYS[tx.type]) },
+    channel: { label: t('tx_col_channel'), cellClass: '', render: tx => (
       <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${CHANNEL_STYLES[tx.channel]}`}>
-        {CHANNEL_LABELS[tx.channel]}
+        {t(CHANNEL_LABEL_KEYS[tx.channel])}
       </span>
     ) },
-    merchantNet: { label: 'נטו לספק', cellClass: 'text-sm font-semibold text-emerald-700 dark:text-emerald-400', render: tx => formatCurrencyByCode(tx.merchantNet, tx.currency) },
-    platformFee: { label: 'עמלת פלטפורמה', cellClass: 'text-sm text-slate-500 dark:text-slate-400', render: tx => formatCurrencyByCode(tx.platformFee, tx.currency) },
-    marketPrice: { label: 'מחיר שוק', cellClass: 'text-sm text-slate-500 dark:text-slate-400', render: tx => tx.marketPrice != null
+    merchantNet: { label: t('tx_col_merchantNet'), cellClass: 'text-sm font-semibold text-emerald-700 dark:text-emerald-400', render: tx => formatCurrencyByCode(tx.merchantNet, tx.currency) },
+    platformFee: { label: t('tx_col_platformFee'), cellClass: 'text-sm text-slate-500 dark:text-slate-400', render: tx => formatCurrencyByCode(tx.platformFee, tx.currency) },
+    marketPrice: { label: t('tx_col_marketPrice'), cellClass: 'text-sm text-slate-500 dark:text-slate-400', render: tx => tx.marketPrice != null
       ? <span className="line-through decoration-slate-400">{formatCurrencyByCode(tx.marketPrice, tx.currency)}</span>
       : <span className="text-slate-300 dark:text-slate-600">—</span>
     },
-    campaign: { label: 'קמפיין', cellClass: 'text-sm text-slate-600 dark:text-slate-400', render: tx => tx.campaign
+    campaign: { label: t('tx_col_campaign'), cellClass: 'text-sm text-slate-600 dark:text-slate-400', render: tx => tx.campaign
       ? (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 text-xs font-medium">
           <span className="material-symbols-rounded !text-[13px]">campaign</span>
-          <span className="truncate max-w-[100px]">{tx.campaign}</span>
+          <span className="truncate max-w-[100px]">{translateMockField(tx.campaign, t)}</span>
         </span>
       )
       : <span className="text-slate-300 dark:text-slate-600">—</span>
@@ -854,8 +927,8 @@ const Transactions = () => {
       <div className="mb-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">ניהול עסקאות</h2>
-            <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">עקוב ונהל את כל העסקאות שלך במקום אחד.</p>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{t('tx_pageTitle')}</h2>
+            <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">{t('tx_pageSubtitle')}</p>
           </div>
         </div>
       </div>
@@ -863,20 +936,20 @@ const Transactions = () => {
       {/* Overview Cards */}
       <div className="mb-6 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900">
         <div className="flex items-center justify-between px-5 pt-4 pb-2">
-          <span className="text-xs text-slate-500 dark:text-slate-400">סקירת תקופה</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400">{t('tx_periodOverview')}</span>
           <select
             value={overviewPeriod}
             onChange={(e) => setOverviewPeriod(e.target.value as '7d' | '30d' | '90d')}
             className="text-xs border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 focus:ring-1 focus:ring-primary outline-none"
           >
-            <option value="7d">7 ימים אחרונים</option>
-            <option value="30d">30 ימים אחרונים</option>
-            <option value="90d">90 ימים אחרונים</option>
+            <option value="7d">{t('tx_last7days')}</option>
+            <option value="30d">{t('tx_last30days')}</option>
+            <option value="90d">{t('tx_last90days')}</option>
           </select>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x md:divide-x-reverse divide-slate-200 dark:divide-slate-700 px-5 pb-5">
           <div className="py-3 md:pe-6">
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">נפח ברוטו</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">{t('tx_grossVolume')}</p>
             <div className="flex items-baseline gap-3">
               <p className="text-2xl font-bold text-slate-900 dark:text-white">{formatCurrency(grossVolume)}</p>
               <span className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
@@ -884,17 +957,17 @@ const Transactions = () => {
                 +12%
               </span>
             </div>
-            <p className="text-[11px] text-slate-400 mt-0.5">₪8,420.00 תקופה קודמת</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">₪8,420.00 {t('tx_priorPeriod')}</p>
           </div>
           <div className="py-3 md:px-6">
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">נטו לספקים</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">{t('tx_merchantNetTotal')}</p>
             <div className="flex items-baseline gap-3">
               <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">{formatCurrency(successfulTxs.reduce((sum, tx) => sum + tx.merchantNet, 0))}</p>
             </div>
-            <p className="text-[11px] text-slate-400 mt-0.5">עמלות: {formatCurrency(successfulTxs.reduce((sum, tx) => sum + tx.platformFee, 0))}</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">{t('tx_fees')}: {formatCurrency(successfulTxs.reduce((sum, tx) => sum + tx.platformFee, 0))}</p>
           </div>
           <div className="py-3 md:ps-6">
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">תשלומים מוצלחים</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">{t('tx_successfulPayments')}</p>
             <div className="flex items-baseline gap-3">
               <p className="text-2xl font-bold text-slate-900 dark:text-white">{successfulCount}</p>
               <span className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
@@ -902,7 +975,7 @@ const Transactions = () => {
                 +8%
               </span>
             </div>
-            <p className="text-[11px] text-slate-400 mt-0.5">9 תקופה קודמת</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">9 {t('tx_priorPeriod')}</p>
           </div>
         </div>
       </div>
@@ -911,11 +984,11 @@ const Transactions = () => {
       <div className="mb-6">
         <div className="flex gap-6 border-b border-slate-200 dark:border-slate-700">
           {([
-            { key: 'payments' as const, label: 'תשלומים' },
-            { key: 'payouts' as const, label: 'הוצאות' },
-            { key: 'topups' as const, label: 'טעינות' },
-            { key: 'third_party' as const, label: 'תשלומים לצד שלישי' },
-            { key: 'all' as const, label: 'כל הפעילות' },
+            { key: 'payments' as const, label: t('tx_tab_payments') },
+            { key: 'payouts' as const, label: t('tx_tab_payouts') },
+            { key: 'topups' as const, label: t('tx_tab_topups') },
+            { key: 'third_party' as const, label: t('tx_tab_thirdParty') },
+            { key: 'all' as const, label: t('tx_tab_all') },
           ]).map(tab => (
             <button
               key={tab.key}
@@ -983,51 +1056,51 @@ const Transactions = () => {
                   {/* Header */}
                   <div className="p-6 border-b border-slate-200 dark:border-slate-800">
                     <div className="flex items-center justify-between mb-2">
-                      <h2 className="text-xl font-bold">סינון עסקאות</h2>
+                      <h2 className="text-xl font-bold">{t('tx_filterTitle')}</h2>
                       <button onClick={() => setShowFilterPanel(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
                         <span className="material-symbols-rounded">close</span>
                       </button>
                     </div>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">סנן עסקאות לפי קריטריונים שונים</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">{t('tx_filterDesc')}</p>
                   </div>
 
                   <div className="p-6 space-y-6">
                     {/* Active filters */}
                     {activeFilterCount > 0 && (
                       <div className="flex items-center justify-between p-3 bg-[#635bff]/10 rounded-lg">
-                        <span className="text-sm font-medium text-[#635bff]">{activeFilterCount} סינונים פעילים</span>
-                        <button onClick={clearFilters} className="text-xs text-[#635bff] hover:underline font-medium">נקה הכל</button>
+                        <span className="text-sm font-medium text-[#635bff]">{activeFilterCount} {t('tx_activeFilters')}</span>
+                        <button onClick={clearFilters} className="text-xs text-[#635bff] hover:underline font-medium">{t('tx_clearAll')}</button>
                       </div>
                     )}
 
                     {/* Search */}
                     <div>
-                      <label className="block text-sm font-semibold mb-3 text-slate-700 dark:text-slate-300">חיפוש</label>
+                      <label className="block text-sm font-semibold mb-3 text-slate-700 dark:text-slate-300">{t('tx_search')}</label>
                       <div className="relative">
                         <input
                           type="text"
                           value={filters.searchText}
                           onChange={(e) => setFilters({ ...filters, searchText: e.target.value })}
                           className="w-full ps-10 pe-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 focus:ring-2 focus:ring-primary outline-none"
-                          placeholder="חיפוש לקוח, מוצר או מזהה..."
+                          placeholder={t('tx_searchPlaceholder')}
                         />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-rounded text-slate-400 !text-[18px]">search</span>
+                        <span className="absolute start-3 top-1/2 -translate-y-1/2 material-symbols-rounded text-slate-400 !text-[18px]">search</span>
                       </div>
                     </div>
 
                     {/* Status */}
                     <div>
-                      <label className="block text-sm font-semibold mb-3 text-slate-700 dark:text-slate-300">סטטוס</label>
+                      <label className="block text-sm font-semibold mb-3 text-slate-700 dark:text-slate-300">{t('tx_col_status')}</label>
                       <div className="space-y-1">
                         <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer">
                           <input type="radio" name="statusFilter" checked={filters.status === 'all'} onChange={() => setFilters({ ...filters, status: 'all' })} className="w-4 h-4 text-[#635bff] focus:ring-[#635bff]" />
-                          <span className="text-sm">הכל</span>
+                          <span className="text-sm">{t('tx_all')}</span>
                         </label>
-                        {(Object.keys(STATUS_LABELS) as TransactionStatus[]).map(status => (
+                        {(Object.keys(STATUS_LABEL_KEYS) as TransactionStatus[]).map(status => (
                           <label key={status} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer">
                             <input type="radio" name="statusFilter" checked={filters.status === status} onChange={() => setFilters({ ...filters, status })} className="w-4 h-4 text-[#635bff] focus:ring-[#635bff]" />
                             <span className={`w-2 h-2 rounded-full ${STATUS_STYLES[status].split(' ')[0].replace('bg-', 'bg-').replace('/100', '-500').replace('100', '500')}`} style={{ backgroundColor: status === 'successful' ? '#10b981' : status === 'declined' ? '#ef4444' : status === 'pending' ? '#f59e0b' : status === 'refunded' ? '#8b5cf6' : status === 'chargeback' ? '#f97316' : status === 'authorized' ? '#0ea5e9' : '#64748b' }}></span>
-                            <span className="text-sm">{STATUS_LABELS[status]}</span>
+                            <span className="text-sm">{t(STATUS_LABEL_KEYS[status])}</span>
                           </label>
                         ))}
                       </div>
@@ -1035,14 +1108,14 @@ const Transactions = () => {
 
                     {/* Date range */}
                     <div>
-                      <label className="block text-sm font-semibold mb-3 text-slate-700 dark:text-slate-300">טווח תאריכים</label>
+                      <label className="block text-sm font-semibold mb-3 text-slate-700 dark:text-slate-300">{t('tx_dateRange')}</label>
                       <div className="space-y-3">
                         <div>
-                          <label className="block text-xs text-slate-500 mb-1">מתאריך</label>
+                          <label className="block text-xs text-slate-500 mb-1">{t('tx_fromDate')}</label>
                           <input type="date" value={filters.dateFrom} onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })} className="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 focus:ring-2 focus:ring-primary outline-none" />
                         </div>
                         <div>
-                          <label className="block text-xs text-slate-500 mb-1">עד תאריך</label>
+                          <label className="block text-xs text-slate-500 mb-1">{t('tx_toDate')}</label>
                           <input type="date" value={filters.dateTo} onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })} className="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 focus:ring-2 focus:ring-primary outline-none" />
                         </div>
                       </div>
@@ -1050,16 +1123,20 @@ const Transactions = () => {
 
                     {/* Payment method */}
                     <div>
-                      <label className="block text-sm font-semibold mb-3 text-slate-700 dark:text-slate-300">אמצעי תשלום</label>
+                      <label className="block text-sm font-semibold mb-3 text-slate-700 dark:text-slate-300">{t('tx_col_paymentMethod')}</label>
                       <div className="space-y-1 max-h-48 overflow-y-auto custom-scrollbar">
                         <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer">
                           <input type="radio" name="paymentMethodFilter" checked={filters.paymentMethod === 'all'} onChange={() => setFilters({ ...filters, paymentMethod: 'all' })} className="w-4 h-4 text-[#635bff] focus:ring-[#635bff]" />
-                          <span className="text-sm">הכל</span>
+                          <span className="text-sm">{t('tx_all')}</span>
                         </label>
-                        {(Object.keys(PAYMENT_METHOD_LABELS) as PaymentMethod[]).map(method => (
+                        {([
+                          'bit', 'apple_pay', 'google_pay', 'paypal', 'alipay_qr',
+                          'credit_card', 'il_direct_debit', 'bank_transfer', 'funds_transfer',
+                          'cash', 'check', 'pos', 'echeck', 'multi'
+                        ] as PaymentMethod[]).map(method => (
                           <label key={method} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer">
                             <input type="radio" name="paymentMethodFilter" checked={filters.paymentMethod === method} onChange={() => setFilters({ ...filters, paymentMethod: method })} className="w-4 h-4 text-[#635bff] focus:ring-[#635bff]" />
-                            <span className="text-sm">{PAYMENT_METHOD_LABELS[method]}</span>
+                            <span className="text-sm">{getPaymentMethodLabel(method, t)}</span>
                           </label>
                         ))}
                       </div>
@@ -1067,12 +1144,12 @@ const Transactions = () => {
 
                     {/* Channel */}
                     <div>
-                      <label className="block text-sm font-semibold mb-3 text-slate-700 dark:text-slate-300">ערוץ</label>
+                      <label className="block text-sm font-semibold mb-3 text-slate-700 dark:text-slate-300">{t('tx_col_channel')}</label>
                       <div className="space-y-1">
                         {(['all', 'club', 'direct'] as const).map(ch => (
                           <label key={ch} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer">
                             <input type="radio" name="channelFilter" checked={filters.channel === ch} onChange={() => setFilters({ ...filters, channel: ch })} className="w-4 h-4 text-[#635bff] focus:ring-[#635bff]" />
-                            <span className="text-sm">{ch === 'all' ? 'הכל' : CHANNEL_LABELS[ch]}</span>
+                            <span className="text-sm">{ch === 'all' ? t('tx_all') : t(CHANNEL_LABEL_KEYS[ch])}</span>
                           </label>
                         ))}
                       </div>
@@ -1080,14 +1157,14 @@ const Transactions = () => {
 
                     {/* Amount range */}
                     <div>
-                      <label className="block text-sm font-semibold mb-3 text-slate-700 dark:text-slate-300">טווח סכום</label>
+                      <label className="block text-sm font-semibold mb-3 text-slate-700 dark:text-slate-300">{t('tx_amountRange')}</label>
                       <div className="flex gap-3">
                         <div className="flex-1">
-                          <label className="block text-xs text-slate-500 mb-1">מינימום</label>
+                          <label className="block text-xs text-slate-500 mb-1">{t('tx_min')}</label>
                           <input type="number" value={filters.amountMin} onChange={(e) => setFilters({ ...filters, amountMin: e.target.value })} className="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 focus:ring-2 focus:ring-primary outline-none" placeholder="₪0" />
                         </div>
                         <div className="flex-1">
-                          <label className="block text-xs text-slate-500 mb-1">מקסימום</label>
+                          <label className="block text-xs text-slate-500 mb-1">{t('tx_max')}</label>
                           <input type="number" value={filters.amountMax} onChange={(e) => setFilters({ ...filters, amountMax: e.target.value })} className="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 focus:ring-2 focus:ring-primary outline-none" placeholder="₪∞" />
                         </div>
                       </div>
@@ -1097,8 +1174,8 @@ const Transactions = () => {
                   {/* Footer */}
                   <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 rounded-b-lg">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-500">תוצאות:</span>
-                      <span className="font-medium text-slate-700 dark:text-slate-300">{filteredTransactions.length} מתוך {transactions.length}</span>
+                      <span className="text-slate-500">{t('tx_resultsLabel')}</span>
+                      <span className="font-medium text-slate-700 dark:text-slate-300">{filteredTransactions.length} {t('tx_resultsOf')} {transactions.length}</span>
                     </div>
                   </div>
                 </>
@@ -1136,12 +1213,12 @@ const Transactions = () => {
                 <>
                   <div className="p-6 border-b border-slate-200 dark:border-slate-800">
                     <div className="flex items-center justify-between mb-2">
-                      <h2 className="text-xl font-bold">התאמה אישית</h2>
+                      <h2 className="text-xl font-bold">{t('tx_customizeTitle')}</h2>
                       <button onClick={() => setShowCustomizePanel(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
                         <span className="material-symbols-rounded">close</span>
                       </button>
                     </div>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">בחר עמודות להצגה והקפא עמודות</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">{t('tx_customizeDesc')}</p>
                   </div>
 
                   <div className="p-6 space-y-3">
@@ -1163,7 +1240,7 @@ const Transactions = () => {
                               ? 'bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400'
                               : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                           }`}
-                          title="הקפא עמודה"
+                          title={t('tx_freezeColumn')}
                         >
                           <span className="material-symbols-rounded !text-[16px]">push_pin</span>
                         </button>
@@ -1191,7 +1268,7 @@ const Transactions = () => {
                     <button
                       className="w-8 h-8 flex items-center justify-center text-[#635bff] hover:bg-[#635bff]/10 rounded-md transition-colors"
                       onClick={() => { setIsTableSearchExpanded(true); setTimeout(() => tableSearchInputRef.current?.focus(), 50); }}
-                      title="חיפוש"
+                      title={t('tx_searchTitle')}
                     >
                       <span className="material-symbols-rounded !text-[16px]">search</span>
                     </button>
@@ -1203,13 +1280,13 @@ const Transactions = () => {
                         value={filters.searchText}
                         onChange={(e) => setFilters({ ...filters, searchText: e.target.value })}
                         className="w-52 ps-8 pe-8 py-1.5 bg-slate-100 dark:bg-slate-800 border-none rounded-md text-sm focus:ring-2 focus:ring-primary outline-none"
-                        placeholder="חיפוש עסקאות..."
+                        placeholder={t('tx_searchTransactions')}
                         autoFocus
                       />
-                      <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                      <div className="absolute start-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
                         <span className="material-symbols-rounded text-slate-400 !text-[16px]">search</span>
                       </div>
-                      <div className="absolute left-2.5 top-1/2 -translate-y-1/2">
+                      <div className="absolute end-2.5 top-1/2 -translate-y-1/2">
                         <button
                           onMouseDown={(e) => {
                             e.preventDefault();
@@ -1241,7 +1318,7 @@ const Transactions = () => {
                   className={`relative w-8 h-8 rounded-md flex items-center justify-center transition-colors ${
                     activeFilterCount > 0 ? 'bg-[#635bff] text-white' : 'text-[#635bff] hover:bg-[#635bff]/10'
                   }`}
-                  title="סינון"
+                  title={t('tx_filter')}
                 >
                   <span className="material-symbols-rounded !text-[16px]">filter_list</span>
                   {activeFilterCount > 0 && (
@@ -1256,20 +1333,20 @@ const Transactions = () => {
                   <button
                     onClick={() => setShowExportMenu(!showExportMenu)}
                     className="w-8 h-8 rounded-md flex items-center justify-center text-[#635bff] hover:bg-[#635bff]/10 transition-colors"
-                    title="ייצוא"
+                    title={t('tx_export')}
                   >
                     <span className="material-symbols-rounded !text-[16px]">file_download</span>
                   </button>
                   {showExportMenu && (
                     <>
                       <div className="fixed inset-0 z-10" onClick={() => setShowExportMenu(false)}></div>
-                      <div className="absolute left-0 mt-2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-20 overflow-hidden">
+                      <div className="absolute start-0 mt-2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-20 overflow-hidden">
                         <button
-                          onClick={() => { setShowExportMenu(false); alert('ייצוא עסקאות לאקסל'); }}
-                          className="w-full px-4 py-3 text-right text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-3"
+                          onClick={() => { setShowExportMenu(false); alert(t('tx_exportAlert')); }}
+                          className="w-full px-4 py-3 text-start text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-3"
                         >
                           <span className="material-symbols-rounded text-sm text-[#635bff]">file_download</span>
-                          <span>ייצא לאקסל</span>
+                          <span>{t('tx_exportToExcel')}</span>
                         </button>
                       </div>
                     </>
@@ -1285,7 +1362,7 @@ const Transactions = () => {
                     setTimeout(() => setIsCustomizeLoading(false), 600);
                   }}
                   className="w-8 h-8 rounded-md flex items-center justify-center text-[#635bff] hover:bg-[#635bff]/10 transition-colors"
-                  title="התאמה אישית"
+                  title={t('tx_customize')}
                 >
                   <span className="material-symbols-rounded !text-[16px]">tune</span>
                 </button>
@@ -1293,7 +1370,7 @@ const Transactions = () => {
 
               {/* Pagination */}
               <div className="flex items-center gap-3">
-                <span className="text-xs text-slate-400">מציג {filteredTransactions.length} מתוך {transactions.length} עסקאות</span>
+                <span className="text-xs text-slate-400">{t('tx_showing')} {filteredTransactions.length} {t('tx_resultsOf')} {transactions.length} {t('tx_transactions')}</span>
                 <div className="flex gap-1">
                   <button className="w-8 h-8 flex items-center justify-center text-[#635bff] hover:bg-[#635bff]/10 rounded-md transition-colors">
                     <span className="material-symbols-rounded !text-[16px]">chevron_right</span>
@@ -1392,49 +1469,49 @@ const Transactions = () => {
                             <div className="absolute top-full start-0 mt-1 w-52 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden text-sm font-normal normal-case tracking-normal" onClick={(e) => e.stopPropagation()}>
                               <button
                                 onClick={() => { setSortColumn(col); setSortDirection('asc'); setColumnMenuOpen(null); }}
-                                className={`w-full px-4 py-2.5 text-right hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2.5 ${sortColumn === col && sortDirection === 'asc' ? 'text-[#635bff] bg-[#635bff]/5' : 'text-slate-700 dark:text-slate-300'}`}
+                                className={`w-full px-4 py-2.5 text-start hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2.5 ${sortColumn === col && sortDirection === 'asc' ? 'text-[#635bff] bg-[#635bff]/5' : 'text-slate-700 dark:text-slate-300'}`}
                               >
                                 <span className="material-symbols-rounded !text-[16px]">arrow_upward</span>
-                                מיין לפי עולה
+                                {t('tx_sortAsc')}
                               </button>
                               <button
                                 onClick={() => { setSortColumn(col); setSortDirection('desc'); setColumnMenuOpen(null); }}
-                                className={`w-full px-4 py-2.5 text-right hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2.5 ${sortColumn === col && sortDirection === 'desc' ? 'text-[#635bff] bg-[#635bff]/5' : 'text-slate-700 dark:text-slate-300'}`}
+                                className={`w-full px-4 py-2.5 text-start hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2.5 ${sortColumn === col && sortDirection === 'desc' ? 'text-[#635bff] bg-[#635bff]/5' : 'text-slate-700 dark:text-slate-300'}`}
                               >
                                 <span className="material-symbols-rounded !text-[16px]">arrow_downward</span>
-                                מיין לפי יורד
+                                {t('tx_sortDesc')}
                               </button>
                               {sortColumn === col && (
                                 <button
                                   onClick={() => { setSortColumn(null); setColumnMenuOpen(null); }}
-                                  className="w-full px-4 py-2.5 text-right hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2.5 text-slate-400"
+                                  className="w-full px-4 py-2.5 text-start hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2.5 text-slate-400"
                                 >
                                   <span className="material-symbols-rounded !text-[16px]">close</span>
-                                  הסר מיון
+                                  {t('tx_removeSort')}
                                 </button>
                               )}
                               <div className="border-t border-slate-100 dark:border-slate-700" />
                               <button
                                 onClick={() => { setShowFilterPanel(true); setShowCustomizePanel(false); setColumnMenuOpen(null); }}
-                                className="w-full px-4 py-2.5 text-right hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2.5 text-slate-700 dark:text-slate-300"
+                                className="w-full px-4 py-2.5 text-start hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2.5 text-slate-700 dark:text-slate-300"
                               >
                                 <span className="material-symbols-rounded !text-[16px]">filter_list</span>
-                                סנן
+                                {t('tx_filterCol')}
                               </button>
                               <div className="border-t border-slate-100 dark:border-slate-700" />
                               <button
                                 onClick={() => { toggleColumnFreeze(col); setColumnMenuOpen(null); }}
-                                className={`w-full px-4 py-2.5 text-right hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2.5 ${frozenColumns.includes(col) ? 'text-[#635bff]' : 'text-slate-700 dark:text-slate-300'}`}
+                                className={`w-full px-4 py-2.5 text-start hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2.5 ${frozenColumns.includes(col) ? 'text-[#635bff]' : 'text-slate-700 dark:text-slate-300'}`}
                               >
                                 <span className="material-symbols-rounded !text-[16px]">push_pin</span>
-                                {frozenColumns.includes(col) ? 'בטל הקפאה' : 'הקפא עמודה'}
+                                {frozenColumns.includes(col) ? t('tx_unfreezeColumn') : t('tx_freezeColumn')}
                               </button>
                               <button
                                 onClick={() => { toggleColumnVisibility(col as keyof typeof visibleColumns); setColumnMenuOpen(null); }}
-                                className="w-full px-4 py-2.5 text-right hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2.5 text-slate-700 dark:text-slate-300"
+                                className="w-full px-4 py-2.5 text-start hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2.5 text-slate-700 dark:text-slate-300"
                               >
                                 <span className="material-symbols-rounded !text-[16px]">visibility_off</span>
-                                הסתר עמודה
+                                {t('tx_hideColumn')}
                               </button>
                             </div>
                           </>
@@ -1501,9 +1578,9 @@ const Transactions = () => {
                       <td colSpan={100} className="px-6 py-16 text-center">
                         <div className="flex flex-col items-center gap-3">
                           <span className="material-symbols-rounded text-4xl text-slate-300">receipt_long</span>
-                          <p className="text-sm text-slate-500 dark:text-slate-400">אין עסקאות להצגה</p>
+                          <p className="text-sm text-slate-500 dark:text-slate-400">{t('tx_noTransactions')}</p>
                           {activeFilterCount > 0 && (
-                            <button onClick={clearFilters} className="text-sm text-[#635bff] hover:underline">נקה סינונים</button>
+                            <button onClick={clearFilters} className="text-sm text-[#635bff] hover:underline">{t('tx_clearFilters')}</button>
                           )}
                         </div>
                       </td>
@@ -1555,19 +1632,19 @@ const Transactions = () => {
                             {rowActionMenuId === tx.id && (
                               <>
                                 <div className="fixed inset-0 z-10" onClick={() => setRowActionMenuId(null)}></div>
-                                <div className="absolute left-0 mt-1 w-44 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-20 overflow-hidden">
-                                  <button onClick={(e) => { e.stopPropagation(); setRowActionMenuId(null); handleRowClick(tx); }} className="w-full px-4 py-2.5 text-right text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2">
+                                <div className="absolute start-0 mt-1 w-44 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-20 overflow-hidden">
+                                  <button onClick={(e) => { e.stopPropagation(); setRowActionMenuId(null); handleRowClick(tx); }} className="w-full px-4 py-2.5 text-start text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2">
                                     <span className="material-symbols-rounded !text-[16px] text-slate-400">visibility</span>
-                                    צפה בפרטים
+                                    {t('tx_viewDetails')}
                                   </button>
-                                  <button onClick={() => { setRowActionMenuId(null); }} className="w-full px-4 py-2.5 text-right text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2">
+                                  <button onClick={() => { setRowActionMenuId(null); }} className="w-full px-4 py-2.5 text-start text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2">
                                     <span className="material-symbols-rounded !text-[16px] text-slate-400">content_copy</span>
-                                    העתק מזהה
+                                    {t('tx_copyId')}
                                   </button>
                                   {tx.status === 'successful' && (
-                                    <button onClick={() => { setRowActionMenuId(null); }} className="w-full px-4 py-2.5 text-right text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2 border-t border-slate-100 dark:border-slate-700">
+                                    <button onClick={() => { setRowActionMenuId(null); }} className="w-full px-4 py-2.5 text-start text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2 border-t border-slate-100 dark:border-slate-700">
                                       <span className="material-symbols-rounded !text-[16px] text-red-400">undo</span>
-                                      <span className="text-red-600">החזר תשלום</span>
+                                      <span className="text-red-600">{t('tx_refundPayment')}</span>
                                     </button>
                                   )}
                                 </div>
@@ -1584,7 +1661,7 @@ const Transactions = () => {
 
             {/* Bottom pagination */}
             <div className="px-4 py-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-              <span className="text-xs text-slate-400">מציג {filteredTransactions.length} מתוך {transactions.length} עסקאות</span>
+              <span className="text-xs text-slate-400">{t('tx_showing')} {filteredTransactions.length} {t('tx_resultsOf')} {transactions.length} {t('tx_transactions')}</span>
               <div className="flex gap-1">
                 <button className="w-8 h-8 flex items-center justify-center text-[#635bff] hover:bg-[#635bff]/10 rounded-md transition-colors">
                   <span className="material-symbols-rounded !text-[16px]">chevron_right</span>
@@ -1668,7 +1745,7 @@ const Transactions = () => {
                     </div>
                     {getStatusBadge(selectedTransaction!.status)}
                     <p className="text-3xl font-bold text-emerald-700 dark:text-emerald-400 mt-3">{formatCurrencyByCode(selectedTransaction!.merchantNet, selectedTransaction!.currency)}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">נטו לספק</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{t('tx_merchantNetSide')}</p>
                     <p className="text-xs text-slate-400 mt-1 font-mono">{selectedTransaction!.transactionId}</p>
                   </div>
 
@@ -1677,58 +1754,58 @@ const Transactions = () => {
                     <div className="px-4 py-2 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
                       <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                         <span className="material-symbols-rounded !text-[14px]">receipt_long</span>
-                        {selectedTransaction!.channel === 'club' ? 'פירוט תמחור מועדון' : 'פירוט תמחור ישיר'}
+                        {selectedTransaction!.channel === 'club' ? t('tx_clubPricingBreakdown') : t('tx_directPricingBreakdown')}
                       </span>
                     </div>
                     <div className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
                       {selectedTransaction!.channel === 'club' ? (
                         <>
                           <div className="flex justify-between px-4 py-2.5">
-                            <span className="text-slate-500">מחיר שוק</span>
+                            <span className="text-slate-500">{t('tx_marketPriceLabel')}</span>
                             <span className="font-medium text-slate-700 dark:text-slate-300">{formatCurrencyByCode(selectedTransaction!.marketPrice!, selectedTransaction!.currency)}</span>
                           </div>
                           <div className="flex justify-between px-4 py-2.5">
-                            <span className="text-slate-500">הנחת ספק</span>
+                            <span className="text-slate-500">{t('tx_merchantDiscount')}</span>
                             <span className="font-medium text-red-500">-{formatCurrencyByCode(selectedTransaction!.merchantDiscount!, selectedTransaction!.currency)}</span>
                           </div>
                           <div className="flex justify-between px-4 py-2.5 bg-slate-50/50 dark:bg-slate-800/30">
-                            <span className="font-semibold text-slate-600 dark:text-slate-400">מחיר בסיס</span>
+                            <span className="font-semibold text-slate-600 dark:text-slate-400">{t('tx_basePrice')}</span>
                             <span className="font-semibold text-slate-800 dark:text-slate-200">{formatCurrencyByCode(selectedTransaction!.basePrice!, selectedTransaction!.currency)}</span>
                           </div>
                           <div className="flex justify-between px-4 py-2.5">
-                            <span className="text-slate-500">עמלת נקסוס</span>
+                            <span className="text-slate-500">{t('tx_nexusFee')}</span>
                             <span className="font-medium text-red-500">-{formatCurrencyByCode(selectedTransaction!.nexusMargin!, selectedTransaction!.currency)}</span>
                           </div>
                           <div className="flex justify-between px-4 py-2.5 bg-emerald-50 dark:bg-emerald-900/20">
-                            <span className="font-bold text-emerald-700 dark:text-emerald-400">נטו לספק</span>
+                            <span className="font-bold text-emerald-700 dark:text-emerald-400">{t('tx_merchantNetSide')}</span>
                             <span className="font-bold text-emerald-700 dark:text-emerald-400">{formatCurrencyByCode(selectedTransaction!.merchantNet, selectedTransaction!.currency)}</span>
                           </div>
                           <div className="px-4 py-1.5 bg-slate-100 dark:bg-slate-800">
-                            <span className="text-[10px] text-slate-400 tracking-wider">צד הצרכן</span>
+                            <span className="text-[10px] text-slate-400 tracking-wider">{t('tx_consumerSide')}</span>
                           </div>
                           <div className="flex justify-between px-4 py-2.5">
-                            <span className="text-slate-500">{selectedTransaction!.tenantAdjustment! < 0 ? 'סבסוד ארגון' : 'תוספת ארגון'}</span>
+                            <span className="text-slate-500">{selectedTransaction!.tenantAdjustment! < 0 ? t('tx_orgSubsidy') : t('tx_orgMarkup')}</span>
                             <span className={`font-medium ${selectedTransaction!.tenantAdjustment! < 0 ? 'text-blue-600' : 'text-amber-600'}`}>
                               {selectedTransaction!.tenantAdjustment! < 0 ? '' : '+'}{formatCurrencyByCode(Math.abs(selectedTransaction!.tenantAdjustment!), selectedTransaction!.currency)}
                             </span>
                           </div>
                           <div className="flex justify-between px-4 py-2.5 bg-blue-50 dark:bg-blue-900/20">
-                            <span className="font-semibold text-blue-700 dark:text-blue-400">הצרכן שילם</span>
+                            <span className="font-semibold text-blue-700 dark:text-blue-400">{t('tx_consumerPaid')}</span>
                             <span className="font-semibold text-blue-700 dark:text-blue-400">{formatCurrencyByCode(selectedTransaction!.amount, selectedTransaction!.currency)}</span>
                           </div>
                         </>
                       ) : (
                         <>
                           <div className="flex justify-between px-4 py-2.5">
-                            <span className="text-slate-500">סכום מכירה</span>
+                            <span className="text-slate-500">{t('tx_saleAmount')}</span>
                             <span className="font-medium text-slate-700 dark:text-slate-300">{formatCurrencyByCode(selectedTransaction!.amount, selectedTransaction!.currency)}</span>
                           </div>
                           <div className="flex justify-between px-4 py-2.5">
-                            <span className="text-slate-500">עמלת סליקה</span>
+                            <span className="text-slate-500">{t('tx_processingFee')}</span>
                             <span className="font-medium text-red-500">-{formatCurrencyByCode(selectedTransaction!.processingFee!, selectedTransaction!.currency)}</span>
                           </div>
                           <div className="flex justify-between px-4 py-2.5 bg-emerald-50 dark:bg-emerald-900/20">
-                            <span className="font-bold text-emerald-700 dark:text-emerald-400">נטו לספק</span>
+                            <span className="font-bold text-emerald-700 dark:text-emerald-400">{t('tx_merchantNetSide')}</span>
                             <span className="font-bold text-emerald-700 dark:text-emerald-400">{formatCurrencyByCode(selectedTransaction!.merchantNet, selectedTransaction!.currency)}</span>
                           </div>
                         </>
@@ -1739,44 +1816,44 @@ const Transactions = () => {
                   {/* Details grid */}
                   <div className="space-y-0 divide-y divide-slate-100 dark:divide-slate-800">
                     <div className="flex justify-between py-3">
-                      <span className="text-sm text-slate-500">לקוח</span>
-                      <span className="text-sm font-medium text-slate-900 dark:text-white">{selectedTransaction!.customer}</span>
+                      <span className="text-sm text-slate-500">{t('tx_customer')}</span>
+                      <span className="text-sm font-medium text-slate-900 dark:text-white">{translateMockField(selectedTransaction!.customer, t)}</span>
                     </div>
                     <div className="flex justify-between py-3">
-                      <span className="text-sm text-slate-500">מוצר/שירות</span>
-                      <span className="text-sm font-medium text-slate-900 dark:text-white">{selectedTransaction!.product}</span>
+                      <span className="text-sm text-slate-500">{t('tx_productService')}</span>
+                      <span className="text-sm font-medium text-slate-900 dark:text-white">{translateMockField(selectedTransaction!.product, t)}</span>
                     </div>
                     <div className="flex justify-between py-3">
-                      <span className="text-sm text-slate-500">אמצעי תשלום</span>
-                      <span className="text-sm font-medium text-slate-900 dark:text-white">{PAYMENT_METHOD_LABELS[selectedTransaction!.paymentMethod]}</span>
+                      <span className="text-sm text-slate-500">{t('tx_paymentMethod')}</span>
+                      <span className="text-sm font-medium text-slate-900 dark:text-white">{getPaymentMethodLabel(selectedTransaction!.paymentMethod, t)}</span>
                     </div>
                     <div className="flex justify-between py-3">
-                      <span className="text-sm text-slate-500">ערוץ</span>
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${CHANNEL_STYLES[selectedTransaction!.channel]}`}>{CHANNEL_LABELS[selectedTransaction!.channel]}</span>
+                      <span className="text-sm text-slate-500">{t('tx_channel')}</span>
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${CHANNEL_STYLES[selectedTransaction!.channel]}`}>{t(CHANNEL_LABEL_KEYS[selectedTransaction!.channel])}</span>
                     </div>
                     {selectedTransaction!.campaign && (
                       <div className="flex justify-between py-3">
-                        <span className="text-sm text-slate-500">קמפיין</span>
+                        <span className="text-sm text-slate-500">{t('tx_campaign')}</span>
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 text-xs font-medium">
                           <span className="material-symbols-rounded !text-[13px]">campaign</span>
-                          {selectedTransaction!.campaign}
+                          {translateMockField(selectedTransaction!.campaign, t)}
                         </span>
                       </div>
                     )}
                     <div className="flex justify-between py-3">
-                      <span className="text-sm text-slate-500">סוג</span>
-                      <span className="text-sm font-medium text-slate-900 dark:text-white">{TYPE_LABELS[selectedTransaction!.type]}</span>
+                      <span className="text-sm text-slate-500">{t('tx_typeLabel')}</span>
+                      <span className="text-sm font-medium text-slate-900 dark:text-white">{t(TYPE_LABEL_KEYS[selectedTransaction!.type])}</span>
                     </div>
                     <div className="flex justify-between py-3">
-                      <span className="text-sm text-slate-500">מטבע</span>
+                      <span className="text-sm text-slate-500">{t('tx_currency')}</span>
                       <span className="text-sm font-medium text-slate-900 dark:text-white">{selectedTransaction!.currency}</span>
                     </div>
                     <div className="flex justify-between py-3">
-                      <span className="text-sm text-slate-500">תאריך תשלום</span>
+                      <span className="text-sm text-slate-500">{t('tx_paymentDate')}</span>
                       <span className="text-sm font-medium text-slate-900 dark:text-white">{selectedTransaction!.date}</span>
                     </div>
                     <div className="flex justify-between py-3">
-                      <span className="text-sm text-slate-500">תאריך עסקה</span>
+                      <span className="text-sm text-slate-500">{t('tx_transactionDate')}</span>
                       <span className="text-sm font-medium text-slate-900 dark:text-white">{selectedTransaction!.transactionDate}</span>
                     </div>
                   </div>
@@ -1786,12 +1863,12 @@ const Transactions = () => {
                     {selectedTransaction!.status === 'successful' && (
                       <button className="flex-1 py-2 text-xs font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800 transition-colors flex items-center justify-center gap-1.5">
                         <span className="material-symbols-rounded !text-[14px]">undo</span>
-                        החזר תשלום
+                        {t('tx_refundPayment')}
                       </button>
                     )}
                     <button className="flex-1 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 dark:text-slate-400 rounded-lg border border-slate-200 dark:border-slate-700 transition-colors flex items-center justify-center gap-1.5">
                       <span className="material-symbols-rounded !text-[14px]">receipt_long</span>
-                      הורד קבלה
+                      {t('tx_downloadReceipt')}
                     </button>
                   </div>
                 </div>

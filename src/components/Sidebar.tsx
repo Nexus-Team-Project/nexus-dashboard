@@ -22,7 +22,7 @@ interface NavItem {
 }
 
 const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
-  const { t } = useLanguage();
+  const { t, isRTL } = useLanguage();
   const navigate = useNavigate();
   const [expandedMenus, setExpandedMenus] = useState<string[]>(['products']);
   const [sidebarWidth, setSidebarWidth] = useState(256);
@@ -58,7 +58,7 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
     const handleMouseMove = (e: MouseEvent) => {
       if (rafId) return;
       rafId = requestAnimationFrame(() => {
-        const newWidth = window.innerWidth - e.clientX;
+        const newWidth = isRTL ? window.innerWidth - e.clientX : e.clientX;
         if (newWidth >= 200 && newWidth <= 500) {
           setSidebarWidth(newWidth);
         }
@@ -87,7 +87,7 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
         cancelAnimationFrame(rafId);
       }
     };
-  }, [isResizing]);
+  }, [isResizing, isRTL]);
 
   // Main navigation items (before Products section)
   const mainNavItems: NavItem[] = [
@@ -109,12 +109,12 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
   // Extra products shown when "More" is clicked
   const moreProductItems: { to: string; icon: string; label: string }[] = [
     { to: '/content', icon: 'article', label: t('content') },
-    { to: '/reports', icon: 'assessment', label: 'דוחות' },
+    { to: '/reports', icon: 'assessment', label: t('sb_reports') },
     { to: '/marketing', icon: 'campaign', label: t('marketing') },
-    { to: '/updates', icon: 'sync', label: 'עדכונים' },
+    { to: '/updates', icon: 'sync', label: t('sb_updates') },
   ];
 
-  // Marketing sub-items (nested under שיווק in moreProductItems)
+  // Marketing sub-items (nested under marketing in moreProductItems)
   const marketingSubItems = [
     { to: '/marketing/sms', icon: 'sms', label: 'SMS' },
     { to: '/marketing/email', icon: 'mail', label: t('emailCampaigns') },
@@ -140,17 +140,17 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
   };
 
   const getToggleTooltip = () => {
-    if (isOpen) return 'כווץ תפריט';
-    if (isCollapsed) return 'סגור תפריט';
-    return 'פתח תפריט';
+    if (isOpen) return t('sb_collapseMenu');
+    if (isCollapsed) return t('sb_closeMenu');
+    return t('sb_openMenu');
   };
 
   if (isClosed) {
     return (
       <button
         onClick={() => onStateChange('open')}
-        className="fixed top-[56px] right-[20px] z-50 w-6 h-6 bg-white border border-slate-200 rounded-full shadow-sm flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all"
-        title="פתח תפריט"
+        className="fixed top-[56px] end-[20px] z-50 w-6 h-6 bg-white border border-slate-200 rounded-full shadow-sm flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all"
+        title={t('sb_openMenu')}
       >
         <span className="material-symbols-rounded !text-sm">menu</span>
       </button>
@@ -253,11 +253,11 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
       )}
 
 
-      {/* Toggle Button */}
+      {/* Toggle Button — z-30 so it sits ABOVE the resize handle (z-20) */}
       <button
         onClick={cycleState}
-        className="!absolute top-6 w-6 h-6 bg-white rounded-full border border-slate-200 shadow-sm flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all z-10 opacity-0 group-hover/sidebar:opacity-100"
-        style={{ left: '-12px' }}
+        className="!absolute top-6 w-6 h-6 bg-white rounded-full border border-slate-200 shadow-sm flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all z-30 opacity-0 group-hover/sidebar:opacity-100"
+        style={{ insetInlineEnd: '-12px' }}
         title={getToggleTooltip()}
       >
         <span className="material-symbols-rounded !text-sm">{getToggleIcon()}</span>
@@ -332,7 +332,7 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
                                   ? 'text-primary hover:text-red-400'
                                   : 'opacity-0 group-hover/shortcut:opacity-100 text-[#676879] hover:text-primary'
                               }`}
-                              title={page.pinned ? 'בטל נעיצה' : 'נעץ'}
+                              title={page.pinned ? t('sb_unpin') : t('sb_pin')}
                             >
                               <span className="material-symbols-rounded !text-[13px]">push_pin</span>
                             </span>
@@ -475,7 +475,7 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
             {isOpen && (
               <button onClick={() => navigate('/projects')} className="w-full flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 text-[13px] text-[#676879] hover:bg-slate-200 mt-0.5">
                 <span className="material-symbols-rounded !text-[16px]">add</span>
-                <span>צור מוצר</span>
+                <span>{t('sb_createProduct')}</span>
               </button>
             )}
           </div>

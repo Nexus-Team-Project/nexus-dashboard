@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useLayoutEffect } from 'react';
 import type { ReactNode } from 'react';
 import { translations } from './translations';
 import type { Language, TranslationKey } from './translations';
@@ -12,15 +12,20 @@ interface LanguageContextType {
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
+const detectInitialLanguage = (): Language => {
+  if (typeof window === 'undefined') return 'he';
+  const saved = localStorage.getItem('language');
+  if (saved === 'he' || saved === 'en') return saved;
+  const browser = (navigator.language || 'he').toLowerCase();
+  return browser.startsWith('he') ? 'he' : 'en';
+};
+
 export const LanguageProvider = ({ children }: { children: ReactNode }) => {
-  const [language, setLanguage] = useState<Language>(() => {
-    const saved = localStorage.getItem('language');
-    return (saved as Language) || 'he'; // Hebrew is default
-  });
+  const [language, setLanguage] = useState<Language>(detectInitialLanguage);
 
   const isRTL = language === 'he';
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     localStorage.setItem('language', language);
     document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
     document.documentElement.lang = language;
