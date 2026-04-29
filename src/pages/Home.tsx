@@ -264,6 +264,35 @@ const MiniChart = ({ color, gradientId, data }: LineChartProps) => {
 
 type DateRange = 'last30days' | 'lastWeek' | 'currentMonth' | 'currentWeek';
 
+/**
+ * Creates a stable user label for dashboard greetings.
+ * Input: optional full name and email from the authenticated user.
+ * Output: full name, email, or a neutral localized fallback.
+ */
+function getDashboardUserName(fullName: string | undefined, email: string | undefined, isRTL: boolean): string {
+  return fullName?.trim() || email?.trim() || (isRTL ? 'משתמש' : 'User');
+}
+
+/**
+ * Creates the short name used in greeting sentences.
+ * Input: full display name, email, and text direction.
+ * Output: first name when available, otherwise email or localized fallback.
+ */
+function getGreetingName(fullName: string | undefined, email: string | undefined, isRTL: boolean): string {
+  const firstName = fullName?.trim().split(/\s+/)[0];
+  return firstName || email?.trim() || (isRTL ? 'משתמש' : 'there');
+}
+
+/**
+ * Builds the localized welcome headline without hardcoded demo names.
+ * Input: current text direction and authenticated user fields.
+ * Output: localized greeting with the real user name.
+ */
+function getWelcomeHeadline(isRTL: boolean, fullName?: string, email?: string): string {
+  const greetingName = getGreetingName(fullName, email, isRTL);
+  return isRTL ? `שלום ${greetingName}!` : `Hello ${greetingName}!`;
+}
+
 const Home = () => {
   const { isRTL, t } = useLanguage();
   const { user } = useAuth();
@@ -271,6 +300,7 @@ const Home = () => {
   const [dateRange, setDateRange] = useState<DateRange>('last30days');
   const [showDateRangeMenu, setShowDateRangeMenu] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [hasBannerAvatarError, setHasBannerAvatarError] = useState(false);
   const dateRangeMenuRef = useRef<HTMLDivElement>(null);
 
   // Determine time of day and get appropriate styling
@@ -317,9 +347,12 @@ const Home = () => {
   };
 
   const theme = getTimeBasedTheme();
-  const userName = user?.fullName || t('home_userName');
+  const userName = getDashboardUserName(user?.fullName, user?.email, isRTL);
+  const welcomeHeadline = getWelcomeHeadline(isRTL, user?.fullName, user?.email);
   const userEmail = user?.email || '';
-  const userImage = user?.avatarUrl;
+  const userImage = user?.avatarUrl?.trim();
+  const userInitial = userName.trim().charAt(0).toUpperCase() || '?';
+  const shouldShowBannerAvatarImage = Boolean(userImage) && !hasBannerAvatarError;
 
   // Simulate loading
   useEffect(() => {
@@ -328,6 +361,10 @@ const Home = () => {
     }, 1500);
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    setHasBannerAvatarError(false);
+  }, [userImage]);
 
   // Sample data for mini charts
   const visitorsData = [140, 85, 120, 75, 160, 110, 145];
@@ -643,14 +680,24 @@ const Home = () => {
             </button>
 
             <div className="flex items-center justify-center gap-6 relative z-10">
-            {userImage && (
+            {shouldShowBannerAvatarImage ? (
               <img
                 src={userImage}
                 alt={userName}
+                onError={() => setHasBannerAvatarError(true)}
                 className={`w-20 h-20 rounded-full border-3 shadow-md object-cover ${
                   theme.isDark ? 'border-white/20' : 'border-white/70'
                 }`}
               />
+            ) : (
+              <div
+                className={`w-20 h-20 rounded-full border-3 shadow-md bg-gradient-to-br from-primary to-violet-400 flex items-center justify-center text-white text-3xl font-bold ${
+                  theme.isDark ? 'border-white/20' : 'border-white/70'
+                }`}
+                aria-label={userName}
+              >
+                {userInitial}
+              </div>
             )}
             <div className="text-center space-y-2">
               <h1 className={`text-3xl font-bold ${theme.textColor} flex items-center justify-center gap-3`}>
@@ -674,7 +721,7 @@ const Home = () => {
       {/* Welcome Section */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-1">{t('home_helloUser')}</h1>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-1">{welcomeHeadline}</h1>
           <p className="text-slate-500 dark:text-slate-400">{t('home_businessOverview')}</p>
         </div>
         <div className="flex gap-3 flex-wrap">

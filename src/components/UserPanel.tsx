@@ -75,9 +75,9 @@ const UserPanel = ({ isOpen, onClose, onLogout, anchorRef }: UserPanelProps) => 
 
   if (!isOpen) return null;
 
-  const displayName = user?.fullName || t('headerUserName');
-  const displayEmail = user?.email || t('up_userEmail');
-  const displayInitial = displayName.trim().charAt(0).toUpperCase() || t('headerUserInitial');
+  const displayName = user?.fullName || user?.email || 'User';
+  const displayEmail = user?.email || '';
+  const displayInitial = displayName.trim().charAt(0).toUpperCase() || '?';
 
   const menuItems = [
     { icon: 'manage_accounts', label: t('up_accountSettings'), action: () => { navigate('/settings'); onClose(); } },
