@@ -1,7 +1,12 @@
+/**
+ * Defines the dashboard application shell, auth gate, and route tree.
+ * The shell waits for real website-backed authentication before rendering data.
+ */
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { LanguageProvider } from './i18n/LanguageContext';
 import { DevModeProvider } from './contexts/DevModeContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import DashboardLayout from './layouts/DashboardLayout';
 import Home from './pages/Home';
 import Users from './pages/Users';
@@ -35,7 +40,28 @@ import Transactions from './pages/Transactions';
 import DevPlayground from './pages/DevPlayground';
 import BusinessSetupPage from './pages/BusinessSetupPage';
 
-function App() {
+/**
+ * Shows a small neutral loading surface while the dashboard restores auth.
+ * Input: none.
+ * Output: full-screen loading indicator.
+ */
+function AuthLoadingScreen() {
+  return (
+    <div className="min-h-screen bg-[#edf1fc] flex items-center justify-center text-slate-700">
+      <div className="rounded-lg border border-slate-200 bg-white px-5 py-4 shadow-sm">
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-slate-800" />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Renders routes after authentication state has been resolved.
+ * Input: none.
+ * Output: authenticated dashboard routes or a loading/redirect route.
+ */
+function AppRoutes() {
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
   // Convert title attributes to data-tooltip for modern black tooltips
   useEffect(() => {
     const convertTitles = () => {
@@ -53,40 +79,53 @@ function App() {
     return () => observer.disconnect();
   }, []);
 
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
   const [isOnboarding, setIsOnboarding] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [userName, setUserName] = useState('Sarah');
-  const [userImage, setUserImage] = useState('https://lh3.googleusercontent.com/a/default-user');
+  const [isSetupLoading, setIsSetupLoading] = useState(false);
+  const userName = user?.fullName?.split(' ')[0] ?? 'there';
+  const userImage = user?.avatarUrl ?? undefined;
 
+  /**
+   * Starts the local legacy login loader.
+   * Input: none.
+   * Output: setup loading route is shown.
+   */
   const handleLogin = () => {
-    setIsLoading(true);
+    setIsSetupLoading(true);
   };
 
+  /**
+   * Starts the local onboarding route group.
+   * Input: none.
+   * Output: onboarding routes replace the dashboard routes.
+   */
   const handleSignup = () => {
     setIsOnboarding(true);
   };
 
+  /**
+   * Finishes local onboarding and shows the loader before the dashboard.
+   * Input: none.
+   * Output: onboarding state is cleared and setup loading starts.
+   */
   const handleCompleteOnboarding = () => {
     setIsOnboarding(false);
-    setIsLoading(true);
+    setIsSetupLoading(true);
   };
 
+  /**
+   * Finishes the legacy loader.
+   * Input: none.
+   * Output: dashboard routes render again.
+   */
   const handleLoadingComplete = () => {
-    setIsLoading(false);
-    setIsAuthenticated(true);
+    setIsSetupLoading(false);
   };
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-  };
+  if (isLoading) return <AuthLoadingScreen />;
 
   return (
-    <DevModeProvider>
-    <LanguageProvider>
-      <BrowserRouter>
-        <Routes>
-          {isLoading ? (
+    <Routes>
+          {isSetupLoading ? (
             <>
               <Route path="/loader" element={<Loader onComplete={handleLoadingComplete} userName={userName} userImage={userImage} />} />
               <Route path="*" element={<Navigate to="/loader" replace />} />
@@ -109,7 +148,7 @@ function App() {
             <>
               <Route path="/api-docs" element={<ApiDocs />} />
               <Route path="/business-setup" element={<BusinessSetupPage />} />
-              <Route path="/" element={<DashboardLayout onLogout={handleLogout} />}>
+              <Route path="/" element={<DashboardLayout onLogout={logout} />}>
                 <Route index element={<Home />} />
                 <Route path="projects" element={<Lobby />} />
                 <Route path="projects/new" element={<CreateProject />} />
@@ -137,7 +176,23 @@ function App() {
               </Route>
             </>
           )}
-        </Routes>
+    </Routes>
+  );
+}
+
+/**
+ * Mounts global providers for the dashboard app.
+ * Input: none.
+ * Output: complete dashboard application.
+ */
+function App() {
+  return (
+    <DevModeProvider>
+    <LanguageProvider>
+      <BrowserRouter>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
       </BrowserRouter>
     </LanguageProvider>
     </DevModeProvider>

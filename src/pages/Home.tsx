@@ -1,5 +1,10 @@
+/**
+ * Renders the authenticated dashboard home page and shows the current
+ * website user profile as proof that cross-app login succeeded.
+ */
 import { useState, useRef, useEffect, type MouseEvent } from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 
 // Reusable SVG Line Chart Component
 interface LineChartProps {
@@ -11,7 +16,6 @@ interface LineChartProps {
 
 const LineChart = ({ color, gradientId, data, labels }: LineChartProps) => {
   const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
-  const [mouseX, setMouseX] = useState<number>(0);
   const svgRef = useRef<SVGSVGElement>(null);
 
   // Convert data points to SVG path coordinates
@@ -34,7 +38,6 @@ const LineChart = ({ color, gradientId, data, labels }: LineChartProps) => {
 
     const rect = svgRef.current.getBoundingClientRect();
     const mouseXPos = ((e.clientX - rect.left) / rect.width) * width;
-    setMouseX(mouseXPos);
 
     // Find the closest point to the mouse
     let closestIndex = 0;
@@ -263,6 +266,7 @@ type DateRange = 'last30days' | 'lastWeek' | 'currentMonth' | 'currentWeek';
 
 const Home = () => {
   const { isRTL, t } = useLanguage();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange>('last30days');
   const [showDateRangeMenu, setShowDateRangeMenu] = useState(false);
@@ -313,8 +317,9 @@ const Home = () => {
   };
 
   const theme = getTimeBasedTheme();
-  const userName = t('home_userName'); // TODO: Replace with actual user name from auth context
-  const userImage = undefined; // TODO: Replace with actual user image from auth context
+  const userName = user?.fullName || t('home_userName');
+  const userEmail = user?.email || '';
+  const userImage = user?.avatarUrl;
 
   // Simulate loading
   useEffect(() => {
@@ -655,6 +660,11 @@ const Home = () => {
               <p className={`text-base ${theme.subTextColor} font-medium`}>
                 {t('home_happyToSeeYou')}
               </p>
+              {userEmail && (
+                <p className={`text-sm ${theme.subTextColor} font-semibold break-all`}>
+                  {userEmail}
+                </p>
+              )}
             </div>
           </div>
         </div>
