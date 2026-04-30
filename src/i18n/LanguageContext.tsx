@@ -12,8 +12,21 @@ interface LanguageContextType {
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
+/**
+ * Reads a valid language value from the dashboard callback URL.
+ * Input: current browser location search params.
+ * Output: language code or null when no supported value exists.
+ */
+const getUrlLanguage = (): Language | null => {
+  if (typeof window === 'undefined') return null;
+  const lang = new URLSearchParams(window.location.search).get('lang');
+  return lang === 'he' || lang === 'en' ? lang : null;
+};
+
 const detectInitialLanguage = (): Language => {
   if (typeof window === 'undefined') return 'he';
+  const urlLanguage = getUrlLanguage();
+  if (urlLanguage) return urlLanguage;
   const saved = localStorage.getItem('language');
   if (saved === 'he' || saved === 'en') return saved;
   const browser = (navigator.language || 'he').toLowerCase();
