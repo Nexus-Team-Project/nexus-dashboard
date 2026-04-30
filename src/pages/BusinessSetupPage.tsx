@@ -1,3 +1,7 @@
+/**
+ * Renders the tenant-only business setup flow and syncs drafts to the backend.
+ * The backend derives tenant access from the authenticated session.
+ */
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SetupSidebar from '../components/business-setup/SetupSidebar';
@@ -21,6 +25,7 @@ import {
   STEP_ORDER,
 } from '../components/business-setup/types';
 import { useLanguage } from '../i18n/LanguageContext';
+import { businessSetupApi } from '../lib/api';
 
 const STORAGE_KEY = 'nexus_business_setup';
 
@@ -40,9 +45,37 @@ function saveState(currentStep: SubStepId, completedSteps: Set<string>, formData
   }));
 }
 
+/**
+ * Converts browser form data into JSON-safe backend payload data.
+ * Input: business setup form state that may contain File objects.
+ * Output: plain object suitable for API JSON requests.
+ */
+function toBusinessSetupPayload(formData: BusinessSetupData): Record<string, unknown> {
+  return {
+    ...formData,
+    doc_government_id: null,
+    doc_signatories: null,
+    doc_bank_confirmation: null,
+    doc_business_registration: null,
+    doc_copyright: null,
+  };
+}
+
+/**
+ * Merges backend draft values into the typed local form data shape.
+ * Input: unknown backend data.
+ * Output: business setup form state with defaults preserved.
+ */
+function mergeBusinessSetupData(data: Record<string, unknown>): BusinessSetupData {
+  return { ...createEmptyFormData(), ...data } as BusinessSetupData;
+}
+
 export default function BusinessSetupPage() {
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const savingText = language === 'he' ? 'שומר...' : 'Saving...';
+  const loadErrorText = language === 'he' ? 'טעינת הגדרת העסק נכשלה' : 'Failed to load business setup';
+  const saveErrorText = language === 'he' ? 'שמירת הגדרת העסק נכשלה' : 'Failed to save business setup';
   const saved = loadState();
 
   const [currentStep, setCurrentStep] = useState<SubStepId>(saved?.currentStep ?? 'business_type');
@@ -52,6 +85,33 @@ export default function BusinessSetupPage() {
   const [formData, setFormData] = useState<BusinessSetupData>(
     () => saved?.formData ?? createEmptyFormData()
   );
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    /**
+     * Loads the tenant business setup draft from the backend.
+     * Input: none.
+     * Output: local form state is replaced with backend data when present.
+     */
+    const loadBusinessSetup = async () => {
+      try {
+        const setup = await businessSetupApi.get();
+        if (!cancelled && Object.keys(setup.data).length > 0) {
+          setFormData(mergeBusinessSetupData(setup.data));
+        }
+      } catch (err) {
+        if (!cancelled) setApiError(err instanceof Error ? err.message : loadErrorText);
+      }
+    };
+
+    void loadBusinessSetup();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadErrorText]);
 
   // Persist on every change
   useEffect(() => {
@@ -62,23 +122,32 @@ export default function BusinessSetupPage() {
     setFormData(prev => ({ ...prev, ...patch }));
   }, []);
 
-  const handleContinue = useCallback(() => {
+  const handleContinue = useCallback(async () => {
+    setIsSaving(true);
+    setApiError(null);
     // Mark current step as completed
     setCompletedSteps(prev => {
       const next = new Set(prev);
       next.add(currentStep);
       return next;
     });
-    // Go to next step
-    const next = getNextStep(currentStep);
-    if (next) {
-      setCurrentStep(next);
-    } else {
-      // All done — log data & return
-      console.log('📋 Business Setup Data:', formData);
-      navigate('/');
+    try {
+      const payload = toBusinessSetupPayload(formData);
+      const next = getNextStep(currentStep);
+      if (next) {
+        await businessSetupApi.saveDraft(payload);
+        setCurrentStep(next);
+      } else {
+        await businessSetupApi.submit(payload);
+        localStorage.removeItem(STORAGE_KEY);
+        navigate('/');
+      }
+    } catch (err) {
+      setApiError(err instanceof Error ? err.message : saveErrorText);
+    } finally {
+      setIsSaving(false);
     }
-  }, [currentStep, formData, navigate]);
+  }, [currentStep, formData, navigate, saveErrorText]);
 
   const handleBack = useCallback(() => {
     const prev = getPrevStep(currentStep);
@@ -135,6 +204,8 @@ export default function BusinessSetupPage() {
 
         {/* Progress indicator */}
         <div className="flex items-center gap-3 text-sm text-gray-500">
+          {apiError && <span className="text-xs font-medium text-red-600">{apiError}</span>}
+          {isSaving && <span className="text-xs font-medium text-gray-500">{savingText}</span>}
           <span className="text-xs font-medium">{progressPct}% {t('bsp_progressCompleted')}</span>
           <div className="w-24 h-1.5 bg-gray-200 rounded-full overflow-hidden">
             <div
@@ -179,6 +250,7 @@ export default function BusinessSetupPage() {
 
             <button
               onClick={handleContinue}
+              disabled={isSaving}
               className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
             >
               <span>{currentStep === 'review_submit' ? t('bsp_submit') : t('bsp_continue')}</span>

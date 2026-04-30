@@ -1,5 +1,10 @@
+/**
+ * Renders the first-run workspace setup form with localized labels.
+ * The component collects tenant setup data but leaves persistence to the parent.
+ */
 import { useState, useRef } from 'react';
 import nexusBlackLogo from '../../assets/logos/Nexus_wide_logo_blak.png';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 const TOTAL_STEPS = 3;
 
@@ -14,58 +19,109 @@ export interface OnboardingData {
 
 // ── Use-case option definitions ────────────────────────────────────────────
 const USE_CASES = [
-  { id: 'benefits_club',  label: 'מועדון הטבות',                     why: 'מתאים לארגונים המבקשים לחבר קהילות ולהעניק הטבות לחברים',            keywords: /קהילה|עמותה|ארגון|חברים|מועדון/i },
-  { id: 'digital_wallet', label: 'ארנק דיגיטלי',                     why: 'מתאים לעסקים המנהלים תשלומים דיגיטליים ותקציבים',                    keywords: /ארנק|תשלום|pay|wallet|דיגיטל/i },
-  { id: 'vouchers',       label: 'תוכנית שוברים',                    why: 'מתאים לחברות המנפיקות שוברים, קופונים או כרטיסי מתנה',              keywords: /שובר|קופון|voucher|coupon/i },
-  { id: 'employee_gifts', label: 'מתנות לעובדים / מתנות לחגים',     why: 'מתאים לחברות המחפשות פתרון להענקת מתנות ומוטיבציה לצוות',          keywords: /עובד|employee|חג|gift|מתנה|staff|צוות/i },
-  { id: 'loyalty',        label: 'תוכנית נאמנות',                    why: 'מתאים לעסקי קמעונאות ומסחר הרוצים לשמר לקוחות ולפתח תגמולים',      keywords: /נאמנות|loyalty|נקודות|חנות|store|retail|מסחר|לקוח/i },
-  { id: 'prepaid_card',   label: 'כרטיס פרי-פייד / ממותג',          why: 'מתאים לבנקים וחברות פיננסיות המנפיקות כרטיסים ממותגים',            keywords: /כרטיס|card|בנק|bank|פרי.פייד|prepaid/i },
-  { id: 'payment',        label: 'עיבוד תשלומים לעסק שלי',          why: 'מתאים לעסקים הזקוקים לתשתית סליקה ועיבוד תשלומים',                  keywords: /תשלום|payment|סליקה|processing/i },
-  { id: 'not_sure',       label: 'עדיין לא בטוח',                    why: '',                                                                    keywords: null as RegExp | null },
+  { id: 'benefits_club',  labelHe: 'מועדון הטבות', labelEn: 'Benefits club', whyHe: 'מתאים לארגונים המבקשים לחבר קהילות ולהעניק הטבות לחברים', whyEn: 'For organizations that want to connect communities and offer member benefits.', keywords: /קהילה|עמותה|ארגון|חברים|מועדון/i },
+  { id: 'digital_wallet', labelHe: 'ארנק דיגיטלי', labelEn: 'Digital wallet', whyHe: 'מתאים לעסקים המנהלים תשלומים דיגיטליים ותקציבים', whyEn: 'For businesses managing digital payments and budgets.', keywords: /ארנק|תשלום|pay|wallet|דיגיטל/i },
+  { id: 'vouchers',       labelHe: 'תוכנית שוברים', labelEn: 'Voucher program', whyHe: 'מתאים לחברות המנפיקות שוברים, קופונים או כרטיסי מתנה', whyEn: 'For companies issuing vouchers, coupons, or gift cards.', keywords: /שובר|קופון|voucher|coupon/i },
+  { id: 'employee_gifts', labelHe: 'מתנות לעובדים / מתנות לחגים', labelEn: 'Employee gifts / holiday gifts', whyHe: 'מתאים לחברות המחפשות פתרון להענקת מתנות ומוטיבציה לצוות', whyEn: 'For companies sending employee gifts and team incentives.', keywords: /עובד|employee|חג|gift|מתנה|staff|צוות/i },
+  { id: 'loyalty',        labelHe: 'תוכנית נאמנות', labelEn: 'Loyalty program', whyHe: 'מתאים לעסקי קמעונאות ומסחר הרוצים לשמר לקוחות ולפתח תגמולים', whyEn: 'For retail and commerce businesses that want rewards and retention.', keywords: /נאמנות|loyalty|נקודות|חנות|store|retail|מסחר|לקוח/i },
+  { id: 'prepaid_card',   labelHe: 'כרטיס פרי-פייד / ממותג', labelEn: 'Prepaid / branded card', whyHe: 'מתאים לבנקים וחברות פיננסיות המנפיקות כרטיסים ממותגים', whyEn: 'For banks and financial companies issuing branded cards.', keywords: /כרטיס|card|בנק|bank|פרי.פייד|prepaid/i },
+  { id: 'payment',        labelHe: 'עיבוד תשלומים לעסק שלי', labelEn: 'Payment processing for my business', whyHe: 'מתאים לעסקים הזקוקים לתשתית סליקה ועיבוד תשלומים', whyEn: 'For businesses that need payment acceptance and processing.', keywords: /תשלום|payment|סליקה|processing/i },
+  { id: 'not_sure',       labelHe: 'עדיין לא בטוח', labelEn: 'Not sure yet', whyHe: '', whyEn: '', keywords: null as RegExp | null },
 ];
 
+const CONTACT_ROLES = [
+  { id: 'owner', he: 'בעלים', en: 'Owner' },
+  { id: 'ceo', he: 'מנכ"ל', en: 'CEO' },
+  { id: 'finance', he: 'כספים', en: 'Finance' },
+  { id: 'operations', he: 'תפעול', en: 'Operations' },
+  { id: 'marketing', he: 'שיווק', en: 'Marketing' },
+  { id: 'product', he: 'מוצר', en: 'Product' },
+  { id: 'developer', he: 'פיתוח', en: 'Developer' },
+  { id: 'other', he: 'אחר', en: 'Other' },
+] as const;
+
+const COPY = {
+  he: {
+    welcomeTitle: (firstName?: string) => firstName ? `ברוכים הבאים לנקסוס, ${firstName}.` : 'ברוכים הבאים לנקסוס.',
+    welcomeSubtitle: 'ספרו לנו קצת על הארגון שלכם כדי להתאים את הסביבה. תמיד ניתן לשנות זאת מאוחר יותר.',
+    orgNameLabel: 'שם הארגון',
+    orgNamePlaceholder: 'נקסוס בע"מ',
+    websiteLabel: 'אתר',
+    websitePlaceholder: 'www.example.com',
+    websiteError: 'כתובת האתר אינה תקינה',
+    businessLabel: 'איזה סוג עסק אתם ומה אתם מציעים?',
+    businessPlaceholder: 'לדוגמה: רשת קמעונאית המציעה מוצרי אלקטרוניקה ורוצה לפתח תוכנית נאמנות ללקוחות...',
+    step1Title: 'אלו הפתרונות שנראים הכי רלוונטיים לכם',
+    step1Sub: 'בחרו את כל האפשרויות הרלוונטיות',
+    suggested: 'מומלץ',
+    whyTitle: 'למה מומלץ?',
+    step2Title: 'כמה פרטים עליכם',
+    step2Sub: 'כל השדות נדרשים כדי ליצור סביבת עבודה מאובטחת.',
+    phoneLabel: 'טלפון',
+    phonePlaceholder: '+972 50-000-0000',
+    roleLabel: 'תפקיד',
+    rolePlaceholder: 'בחרו תפקיד',
+    back: 'חזרה',
+    skip: 'דלג לעת עתה',
+    continue: 'המשך',
+    finish: 'סיים הגדרה',
+    tooltipMsg: 'יש להשלים את כל השדות הנדרשים',
+  },
+  en: {
+    welcomeTitle: (firstName?: string) => firstName ? `Welcome to Nexus, ${firstName}.` : 'Welcome to Nexus.',
+    welcomeSubtitle: 'Tell us about your organization so we can tailor the workspace. You can change this later.',
+    orgNameLabel: 'Organization name',
+    orgNamePlaceholder: 'Nexus Ltd.',
+    websiteLabel: 'Website',
+    websitePlaceholder: 'www.example.com',
+    websiteError: 'Website is invalid',
+    businessLabel: 'What kind of business are you and what do you offer?',
+    businessPlaceholder: 'Example: A retail chain that sells electronics and wants to build a customer loyalty program...',
+    step1Title: 'Which solutions look most relevant?',
+    step1Sub: 'Select all relevant options',
+    suggested: 'Suggested',
+    whyTitle: 'Why suggested?',
+    step2Title: 'A few details about you',
+    step2Sub: 'All fields are required to create a secure workspace.',
+    phoneLabel: 'Phone',
+    phonePlaceholder: '+1 555-000-0000',
+    roleLabel: 'Role',
+    rolePlaceholder: 'Select role',
+    back: 'Back',
+    skip: 'Skip for now',
+    continue: 'Continue',
+    finish: 'Finish setup',
+    tooltipMsg: 'Complete all required fields to continue',
+  },
+} as const;
+
+/**
+ * Suggests use cases from the business description.
+ * Input: free-text business description.
+ * Output: matching use-case ids or conservative defaults.
+ */
 function getSuggested(desc: string): string[] {
   const matched = USE_CASES.filter(o => o.keywords && o.keywords.test(desc)).map(o => o.id);
   return matched.length > 0 ? matched : ['benefits_club', 'loyalty'];
 }
 
-// ── UI text ──────────────────────────────────────────────────────────────
-const c = {
-  welcomeTitle: (firstName?: string) => firstName ? `ברוכים הבאים לנקסוס, ${firstName}.` : 'ברוכים הבאים לנקסוס.',
-  welcomeSubtitle: 'ספרו לנו קצת על הארגון שלכם כדי להתאים את הסביבה. תמיד ניתן לשנות זאת מאוחר יותר.',
-  orgNameLabel: 'שם הארגון',
-  orgNamePlaceholder: 'נקסוס בע"מ',
-  websiteLabel: 'אתר',
-  websitePlaceholder: 'www.example.com',
-  websiteError: 'כתובת האתר אינה תקינה',
-  businessLabel: 'איזה סוג עסק אתם ומה אתם מציעים?',
-  businessPlaceholder: 'לדוגמה: רשת קמעונאית המציעה מוצרי אלקטרוניקה ורוצה לפתח תוכנית נאמנות ללקוחות...',
-  step1Title: 'אלו הפתרונות שנראים הכי רלוונטיים לכם',
-  step1Sub: 'בחרו את כל האפשרויות הרלוונטיות',
-  suggested: 'מומלץ',
-  whyTitle: 'למה מומלץ?',
-  step2Title: 'כמה פרטים עליכם',
-  step2Sub: 'כדי שנוכל להתאים את החוויה שלכם טוב יותר. שלב זה הוא אופציונלי.',
-  phoneLabel: 'טלפון',
-  phonePlaceholder: '+972 50-000-0000',
-  roleLabel: 'תפקיד',
-  rolePlaceholder: 'לדוגמה: מנכ"ל, מנהל שיווק...',
-  back: 'חזרה',
-  skip: 'דלג לעת עתה',
-  continue: 'המשך',
-  finish: 'סיים הגדרה',
-  tooltipMsg: 'אנחנו צריכים עוד פרטים כדי להתקדם',
-};
-
 // ── Component ──────────────────────────────────────────────────────────────
 interface OnboardingWizardProps {
   onComplete: (data: OnboardingData) => void;
   onBack: () => void;
+  onSkip: () => void;
   firstName?: string;
 }
 
-export default function OnboardingWizard({ onComplete, firstName }: OnboardingWizardProps) {
-  const direction = 'rtl';
+/**
+ * Collects workspace setup data across three short steps.
+ * Input: completion, back, and skip callbacks plus optional first name.
+ * Output: localized wizard UI that emits validated form data to the parent.
+ */
+export default function OnboardingWizard({ onComplete, onSkip, firstName }: OnboardingWizardProps) {
+  const { language, isRTL } = useLanguage();
+  const direction = isRTL ? 'rtl' : 'ltr';
+  const c = COPY[language];
   const useCases = USE_CASES;
 
   const [step, setStep] = useState(0);
@@ -106,9 +162,9 @@ export default function OnboardingWizard({ onComplete, firstName }: OnboardingWi
   };
 
   const canContinue =
-    step === 0 ? orgName.trim() !== '' && businessDesc.trim() !== '' && !websiteError :
+    step === 0 ? orgName.trim() !== '' && website.trim() !== '' && businessDesc.trim().length >= 20 && !websiteError :
     step === 1 ? primarySelected.length > 0 :
-    true; // step 2 is optional — always continuable
+    phone.trim() !== '' && role.trim() !== '';
 
   // ── Navigation ────────────────────────────────────────────────────────────
   const handleNext = () => {
@@ -132,21 +188,13 @@ export default function OnboardingWizard({ onComplete, firstName }: OnboardingWi
     }
   };
 
-  const handleSkip = () => {
-    if (step === 0) {
-      setPrimarySelected([]);
-      setPrimarySuggested([]);
-      setStep(1);
-    } else if (step === 1) {
-      setStep(2);
-    }
-  };
-
+  /** Moves the wizard one step back without losing entered data. */
   const handleBack = () => {
     if (step > 0) setStep(s => s - 1);
   };
 
   // ── Tooltip helpers ───────────────────────────────────────────────────────
+  /** Positions the disabled-button tooltip above the continue button. */
   const handleContinueEnter = () => {
     setShowTooltip(true);
     if (btnRef.current) {
@@ -155,6 +203,7 @@ export default function OnboardingWizard({ onComplete, firstName }: OnboardingWi
     }
   };
 
+  /** Positions the recommendation tooltip above the hovered info button. */
   const handleWhyEnter = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setHoveredWhyId(id);
@@ -199,7 +248,8 @@ export default function OnboardingWizard({ onComplete, firstName }: OnboardingWi
       {/* ── Fixed tooltip: "Why recommended?" ───────────────────────────── */}
       {hoveredWhyId && (() => {
         const opt = useCases.find(o => o.id === hoveredWhyId);
-        if (!opt?.why) return null;
+        const why = language === 'he' ? opt?.whyHe : opt?.whyEn;
+        if (!why) return null;
         return (
           <div
             style={{
@@ -215,7 +265,7 @@ export default function OnboardingWizard({ onComplete, firstName }: OnboardingWi
             dir={direction}
           >
             <div className="font-semibold text-indigo-300 mb-0.5">{c.whyTitle}</div>
-            {opt.why}
+            {why}
             <div className="absolute top-full left-1/2 -translate-x-1/2 border-[5px] border-transparent border-t-slate-800" />
           </div>
         );
@@ -363,10 +413,10 @@ export default function OnboardingWizard({ onComplete, firstName }: OnboardingWi
                         )}
                       </div>
 
-                      <span className="flex-1 leading-tight">{option.label}</span>
+                      <span className="flex-1 leading-tight">{language === 'he' ? option.labelHe : option.labelEn}</span>
 
                       {/* Suggested badge + why info button */}
-                      {isSuggested && option.why && (
+                      {isSuggested && (language === 'he' ? option.whyHe : option.whyEn) && (
                         <div className="flex items-center gap-1.5 shrink-0 ms-auto">
                           <span className="text-[10px] font-semibold text-indigo-500 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded-full">
                             {c.suggested}
@@ -423,13 +473,18 @@ export default function OnboardingWizard({ onComplete, firstName }: OnboardingWi
                 <label className="block text-[13px] font-medium text-slate-700 mb-1.5">
                   {c.roleLabel}
                 </label>
-                <input
-                  type="text"
+                <select
                   value={role}
                   onChange={e => setRole(e.target.value)}
-                  placeholder={c.rolePlaceholder}
                   className={inputNormal}
-                />
+                >
+                  <option value="">{c.rolePlaceholder}</option>
+                  {CONTACT_ROLES.map(option => (
+                    <option key={option.id} value={option.id}>
+                      {language === 'he' ? option.he : option.en}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
           </>
@@ -454,10 +509,10 @@ export default function OnboardingWizard({ onComplete, firstName }: OnboardingWi
         )}
 
         <div className="flex items-center gap-3">
-          {/* Skip — only on steps 0 and 1 */}
-          {step < TOTAL_STEPS - 1 && (
+          {/* Skip opens an explicit mode choice instead of deciding for the user. */}
+          {step === 0 && (
             <button
-              onClick={handleSkip}
+              onClick={onSkip}
               className="text-[14px] text-slate-400 hover:text-slate-600 transition-colors"
             >
               {c.skip}

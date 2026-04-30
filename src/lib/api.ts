@@ -188,6 +188,79 @@ export interface AdminUser {
   shippingPhone?: string;
 }
 
+export type OnboardingStep = 'workspace_setup' | 'workspace_setup_deferred' | 'business_setup' | null;
+export type DashboardMode = 'tenant' | 'regular_user' | 'workspace_setup_deferred' | 'needs_workspace_setup';
+export type SkipReason = 'regular_user' | 'complete_later';
+
+export interface DashboardMe {
+  user: {
+    id: string;
+    email: string;
+    name: string;
+  };
+  context: {
+    isTenant: boolean;
+    isMember: boolean;
+    mode: DashboardMode;
+    tenantId: string | null;
+    memberId: string | null;
+    role: string | null;
+  };
+  onboarding: {
+    required: boolean;
+    step: OnboardingStep;
+  };
+}
+
+export interface WorkspaceSetupInput {
+  organizationName: string;
+  website: string;
+  businessDescription: string;
+  selectedUseCases: string[];
+  contactPhone: string;
+  contactRole: string;
+}
+
+export interface WorkspaceSetupResponse {
+  success: true;
+  userType: 'tenant';
+  tenantId: string;
+  nextStep: 'business_setup';
+  redirectTo: string;
+}
+
+export interface SkipWorkspaceResponse {
+  success: true;
+  userType: 'tenant' | 'member' | 'deferred';
+  mode: DashboardMode;
+  memberId: string | null;
+  redirectTo: string;
+}
+
+export interface BusinessSetupResponse {
+  tenantId: string;
+  status: 'draft' | 'submitted' | 'approved' | 'rejected';
+  data: Record<string, unknown>;
+  updatedAt: string | null;
+}
+
+export const onboardingApi = {
+  me: () => request<DashboardMe>('GET', '/api/me'),
+  status: () => request<Pick<DashboardMe, 'context' | 'onboarding'>>('GET', '/api/onboarding/status'),
+  createWorkspace: (data: WorkspaceSetupInput) =>
+    request<WorkspaceSetupResponse>('POST', '/api/onboarding/workspace', data),
+  skipWorkspace: (skipReason: SkipReason) =>
+    request<SkipWorkspaceResponse>('POST', '/api/onboarding/skip', { skipReason }),
+};
+
+export const businessSetupApi = {
+  get: () => request<BusinessSetupResponse>('GET', '/api/business-setup'),
+  saveDraft: (data: Record<string, unknown>) =>
+    request<BusinessSetupResponse>('PATCH', '/api/business-setup', { data }),
+  submit: (data: Record<string, unknown>) =>
+    request<BusinessSetupResponse>('POST', '/api/business-setup', { data }),
+};
+
 export interface AdminUsersResponse {
   users: AdminUser[];
   total: number;
