@@ -1,6 +1,11 @@
-import { useRef, useEffect, useCallback } from 'react';
+/**
+ * Displays account actions for the authenticated dashboard user.
+ * The profile text comes from the website-backed dashboard auth context.
+ */
+import { useRef, useEffect, useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../i18n/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 
 interface UserPanelProps {
   isOpen: boolean;
@@ -11,8 +16,10 @@ interface UserPanelProps {
 
 const UserPanel = ({ isOpen, onClose, onLogout, anchorRef }: UserPanelProps) => {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const panelRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState({ top: 0, left: 0 });
 
   const PANEL_WIDTH = 260;
   const PANEL_HEIGHT = 220;
@@ -34,6 +41,12 @@ const UserPanel = ({ isOpen, onClose, onLogout, anchorRef }: UserPanelProps) => 
 
     return { top, left };
   }, [anchorRef]);
+
+  // Close on click outside
+  useEffect(() => {
+    if (!isOpen) return;
+    setPosition(getPosition());
+  }, [getPosition, isOpen]);
 
   // Close on click outside
   useEffect(() => {
@@ -62,7 +75,9 @@ const UserPanel = ({ isOpen, onClose, onLogout, anchorRef }: UserPanelProps) => 
 
   if (!isOpen) return null;
 
-  const pos = getPosition();
+  const displayName = user?.fullName || user?.email || 'User';
+  const displayEmail = user?.email || '';
+  const displayInitial = displayName.trim().charAt(0).toUpperCase() || '?';
 
   const menuItems = [
     { icon: 'manage_accounts', label: t('up_accountSettings'), action: () => { navigate('/settings'); onClose(); } },
@@ -74,16 +89,16 @@ const UserPanel = ({ isOpen, onClose, onLogout, anchorRef }: UserPanelProps) => 
     <div
       ref={panelRef}
       className="fixed bg-white dark:bg-card-dark rounded-xl shadow-lg border border-gray-100 dark:border-slate-700 z-[60] animate-in zoom-in overflow-hidden"
-      style={{ top: pos.top, left: pos.left, width: PANEL_WIDTH }}
+      style={{ top: position.top, left: position.left, width: PANEL_WIDTH }}
     >
       {/* User info */}
       <div className="p-4 flex items-center gap-3 bg-gradient-to-b from-violet-50 to-white">
         <div className="w-10 h-10 bg-gradient-to-br from-primary to-violet-400 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0">
-          {t('headerUserInitial')}
+          {displayInitial}
         </div>
         <div className="min-w-0">
-          <p className="text-[13px] font-semibold text-slate-800 truncate">{t('headerUserName')}</p>
-          <p className="text-[11px] text-slate-500 truncate">{t('up_userEmail')}</p>
+          <p className="text-[13px] font-semibold text-slate-800 truncate">{displayName}</p>
+          <p className="text-[11px] text-slate-500 truncate">{displayEmail}</p>
         </div>
       </div>
 

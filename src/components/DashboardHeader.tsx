@@ -1,6 +1,11 @@
-import { useState, useRef } from 'react';
+/**
+ * Renders the dashboard top bar and account controls.
+ * The user avatar button reads from the live dashboard auth context.
+ */
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../i18n/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 import SearchBar from './SearchBar';
 import NotificationsPanel from './NotificationsPanel';
 import InboxPanel from './InboxPanel';
@@ -16,16 +21,45 @@ interface DashboardHeaderProps {
   onChatToggle: () => void;
 }
 
+/**
+ * Returns a compact display name for user-facing labels.
+ * Input: optional full name and email from the authenticated user.
+ * Output: full name, email, or a neutral fallback.
+ */
+function getDisplayName(fullName?: string, email?: string): string {
+  return fullName?.trim() || email?.trim() || 'User';
+}
+
+/**
+ * Returns the first visible character for an avatar fallback.
+ * Input: display name or email.
+ * Output: uppercase single-character avatar text.
+ */
+function getDisplayInitial(label: string): string {
+  return label.trim().charAt(0).toUpperCase() || '?';
+}
+
 const DashboardHeader = ({ onLogout, isChatOpen, onChatToggle }: DashboardHeaderProps) => {
-  const { t } = useLanguage();
+  const { t, isRTL } = useLanguage();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [isLogoHovered, setIsLogoHovered] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isInboxOpen, setIsInboxOpen] = useState(false);
   const [isUserPanelOpen, setIsUserPanelOpen] = useState(false);
+  const [hasAvatarError, setHasAvatarError] = useState(false);
   const notificationsBtnRef = useRef<HTMLButtonElement>(null);
   const inboxBtnRef = useRef<HTMLButtonElement>(null);
   const userBtnRef = useRef<HTMLButtonElement>(null);
+  const displayName = getDisplayName(user?.fullName, user?.email);
+  const displayInitial = getDisplayInitial(displayName);
+  const userAvatarLabel = isRTL ? `פרופיל ${displayName}` : `${displayName} profile`;
+  const avatarUrl = user?.avatarUrl?.trim();
+  const shouldShowAvatarImage = Boolean(avatarUrl) && !hasAvatarError;
+
+  useEffect(() => {
+    setHasAvatarError(false);
+  }, [avatarUrl]);
 
   return (
     <>
@@ -73,9 +107,19 @@ const DashboardHeader = ({ onLogout, isChatOpen, onChatToggle }: DashboardHeader
                   ? 'ring-2 ring-[#635bff]'
                   : 'hover:ring-2 hover:ring-slate-300'
               } bg-gradient-to-br from-primary to-violet-400`}
-              title={t('headerUserName')}
+              title={userAvatarLabel}
+              aria-label={userAvatarLabel}
             >
-              <span className="text-white font-semibold text-[12px]">{t('headerUserInitial')}</span>
+              {shouldShowAvatarImage ? (
+                <img
+                  src={avatarUrl}
+                  alt=""
+                  className="h-full w-full object-cover"
+                  onError={() => setHasAvatarError(true)}
+                />
+              ) : (
+                <span className="text-white font-semibold text-[12px]">{displayInitial}</span>
+              )}
             </button>
           </div>
           <UserPanel

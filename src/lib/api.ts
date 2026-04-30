@@ -1,16 +1,26 @@
-// ─── Nexus Backend API client ─────────────────────────────────────
-// Connects to the shared nexus-website backend.
-// Set VITE_API_URL in .env (e.g. http://localhost:3001)
+/**
+ * Connects dashboard features to the shared Nexus backend with an in-memory
+ * access token and credentialed requests for the httpOnly refresh cookie.
+ */
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:3001';
 
-// In-memory token store (replace with proper auth context when integrating login)
 let _token: string | null = null;
 
+/**
+ * Updates the in-memory access token used by dashboard API requests.
+ * Input: access token string, or null to clear auth.
+ * Output: future requests include or omit the Bearer token.
+ */
 export function setToken(token: string | null) {
   _token = token;
 }
 
+/**
+ * Sends a typed JSON request to the backend API.
+ * Input: HTTP method, API path, and optional JSON body.
+ * Output: parsed JSON response or an Error when the backend rejects it.
+ */
 async function request<T>(
   method: string,
   path: string,
@@ -22,6 +32,7 @@ async function request<T>(
   const res = await fetch(`${BASE}${path}`, {
     method,
     headers,
+    credentials: 'include',
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 
