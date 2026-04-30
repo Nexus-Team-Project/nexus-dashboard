@@ -6,8 +6,8 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { setToken, type AdminUser } from '../lib/api';
 
-const AUTH_URL = import.meta.env.VITE_AUTH_URL ?? import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
-const WEBSITE_URL = import.meta.env.VITE_WEBSITE_URL ?? (import.meta.env.PROD ? 'https://nexus-payment.com' : 'http://localhost:3000');
+const AUTH_URL = import.meta.env.VITE_AUTH_URL ?? import.meta.env.VITE_API_URL ?? '';
+const WEBSITE_URL = import.meta.env.VITE_WEBSITE_URL ?? '';
 
 interface AuthResponse {
   accessToken: string;

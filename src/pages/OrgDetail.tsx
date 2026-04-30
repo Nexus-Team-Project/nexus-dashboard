@@ -235,7 +235,7 @@ function EditMemberModal({ slug, member, onClose, onUpdated }: EditMemberModalPr
 
 // ─── Invite Section ───────────────────────────────────────────────
 
-const INVITE_BASE = (import.meta.env.VITE_APP_URL as string | undefined) ?? 'http://localhost:5173';
+const INVITE_BASE = (import.meta.env.VITE_APP_URL as string | undefined) ?? '';
 const ROLE_LABELS_INVITE: Record<OrgRole, string> = { OWNER: 'בעלים', ADMIN: 'מנהל', MEMBER: 'חבר' };
 
 interface InviteSectionProps { slug: string }
