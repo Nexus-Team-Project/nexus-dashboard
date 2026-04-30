@@ -188,7 +188,9 @@ export interface AdminUser {
   shippingPhone?: string;
 }
 
-export type OnboardingStep = 'workspace_setup' | 'business_setup' | 'complete';
+export type OnboardingStep = 'workspace_setup' | 'workspace_setup_deferred' | 'business_setup' | null;
+export type DashboardMode = 'tenant' | 'regular_user' | 'workspace_setup_deferred' | 'needs_workspace_setup';
+export type SkipReason = 'regular_user' | 'complete_later';
 
 export interface DashboardMe {
   user: {
@@ -199,6 +201,7 @@ export interface DashboardMe {
   context: {
     isTenant: boolean;
     isMember: boolean;
+    mode: DashboardMode;
     tenantId: string | null;
     memberId: string | null;
     role: string | null;
@@ -228,7 +231,8 @@ export interface WorkspaceSetupResponse {
 
 export interface SkipWorkspaceResponse {
   success: true;
-  userType: 'tenant' | 'member';
+  userType: 'tenant' | 'member' | 'deferred';
+  mode: DashboardMode;
   memberId: string | null;
   redirectTo: string;
 }
@@ -245,7 +249,8 @@ export const onboardingApi = {
   status: () => request<Pick<DashboardMe, 'context' | 'onboarding'>>('GET', '/api/onboarding/status'),
   createWorkspace: (data: WorkspaceSetupInput) =>
     request<WorkspaceSetupResponse>('POST', '/api/onboarding/workspace', data),
-  skipWorkspace: () => request<SkipWorkspaceResponse>('POST', '/api/onboarding/skip'),
+  skipWorkspace: (skipReason: SkipReason) =>
+    request<SkipWorkspaceResponse>('POST', '/api/onboarding/skip', { skipReason }),
 };
 
 export const businessSetupApi = {

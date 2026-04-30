@@ -2,7 +2,7 @@
  * Defines the dashboard application shell, auth gate, and route tree.
  * The shell waits for real website-backed authentication before rendering data.
  */
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
 import { DevModeProvider } from './contexts/DevModeContext';
@@ -103,6 +103,23 @@ const MEMBER_COPY = {
   },
 } as const;
 
+const DEFERRED_COPY = {
+  he: {
+    badge: 'ההקמה ממתינה',
+    title: 'השלימו את הקמת סביבת העבודה כדי לפתוח את הדשבורד.',
+    body: 'אנליטיקות, נתוני עסק, קטלוג ופעולות ארגון ייפתחו רק אחרי יצירת סביבת עבודה.',
+    action: 'המשך הקמת סביבת עבודה',
+    signOut: 'התנתקות',
+  },
+  en: {
+    badge: 'Setup deferred',
+    title: 'Complete workspace setup to unlock your dashboard.',
+    body: 'Analytics, business data, catalog, and tenant actions unlock only after a workspace is created.',
+    action: 'Continue workspace setup',
+    signOut: 'Sign out',
+  },
+} as const;
+
 /**
  * Shows the non-tenant member state without mounting tenant analytics.
  * Input: logout callback for ending the authenticated session.
@@ -142,12 +159,66 @@ function MemberDashboardScreen({ onLogout }: { onLogout: () => Promise<void> }) 
 }
 
 /**
+ * Shows a locked state for users who deferred workspace setup.
+ * Input: continue callback and logout callback.
+ * Output: no tenant data is mounted; user can reopen setup.
+ */
+function DeferredWorkspaceScreen({
+  onContinue,
+  onLogout,
+}: {
+  onContinue: () => void;
+  onLogout: () => Promise<void>;
+}) {
+  const { language, isRTL } = useLanguage();
+  const copy = DEFERRED_COPY[language];
+
+  return (
+    <main
+      dir={isRTL ? 'rtl' : 'ltr'}
+      className="min-h-screen bg-[#edf1fc] px-6 py-8 text-slate-950"
+    >
+      <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-3xl items-center justify-center">
+        <section className="w-full rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
+          <div className="mb-5 inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+            {copy.badge}
+          </div>
+          <h1 className="text-2xl font-bold tracking-normal text-slate-950">
+            {copy.title}
+          </h1>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
+            {copy.body}
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={onContinue}
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
+            >
+              {copy.action}
+            </button>
+            <button
+              type="button"
+              onClick={() => void onLogout()}
+              className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+            >
+              {copy.signOut}
+            </button>
+          </div>
+        </section>
+      </div>
+    </main>
+  );
+}
+
+/**
  * Renders routes after authentication state has been resolved.
  * Input: none.
  * Output: authenticated dashboard routes or a loading/redirect route.
  */
 function AppRoutes() {
   const { user, isAuthenticated, isLoading, logout, me, reloadMe } = useAuth();
+  const [isDeferredSetupOpen, setIsDeferredSetupOpen] = useState(false);
   // Convert title attributes to data-tooltip for modern black tooltips
   useEffect(() => {
     const convertTitles = () => {
@@ -177,7 +248,8 @@ function AppRoutes() {
 
   if (!me) return <AuthLoadingScreen />;
 
-  const requiresWorkspaceSetup = me?.onboarding.required === true && me.onboarding.step === 'workspace_setup';
+  const requiresWorkspaceSetup = me.onboarding.required === true && me.onboarding.step === 'workspace_setup';
+  const isWorkspaceSetupDeferred = me.context.mode === 'workspace_setup_deferred';
   const canUseBusinessSetup = me?.context.isTenant === true;
   const firstName = user?.fullName?.split(/\s+/)[0] ?? me?.user.name?.split(/\s+/)[0];
 
@@ -189,6 +261,27 @@ function AppRoutes() {
         firstName={firstName}
         forceOpen
       />
+    );
+  }
+
+  if (isWorkspaceSetupDeferred) {
+    return (
+      <>
+        <DeferredWorkspaceScreen
+          onContinue={() => setIsDeferredSetupOpen(true)}
+          onLogout={logout}
+        />
+        {isDeferredSetupOpen && (
+          <WorkspaceSetupModal
+            onClose={() => setIsDeferredSetupOpen(false)}
+            onFinished={async () => {
+              setIsDeferredSetupOpen(false);
+              await reloadMe();
+            }}
+            firstName={firstName}
+          />
+        )}
+      </>
     );
   }
 

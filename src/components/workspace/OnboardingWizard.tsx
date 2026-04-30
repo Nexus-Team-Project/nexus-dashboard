@@ -509,7 +509,7 @@ export default function OnboardingWizard({ onComplete, onSkip, firstName }: Onbo
         )}
 
         <div className="flex items-center gap-3">
-          {/* Skip creates a member profile instead of a tenant workspace. */}
+          {/* Skip opens an explicit mode choice instead of deciding for the user. */}
           {step === 0 && (
             <button
               onClick={onSkip}

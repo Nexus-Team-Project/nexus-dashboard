@@ -8,7 +8,8 @@ import OnboardingWizard from './OnboardingWizard';
 import SetupAnimation from './SetupAnimation';
 import ScheduleStep from './ScheduleStep';
 import type { OnboardingData } from './OnboardingWizard';
-import { onboardingApi } from '../../lib/api';
+import nexusBlackLogo from '../../assets/logos/Nexus_wide_logo_blak.png';
+import { onboardingApi, type SkipReason } from '../../lib/api';
 import { useLanguage } from '../../i18n/LanguageContext';
 
 interface WorkspaceSetupModalProps {
@@ -18,7 +19,24 @@ interface WorkspaceSetupModalProps {
   forceOpen?: boolean;
 }
 
-type Phase = 'wizard' | 'animation' | 'schedule';
+type Phase = 'wizard' | 'skip_choice' | 'animation' | 'schedule';
+
+const SKIP_COPY = {
+  he: {
+    title: 'איך תרצו להמשיך?',
+    body: 'אפשר להמשיך כמשתמש רגיל או לשמור את הקמת סביבת העבודה להמשך.',
+    regularUser: 'אני רוצה להמשיך כמשתמש רגיל',
+    completeLater: 'אני רוצה להשלים את הקמת העסק / הארגון מאוחר יותר',
+    back: 'חזרה',
+  },
+  en: {
+    title: 'How would you like to continue?',
+    body: 'You can continue as a regular user or come back to workspace setup later.',
+    regularUser: 'I want to continue as a regular user',
+    completeLater: 'I want to complete business/workspace setup later',
+    back: 'Back',
+  },
+} as const;
 
 const WorkspaceSetupModal = ({ onClose, onFinished, firstName, forceOpen = false }: WorkspaceSetupModalProps) => {
   const navigate = useNavigate();
@@ -26,6 +44,7 @@ const WorkspaceSetupModal = ({ onClose, onFinished, firstName, forceOpen = false
   const savingText = language === 'he' ? 'שומר...' : 'Saving...';
   const setupErrorText = language === 'he' ? 'שמירת סביבת העבודה נכשלה' : 'Workspace setup failed';
   const skipErrorText = language === 'he' ? 'הדילוג נכשל' : 'Skip failed';
+  const skipCopy = SKIP_COPY[language];
   const [phase, setPhase] = useState<Phase>('wizard');
   const [, setOnboardingData] = useState<OnboardingData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -88,15 +107,15 @@ const WorkspaceSetupModal = ({ onClose, onFinished, firstName, forceOpen = false
   };
 
   /**
-   * Creates a member profile instead of a tenant workspace.
-   * Input: none.
-   * Output: backend member context is persisted and the modal closes.
+   * Persists the explicit skip choice selected by the user.
+   * Input: skip reason chosen in the localized choice screen.
+   * Output: backend onboarding state is updated and the modal closes.
    */
-  const handleSkip = async () => {
+  const handleSkipChoice = async (skipReason: SkipReason) => {
     setIsSubmitting(true);
     setError(null);
     try {
-      await onboardingApi.skipWorkspace();
+      await onboardingApi.skipWorkspace(skipReason);
       await onFinished?.();
       onClose();
       navigate('/');
@@ -105,6 +124,16 @@ const WorkspaceSetupModal = ({ onClose, onFinished, firstName, forceOpen = false
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  /**
+   * Opens the explicit skip choice screen instead of choosing a mode for the user.
+   * Input: none.
+   * Output: local modal phase changes.
+   */
+  const handleSkip = () => {
+    setError(null);
+    setPhase('skip_choice');
   };
 
   return (
@@ -132,6 +161,49 @@ const WorkspaceSetupModal = ({ onClose, onFinished, firstName, forceOpen = false
                 {isSubmitting ? savingText : <span className="text-red-600">{error}</span>}
               </div>
             )}
+          </div>
+        )}
+
+        {phase === 'skip_choice' && (
+          <div className="ws-modal" dir={language === 'he' ? 'rtl' : 'ltr'}>
+            <div className="flex items-center justify-between border-b border-slate-100 px-8 py-4" dir="ltr">
+              <img src={nexusBlackLogo} alt="Nexus" className="h-10 w-auto object-contain" />
+            </div>
+            <div className="ws-content flex items-center justify-center">
+              <section className="w-full max-w-2xl">
+                <h1 className="text-[24px] font-bold text-slate-950">{skipCopy.title}</h1>
+                <p className="mt-2 text-[14px] leading-6 text-slate-500">{skipCopy.body}</p>
+                <div className="mt-8 grid gap-3">
+                  <button
+                    type="button"
+                    onClick={() => void handleSkipChoice('regular_user')}
+                    disabled={isSubmitting}
+                    className="rounded-lg border border-slate-200 bg-white px-5 py-4 text-start text-sm font-semibold text-slate-900 transition-colors hover:border-emerald-300 hover:bg-emerald-50 disabled:opacity-60"
+                  >
+                    {skipCopy.regularUser}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleSkipChoice('complete_later')}
+                    disabled={isSubmitting}
+                    className="rounded-lg border border-slate-200 bg-white px-5 py-4 text-start text-sm font-semibold text-slate-900 transition-colors hover:border-indigo-300 hover:bg-indigo-50 disabled:opacity-60"
+                  >
+                    {skipCopy.completeLater}
+                  </button>
+                </div>
+                {error && <p className="mt-4 text-sm font-medium text-red-600">{error}</p>}
+              </section>
+            </div>
+            <div className="ws-footer-between">
+              <button
+                type="button"
+                onClick={() => setPhase('wizard')}
+                className="text-[14px] text-slate-400 transition-colors hover:text-slate-600"
+              >
+                {skipCopy.back}
+              </button>
+              {isSubmitting && <span className="text-sm text-slate-500">{savingText}</span>}
+            </div>
           </div>
         )}
 
