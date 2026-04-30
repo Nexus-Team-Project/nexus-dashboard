@@ -2,7 +2,7 @@
  * Defines the dashboard application shell, auth gate, and route tree.
  * The shell waits for real website-backed authentication before rendering data.
  */
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { LanguageProvider } from './i18n/LanguageContext';
 import { DevModeProvider } from './contexts/DevModeContext';
@@ -14,13 +14,7 @@ import Content from './pages/Content';
 import Settings from './pages/Settings';
 import RolesPermissions from './pages/RolesPermissions';
 import InviteCollaborators from './pages/InviteCollaborators';
-import Login from './pages/Login';
-import Signup from './pages/Signup';
-import ForgotPassword from './pages/ForgotPassword';
-import ResetPassword from './pages/ResetPassword';
-import AddTeamMembers from './pages/AddTeamMembers';
 import Lobby from './pages/Lobby';
-import CompanySetup from './pages/CompanySetup';
 import PointsGifts from './pages/PointsGifts';
 import SendGiftEvent from './pages/SendGiftEvent';
 import SendGiftBrands from './pages/SendGiftBrands';
@@ -29,7 +23,6 @@ import SendGiftRecipients from './pages/SendGiftRecipients';
 import SendGiftSummary from './pages/SendGiftSummary';
 import BenefitsPartnerships from './pages/BenefitsPartnerships';
 import EditBenefit from './pages/EditBenefit';
-import Loader from './pages/Loader';
 import ApiDocs from './pages/ApiDocs';
 import Organizations from './pages/Organizations';
 import OrgDetail from './pages/OrgDetail';
@@ -39,6 +32,8 @@ import CreateProject from './pages/CreateProject';
 import Transactions from './pages/Transactions';
 import DevPlayground from './pages/DevPlayground';
 import BusinessSetupPage from './pages/BusinessSetupPage';
+
+const WEBSITE_URL = import.meta.env.VITE_WEBSITE_URL ?? 'http://localhost:3000';
 
 /**
  * Shows a small neutral loading surface while the dashboard restores auth.
@@ -56,12 +51,49 @@ function AuthLoadingScreen() {
 }
 
 /**
+ * Builds the external website login URL used by dashboard auth redirects.
+ * Input: none.
+ * Output: absolute website login URL.
+ */
+function getWebsiteLoginUrl(): string {
+  return new URL('/login', WEBSITE_URL).toString();
+}
+
+/**
+ * Shows a branded transition while unauthenticated dashboard visitors leave.
+ * Input: none.
+ * Output: full-screen redirect state and a browser navigation to website login.
+ */
+function WebsiteLoginRedirectScreen() {
+  useEffect(() => {
+    window.location.replace(getWebsiteLoginUrl());
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-[#edf1fc] flex items-center justify-center px-6 text-slate-800">
+      <div className="w-full max-w-sm rounded-lg border border-slate-200 bg-white px-6 py-5 shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="h-10 w-10 rounded-lg bg-slate-950 text-white flex items-center justify-center font-semibold">
+            N
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-slate-950">Redirecting to sign in</p>
+            <p className="mt-1 text-xs text-slate-500">Your session needs to be restored on Nexus.</p>
+          </div>
+          <div className="ml-auto h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
  * Renders routes after authentication state has been resolved.
  * Input: none.
  * Output: authenticated dashboard routes or a loading/redirect route.
  */
 function AppRoutes() {
-  const { user, isAuthenticated, isLoading, logout } = useAuth();
+  const { isAuthenticated, isLoading, logout } = useAuth();
   // Convert title attributes to data-tooltip for modern black tooltips
   useEffect(() => {
     const convertTitles = () => {
@@ -79,70 +111,13 @@ function AppRoutes() {
     return () => observer.disconnect();
   }, []);
 
-  const [isOnboarding, setIsOnboarding] = useState(false);
-  const [isSetupLoading, setIsSetupLoading] = useState(false);
-  const userName = user?.fullName?.split(' ')[0] ?? 'there';
-  const userImage = user?.avatarUrl ?? undefined;
-
-  /**
-   * Starts the local legacy login loader.
-   * Input: none.
-   * Output: setup loading route is shown.
-   */
-  const handleLogin = () => {
-    setIsSetupLoading(true);
-  };
-
-  /**
-   * Starts the local onboarding route group.
-   * Input: none.
-   * Output: onboarding routes replace the dashboard routes.
-   */
-  const handleSignup = () => {
-    setIsOnboarding(true);
-  };
-
-  /**
-   * Finishes local onboarding and shows the loader before the dashboard.
-   * Input: none.
-   * Output: onboarding state is cleared and setup loading starts.
-   */
-  const handleCompleteOnboarding = () => {
-    setIsOnboarding(false);
-    setIsSetupLoading(true);
-  };
-
-  /**
-   * Finishes the legacy loader.
-   * Input: none.
-   * Output: dashboard routes render again.
-   */
-  const handleLoadingComplete = () => {
-    setIsSetupLoading(false);
-  };
-
   if (isLoading) return <AuthLoadingScreen />;
 
   return (
     <Routes>
-          {isSetupLoading ? (
+          {!isAuthenticated ? (
             <>
-              <Route path="/loader" element={<Loader onComplete={handleLoadingComplete} userName={userName} userImage={userImage} />} />
-              <Route path="*" element={<Navigate to="/loader" replace />} />
-            </>
-          ) : !isAuthenticated && !isOnboarding ? (
-            <>
-              <Route path="/login" element={<Login onLogin={handleLogin} />} />
-              <Route path="/signup" element={<Signup onSignup={handleSignup} />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="*" element={<Navigate to="/login" replace />} />
-            </>
-          ) : isOnboarding ? (
-            <>
-              <Route path="/company-setup" element={<CompanySetup onComplete={() => {}} />} />
-              <Route path="/add-team-members" element={<AddTeamMembers onComplete={handleCompleteOnboarding} />} />
-              <Route path="*" element={<Navigate to="/company-setup" replace />} />
+              <Route path="*" element={<WebsiteLoginRedirectScreen />} />
             </>
           ) : (
             <>
