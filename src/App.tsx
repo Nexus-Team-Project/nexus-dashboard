@@ -32,6 +32,7 @@ import CreateProject from './pages/CreateProject';
 import Transactions from './pages/Transactions';
 import DevPlayground from './pages/DevPlayground';
 import BusinessSetupPage from './pages/BusinessSetupPage';
+import WorkspaceSetupModal from './components/workspace/WorkspaceSetupModal';
 
 const WEBSITE_URL = import.meta.env.VITE_WEBSITE_URL ?? 'http://localhost:3000';
 
@@ -93,7 +94,7 @@ function WebsiteLoginRedirectScreen() {
  * Output: authenticated dashboard routes or a loading/redirect route.
  */
 function AppRoutes() {
-  const { isAuthenticated, isLoading, logout } = useAuth();
+  const { user, isAuthenticated, isLoading, logout, me, reloadMe } = useAuth();
   // Convert title attributes to data-tooltip for modern black tooltips
   useEffect(() => {
     const convertTitles = () => {
@@ -113,8 +114,21 @@ function AppRoutes() {
 
   if (isLoading) return <AuthLoadingScreen />;
 
+  const requiresWorkspaceSetup = me?.onboarding.required === true && me.onboarding.step === 'workspace_setup';
+  const canUseBusinessSetup = me?.context.isTenant === true;
+  const firstName = user?.fullName?.split(/\s+/)[0] ?? me?.user.name?.split(/\s+/)[0];
+
   return (
-    <Routes>
+    <>
+      {requiresWorkspaceSetup && (
+        <WorkspaceSetupModal
+          onClose={() => undefined}
+          onFinished={reloadMe}
+          firstName={firstName}
+          forceOpen
+        />
+      )}
+      <Routes>
           {!isAuthenticated ? (
             <>
               <Route path="*" element={<WebsiteLoginRedirectScreen />} />
@@ -122,8 +136,8 @@ function AppRoutes() {
           ) : (
             <>
               <Route path="/api-docs" element={<ApiDocs />} />
-              <Route path="/business-setup" element={<BusinessSetupPage />} />
-              <Route path="/" element={<DashboardLayout onLogout={logout} />}>
+              <Route path="/business-setup" element={canUseBusinessSetup ? <BusinessSetupPage /> : <Navigate to="/" replace />} />
+              <Route path="/" element={<DashboardLayout onLogout={logout} showBusinessSetup={canUseBusinessSetup} />}>
                 <Route index element={<Home />} />
                 <Route path="projects" element={<Lobby />} />
                 <Route path="projects/new" element={<CreateProject />} />
@@ -151,7 +165,8 @@ function AppRoutes() {
               </Route>
             </>
           )}
-    </Routes>
+      </Routes>
+    </>
   );
 }
 

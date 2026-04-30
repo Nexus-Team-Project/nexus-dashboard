@@ -4,7 +4,7 @@
  * restoring refresh-cookie sessions, and exposing the current user to pages.
  */
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
-import { setToken, type AdminUser } from '../lib/api';
+import { onboardingApi, setToken, type AdminUser, type DashboardMe } from '../lib/api';
 
 const AUTH_URL = import.meta.env.VITE_AUTH_URL ?? import.meta.env.VITE_API_URL ?? '';
 const WEBSITE_URL = import.meta.env.VITE_WEBSITE_URL ?? 'http://localhost:3000';
@@ -20,6 +20,8 @@ interface AuthContextValue {
   user: AdminUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  me: DashboardMe | null;
+  reloadMe: () => Promise<DashboardMe | null>;
   logout: () => Promise<void>;
   refreshSession: () => Promise<void>;
 }
@@ -86,7 +88,24 @@ function replaceDashboardPath(path: string): void {
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AdminUser | null>(null);
+  const [me, setMe] = useState<DashboardMe | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  /**
+   * Loads backend-owned tenant/member context for the authenticated user.
+   * Input: none.
+   * Output: `/api/me` response stored in context, or null when unavailable.
+   */
+  const reloadMe = useCallback(async () => {
+    try {
+      const data = await onboardingApi.me();
+      setMe(data);
+      return data;
+    } catch {
+      setMe(null);
+      return null;
+    }
+  }, []);
 
   /**
    * Loads the current profile with a fresh access token.
@@ -103,11 +122,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!res.ok) throw new Error('Failed to fetch user');
       const data = await res.json();
       setUser(data);
+      await reloadMe();
     } catch {
       setUser(null);
+      setMe(null);
       setToken(null);
     }
-  }, []);
+  }, [reloadMe]);
 
   /**
    * Restores or rotates the dashboard session from the httpOnly refresh cookie.
@@ -128,11 +149,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         await fetchUser(data.accessToken);
       }
+      await reloadMe();
     } catch {
       setUser(null);
+      setMe(null);
       setToken(null);
     }
-  }, [fetchUser]);
+  }, [fetchUser, reloadMe]);
 
   /**
    * Revokes the refresh cookie and sends the user back to website login.
@@ -146,6 +169,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Logout should still clear local state if the backend is unavailable.
     }
     setUser(null);
+    setMe(null);
     setToken(null);
     redirectToWebsiteLogin();
   }, []);
@@ -171,6 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             } else {
               await fetchUser(data.accessToken);
             }
+            await reloadMe();
             replaceDashboardPath(redirect);
             return;
           }
@@ -185,7 +210,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void initializeAuth().finally(() => {
       setIsLoading(false);
     });
-  }, [fetchUser, refreshSession]);
+  }, [fetchUser, refreshSession, reloadMe]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -201,6 +226,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         isAuthenticated: !!user,
         isLoading,
+        me,
+        reloadMe,
         logout,
         refreshSession,
       }}

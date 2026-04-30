@@ -11,9 +11,10 @@ import SetupBanner from '../components/business-setup/SetupBanner';
 
 interface DashboardLayoutProps {
   onLogout: () => void;
+  showBusinessSetup?: boolean;
 }
 
-const DashboardLayout = ({ onLogout }: DashboardLayoutProps) => {
+const DashboardLayout = ({ onLogout, showBusinessSetup = false }: DashboardLayoutProps) => {
   const { isRTL } = useLanguage();
   const { isDevMode } = useDevMode();
   const [sidebarState, setSidebarState] = useState<SidebarState>('open');
@@ -35,7 +36,7 @@ const DashboardLayout = ({ onLogout }: DashboardLayoutProps) => {
         <div className="w-2 shrink-0" />
         {/* Full page (banner + header + sidebar + content) */}
         <div className="flex-1 min-w-0 flex flex-col transition-all duration-300 ease-in-out">
-          <SetupBanner />
+          {showBusinessSetup && <SetupBanner />}
           {/* Stripe-style rounded corners — thin decorative strip that overlaps the orange banner */}
           <div className="h-2 -mt-2 rounded-t-2xl bg-[#edf1fc] dark:bg-background-dark relative z-[1] shrink-0" />
           <DashboardHeader onLogout={onLogout} isChatOpen={isChatOpen} onChatToggle={() => setIsChatOpen(!isChatOpen)} />
@@ -77,7 +78,7 @@ const DashboardLayout = ({ onLogout }: DashboardLayoutProps) => {
         </div>
       </div>
       <BottomToolbar />
-      <BusinessSetupGuide />
+      {showBusinessSetup && <BusinessSetupGuide />}
     </div>
   );
 };

@@ -1,39 +1,110 @@
+/**
+ * Hosts the workspace setup flow and persists onboarding choices to backend APIs.
+ * The backend remains the source of truth for tenant/member status.
+ */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import OnboardingWizard from './OnboardingWizard';
 import SetupAnimation from './SetupAnimation';
 import ScheduleStep from './ScheduleStep';
 import type { OnboardingData } from './OnboardingWizard';
+import { onboardingApi } from '../../lib/api';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 interface WorkspaceSetupModalProps {
   onClose: () => void;
+  onFinished?: () => Promise<unknown> | unknown;
+  firstName?: string;
+  forceOpen?: boolean;
 }
 
 type Phase = 'wizard' | 'animation' | 'schedule';
 
-const WorkspaceSetupModal = ({ onClose }: WorkspaceSetupModalProps) => {
+const WorkspaceSetupModal = ({ onClose, onFinished, firstName, forceOpen = false }: WorkspaceSetupModalProps) => {
   const navigate = useNavigate();
+  const { language } = useLanguage();
+  const savingText = language === 'he' ? 'שומר...' : 'Saving...';
+  const setupErrorText = language === 'he' ? 'שמירת סביבת העבודה נכשלה' : 'Workspace setup failed';
+  const skipErrorText = language === 'he' ? 'הדילוג נכשל' : 'Skip failed';
   const [phase, setPhase] = useState<Phase>('wizard');
   const [, setOnboardingData] = useState<OnboardingData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleWizardComplete = (data: OnboardingData) => {
+  /**
+   * Creates a tenant workspace through the protected backend API.
+   * Input: validated wizard data.
+   * Output: tenant onboarding context is persisted and animation begins.
+   */
+  const handleWizardComplete = async (data: OnboardingData) => {
+    setIsSubmitting(true);
+    setError(null);
     setOnboardingData(data);
-    console.log('📦 Workspace setup data:', data);
-    setPhase('animation');
+    try {
+      await onboardingApi.createWorkspace({
+        organizationName: data.org_name,
+        website: data.website,
+        businessDescription: data.business_desc,
+        selectedUseCases: data.primary_use_cases,
+        contactPhone: data.phone,
+        contactRole: data.role,
+      });
+      await onFinished?.();
+      setPhase('animation');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : setupErrorText);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
+  /**
+   * Advances from setup animation to the optional schedule screen.
+   * Input: none.
+   * Output: local modal phase changes.
+   */
   const handleAnimationComplete = () => {
     setPhase('schedule');
   };
 
+  /**
+   * Closes onboarding and keeps the user in the dashboard.
+   * Input: none.
+   * Output: modal closes and dashboard route is selected.
+   */
   const handleExplore = () => {
     onClose();
     navigate('/');
   };
 
+  /**
+   * Closes onboarding after the schedule step.
+   * Input: none.
+   * Output: modal closes and dashboard route is selected.
+   */
   const handleSchedule = () => {
     onClose();
     navigate('/');
+  };
+
+  /**
+   * Creates a member profile instead of a tenant workspace.
+   * Input: none.
+   * Output: backend member context is persisted and the modal closes.
+   */
+  const handleSkip = async () => {
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      await onboardingApi.skipWorkspace();
+      await onFinished?.();
+      onClose();
+      navigate('/');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : skipErrorText);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -49,11 +120,19 @@ const WorkspaceSetupModal = ({ onClose }: WorkspaceSetupModalProps) => {
         style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '7vh 1rem', overflowY: 'auto' }}
       >
         {phase === 'wizard' && (
-          <OnboardingWizard
-            onComplete={handleWizardComplete}
-            onBack={onClose}
-            firstName="רז"
-          />
+          <div className="relative w-full flex justify-center">
+            <OnboardingWizard
+              onComplete={handleWizardComplete}
+              onBack={onClose}
+              onSkip={handleSkip}
+              firstName={firstName}
+            />
+            {(isSubmitting || error) && (
+              <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-[120] rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm shadow-lg">
+                {isSubmitting ? savingText : <span className="text-red-600">{error}</span>}
+              </div>
+            )}
+          </div>
         )}
 
         {phase === 'animation' && (
@@ -70,6 +149,7 @@ const WorkspaceSetupModal = ({ onClose }: WorkspaceSetupModalProps) => {
 
       {/* ── Shared modal card styles ──────────────────────────────────── */}
       <style>{`
+        ${forceOpen ? '.ws-modal { pointer-events: auto; }' : ''}
         .ws-modal {
           background: #ffffff;
           border-radius: 12px;
