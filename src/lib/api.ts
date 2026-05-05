@@ -206,6 +206,12 @@ export interface DashboardMe {
     memberId: string | null;
     role: string | null;
   };
+  authorization: {
+    tenantRole: string | null;
+    platformRole: 'nexusAdmin' | null;
+    canSeeDevMode: boolean;
+    canUseDevPlayground: boolean;
+  };
   onboarding: {
     required: boolean;
     step: OnboardingStep;

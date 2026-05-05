@@ -1,8 +1,12 @@
+/**
+ * Renders the dashboard sidebar navigation, recent shortcuts, and gated Dev Mode entry.
+ */
 import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useRecentPages, PAGE_META } from '../hooks/useRecentPages';
 import { useDevMode } from '../contexts/DevModeContext';
+import { useAuth } from '../contexts/AuthContext';
 
 export type SidebarState = 'open' | 'collapsed' | 'closed';
 
@@ -31,6 +35,8 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
   const [shortcutsExpanded, setShortcutsExpanded] = useState(false);
   const { recentPages, togglePin } = useRecentPages();
   const { isDevMode, toggleDevMode } = useDevMode();
+  const { me } = useAuth();
+  const canSeeDevMode = me?.authorization.canSeeDevMode === true;
 
   const DEFAULT_SHORTCUTS_COUNT = 5;
   const visibleShortcuts = shortcutsExpanded
@@ -482,6 +488,7 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
         </div>
 
         {/* Dev Mode Toggle */}
+        {canSeeDevMode && (
         <div className="pt-4 mt-3">
           <button
             onClick={toggleDevMode}
@@ -529,6 +536,7 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
             </NavLink>
           )}
         </div>
+        )}
       </nav>
 
 
