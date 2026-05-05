@@ -30,7 +30,7 @@ import SmsCampaign from './pages/SmsCampaign';
 import Inbox from './pages/Inbox';
 import CreateProject from './pages/CreateProject';
 import Transactions from './pages/Transactions';
-import DevPlayground from './pages/DevPlayground';
+import DevPlaygroundRoute from './pages/DevPlaygroundRoute';
 import BusinessSetupPage from './pages/BusinessSetupPage';
 import WorkspaceSetupModal from './components/workspace/WorkspaceSetupModal';
 
@@ -320,7 +320,7 @@ function AppRoutes() {
         <Route path="settings" element={<Settings />} />
         <Route path="settings/roles-permissions" element={<RolesPermissions />} />
         <Route path="settings/roles-permissions/invite" element={<InviteCollaborators />} />
-        <Route path="dev" element={<DevPlayground />} />
+        <Route path="dev" element={<DevPlaygroundRoute />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
