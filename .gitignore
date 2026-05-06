@@ -7,6 +7,13 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Database backups and restore artifacts
+backups/
+*.dump
+*.archive
+*.bson
+*.sql.gz
+
 node_modules
 dist
 dist-ssr
@@ -25,3 +32,5 @@ dist-ssr
 nul
 
 .env
+
+AGENTS.md
