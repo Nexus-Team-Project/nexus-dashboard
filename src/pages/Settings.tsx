@@ -1,7 +1,12 @@
+/**
+ * Renders dashboard settings tiles and hides tenant member-management settings
+ * unless the backend grants the current user member-management permission.
+ */
 import { useState, useEffect } from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useNavigate } from 'react-router-dom';
 import type { Language } from '../i18n/translations';
+import { useAuth } from '../contexts/AuthContext';
 
 interface SettingsTile {
   id: string;
@@ -16,6 +21,8 @@ const Settings = () => {
   const [loading, setLoading] = useState(true);
   const { t, language, setLanguage } = useLanguage();
   const navigate = useNavigate();
+  const { me } = useAuth();
+  const canManageMembers = me?.authorization.canManageMembers === true;
 
   // Simulate loading
   useEffect(() => {
@@ -26,14 +33,14 @@ const Settings = () => {
   }, []);
 
   const settingsTiles: SettingsTile[] = [
-    {
+    ...(canManageMembers ? [{
       id: 'roles',
       title: 'תפקידים והרשאות',
       description: 'נהל תפקידי משתמשים והרשאות גישה למערכת',
       icon: 'shield',
       color: 'bg-gradient-to-br from-violet-500 to-violet-600',
       path: '/settings/roles-permissions'
-    },
+    }] : []),
     {
       id: 'general',
       title: 'הגדרות כלליות',

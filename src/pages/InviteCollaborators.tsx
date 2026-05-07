@@ -1,356 +1,349 @@
-import { useState, useEffect } from 'react';
+/**
+ * Lets tenant admins invite one member or bulk upload a .txt email list.
+ * Each row has its own role selector and permission preview before sending.
+ */
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+import {
+  tenantMembersApi,
+  type BulkTenantMemberInviteResult,
+  type TenantRole,
+  type TenantRolePermissions,
+} from '../lib/api';
+import { getTenantRoleLabel, parseEmails, TENANT_ROLE_COPY, TENANT_ROLE_ORDER } from '../lib/tenantRoles';
+import { useLanguage } from '../i18n/LanguageContext';
 
-interface RoleCategory {
+interface InviteRow {
   id: string;
-  title: string;
-  description: string;
-  icon: string;
-  iconColor: string;
-  bgColor: string;
-  roles?: string[];
+  email: string;
+  role: TenantRole;
+  status: 'draft' | 'pending' | 'failed';
+  error?: string;
 }
 
-const InviteCollaborators = () => {
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [emails, setEmails] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+const COPY = {
+  he: {
+    back: 'חזרה',
+    title: 'הזמן חברי tenant',
+    body: 'הוסף אימייל אחד, הדבק כמה אימיילים, או העלה קובץ txt. לכל אימייל אפשר לבחור תפקיד.',
+    manual: 'הוסף אימייל',
+    manualPlaceholder: 'name@example.com',
+    add: 'הוסף',
+    upload: 'העלה קובץ txt',
+    email: 'אימייל',
+    role: 'תפקיד',
+    permissions: 'הרשאות',
+    remove: 'הסר',
+    send: 'שלח הזמנות',
+    sending: 'שולח...',
+    cancel: 'ביטול',
+    empty: 'עדיין אין אימיילים להזמנה.',
+    sent: 'נשלח',
+    pending: 'ממתין לאישור',
+    draft: 'טיוטה',
+    failed: 'נכשל',
+    invalid: 'לא נמצא אימייל תקין.',
+    successToast: 'ההזמנות נשלחו',
+    failedToast: 'חלק מההזמנות נכשלו',
+  },
+  en: {
+    back: 'Back',
+    title: 'Invite tenant members',
+    body: 'Add one email, paste many emails, or upload a txt file. Each email can receive its own role.',
+    manual: 'Add email',
+    manualPlaceholder: 'name@example.com',
+    add: 'Add',
+    upload: 'Upload txt file',
+    email: 'Email',
+    role: 'Role',
+    permissions: 'Permissions',
+    remove: 'Remove',
+    send: 'Send invites',
+    sending: 'Sending...',
+    cancel: 'Cancel',
+    empty: 'No invite emails yet.',
+    sent: 'Sent',
+    pending: 'Invite pending',
+    draft: 'Draft',
+    failed: 'Failed',
+    invalid: 'No valid email found.',
+    successToast: 'Invites sent',
+    failedToast: 'Some invites failed',
+  },
+} as const;
 
-  // Simulate loading
+/**
+ * Creates invite rows from emails while keeping existing row choices.
+ * Input: existing rows, parsed emails, and default role.
+ * Output: merged rows with unique email addresses.
+ */
+function mergeRows(existingRows: InviteRow[], emails: string[], defaultRole: TenantRole): InviteRow[] {
+  const existing = new Set(existingRows.map((row) => row.email));
+  const newRows = emails
+    .filter((email) => !existing.has(email))
+    .map((email) => ({
+      id: `${email}_${crypto.randomUUID()}`,
+      email,
+      role: defaultRole,
+      status: 'draft' as const,
+    }));
+  return [...existingRows, ...newRows];
+}
+
+/**
+ * Renders the tenant member invite form.
+ * Input: none.
+ * Output: single and bulk invite UI connected to Mongo-backed v1 APIs.
+ */
+export default function InviteCollaborators() {
+  const navigate = useNavigate();
+  const { language, isRTL } = useLanguage();
+  const copy = COPY[language];
+  const [rows, setRows] = useState<InviteRow[]>([]);
+  const [roles, setRoles] = useState<TenantRolePermissions[]>([]);
+  const [manualEmail, setManualEmail] = useState('');
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isSending, setIsSending] = useState(false);
+
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 1500);
-    return () => clearTimeout(timer);
+    /**
+     * Loads available role permissions from the backend.
+     * Input: current authenticated tenant admin session.
+     * Output: role permission cards and dropdown choices.
+     */
+    const loadRoles = async () => {
+      const result = await tenantMembersApi.roles();
+      setRoles(result.roles);
+    };
+
+    void loadRoles().catch((error) => setSubmitError(error instanceof Error ? error.message : 'Failed to load roles'));
   }, []);
 
-  const roleCategories: RoleCategory[] = [
-    {
-      id: 'cms',
-      title: 'CMS Roles',
-      description: 'Manage site content, blog posts, and dynamic data',
-      icon: 'description',
-      iconColor: 'text-primary',
-      bgColor: 'bg-violet-50 dark:bg-violet-900/20'
-    },
-    {
-      id: 'general',
-      title: 'General Roles',
-      description: 'Admin, Owner, and basic site contributor access',
-      icon: 'dashboard',
-      iconColor: 'text-gray-500',
-      bgColor: 'bg-gray-50 dark:bg-gray-800'
-    },
-    {
-      id: 'billing',
-      title: 'Billing Roles',
-      description: 'Manage subscriptions, invoices, and payment methods',
-      icon: 'payments',
-      iconColor: 'text-emerald-600',
-      bgColor: 'bg-emerald-50 dark:bg-emerald-900/20'
-    },
-    {
-      id: 'marketing',
-      title: 'Marketing & Customer Management',
-      description: 'SEO, analytics, and customer communication tools',
-      icon: 'campaign',
-      iconColor: 'text-orange-600',
-      bgColor: 'bg-orange-50 dark:bg-orange-900/20'
-    },
-    {
-      id: 'stores',
-      title: 'Stores Roles',
-      description: 'Product management, orders, and fulfillment',
-      icon: 'storefront',
-      iconColor: 'text-sky-600',
-      bgColor: 'bg-sky-50 dark:bg-sky-900/20'
+  const permissionsByRole = useMemo(() => {
+    return new Map(roles.map((role) => [role.role, role.permissions]));
+  }, [roles]);
+
+  /**
+   * Adds parsed emails into the invite table.
+   * Input: free text from input, paste, or file.
+   * Output: rows state updated or validation error shown.
+   */
+  const addEmails = (value: string) => {
+    const emails = parseEmails(value);
+    if (emails.length === 0) {
+      setSubmitError(copy.invalid);
+      return;
     }
-  ];
-
-  const handleSendInvite = () => {
-    // Handle send invite logic here
-    console.log('Sending invite to:', emails);
-    navigate('/settings/roles-permissions');
+    setRows((current) => mergeRows(current, emails, 'member'));
+    setManualEmail('');
+    setSubmitError(null);
   };
 
-  const handleCancel = () => {
-    navigate('/settings/roles-permissions');
+  /**
+   * Reads a .txt file and extracts email addresses from it.
+   * Input: browser file input change event.
+   * Output: parsed email rows.
+   */
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    const text = await file.text();
+    addEmails(text);
   };
 
-  const toggleCategory = (categoryId: string) => {
-    setExpandedCategory(expandedCategory === categoryId ? null : categoryId);
+  /**
+   * Updates the role for one invite row.
+   * Input: row id and selected role.
+   * Output: rows state with the selected role.
+   */
+  const updateRole = (rowId: string, role: TenantRole) => {
+    setRows((current) => current.map((row) => (row.id === rowId ? { ...row, role } : row)));
   };
 
-  if (loading) {
-    return (
-      <div className="max-w-5xl mx-auto animate-pulse">
-        {/* Skeleton Header */}
-        <header className="mb-8">
-          {/* Skeleton Breadcrumb */}
-          <nav className="flex items-center gap-2 mb-4">
-            <div className="h-3 w-16 bg-slate-200 dark:bg-slate-700 rounded"></div>
-            <div className="h-3 w-24 bg-slate-200 dark:bg-slate-700 rounded"></div>
-            <div className="h-3 w-32 bg-slate-200 dark:bg-slate-700 rounded"></div>
-          </nav>
+  /**
+   * Sends all draft invite rows through single or bulk API.
+   * Input: current table rows.
+   * Output: row statuses reflect backend results and emails are sent.
+   */
+  const sendInvites = async () => {
+    const draftRows = rows.filter((row) => row.status !== 'pending');
+    if (draftRows.length === 0) return;
+    setIsSending(true);
+    setSubmitError(null);
 
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-slate-200 dark:bg-slate-700 rounded-full"></div>
-              <div>
-                <div className="h-9 w-64 bg-slate-200 dark:bg-slate-700 rounded-lg mb-2"></div>
-                <div className="h-4 w-96 bg-slate-200 dark:bg-slate-700 rounded"></div>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-24 bg-slate-200 dark:bg-slate-700 rounded-full"></div>
-              <div className="h-10 w-32 bg-slate-200 dark:bg-slate-700 rounded-full"></div>
-            </div>
-          </div>
-        </header>
+    try {
+      const payload = draftRows.map((row) => ({
+        email: row.email,
+        role: row.role,
+        language,
+        sendEmail: true,
+      }));
+      const response = payload.length === 1
+        ? { results: [{ email: payload[0].email, ok: true, result: await tenantMembersApi.invite(payload[0]) }] }
+        : await tenantMembersApi.bulkInvite(payload, language);
+      applyResults(response.results);
+      const failedCount = response.results.filter((result) => !result.ok).length;
+      if (failedCount > 0) {
+        toast.error(copy.failedToast, { description: `${failedCount}/${response.results.length}` });
+      } else {
+        toast.success(copy.successToast, { description: `${response.results.length}` });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to send invites';
+      setSubmitError(message);
+      toast.error(copy.failedToast, { description: message });
+    } finally {
+      setIsSending(false);
+    }
+  };
 
-        <div className="space-y-6">
-          {/* Skeleton Banner */}
-          <section className="bg-white dark:bg-card-dark p-6 rounded-xl border border-slate-200 dark:border-slate-800">
-            <div className="h-5 w-64 bg-slate-200 dark:bg-slate-700 rounded mb-3"></div>
-            <div className="w-full md:max-w-md h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full mb-2"></div>
-            <div className="h-3 w-80 bg-slate-200 dark:bg-slate-700 rounded"></div>
-          </section>
-
-          {/* Skeleton Emails Section */}
-          <section className="bg-white dark:bg-card-dark p-8 rounded-xl border border-slate-200 dark:border-slate-800">
-            <div className="flex items-center justify-between mb-4">
-              <div className="h-6 w-32 bg-slate-200 dark:bg-slate-700 rounded"></div>
-              <div className="h-4 w-24 bg-slate-200 dark:bg-slate-700 rounded"></div>
-            </div>
-            <div className="h-4 w-64 bg-slate-200 dark:bg-slate-700 rounded mb-4"></div>
-            <div className="h-14 w-full bg-slate-200 dark:bg-slate-700 rounded-xl"></div>
-          </section>
-
-          {/* Skeleton Select Roles Section */}
-          <section className="bg-white dark:bg-card-dark rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-            {/* Skeleton Header */}
-            <div className="p-8 border-b border-slate-200 dark:border-slate-800">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex-1">
-                  <div className="h-6 w-40 bg-slate-200 dark:bg-slate-700 rounded mb-2"></div>
-                  <div className="h-4 w-full max-w-lg bg-slate-200 dark:bg-slate-700 rounded mb-2"></div>
-                  <div className="h-3 w-full max-w-md bg-slate-200 dark:bg-slate-700 rounded"></div>
-                </div>
-                <div className="h-10 w-64 bg-slate-200 dark:bg-slate-700 rounded-full"></div>
-              </div>
-            </div>
-
-            {/* Skeleton Role Categories */}
-            <div className="divide-y divide-slate-200 dark:divide-slate-800">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="p-6 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-slate-200 dark:bg-slate-700 rounded-lg"></div>
-                    <div>
-                      <div className="h-5 w-40 bg-slate-200 dark:bg-slate-700 rounded mb-2"></div>
-                      <div className="h-3 w-64 bg-slate-200 dark:bg-slate-700 rounded"></div>
-                    </div>
-                  </div>
-                  <div className="w-6 h-6 bg-slate-200 dark:bg-slate-700 rounded"></div>
-                </div>
-              ))}
-            </div>
-
-            {/* Skeleton Create Custom Role */}
-            <div className="p-8 bg-slate-50 dark:bg-slate-800/20 border-t border-slate-200 dark:border-slate-800">
-              <div className="flex items-start gap-3">
-                <div className="w-6 h-6 bg-slate-200 dark:bg-slate-700 rounded"></div>
-                <div className="flex-1">
-                  <div className="h-4 w-48 bg-slate-200 dark:bg-slate-700 rounded mb-2"></div>
-                  <div className="h-3 w-full max-w-md bg-slate-200 dark:bg-slate-700 rounded"></div>
-                </div>
-              </div>
-            </div>
-          </section>
-        </div>
-      </div>
+  /**
+   * Applies backend bulk results to the visible rows.
+   * Input: per-email success or failure results.
+   * Output: row status and errors update in place.
+   */
+  const applyResults = (results: BulkTenantMemberInviteResult[]) => {
+    const byEmail = new Map(results.map((result) => [result.email, result]));
+    setRows((current) =>
+      current.map((row) => {
+        const result = byEmail.get(row.email);
+        if (!result) return row;
+        return result.ok
+          ? { ...row, status: 'pending', error: undefined }
+          : { ...row, status: 'failed', error: result.error ?? copy.failed };
+      }),
     );
-  }
+  };
 
   return (
-    <div className="max-w-5xl mx-auto">
-      {/* Header */}
-      <header className="mb-8">
-        {/* Breadcrumb */}
-        <nav className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400 mb-4">
-          <button onClick={() => navigate('/settings')} className="hover:text-primary transition-colors">
-            הגדרות
+    <div dir={isRTL ? 'rtl' : 'ltr'} className="mx-auto max-w-6xl space-y-6">
+      <header className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div>
+          <button
+            type="button"
+            onClick={() => navigate('/settings/roles-permissions')}
+            className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-primary"
+          >
+            <span className="material-icons text-lg">{isRTL ? 'arrow_forward' : 'arrow_back'}</span>
+            {copy.back}
           </button>
-          <span className="material-icons text-sm">chevron_left</span>
-          <button onClick={() => navigate('/settings/roles-permissions')} className="hover:text-primary transition-colors">
-            תפקידים והרשאות
+          <h1 className="text-3xl font-bold tracking-normal text-slate-950 dark:text-white">{copy.title}</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">{copy.body}</p>
+        </div>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => navigate('/settings/roles-permissions')}
+            className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+          >
+            {copy.cancel}
           </button>
-          <span className="material-icons text-sm">chevron_left</span>
-          <span className="text-slate-900 dark:text-white">הזמן משתפי פעולה</span>
-        </nav>
-
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={handleCancel}
-              className="p-2 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-full transition-colors"
-            >
-              <span className="material-icons">arrow_forward</span>
-            </button>
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">הזמן משתפי פעולה לאתר</h1>
-              <p className="text-slate-500 dark:text-slate-400 mt-1">
-                הזמן משתפי פעולה לעבוד באתר זה והקצה את התפקידים וההרשאות שלהם.{' '}
-                <a className="text-primary hover:underline" href="#">למד עוד</a>
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleCancel}
-              className="px-6 py-2.5 text-sm font-semibold border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-full hover:bg-gray-50 dark:hover:bg-gray-700 transition-all shadow-sm"
-            >
-              ביטול
-            </button>
-            <button
-              onClick={handleSendInvite}
-              className="px-8 py-2.5 text-sm font-semibold bg-primary text-white rounded-full hover:opacity-90 transition-all shadow-lg shadow-violet-500/20"
-            >
-              שלח הזמנה
-            </button>
-          </div>
+          <button
+            type="button"
+            disabled={isSending || rows.length === 0}
+            onClick={() => void sendInvites()}
+            className="rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isSending ? copy.sending : copy.send}
+          </button>
         </div>
       </header>
 
-      <div className="space-y-6">
-        {/* Collaborator Seats Banner */}
-        <section className="bg-white dark:bg-card-dark p-6 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-sm font-semibold">נותרו 2 מקומות למשתפי פעולה</span>
-              <span className="material-icons text-slate-500 text-sm cursor-help">info</span>
-            </div>
-            <div className="w-full md:max-w-md bg-gray-100 dark:bg-gray-800 h-1.5 rounded-full overflow-hidden">
-              <div className="bg-amber-400 h-full rounded-full" style={{ width: '80%' }}></div>
-            </div>
-            <div className="flex justify-between md:max-w-md mt-2">
-              <p className="text-xs text-slate-500 dark:text-slate-400">התוכנית הנוכחית שלך מאפשרת 10 מקומות למשתפי פעולה.</p>
-              <span className="text-xs font-medium text-slate-500">8/10</span>
-            </div>
-          </div>
-          <button className="px-5 py-2 text-sm font-medium border border-purple-200 dark:border-purple-900 text-purple-600 dark:text-purple-400 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors">
-            שדרג תוכנית
+      {submitError && <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{submitError}</div>}
+
+      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-card-dark">
+        <label className="mb-2 block text-sm font-semibold text-slate-800 dark:text-white">{copy.manual}</label>
+        <div className="flex flex-col gap-3 md:flex-row">
+          <input
+            value={manualEmail}
+            onChange={(event) => setManualEmail(event.target.value)}
+            onPaste={(event) => {
+              const pasted = event.clipboardData.getData('text');
+              if (parseEmails(pasted).length > 1) {
+                event.preventDefault();
+                addEmails(pasted);
+              }
+            }}
+            className="min-h-11 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-900"
+            placeholder={copy.manualPlaceholder}
+            type="email"
+          />
+          <button type="button" onClick={() => addEmails(manualEmail)} className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white">
+            {copy.add}
           </button>
-        </section>
+          <label className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:text-slate-200">
+            <span className="material-icons text-lg ltr:mr-2 rtl:ml-2">upload_file</span>
+            {copy.upload}
+            <input type="file" accept=".txt,text/plain" onChange={(event) => void handleFileChange(event)} className="sr-only" />
+          </label>
+        </div>
+      </section>
 
-        {/* Emails Section */}
-        <section className="bg-white dark:bg-card-dark p-8 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold">כתובות אימייל</h2>
-            <span className="text-xs text-slate-500 dark:text-slate-400">0/10 אימיילים</span>
-          </div>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">הזן את כתובות האימייל של משתפי הפעולה שלך:</p>
-          <div className="relative">
-            <input
-              value={emails}
-              onChange={(e) => setEmails(e.target.value)}
-              className="w-full px-4 py-4 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-600"
-              placeholder="name@example.com"
-              type="text"
-            />
-          </div>
-        </section>
-
-        {/* Select Roles Section */}
-        <section className="bg-white dark:bg-card-dark rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
-          {/* Header */}
-          <div className="p-8 border-b border-gray-100 dark:border-gray-800">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-3">
-                  <h2 className="text-xl font-bold">בחר תפקידים</h2>
-                  <button className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:bg-violet-50 dark:hover:bg-violet-900/20 px-2 py-1 rounded-md transition-colors">
-                    <span className="material-icons text-base">auto_awesome</span>
-                    עזור לי לבחור תפקיד
-                  </button>
-                </div>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
-                  בחר תפקיד אחד או יותר עבור האנשים שאתה מזמין. לכל תפקיד יש הרשאות שונות.<br />
-                  <span className="text-xs opacity-75">אינך יכול להקצות תפקידים הכוללים הרשאות שאין לך. <a className="text-primary hover:underline" href="#">למד עוד</a></span>
-                </p>
-              </div>
-              <div className="relative">
-                <span className="material-icons absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xl">search</span>
-                <input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pr-10 pl-4 py-2.5 w-full md:w-64 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-                  placeholder="חפש תפקידים"
-                  type="text"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Role Categories */}
-          <div className="divide-y divide-gray-100 dark:divide-gray-800">
-            {roleCategories.map((category) => (
-              <div key={category.id} className="accordion-item">
-                <button
-                  onClick={() => toggleCategory(category.id)}
-                  className="w-full flex items-center justify-between p-6 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-right group"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={`w-10 h-10 rounded-lg ${category.bgColor} flex items-center justify-center`}>
-                      <span className={`material-icons ${category.iconColor}`}>{category.icon}</span>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-slate-900 dark:text-white">{category.title}</h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">{category.description}</p>
-                    </div>
-                  </div>
-                  <span className={`material-icons text-slate-500 group-hover:text-primary transition-all ${expandedCategory === category.id ? 'rotate-180' : ''}`}>
-                    expand_more
-                  </span>
-                </button>
-              </div>
-            ))}
-          </div>
-
-          {/* Create Custom Role */}
-          <div className="p-8 bg-gray-50/50 dark:bg-gray-800/20 border-t border-gray-100 dark:border-gray-800">
-            <button className="flex items-start gap-3 text-right group">
-              <div className="mt-0.5 w-6 h-6 rounded bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
-                <span className="material-icons text-sm font-bold">add</span>
-              </div>
-              <div>
-                <span className="text-sm font-bold text-primary block group-hover:underline">צור תפקיד מותאם אישית</span>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">תפקידים מותאמים אישית מאפשרים לך ליצור תפקיד עם כל שילוב של הרשאות שאתה צריך.</p>
-              </div>
-            </button>
-          </div>
-        </section>
-      </div>
-
-      {/* Mobile Fixed Bottom Buttons */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 p-4 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 flex gap-3 shadow-2xl">
-        <button
-          onClick={handleCancel}
-          className="flex-1 py-3 text-sm font-semibold border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-full"
-        >
-          ביטול
-        </button>
-        <button
-          onClick={handleSendInvite}
-          className="flex-1 py-3 text-sm font-semibold bg-primary text-white rounded-full shadow-lg"
-        >
-          שלח הזמנה
-        </button>
-      </div>
+      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-card-dark">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[820px] text-sm">
+            <thead className="bg-slate-50 text-slate-500 dark:bg-slate-900/40">
+              <tr>
+                <th className="px-5 py-3 text-start font-semibold">{copy.email}</th>
+                <th className="px-5 py-3 text-start font-semibold">{copy.role}</th>
+                <th className="px-5 py-3 text-start font-semibold">{copy.permissions}</th>
+                <th className="px-5 py-3 text-start font-semibold">Status</th>
+                <th className="px-5 py-3" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {rows.map((row) => {
+                const permissions = permissionsByRole.get(row.role) ?? [];
+                return (
+                  <tr key={row.id}>
+                    <td className="px-5 py-4 font-medium text-slate-950 dark:text-white">{row.email}</td>
+                    <td className="px-5 py-4">
+                      <select
+                        value={row.role}
+                        onChange={(event) => updateRole(row.id, event.target.value as TenantRole)}
+                        disabled={row.status === 'pending'}
+                        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
+                      >
+                        {TENANT_ROLE_ORDER.map((role) => (
+                          <option key={role} value={role}>{getTenantRoleLabel(role, language)}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-5 py-4 text-xs text-slate-500">
+                      <p className="font-medium text-slate-700 dark:text-slate-300">
+                        {TENANT_ROLE_COPY[row.role][language === 'he' ? 'descriptionHe' : 'descriptionEn']}
+                      </p>
+                      <p className="mt-1">{permissions.slice(0, 4).join(', ') || '-'}</p>
+                    </td>
+                    <td className="px-5 py-4">
+                      {row.status === 'pending' && <span className="rounded-full bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">{copy.pending}</span>}
+                      {row.status === 'failed' && <span className="rounded-full bg-red-50 px-2 py-1 text-xs font-semibold text-red-700">{row.error ?? copy.failed}</span>}
+                      {row.status === 'draft' && <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">{copy.draft}</span>}
+                    </td>
+                    <td className="px-5 py-4 text-end">
+                      <button
+                        type="button"
+                        disabled={row.status === 'pending'}
+                        onClick={() => setRows((current) => current.filter((item) => item.id !== row.id))}
+                        className="rounded-lg px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 disabled:opacity-40"
+                      >
+                        {copy.remove}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-5 py-10 text-center text-sm text-slate-500">{copy.empty}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
-};
-
-export default InviteCollaborators;
+}

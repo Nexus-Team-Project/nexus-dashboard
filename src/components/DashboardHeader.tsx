@@ -2,7 +2,7 @@
  * Renders the dashboard top bar and account controls.
  * The user avatar button reads from the live dashboard auth context.
  */
-import { useEffect, useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -19,6 +19,7 @@ interface DashboardHeaderProps {
   onLogout: () => void;
   isChatOpen: boolean;
   onChatToggle: () => void;
+  onMenuToggle: () => void;
 }
 
 /**
@@ -39,7 +40,7 @@ function getDisplayInitial(label: string): string {
   return label.trim().charAt(0).toUpperCase() || '?';
 }
 
-const DashboardHeader = ({ onLogout, isChatOpen, onChatToggle }: DashboardHeaderProps) => {
+const DashboardHeader = ({ onLogout, isChatOpen, onChatToggle, onMenuToggle }: DashboardHeaderProps) => {
   const { t, isRTL } = useLanguage();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -47,7 +48,7 @@ const DashboardHeader = ({ onLogout, isChatOpen, onChatToggle }: DashboardHeader
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isInboxOpen, setIsInboxOpen] = useState(false);
   const [isUserPanelOpen, setIsUserPanelOpen] = useState(false);
-  const [hasAvatarError, setHasAvatarError] = useState(false);
+  const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null);
   const notificationsBtnRef = useRef<HTMLButtonElement>(null);
   const inboxBtnRef = useRef<HTMLButtonElement>(null);
   const userBtnRef = useRef<HTMLButtonElement>(null);
@@ -55,11 +56,7 @@ const DashboardHeader = ({ onLogout, isChatOpen, onChatToggle }: DashboardHeader
   const displayInitial = getDisplayInitial(displayName);
   const userAvatarLabel = isRTL ? `פרופיל ${displayName}` : `${displayName} profile`;
   const avatarUrl = user?.avatarUrl?.trim();
-  const shouldShowAvatarImage = Boolean(avatarUrl) && !hasAvatarError;
-
-  useEffect(() => {
-    setHasAvatarError(false);
-  }, [avatarUrl]);
+  const shouldShowAvatarImage = Boolean(avatarUrl) && failedAvatarUrl !== avatarUrl;
 
   return (
     <>
@@ -92,9 +89,17 @@ const DashboardHeader = ({ onLogout, isChatOpen, onChatToggle }: DashboardHeader
           filter: drop-shadow(0 0 12px rgba(59, 130, 246, 0.8));
         }
       `}</style>
-      <header className="bg-[#edf1fc] dark:bg-background-dark h-12 flex items-center px-6 sticky top-0 z-50">
+      <header className="bg-[#edf1fc] dark:bg-background-dark min-h-12 flex items-center gap-2 px-3 sm:px-4 lg:px-6 sticky top-0 z-50">
+        <button
+          type="button"
+          onClick={onMenuToggle}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-800 lg:hidden"
+          aria-label={isRTL ? 'פתח ניווט' : 'Open navigation'}
+        >
+          <span className="material-symbols-rounded !text-[22px]">menu</span>
+        </button>
         {/* All buttons and user profile at far left */}
-        <div className="flex items-center gap-1">
+        <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto no-scrollbar">
           <div className="relative me-1 shrink-0">
             <div className="absolute -start-1.5 -bottom-1 w-4 h-4 rounded-full bg-white border border-slate-200 flex items-center justify-center z-10 overflow-hidden">
               <img src={orgLogo} alt="Organization" className="w-3 h-3 object-contain" />
@@ -115,7 +120,7 @@ const DashboardHeader = ({ onLogout, isChatOpen, onChatToggle }: DashboardHeader
                   src={avatarUrl}
                   alt=""
                   className="h-full w-full object-cover"
-                  onError={() => setHasAvatarError(true)}
+                  onError={() => setFailedAvatarUrl(avatarUrl ?? null)}
                 />
               ) : (
                 <span className="text-white font-semibold text-[12px]">{displayInitial}</span>
@@ -188,7 +193,7 @@ const DashboardHeader = ({ onLogout, isChatOpen, onChatToggle }: DashboardHeader
           >
             <span className="material-symbols-rounded !text-[20px]">settings</span>
           </button>
-          <button className="text-primary hover:text-white hover:bg-primary text-[12px] font-semibold flex items-center gap-1 px-2 py-1 rounded-md transition-colors leading-none" title={t('headerUpgrade')}>
+          <button className="hidden text-primary hover:text-white hover:bg-primary text-[12px] font-semibold sm:flex items-center gap-1 px-2 py-1 rounded-md transition-colors leading-none" title={t('headerUpgrade')}>
             <span className="material-symbols-rounded !text-[16px]">diamond</span>
             {t('headerUpgrade')}
           </button>
@@ -196,7 +201,7 @@ const DashboardHeader = ({ onLogout, isChatOpen, onChatToggle }: DashboardHeader
         </div>
 
         {/* Logo at far right */}
-        <div className="flex items-center ms-auto -me-2">
+        <div className="hidden items-center ms-auto -me-2 sm:flex">
           <div
             className="cursor-pointer transition-transform duration-300 hover:scale-105"
             onMouseEnter={() => setIsLogoHovered(true)}

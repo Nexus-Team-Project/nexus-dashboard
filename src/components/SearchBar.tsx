@@ -1,6 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+/**
+ * Renders the dashboard command search and hides member-management results
+ * unless the backend-derived authorization allows them.
+ */
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../i18n/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 
 interface SearchResult {
   id: string;
@@ -16,8 +21,12 @@ interface SearchResult {
   relevanceScore: number;
 }
 
+const MEMBER_MANAGEMENT_RESULT_IDS = new Set(['users', 'roles-permissions', 'invite-collaborators']);
+
 const SearchBar = () => {
   const { t, language } = useLanguage();
+  const { me } = useAuth();
+  const canManageMembers = me?.authorization.canManageMembers === true;
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -26,10 +35,9 @@ const SearchBar = () => {
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
-  const location = useLocation();
 
   // Search content database
-  const searchDatabase: SearchResult[] = [
+  const searchDatabase = useMemo<SearchResult[]>(() => [
     // Main Pages
     {
       id: 'home',
@@ -214,7 +222,7 @@ const SearchBar = () => {
       icon: 'edit',
       relevanceScore: 0
     }
-  ];
+  ], []);
 
   // Fuzzy search algorithm
   const fuzzySearch = (searchTerm: string, text: string): number => {
@@ -236,14 +244,23 @@ const SearchBar = () => {
     return (score / searchTerm.length) * 50;
   };
 
+  const handleNavigate = useCallback((path: string) => {
+    navigate(path);
+    setIsOpen(false);
+    setQuery('');
+    setIsExpanded(false);
+  }, [navigate]);
+
   // Search function
-  const performSearch = (searchQuery: string) => {
+  const performSearch = useCallback((searchQuery: string) => {
     if (!searchQuery.trim()) {
       setResults([]);
       return;
     }
 
-    const searchResults = searchDatabase.map(item => {
+    const searchResults = searchDatabase
+    .filter((item) => canManageMembers || !MEMBER_MANAGEMENT_RESULT_IDS.has(item.id))
+    .map(item => {
       const isHebrew = language === 'he';
       const title = isHebrew ? item.titleHe : item.title;
       const description = isHebrew ? item.descriptionHe : item.description;
@@ -264,7 +281,7 @@ const SearchBar = () => {
 
     setResults(searchResults);
     setSelectedIndex(0);
-  };
+  }, [canManageMembers, language, searchDatabase]);
 
   // Handle search input
   useEffect(() => {
@@ -273,7 +290,7 @@ const SearchBar = () => {
     }, 150);
 
     return () => clearTimeout(debounce);
-  }, [query, language]);
+  }, [query, performSearch]);
 
   // Handle keyboard navigation
   useEffect(() => {
@@ -312,7 +329,7 @@ const SearchBar = () => {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, results, selectedIndex]);
+  }, [handleNavigate, isOpen, results, selectedIndex]);
 
   // Handle click outside
   useEffect(() => {
@@ -327,20 +344,6 @@ const SearchBar = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  // Close search when route changes
-  useEffect(() => {
-    setIsOpen(false);
-    setQuery('');
-    setIsExpanded(false);
-  }, [location.pathname]);
-
-  const handleNavigate = (path: string) => {
-    navigate(path);
-    setIsOpen(false);
-    setQuery('');
-    setIsExpanded(false);
-  };
 
   const getTypeLabel = (type: string) => {
     const labels = {
