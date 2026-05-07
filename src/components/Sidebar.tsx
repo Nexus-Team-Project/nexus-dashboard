@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../i18n/LanguageContext';
+import type { TranslationKey } from '../i18n/translations';
 import { useRecentPages, PAGE_META } from '../hooks/useRecentPages';
 import { useDevMode } from '../contexts/DevModeContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -25,7 +26,7 @@ interface NavItem {
   moreButton?: boolean;
 }
 
-const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
+const Sidebar = ({ state, onStateChange }: SidebarProps) => {
   const { t, isRTL } = useLanguage();
   const navigate = useNavigate();
   const [expandedMenus, setExpandedMenus] = useState<string[]>(['products']);
@@ -37,11 +38,15 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
   const { isDevMode, toggleDevMode } = useDevMode();
   const { me } = useAuth();
   const canSeeDevMode = me?.authorization.canSeeDevMode === true;
+  const canManageMembers = me?.authorization.canManageMembers === true;
 
   const DEFAULT_SHORTCUTS_COUNT = 5;
+  const permittedRecentPages = recentPages.filter((page) =>
+    canManageMembers || (page.path !== '/users' && page.path !== '/settings/roles-permissions')
+  );
   const visibleShortcuts = shortcutsExpanded
-    ? recentPages
-    : recentPages.slice(0, DEFAULT_SHORTCUTS_COUNT);
+    ? permittedRecentPages
+    : permittedRecentPages.slice(0, DEFAULT_SHORTCUTS_COUNT);
 
   const toggleSubmenu = (label: string) => {
     setExpandedMenus((prev) =>
@@ -98,7 +103,7 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
   // Main navigation items (before Products section)
   const mainNavItems: NavItem[] = [
     { to: '/', icon: 'home', label: t('dashboard') },
-    { to: '/users', icon: 'people_alt', label: t('users') },
+    ...(canManageMembers ? [{ to: '/users', icon: 'people_alt', label: t('users') }] : []),
     { to: '/transactions', icon: 'receipt_long', label: t('transactions') },
     { to: '/product-catalog', icon: 'inventory_2', label: t('productCatalog') },
     { to: '/balances', icon: 'account_balance_wallet', label: t('balances') },
@@ -190,53 +195,6 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
     </NavLink>
   );
 
-  const renderSubmenu = (item: NavItem) => (
-    <div key={item.label}>
-      <button
-        onClick={() => toggleSubmenu(item.label)}
-        className={`w-full flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 text-[#676879] hover:bg-slate-200 ${
-          isCollapsed ? 'justify-center' : ''
-        }`}
-        title={isCollapsed ? item.label : undefined}
-      >
-        <span className="material-symbols-rounded !text-[16px]">{item.icon}</span>
-        {isOpen && (
-          <>
-            <span className="text-[13px] flex-1 text-start">{item.label}</span>
-            <span
-              className={`material-symbols-rounded !text-sm transition-transform ${
-                expandedMenus.includes(item.label) ? 'rotate-90' : ''
-              }`}
-            >
-              chevron_right
-            </span>
-          </>
-        )}
-      </button>
-      {isOpen && expandedMenus.includes(item.label) && item.submenu && (
-        <div className="ms-9 mt-0.5 space-y-0.5">
-          {item.submenu.map((subItem) => (
-            <NavLink
-              key={subItem.to}
-              to={subItem.to}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-1.5 rounded-md transition-all duration-150 text-[13px] ${
-                  isActive
-                    ? 'hover:bg-violet-50 text-primary font-medium'
-                    : 'text-[#676879] hover:bg-slate-200'
-                }`
-              }
-            >
-              {subItem.label}
-            </NavLink>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-
-  const isProductsExpanded = expandedMenus.includes('products');
-
   return (
     <aside
       style={isOpen ? { width: `${sidebarWidth}px` } : undefined}
@@ -282,7 +240,7 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
                 <span className="text-[11px] font-semibold text-[#676879] uppercase tracking-wide">
                   {t('shortcuts')}
                 </span>
-                {recentPages.length > DEFAULT_SHORTCUTS_COUNT && (
+                {permittedRecentPages.length > DEFAULT_SHORTCUTS_COUNT && (
                   <button
                     onClick={() => setShortcutsExpanded(!shortcutsExpanded)}
                     className="text-[11px] text-primary hover:text-primary/80 transition-colors"
@@ -316,7 +274,7 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
                             : 'text-[#676879] hover:bg-slate-200'
                         }`
                       }
-                      title={isCollapsed ? t(meta.labelKey as any) : undefined}
+                      title={isCollapsed ? t(meta.labelKey as TranslationKey) : undefined}
                     >
                       {({ isActive }) => (
                         <>
@@ -324,7 +282,7 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
                             {meta.icon}
                           </span>
                           {isOpen && (
-                            <span className="flex-1 truncate">{t(meta.labelKey as any)}</span>
+                            <span className="flex-1 truncate">{t(meta.labelKey as TranslationKey)}</span>
                           )}
                           {isOpen && (
                             <span

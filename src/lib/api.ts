@@ -203,6 +203,7 @@ export interface DashboardMe {
     isMember: boolean;
     mode: DashboardMode;
     tenantId: string | null;
+    tenantName: string | null;
     memberId: string | null;
     role: string | null;
   };
@@ -211,6 +212,7 @@ export interface DashboardMe {
     platformRole: 'nexusAdmin' | null;
     canSeeDevMode: boolean;
     canUseDevPlayground: boolean;
+    canManageMembers: boolean;
   };
   onboarding: {
     required: boolean;
@@ -265,6 +267,93 @@ export const businessSetupApi = {
     request<BusinessSetupResponse>('PATCH', '/api/business-setup', { data }),
   submit: (data: Record<string, unknown>) =>
     request<BusinessSetupResponse>('POST', '/api/business-setup', { data }),
+};
+
+export type TenantRole =
+  | 'admin'
+  | 'finance'
+  | 'operator'
+  | 'analyst'
+  | 'developer'
+  | 'supply_manager'
+  | 'member';
+
+export interface TenantRolePermissions {
+  role: TenantRole;
+  permissions: string[];
+}
+
+export interface TenantMemberListItem {
+  tenantMemberId: string;
+  nexusIdentityId: string;
+  email: string;
+  displayName: string | null;
+  status: string;
+  roles: TenantRole[];
+  groupIds: string[];
+  joinedAt: string;
+}
+
+export interface TenantMemberInviteInput {
+  email: string;
+  displayName?: string;
+  role: TenantRole;
+  groupIds?: string[];
+  employeeId?: string;
+  customFields?: Record<string, unknown>;
+  language?: 'he' | 'en';
+  sendEmail?: boolean;
+}
+
+export interface TenantMemberInviteResponse {
+  tenantId: string;
+  tenantMemberId: string;
+  nexusIdentityId: string;
+  email: string;
+  role: TenantRole;
+  status: 'active';
+  groupIds: string[];
+  invitationId: string;
+  inviteUrl: string;
+  expiresAt: string;
+  emailSent: boolean;
+}
+
+export interface BulkTenantMemberInviteResult {
+  email: string;
+  ok: boolean;
+  result?: TenantMemberInviteResponse;
+  error?: string;
+}
+
+export interface TenantMemberInvitationPreview {
+  tenantName: string;
+  invitedEmail: string;
+  role: TenantRole;
+  status: string;
+  expiresAt: string;
+}
+
+export const tenantMembersApi = {
+  list: () => request<{ tenantId: string; members: TenantMemberListItem[] }>('GET', '/api/v1/tenant/members'),
+  roles: () => request<{ roles: TenantRolePermissions[] }>('GET', '/api/v1/tenant/roles'),
+  invite: (data: TenantMemberInviteInput) =>
+    request<TenantMemberInviteResponse>('POST', '/api/v1/tenant/members/invitations', data),
+  bulkInvite: (invitations: TenantMemberInviteInput[], language: 'he' | 'en') =>
+    request<{ results: BulkTenantMemberInviteResult[] }>('POST', '/api/v1/tenant/members/invitations/bulk', {
+      invitations,
+      language,
+    }),
+};
+
+export const tenantMemberInvitationsApi = {
+  get: (token: string) =>
+    request<TenantMemberInvitationPreview>('GET', `/api/v1/member-invitations/${encodeURIComponent(token)}`),
+  accept: (token: string) =>
+    request<{ tenantId: string; role: TenantRole; alreadyAccepted: boolean }>(
+      'POST',
+      `/api/v1/member-invitations/${encodeURIComponent(token)}/accept`,
+    ),
 };
 
 export interface AdminUsersResponse {

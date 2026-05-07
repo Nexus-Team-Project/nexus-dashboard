@@ -9,11 +9,12 @@ import { DevModeProvider } from './contexts/DevModeContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import DashboardLayout from './layouts/DashboardLayout';
 import Home from './pages/Home';
-import Users from './pages/Users';
 import Content from './pages/Content';
 import Settings from './pages/Settings';
 import RolesPermissions from './pages/RolesPermissions';
 import InviteCollaborators from './pages/InviteCollaborators';
+import MemberInviteAccept from './pages/MemberInviteAccept';
+import TenantMemberDashboard from './pages/TenantMemberDashboard';
 import Lobby from './pages/Lobby';
 import PointsGifts from './pages/PointsGifts';
 import SendGiftEvent from './pages/SendGiftEvent';
@@ -57,7 +58,12 @@ function AuthLoadingScreen() {
  * Output: absolute website login URL.
  */
 function getWebsiteLoginUrl(): string {
-  return new URL('/login', WEBSITE_URL).toString();
+  const url = new URL('/login', WEBSITE_URL);
+  const dashboardRedirect = `${window.location.pathname}${window.location.search}`;
+  if (dashboardRedirect !== '/') {
+    url.searchParams.set('dashboardRedirect', dashboardRedirect);
+  }
+  return url.toString();
 }
 
 /**
@@ -250,7 +256,10 @@ function AppRoutes() {
 
   const requiresWorkspaceSetup = me.onboarding.required === true && me.onboarding.step === 'workspace_setup';
   const isWorkspaceSetupDeferred = me.context.mode === 'workspace_setup_deferred';
-  const canUseBusinessSetup = me?.context.isTenant === true;
+  const hasTenantWorkspace = me.context.isTenant === true;
+  const isTenantAdmin = hasTenantWorkspace && me.context.role === 'admin';
+  const isTenantMember = hasTenantWorkspace && me.context.role === 'member';
+  const canManageMembers = me.authorization.canManageMembers === true;
   const firstName = user?.fullName?.split(/\s+/)[0] ?? me?.user.name?.split(/\s+/)[0];
 
   if (requiresWorkspaceSetup) {
@@ -285,7 +294,7 @@ function AppRoutes() {
     );
   }
 
-  if (!canUseBusinessSetup) {
+  if (!hasTenantWorkspace) {
     return (
       <Routes>
         <Route path="*" element={<MemberDashboardScreen onLogout={logout} />} />
@@ -293,15 +302,36 @@ function AppRoutes() {
     );
   }
 
+  if (isTenantMember) {
+    return (
+      <Routes>
+        <Route path="/member-invite/accept" element={<MemberInviteAccept />} />
+        <Route
+          path="*"
+          element={(
+            <TenantMemberDashboard
+              userName={me.user.name}
+              userEmail={me.user.email}
+              tenantName={me.context.tenantName}
+              role={me.context.role}
+              onLogout={logout}
+            />
+          )}
+        />
+      </Routes>
+    );
+  }
+
   return (
     <Routes>
       <Route path="/api-docs" element={<ApiDocs />} />
-      <Route path="/business-setup" element={canUseBusinessSetup ? <BusinessSetupPage /> : <Navigate to="/" replace />} />
-      <Route path="/" element={<DashboardLayout onLogout={logout} showBusinessSetup={canUseBusinessSetup} />}>
+      <Route path="/member-invite/accept" element={<MemberInviteAccept />} />
+      <Route path="/business-setup" element={isTenantAdmin ? <BusinessSetupPage /> : <Navigate to="/" replace />} />
+      <Route path="/" element={<DashboardLayout onLogout={logout} showBusinessSetup={isTenantAdmin} />}>
         <Route index element={<Home />} />
         <Route path="projects" element={<Lobby />} />
         <Route path="projects/new" element={<CreateProject />} />
-        <Route path="users" element={<Users />} />
+        <Route path="users" element={canManageMembers ? <RolesPermissions /> : <Navigate to="/" replace />} />
         <Route path="transactions" element={<Transactions />} />
         <Route path="points-gifts" element={<PointsGifts />} />
         <Route path="benefits-partnerships" element={<BenefitsPartnerships />} />
@@ -318,8 +348,8 @@ function AppRoutes() {
         <Route path="inbox" element={<Inbox />} />
         <Route path="content" element={<Content />} />
         <Route path="settings" element={<Settings />} />
-        <Route path="settings/roles-permissions" element={<RolesPermissions />} />
-        <Route path="settings/roles-permissions/invite" element={<InviteCollaborators />} />
+        <Route path="settings/roles-permissions" element={canManageMembers ? <RolesPermissions /> : <Navigate to="/" replace />} />
+        <Route path="settings/roles-permissions/invite" element={canManageMembers ? <InviteCollaborators /> : <Navigate to="/" replace />} />
         <Route path="dev" element={<DevPlaygroundRoute />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
