@@ -15,6 +15,8 @@ interface SidebarProps {
   onLogout: () => void;
   state: SidebarState;
   onStateChange: (state: SidebarState) => void;
+  isMobile?: boolean;
+  onNavigate?: () => void;
 }
 
 interface NavItem {
@@ -26,7 +28,7 @@ interface NavItem {
   moreButton?: boolean;
 }
 
-const Sidebar = ({ state, onStateChange }: SidebarProps) => {
+const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: SidebarProps) => {
   const { t, isRTL } = useLanguage();
   const navigate = useNavigate();
   const [expandedMenus, setExpandedMenus] = useState<string[]>(['products']);
@@ -172,6 +174,7 @@ const Sidebar = ({ state, onStateChange }: SidebarProps) => {
     <NavLink
       key={item.to}
       to={item.to!}
+      onClick={onNavigate}
       className={({ isActive }) =>
         `flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 ${
           isCollapsed ? 'justify-center' : ''
@@ -198,12 +201,12 @@ const Sidebar = ({ state, onStateChange }: SidebarProps) => {
   return (
     <aside
       style={isOpen ? { width: `${sidebarWidth}px` } : undefined}
-      className={`bg-gradient-to-b from-[#fdfeff] to-[#edf1fc] dark:bg-background-dark h-[calc(100vh-48px)] sticky top-[48px] flex flex-col shrink-0 z-40 relative group/sidebar border-e border-slate-200 rounded-tr-xl rounded-br-xl ${
+      className={`bg-gradient-to-b from-[#fdfeff] to-[#edf1fc] dark:bg-background-dark ${isMobile ? 'h-full rounded-none shadow-xl' : 'h-[calc(100vh-48px)] sticky top-[48px] rounded-tr-xl rounded-br-xl'} flex flex-col shrink-0 z-40 relative group/sidebar border-e border-slate-200 ${
         isOpen ? '' : 'w-16 transition-all duration-300'
       } ${isResizing ? '' : 'transition-all duration-300'}`}
     >
       {/* Resize Handle */}
-      {isOpen && (
+      {isOpen && !isMobile && (
         <div
           onMouseDown={handleResizeStart}
           className="absolute top-0 end-0 w-3 h-full cursor-ew-resize z-20 group translate-x-1"
@@ -218,6 +221,7 @@ const Sidebar = ({ state, onStateChange }: SidebarProps) => {
 
 
       {/* Toggle Button — z-30 so it sits ABOVE the resize handle (z-20) */}
+      {!isMobile && (
       <button
         onClick={cycleState}
         className="!absolute top-6 w-6 h-6 bg-white rounded-full border border-slate-200 shadow-sm flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all z-30 opacity-0 group-hover/sidebar:opacity-100"
@@ -226,6 +230,7 @@ const Sidebar = ({ state, onStateChange }: SidebarProps) => {
       >
         <span className="material-symbols-rounded !text-sm">{getToggleIcon()}</span>
       </button>
+      )}
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-2 space-y-0.5 overflow-y-auto no-scrollbar">
@@ -265,6 +270,7 @@ const Sidebar = ({ state, onStateChange }: SidebarProps) => {
                   <div key={page.path} className="group/shortcut">
                     <NavLink
                       to={page.path}
+                      onClick={onNavigate}
                       className={({ isActive }) =>
                         `flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 text-[13px] ${
                           isCollapsed ? 'justify-center' : ''
@@ -338,6 +344,7 @@ const Sidebar = ({ state, onStateChange }: SidebarProps) => {
               <NavLink
                 key={item.to}
                 to={item.to}
+                onClick={onNavigate}
                 className={({ isActive }) =>
                   `flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 text-[13px] ${
                     isCollapsed ? 'justify-center' : ''
@@ -387,6 +394,7 @@ const Sidebar = ({ state, onStateChange }: SidebarProps) => {
                         <NavLink
                           key={sub.to}
                           to={sub.to}
+                          onClick={onNavigate}
                           className={({ isActive }) =>
                             `flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 text-[13px] ${
                               isActive
@@ -412,6 +420,7 @@ const Sidebar = ({ state, onStateChange }: SidebarProps) => {
                 <NavLink
                   key={item.to}
                   to={item.to}
+                  onClick={onNavigate}
                   className={({ isActive }) =>
                     `flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 text-[13px] ${
                       isCollapsed ? 'justify-center' : ''
@@ -437,7 +446,7 @@ const Sidebar = ({ state, onStateChange }: SidebarProps) => {
 
             {/* New Product button */}
             {isOpen && (
-              <button onClick={() => navigate('/projects')} className="w-full flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 text-[13px] text-[#676879] hover:bg-slate-200 mt-0.5">
+              <button onClick={() => { navigate('/projects'); onNavigate?.(); }} className="w-full flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 text-[13px] text-[#676879] hover:bg-slate-200 mt-0.5">
                 <span className="material-symbols-rounded !text-[16px]">add</span>
                 <span>{t('sb_createProduct')}</span>
               </button>
@@ -472,6 +481,7 @@ const Sidebar = ({ state, onStateChange }: SidebarProps) => {
           {isDevMode && (
             <NavLink
               to="/dev"
+              onClick={onNavigate}
               className={({ isActive }) =>
                 `flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 mt-1 ${
                   isCollapsed ? 'justify-center' : ''

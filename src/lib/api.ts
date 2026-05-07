@@ -289,6 +289,8 @@ export interface TenantMemberListItem {
   email: string;
   displayName: string | null;
   status: string;
+  invitationStatus: string | null;
+  invitationExpiresAt: string | null;
   roles: TenantRole[];
   groupIds: string[];
   joinedAt: string;
@@ -327,6 +329,8 @@ export interface BulkTenantMemberInviteResult {
 }
 
 export interface TenantMemberInvitationPreview {
+  invitationId?: string;
+  tenantId?: string;
   tenantName: string;
   invitedEmail: string;
   role: TenantRole;
@@ -347,12 +351,19 @@ export const tenantMembersApi = {
 };
 
 export const tenantMemberInvitationsApi = {
+  mine: () =>
+    request<{ invitations: TenantMemberInvitationPreview[] }>('GET', '/api/v1/member-invitations/mine'),
   get: (token: string) =>
     request<TenantMemberInvitationPreview>('GET', `/api/v1/member-invitations/${encodeURIComponent(token)}`),
   accept: (token: string) =>
     request<{ tenantId: string; role: TenantRole; alreadyAccepted: boolean }>(
       'POST',
       `/api/v1/member-invitations/${encodeURIComponent(token)}/accept`,
+    ),
+  acceptMine: (invitationId: string) =>
+    request<{ tenantId: string; role: TenantRole; alreadyAccepted: boolean }>(
+      'POST',
+      `/api/v1/member-invitations/mine/${encodeURIComponent(invitationId)}/accept`,
     ),
 };
 

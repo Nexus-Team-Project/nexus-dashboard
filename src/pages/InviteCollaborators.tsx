@@ -4,6 +4,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import {
   tenantMembersApi,
   type BulkTenantMemberInviteResult,
@@ -17,7 +18,7 @@ interface InviteRow {
   id: string;
   email: string;
   role: TenantRole;
-  status: 'draft' | 'sent' | 'failed';
+  status: 'draft' | 'pending' | 'failed';
   error?: string;
 }
 
@@ -39,8 +40,12 @@ const COPY = {
     cancel: 'ביטול',
     empty: 'עדיין אין אימיילים להזמנה.',
     sent: 'נשלח',
+    pending: 'ממתין לאישור',
+    draft: 'טיוטה',
     failed: 'נכשל',
     invalid: 'לא נמצא אימייל תקין.',
+    successToast: 'ההזמנות נשלחו',
+    failedToast: 'חלק מההזמנות נכשלו',
   },
   en: {
     back: 'Back',
@@ -59,8 +64,12 @@ const COPY = {
     cancel: 'Cancel',
     empty: 'No invite emails yet.',
     sent: 'Sent',
+    pending: 'Invite pending',
+    draft: 'Draft',
     failed: 'Failed',
     invalid: 'No valid email found.',
+    successToast: 'Invites sent',
+    failedToast: 'Some invites failed',
   },
 } as const;
 
@@ -159,7 +168,7 @@ export default function InviteCollaborators() {
    * Output: row statuses reflect backend results and emails are sent.
    */
   const sendInvites = async () => {
-    const draftRows = rows.filter((row) => row.status !== 'sent');
+    const draftRows = rows.filter((row) => row.status !== 'pending');
     if (draftRows.length === 0) return;
     setIsSending(true);
     setSubmitError(null);
@@ -175,8 +184,16 @@ export default function InviteCollaborators() {
         ? { results: [{ email: payload[0].email, ok: true, result: await tenantMembersApi.invite(payload[0]) }] }
         : await tenantMembersApi.bulkInvite(payload, language);
       applyResults(response.results);
+      const failedCount = response.results.filter((result) => !result.ok).length;
+      if (failedCount > 0) {
+        toast.error(copy.failedToast, { description: `${failedCount}/${response.results.length}` });
+      } else {
+        toast.success(copy.successToast, { description: `${response.results.length}` });
+      }
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : 'Failed to send invites');
+      const message = error instanceof Error ? error.message : 'Failed to send invites';
+      setSubmitError(message);
+      toast.error(copy.failedToast, { description: message });
     } finally {
       setIsSending(false);
     }
@@ -194,7 +211,7 @@ export default function InviteCollaborators() {
         const result = byEmail.get(row.email);
         if (!result) return row;
         return result.ok
-          ? { ...row, status: 'sent', error: undefined }
+          ? { ...row, status: 'pending', error: undefined }
           : { ...row, status: 'failed', error: result.error ?? copy.failed };
       }),
     );
@@ -286,7 +303,7 @@ export default function InviteCollaborators() {
                       <select
                         value={row.role}
                         onChange={(event) => updateRole(row.id, event.target.value as TenantRole)}
-                        disabled={row.status === 'sent'}
+                        disabled={row.status === 'pending'}
                         className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
                       >
                         {TENANT_ROLE_ORDER.map((role) => (
@@ -301,14 +318,14 @@ export default function InviteCollaborators() {
                       <p className="mt-1">{permissions.slice(0, 4).join(', ') || '-'}</p>
                     </td>
                     <td className="px-5 py-4">
-                      {row.status === 'sent' && <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">{copy.sent}</span>}
+                      {row.status === 'pending' && <span className="rounded-full bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">{copy.pending}</span>}
                       {row.status === 'failed' && <span className="rounded-full bg-red-50 px-2 py-1 text-xs font-semibold text-red-700">{row.error ?? copy.failed}</span>}
-                      {row.status === 'draft' && <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">Draft</span>}
+                      {row.status === 'draft' && <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">{copy.draft}</span>}
                     </td>
                     <td className="px-5 py-4 text-end">
                       <button
                         type="button"
-                        disabled={row.status === 'sent'}
+                        disabled={row.status === 'pending'}
                         onClick={() => setRows((current) => current.filter((item) => item.id !== row.id))}
                         className="rounded-lg px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 disabled:opacity-40"
                       >

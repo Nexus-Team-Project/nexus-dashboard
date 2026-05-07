@@ -1,8 +1,9 @@
 /**
- * Shows a limited dashboard for invited tenant members with the basic tenant context.
- * This prevents member-role users from seeing tenant-admin analytics or controls.
+ * Shows a limited dashboard for non-admin tenant roles with role-specific scope.
+ * This prevents operational roles from seeing tenant-admin analytics or controls.
  */
 import { useLanguage } from '../i18n/LanguageContext';
+import PendingInvitationsPanel from '../components/PendingInvitationsPanel';
 
 interface TenantMemberDashboardProps {
   userName: string;
@@ -12,33 +13,97 @@ interface TenantMemberDashboardProps {
   onLogout: () => Promise<void>;
 }
 
+type CopyLanguage = 'he' | 'en';
+
 const COPY = {
   he: {
-    badge: 'חבר צוות',
-    title: 'נכנסת כדייר חבר',
+    badge: 'דשבורד לפי תפקיד',
+    title: 'נכנסת לתפקיד מוגבל',
     tenantLabel: 'שייך לארגון',
     roleLabel: 'תפקיד',
     emailLabel: 'אימייל',
+    capabilitiesTitle: 'מה אפשר לעשות בתפקיד הזה',
     fallbackTenant: 'ארגון ללא שם',
     fallbackRole: 'member',
-    body: 'זהו דשבורד בסיסי לחברי צוות. פעולות ניהול, הזמנת חברים ואנליטיקות עסקיות זמינות רק למנהלי הארגון.',
+    body: 'זהו דשבורד בסיסי לפי תפקיד. פעולות ניהול מלאות, הזמנת חברים ואנליטיקות מנהלים זמינות רק למנהלי הארגון.',
     signOut: 'התנתקות',
   },
   en: {
-    badge: 'Team member',
-    title: 'You are signed in as a tenant member',
+    badge: 'Role dashboard',
+    title: 'You are signed in with limited access',
     tenantLabel: 'Tenant',
     roleLabel: 'Role',
     emailLabel: 'Email',
+    capabilitiesTitle: 'What this role can do',
     fallbackTenant: 'Unnamed tenant',
     fallbackRole: 'member',
-    body: 'This is a basic dashboard for invited team members. Admin actions, member invites, and business analytics are only available to tenant admins.',
+    body: 'This is a basic dashboard for your tenant role. Full admin actions, member invites, and admin analytics are only available to tenant admins.',
     signOut: 'Sign out',
   },
 } as const;
 
+const ROLE_LABELS: Record<string, Record<CopyLanguage, string>> = {
+  finance: { he: 'כספים', en: 'Finance' },
+  operator: { he: 'תפעול', en: 'Operator' },
+  analyst: { he: 'אנליסט', en: 'Analyst' },
+  developer: { he: 'מפתח', en: 'Developer' },
+  support: { he: 'תמיכה', en: 'Support' },
+  supply_manager: { he: 'ניהול ספקים', en: 'Supply manager' },
+  member: { he: 'חבר', en: 'Member' },
+};
+
+const ROLE_CAPABILITIES: Record<string, Record<CopyLanguage, string[]>> = {
+  finance: {
+    he: ['לראות פעולות כספיות שהוקצו לתפקיד', 'לעבוד עם דוחות כספיים עתידיים', 'ללא הרשאת הזמנת חברים'],
+    en: ['View finance work assigned to the role', 'Work with future finance reports', 'No member-invite permission'],
+  },
+  operator: {
+    he: ['לעבוד עם פעולות תפעוליות עתידיות', 'לעקוב אחרי תהליכים ומשימות', 'ללא הרשאת ניהול חברים'],
+    en: ['Work with future operations tasks', 'Track workflows and tasks', 'No member-management permission'],
+  },
+  analyst: {
+    he: ['לראות תובנות ודוחות שיוקצו לתפקיד', 'לעקוב אחרי נתונים עסקיים מותרים', 'ללא שינוי הגדרות tenant'],
+    en: ['View insights and reports assigned to the role', 'Track permitted business data', 'No tenant-settings changes'],
+  },
+  developer: {
+    he: ['לעבוד עם כלי API ופיתוח עתידיים', 'לראות מידע טכני שמותר לתפקיד', 'ללא פעולות ניהול tenant'],
+    en: ['Work with future API and developer tools', 'View technical data allowed for the role', 'No tenant-admin actions'],
+  },
+  support: {
+    he: ['לעבוד עם פניות תמיכה עתידיות', 'לראות מידע שירות שמותר לתפקיד', 'ללא הרשאות כספים או ניהול'],
+    en: ['Work with future support tickets', 'View service data allowed for the role', 'No finance or admin permissions'],
+  },
+  supply_manager: {
+    he: ['לעבוד עם ספקים וקטלוג עתידיים', 'לעקוב אחרי סטטוס הצעות', 'ללא הרשאת הזמנת חברים'],
+    en: ['Work with future supply and catalog tasks', 'Track offer status', 'No member-invite permission'],
+  },
+  member: {
+    he: ['לראות את הארגון שאליו הוזמנת', 'לעבוד רק עם פעולות שיוקצו לך בעתיד', 'ללא דשבורד מנהלים'],
+    en: ['See the tenant you belong to', 'Use only future actions assigned to you', 'No admin dashboard access'],
+  },
+};
+
 /**
- * Renders one tenant context row in the member dashboard.
+ * Returns a readable label for a tenant role.
+ * Input: role id from `/api/me` and active language.
+ * Output: localized role label.
+ */
+function getRoleLabel(role: string | null, language: CopyLanguage): string {
+  if (!role) return COPY[language].fallbackRole;
+  return ROLE_LABELS[role]?.[language] ?? role;
+}
+
+/**
+ * Returns the role capability list shown on the limited dashboard.
+ * Input: role id from `/api/me` and active language.
+ * Output: simple user-facing capability bullets.
+ */
+function getRoleCapabilities(role: string | null, language: CopyLanguage): string[] {
+  return ROLE_CAPABILITIES[role ?? 'member']?.[language] ?? ROLE_CAPABILITIES.member[language];
+}
+
+/**
+ * Renders one tenant context row in the role dashboard.
  * Input: row label and value.
  * Output: static display row.
  */
@@ -52,9 +117,9 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 }
 
 /**
- * Renders the tenant-member placeholder dashboard.
+ * Renders the limited tenant-role dashboard.
  * Input: trusted `/api/me` identity, tenant context, role, and logout callback.
- * Output: member-only dashboard with no admin navigation or analytics.
+ * Output: role-only dashboard with no admin navigation or analytics.
  */
 export default function TenantMemberDashboard({
   userName,
@@ -65,11 +130,14 @@ export default function TenantMemberDashboard({
 }: TenantMemberDashboardProps) {
   const { language, isRTL } = useLanguage();
   const copy = COPY[language];
+  const roleLabel = getRoleLabel(role, language);
+  const capabilities = getRoleCapabilities(role, language);
 
   return (
     <main dir={isRTL ? 'rtl' : 'ltr'} className="min-h-screen bg-[#edf1fc] px-4 py-6 text-slate-950 sm:px-6 sm:py-8">
       <div className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-4xl items-center justify-center">
         <section className="w-full rounded-lg border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+          <PendingInvitationsPanel />
           <div className="mb-5 inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
             {copy.badge}
           </div>
@@ -82,9 +150,21 @@ export default function TenantMemberDashboard({
 
           <dl className="mt-8 grid gap-3 sm:grid-cols-3">
             <DetailRow label={copy.tenantLabel} value={tenantName ?? copy.fallbackTenant} />
-            <DetailRow label={copy.roleLabel} value={role ?? copy.fallbackRole} />
+            <DetailRow label={copy.roleLabel} value={roleLabel} />
             <DetailRow label={copy.emailLabel} value={userEmail} />
           </dl>
+
+          <section className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <h2 className="text-sm font-semibold text-slate-950">{copy.capabilitiesTitle}</h2>
+            <ul className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-3">
+              {capabilities.map((item) => (
+                <li key={item} className="flex gap-2">
+                  <span className="material-symbols-rounded !text-[18px] text-sky-600">check_circle</span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
 
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <div className="min-w-0 text-sm text-slate-500">

@@ -4,6 +4,7 @@
  */
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
 import { DevModeProvider } from './contexts/DevModeContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -258,7 +259,7 @@ function AppRoutes() {
   const isWorkspaceSetupDeferred = me.context.mode === 'workspace_setup_deferred';
   const hasTenantWorkspace = me.context.isTenant === true;
   const isTenantAdmin = hasTenantWorkspace && me.context.role === 'admin';
-  const isTenantMember = hasTenantWorkspace && me.context.role === 'member';
+  const shouldUseLimitedRoleDashboard = hasTenantWorkspace && me.context.role !== 'admin';
   const canManageMembers = me.authorization.canManageMembers === true;
   const firstName = user?.fullName?.split(/\s+/)[0] ?? me?.user.name?.split(/\s+/)[0];
 
@@ -302,7 +303,7 @@ function AppRoutes() {
     );
   }
 
-  if (isTenantMember) {
+  if (shouldUseLimitedRoleDashboard) {
     return (
       <Routes>
         <Route path="/member-invite/accept" element={<MemberInviteAccept />} />
@@ -366,6 +367,7 @@ function App() {
   return (
     <DevModeProvider>
     <LanguageProvider>
+      <Toaster richColors position="top-center" />
       <BrowserRouter>
         <AuthProvider>
           <AppRoutes />

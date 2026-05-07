@@ -19,9 +19,15 @@ const COPY = {
     search: 'חפש לפי שם או אימייל',
     all: 'הכל',
     status: 'סטטוס',
+    invitation: 'הזמנה',
     role: 'תפקיד',
     name: 'שם',
     joined: 'הצטרף',
+    pending: 'ממתין לאישור',
+    accepted: 'אושר',
+    expired: 'פג תוקף',
+    revoked: 'בוטל',
+    none: 'ללא הזמנה',
     empty: 'אין חברים שתואמים לחיפוש.',
     loading: 'טוען חברים והרשאות...',
   },
@@ -35,9 +41,15 @@ const COPY = {
     search: 'Search by name or email',
     all: 'All',
     status: 'Status',
+    invitation: 'Invite',
     role: 'Role',
     name: 'Name',
     joined: 'Joined',
+    pending: 'Pending',
+    accepted: 'Accepted',
+    expired: 'Expired',
+    revoked: 'Revoked',
+    none: 'No invite',
     empty: 'No members match this search.',
     loading: 'Loading members and permissions...',
   },
@@ -59,6 +71,38 @@ function getInitial(member: TenantMemberListItem): string {
  */
 function formatDate(value: string, language: 'he' | 'en'): string {
   return new Intl.DateTimeFormat(language === 'he' ? 'he-IL' : 'en-US', { dateStyle: 'medium' }).format(new Date(value));
+}
+
+/**
+ * Returns localized invite status text and color classes.
+ * Input: invitation status from Mongo plus active dashboard language.
+ * Output: label and style for a status chip.
+ */
+function getInviteStatus(status: string | null, language: 'he' | 'en'): { label: string; className: string } {
+  const copy = COPY[language];
+  switch (status) {
+    case 'pending':
+      return { label: copy.pending, className: 'bg-amber-50 text-amber-700' };
+    case 'accepted':
+      return { label: copy.accepted, className: 'bg-emerald-50 text-emerald-700' };
+    case 'expired':
+      return { label: copy.expired, className: 'bg-slate-100 text-slate-600' };
+    case 'revoked':
+      return { label: copy.revoked, className: 'bg-red-50 text-red-700' };
+    default:
+      return { label: copy.none, className: 'bg-slate-100 text-slate-600' };
+  }
+}
+
+/**
+ * Returns the membership status chip style.
+ * Input: member status from Mongo.
+ * Output: Tailwind classes for the visible chip.
+ */
+function getMemberStatusClassName(status: string): string {
+  if (status === 'active') return 'bg-emerald-50 text-emerald-700';
+  if (status === 'suspended') return 'bg-amber-50 text-amber-700';
+  return 'bg-slate-100 text-slate-600';
 }
 
 /**
@@ -198,48 +242,93 @@ export default function RolesPermissions() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-sm">
+        <div className="hidden overflow-x-auto md:block">
+          <table className="w-full min-w-[780px] text-sm">
             <thead className="bg-slate-50 text-slate-500 dark:bg-slate-900/40">
               <tr>
                 <th className="px-5 py-3 text-start font-semibold">{copy.name}</th>
                 <th className="px-5 py-3 text-start font-semibold">{copy.role}</th>
                 <th className="px-5 py-3 text-start font-semibold">{copy.status}</th>
+                <th className="px-5 py-3 text-start font-semibold">{copy.invitation}</th>
                 <th className="px-5 py-3 text-start font-semibold">{copy.joined}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {filteredMembers.map((member) => (
-                <tr key={member.tenantMemberId} className="hover:bg-slate-50 dark:hover:bg-slate-900/30">
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-950 text-sm font-semibold text-white">
-                        {getInitial(member)}
+              {filteredMembers.map((member) => {
+                const inviteStatus = getInviteStatus(member.invitationStatus, language);
+                return (
+                  <tr key={member.tenantMemberId} className="hover:bg-slate-50 dark:hover:bg-slate-900/30">
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-950 text-sm font-semibold text-white">
+                          {getInitial(member)}
+                        </div>
+                        <div>
+                          <p className="font-medium text-slate-950 dark:text-white">{member.displayName ?? member.email}</p>
+                          <p className="text-xs text-slate-500">{member.email}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium text-slate-950 dark:text-white">{member.displayName ?? member.email}</p>
-                        <p className="text-xs text-slate-500">{member.email}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-5 py-4 text-slate-700 dark:text-slate-300">
-                    {member.roles.map((role) => getTenantRoleLabel(role, language)).join(', ') || '-'}
-                  </td>
-                  <td className="px-5 py-4">
-                    <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                      {member.status}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4 text-slate-500">{formatDate(member.joinedAt, language)}</td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-5 py-4 text-slate-700 dark:text-slate-300">
+                      {member.roles.map((role) => getTenantRoleLabel(role, language)).join(', ') || '-'}
+                    </td>
+                    <td className="px-5 py-4">
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getMemberStatusClassName(member.status)}`}>
+                        {member.status}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4">
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${inviteStatus.className}`}>
+                        {inviteStatus.label}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 text-slate-500">{formatDate(member.joinedAt, language)}</td>
+                  </tr>
+                );
+              })}
               {filteredMembers.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-5 py-8 text-center text-sm text-slate-500">{copy.empty}</td>
+                  <td colSpan={5} className="px-5 py-8 text-center text-sm text-slate-500">{copy.empty}</td>
                 </tr>
               )}
             </tbody>
           </table>
+        </div>
+
+        <div className="grid gap-3 p-3 md:hidden">
+          {filteredMembers.map((member) => {
+            const inviteStatus = getInviteStatus(member.invitationStatus, language);
+            return (
+              <article key={member.tenantMemberId} className="rounded-lg border border-slate-200 bg-white p-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-950 text-sm font-semibold text-white">
+                    {getInitial(member)}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-slate-950">{member.displayName ?? member.email}</p>
+                    <p className="truncate text-xs text-slate-500">{member.email}</p>
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-2 text-xs">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-slate-500">{copy.role}</span>
+                    <span className="font-semibold text-slate-700">{member.roles.map((role) => getTenantRoleLabel(role, language)).join(', ') || '-'}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-slate-500">{copy.status}</span>
+                    <span className={`rounded-full px-2.5 py-1 font-semibold ${getMemberStatusClassName(member.status)}`}>{member.status}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-slate-500">{copy.invitation}</span>
+                    <span className={`rounded-full px-2.5 py-1 font-semibold ${inviteStatus.className}`}>{inviteStatus.label}</span>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+          {filteredMembers.length === 0 && (
+            <div className="px-5 py-8 text-center text-sm text-slate-500">{copy.empty}</div>
+          )}
         </div>
       </section>
     </div>

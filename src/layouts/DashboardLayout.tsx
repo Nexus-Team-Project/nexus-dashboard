@@ -8,6 +8,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { useDevMode } from '../contexts/DevModeContext';
 import BusinessSetupGuide from '../components/business-setup/BusinessSetupGuide';
 import SetupBanner from '../components/business-setup/SetupBanner';
+import PendingInvitationsPanel from '../components/PendingInvitationsPanel';
 
 interface DashboardLayoutProps {
   onLogout: () => void;
@@ -18,6 +19,7 @@ const DashboardLayout = ({ onLogout, showBusinessSetup = false }: DashboardLayou
   const { isRTL } = useLanguage();
   const { isDevMode } = useDevMode();
   const [sidebarState, setSidebarState] = useState<SidebarState>('open');
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
 
   // Border highlight effect — direct DOM, no re-renders
@@ -33,19 +35,47 @@ const DashboardLayout = ({ onLogout, showBusinessSetup = false }: DashboardLayou
       {/* Top-level flex: page + chat panel side by side */}
       <div className="flex min-h-screen">
         {/* Gray strip near right edge */}
-        <div className="w-2 shrink-0" />
+        <div className="hidden w-2 shrink-0 lg:block" />
         {/* Full page (banner + header + sidebar + content) */}
         <div className="flex-1 min-w-0 flex flex-col transition-all duration-300 ease-in-out">
           {showBusinessSetup && <SetupBanner />}
           {/* Stripe-style rounded corners — thin decorative strip that overlaps the orange banner */}
           <div className="h-2 -mt-2 rounded-t-2xl bg-[#edf1fc] dark:bg-background-dark relative z-[1] shrink-0" />
-          <DashboardHeader onLogout={onLogout} isChatOpen={isChatOpen} onChatToggle={() => setIsChatOpen(!isChatOpen)} />
+          <DashboardHeader
+            onLogout={onLogout}
+            isChatOpen={isChatOpen}
+            onChatToggle={() => setIsChatOpen(!isChatOpen)}
+            onMenuToggle={() => setIsMobileSidebarOpen(true)}
+          />
           <div className="flex flex-1 min-h-0">
-            <Sidebar
-              onLogout={onLogout}
-              state={sidebarState}
-              onStateChange={setSidebarState}
-            />
+            <div className="hidden lg:block">
+              <Sidebar
+                onLogout={onLogout}
+                state={sidebarState}
+                onStateChange={setSidebarState}
+              />
+            </div>
+            {isMobileSidebarOpen && (
+              <div className="fixed inset-0 z-[90] bg-slate-950/40 backdrop-blur-sm lg:hidden" role="dialog" aria-modal="true">
+                <div className={`absolute top-0 h-full w-[min(18rem,calc(100vw-2rem))] ${isRTL ? 'right-0' : 'left-0'}`}>
+                  <Sidebar
+                    onLogout={onLogout}
+                    state="open"
+                    onStateChange={() => undefined}
+                    isMobile
+                    onNavigate={() => setIsMobileSidebarOpen(false)}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsMobileSidebarOpen(false)}
+                  className={`absolute top-3 ${isRTL ? 'left-3' : 'right-3'} flex h-10 w-10 items-center justify-center rounded-lg bg-white text-slate-700 shadow-sm`}
+                  aria-label="Close navigation"
+                >
+                  <span className="material-symbols-rounded">close</span>
+                </button>
+              </div>
+            )}
             {/* Outer wrapper: non-scrollable, holds the border-highlight effect */}
             <div
               className="flex-1 flex flex-col min-h-0 min-w-0 rounded-tr-xl relative border-highlight-card"
@@ -53,12 +83,13 @@ const DashboardLayout = ({ onLogout, showBusinessSetup = false }: DashboardLayou
             >
               {/* Inner scrollable area */}
               <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar bg-white dark:bg-card-dark rounded-tr-xl">
-                <main className="flex-1 w-full max-w-[1400px] mx-auto px-6 py-4">
+                <main className="flex-1 w-full max-w-[1400px] mx-auto px-3 py-3 sm:px-4 lg:px-6 lg:py-4">
+                  <PendingInvitationsPanel />
                   <Outlet />
                 </main>
-                <footer className="max-w-[1400px] w-full mx-auto px-6 py-4 flex items-center justify-between text-[11px] text-slate-400 font-medium">
+                <footer className="max-w-[1400px] w-full mx-auto px-3 py-4 sm:px-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-[11px] text-slate-400 font-medium">
                   <p>© 2024 Nexus Admin. All Rights Reserved.</p>
-                  <div className="flex gap-4">
+                  <div className="flex flex-wrap gap-4">
                     <a className="hover:text-primary transition-colors" href="#">Privacy Policy</a>
                     <a className="hover:text-primary transition-colors" href="#">Terms of Service</a>
                     <a className="hover:text-primary transition-colors" href="#">Help Center</a>
