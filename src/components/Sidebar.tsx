@@ -40,11 +40,11 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
   const { isDevMode, toggleDevMode } = useDevMode();
   const { me } = useAuth();
   const canSeeDevMode = me?.authorization.canSeeDevMode === true;
-  const canManageMembers = me?.authorization.canManageMembers === true;
+  const canViewMembers = me?.authorization.canViewMembers === true || me?.authorization.canManageMembers === true;
 
   const DEFAULT_SHORTCUTS_COUNT = 5;
   const permittedRecentPages = recentPages.filter((page) =>
-    canManageMembers || (page.path !== '/users' && page.path !== '/settings/roles-permissions')
+    canViewMembers || (page.path !== '/users' && page.path !== '/settings/roles-permissions')
   );
   const visibleShortcuts = shortcutsExpanded
     ? permittedRecentPages
@@ -105,7 +105,7 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
   // Main navigation items (before Products section)
   const mainNavItems: NavItem[] = [
     { to: '/', icon: 'home', label: t('dashboard') },
-    ...(canManageMembers ? [{ to: '/users', icon: 'people_alt', label: t('users') }] : []),
+    ...(canViewMembers ? [{ to: '/users', icon: 'people_alt', label: t('users') }] : []),
     { to: '/transactions', icon: 'receipt_long', label: t('transactions') },
     { to: '/product-catalog', icon: 'inventory_2', label: t('productCatalog') },
     { to: '/balances', icon: 'account_balance_wallet', label: t('balances') },

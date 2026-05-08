@@ -21,11 +21,13 @@ interface SearchResult {
   relevanceScore: number;
 }
 
-const MEMBER_MANAGEMENT_RESULT_IDS = new Set(['users', 'roles-permissions', 'invite-collaborators']);
+const MEMBER_VIEW_RESULT_IDS = new Set(['users', 'roles-permissions']);
+const MEMBER_INVITE_RESULT_IDS = new Set(['invite-collaborators']);
 
 const SearchBar = () => {
   const { t, language } = useLanguage();
   const { me } = useAuth();
+  const canViewMembers = me?.authorization.canViewMembers === true || me?.authorization.canManageMembers === true;
   const canManageMembers = me?.authorization.canManageMembers === true;
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
@@ -259,7 +261,11 @@ const SearchBar = () => {
     }
 
     const searchResults = searchDatabase
-    .filter((item) => canManageMembers || !MEMBER_MANAGEMENT_RESULT_IDS.has(item.id))
+    .filter((item) => {
+      if (MEMBER_INVITE_RESULT_IDS.has(item.id)) return canManageMembers;
+      if (MEMBER_VIEW_RESULT_IDS.has(item.id)) return canViewMembers;
+      return true;
+    })
     .map(item => {
       const isHebrew = language === 'he';
       const title = isHebrew ? item.titleHe : item.title;
@@ -281,7 +287,7 @@ const SearchBar = () => {
 
     setResults(searchResults);
     setSelectedIndex(0);
-  }, [canManageMembers, language, searchDatabase]);
+  }, [canManageMembers, canViewMembers, language, searchDatabase]);
 
   // Handle search input
   useEffect(() => {
