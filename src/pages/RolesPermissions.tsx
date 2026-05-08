@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { tenantMembersApi, type TenantMemberListItem, type TenantRole, type TenantRolePermissions } from '../lib/api';
 import { getTenantRoleLabel, TENANT_ROLE_ORDER } from '../lib/tenantRoles';
 import { useLanguage } from '../i18n/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const COPY = {
   he: {
@@ -113,7 +114,9 @@ function getMemberStatusClassName(status: string): string {
 export default function RolesPermissions() {
   const navigate = useNavigate();
   const { language, isRTL } = useLanguage();
+  const { me } = useAuth();
   const copy = COPY[language];
+  const canInviteMembers = me?.authorization.canManageMembers === true;
   const [members, setMembers] = useState<TenantMemberListItem[]>([]);
   const [roles, setRoles] = useState<TenantRolePermissions[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -182,14 +185,16 @@ export default function RolesPermissions() {
           <h1 className="text-3xl font-bold tracking-normal text-slate-950 dark:text-white">{copy.title}</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">{copy.body}</p>
         </div>
-        <button
-          type="button"
-          onClick={() => navigate('/settings/roles-permissions/invite')}
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90"
-        >
-          <span className="material-icons text-lg">person_add</span>
-          {copy.invite}
-        </button>
+        {canInviteMembers && (
+          <button
+            type="button"
+            onClick={() => navigate('/settings/roles-permissions/invite')}
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90"
+          >
+            <span className="material-icons text-lg">person_add</span>
+            {copy.invite}
+          </button>
+        )}
       </header>
 
       {error && <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}

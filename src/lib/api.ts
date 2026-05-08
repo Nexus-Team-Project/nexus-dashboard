@@ -212,6 +212,7 @@ export interface DashboardMe {
     platformRole: 'nexusAdmin' | null;
     canSeeDevMode: boolean;
     canUseDevPlayground: boolean;
+    canViewMembers: boolean;
     canManageMembers: boolean;
   };
   onboarding: {

@@ -260,6 +260,7 @@ function AppRoutes() {
   const hasTenantWorkspace = me.context.isTenant === true;
   const isTenantAdmin = hasTenantWorkspace && me.context.role === 'admin';
   const shouldUseLimitedRoleDashboard = hasTenantWorkspace && me.context.role !== 'admin';
+  const canViewMembers = me.authorization.canViewMembers === true || me.authorization.canManageMembers === true;
   const canManageMembers = me.authorization.canManageMembers === true;
   const firstName = user?.fullName?.split(/\s+/)[0] ?? me?.user.name?.split(/\s+/)[0];
 
@@ -332,7 +333,7 @@ function AppRoutes() {
         <Route index element={<Home />} />
         <Route path="projects" element={<Lobby />} />
         <Route path="projects/new" element={<CreateProject />} />
-        <Route path="users" element={canManageMembers ? <RolesPermissions /> : <Navigate to="/" replace />} />
+        <Route path="users" element={canViewMembers ? <RolesPermissions /> : <Navigate to="/" replace />} />
         <Route path="transactions" element={<Transactions />} />
         <Route path="points-gifts" element={<PointsGifts />} />
         <Route path="benefits-partnerships" element={<BenefitsPartnerships />} />
@@ -349,7 +350,7 @@ function AppRoutes() {
         <Route path="inbox" element={<Inbox />} />
         <Route path="content" element={<Content />} />
         <Route path="settings" element={<Settings />} />
-        <Route path="settings/roles-permissions" element={canManageMembers ? <RolesPermissions /> : <Navigate to="/" replace />} />
+        <Route path="settings/roles-permissions" element={canViewMembers ? <RolesPermissions /> : <Navigate to="/" replace />} />
         <Route path="settings/roles-permissions/invite" element={canManageMembers ? <InviteCollaborators /> : <Navigate to="/" replace />} />
         <Route path="dev" element={<DevPlaygroundRoute />} />
         <Route path="*" element={<Navigate to="/" replace />} />

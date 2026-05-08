@@ -1,6 +1,6 @@
 /**
- * Renders quick dashboard navigation tiles and hides member-management links
- * unless the backend says the user can manage tenant members.
+ * Renders quick dashboard navigation tiles and hides member links unless the
+ * backend says the user can view tenant members.
  */
 import { NavLink } from 'react-router-dom';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -9,11 +9,11 @@ import { useAuth } from '../contexts/AuthContext';
 const NavTiles = () => {
   const { t } = useLanguage();
   const { me } = useAuth();
-  const canManageMembers = me?.authorization.canManageMembers === true;
+  const canViewMembers = me?.authorization.canViewMembers === true || me?.authorization.canManageMembers === true;
 
   const navItems = [
     { to: '/', icon: 'dashboard', label: t('dashboard') },
-    ...(canManageMembers ? [{ to: '/users', icon: 'people_alt', label: t('users') }] : []),
+    ...(canViewMembers ? [{ to: '/users', icon: 'people_alt', label: t('users') }] : []),
     { to: '/content', icon: 'article', label: t('content') },
     { to: '/reports', icon: 'assessment', label: t('sb_reports') },
     { to: '/marketing', icon: 'campaign', label: t('marketing') },
