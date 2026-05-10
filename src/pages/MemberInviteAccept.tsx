@@ -2,7 +2,7 @@
  * Accepts a tenant member invitation after website-backed authentication.
  * The page verifies the token, accepts it, refreshes /api/me, and opens tenant mode.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { tenantMemberInvitationsApi, type TenantMemberInvitationPreview, type TenantRole } from '../lib/api';
 import { getTenantRoleLabel } from '../lib/tenantRoles';
@@ -45,24 +45,31 @@ export default function MemberInviteAccept() {
   const { language, isRTL } = useLanguage();
   const copy = COPY[language];
   const [state, setState] = useState<AcceptState>({ status: 'loading' });
+  const firedRef = useRef(false);
+  const reloadMeRef = useRef(reloadMe);
+  reloadMeRef.current = reloadMe;
 
   useEffect(() => {
     /**
      * Loads invite details and accepts the invite for the current user.
+     * Guarded by firedRef so it runs exactly once even if deps change.
      * Input: token from the current URL.
      * Output: state update and refreshed dashboard context.
      */
-    const acceptInvite = async () => {
-      const token = params.get('token');
-      if (!token) {
-        setState({ status: 'error', message: copy.missing });
-        return;
-      }
+    if (firedRef.current) return;
+    firedRef.current = true;
 
+    const token = params.get('token');
+    if (!token) {
+      setState({ status: 'error', message: copy.missing });
+      return;
+    }
+
+    const acceptInvite = async () => {
       try {
         const preview = await tenantMemberInvitationsApi.get(token);
         const accepted = await tenantMemberInvitationsApi.accept(token);
-        await reloadMe();
+        await reloadMeRef.current();
         setState({ status: 'accepted', preview, alreadyAccepted: accepted.alreadyAccepted });
       } catch (error) {
         setState({ status: 'error', message: error instanceof Error ? error.message : copy.missing });
@@ -70,7 +77,8 @@ export default function MemberInviteAccept() {
     };
 
     void acceptInvite();
-  }, [copy.missing, params, reloadMe]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <main dir={isRTL ? 'rtl' : 'ltr'} className="min-h-screen bg-[#edf1fc] px-6 py-10 text-slate-950">
