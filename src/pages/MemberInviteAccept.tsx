@@ -4,7 +4,8 @@
  */
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { tenantMemberInvitationsApi, type TenantMemberInvitationPreview } from '../lib/api';
+import { tenantMemberInvitationsApi, type TenantMemberInvitationPreview, type TenantRole } from '../lib/api';
+import { getTenantRoleLabel } from '../lib/tenantRoles';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
 
@@ -98,11 +99,23 @@ export default function MemberInviteAccept() {
             <h1 className="text-2xl font-bold text-slate-950">
               {state.alreadyAccepted ? copy.already : copy.accepted}
             </h1>
+            {(state.preview.roles ?? []).length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(state.preview.roles as TenantRole[]).map((role) => (
+                  <span
+                    key={role}
+                    className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700"
+                  >
+                    {getTenantRoleLabel(role, language)}
+                  </span>
+                ))}
+              </div>
+            )}
             <p className="mt-3 text-sm leading-6 text-slate-600">{copy.body}</p>
             <button
               type="button"
               onClick={() => navigate('/')}
-              className="mt-8 rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white"
+              className="mt-8 cursor-pointer rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
             >
               {copy.dashboard}
             </button>

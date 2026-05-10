@@ -300,7 +300,7 @@ export interface TenantMemberListItem {
 export interface TenantMemberInviteInput {
   email: string;
   displayName?: string;
-  role: TenantRole;
+  roles: TenantRole[];
   groupIds?: string[];
   employeeId?: string;
   customFields?: Record<string, unknown>;
@@ -313,7 +313,7 @@ export interface TenantMemberInviteResponse {
   tenantMemberId: string;
   nexusIdentityId: string;
   email: string;
-  role: TenantRole;
+  roles: TenantRole[];
   status: 'active';
   groupIds: string[];
   invitationId: string;
@@ -334,7 +334,7 @@ export interface TenantMemberInvitationPreview {
   tenantId?: string;
   tenantName: string;
   invitedEmail: string;
-  role: TenantRole;
+  roles: TenantRole[];
   status: string;
   expiresAt: string;
 }
@@ -357,12 +357,12 @@ export const tenantMemberInvitationsApi = {
   get: (token: string) =>
     request<TenantMemberInvitationPreview>('GET', `/api/v1/member-invitations/${encodeURIComponent(token)}`),
   accept: (token: string) =>
-    request<{ tenantId: string; role: TenantRole; alreadyAccepted: boolean }>(
+    request<{ tenantId: string; roles: TenantRole[]; alreadyAccepted: boolean }>(
       'POST',
       `/api/v1/member-invitations/${encodeURIComponent(token)}/accept`,
     ),
   acceptMine: (invitationId: string) =>
-    request<{ tenantId: string; role: TenantRole; alreadyAccepted: boolean }>(
+    request<{ tenantId: string; roles: TenantRole[]; alreadyAccepted: boolean }>(
       'POST',
       `/api/v1/member-invitations/mine/${encodeURIComponent(invitationId)}/accept`,
     ),
