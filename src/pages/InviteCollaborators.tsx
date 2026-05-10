@@ -198,7 +198,7 @@ function RoleDropdown({ rowId, selectedRoles, disabled, language, onToggle, plac
                       type="checkbox"
                       checked={checked}
                       onChange={() => onToggle(rowId, role)}
-                      className="h-4 w-4 cursor-pointer rounded border-slate-300 accent-slate-950"
+                      className="h-4 w-4 cursor-pointer rounded border-slate-300 accent-primary"
                     />
                     <span className="font-medium text-slate-800 dark:text-slate-200">
                       {getTenantRoleLabel(role, language)}
@@ -365,7 +365,7 @@ export default function InviteCollaborators() {
   };
 
   return (
-    <div dir={isRTL ? 'rtl' : 'ltr'} className="mx-auto max-w-6xl space-y-6">
+    <div dir={isRTL ? 'rtl' : 'ltr'} className="mx-auto max-w-7xl space-y-6">
       <header className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <button
@@ -391,7 +391,7 @@ export default function InviteCollaborators() {
             type="button"
             disabled={isSending || rows.length === 0}
             onClick={() => void sendInvites()}
-            className="cursor-pointer rounded-lg bg-slate-950 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+            className="cursor-pointer rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isSending ? copy.sending : copy.send}
           </button>
@@ -423,7 +423,7 @@ export default function InviteCollaborators() {
           <button
             type="button"
             onClick={() => addEmails(manualEmail)}
-            className="cursor-pointer rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
+            className="cursor-pointer rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
           >
             {copy.add}
           </button>

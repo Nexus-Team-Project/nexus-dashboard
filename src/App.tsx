@@ -304,10 +304,12 @@ function AppRoutes() {
           </Route>
         </Routes>
 
-        {/* Transparent click interceptor for deferred state — opens wizard on any click */}
+        {/* Transparent click interceptor for deferred state — opens wizard on any click.
+            zIndex: 40 keeps it below the sticky header (z-50) so the user avatar
+            and logout button remain clickable even while setup is pending. */}
         {isWorkspaceSetupDeferred && !isDeferredSetupOpen && (
           <div
-            style={{ position: 'fixed', inset: 0, zIndex: 50, cursor: 'default' }}
+            style={{ position: 'fixed', inset: 0, zIndex: 40, cursor: 'default' }}
             onClick={() => setIsDeferredSetupOpen(true)}
             aria-hidden="true"
           />
