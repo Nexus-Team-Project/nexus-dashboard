@@ -92,13 +92,29 @@ const COUNTRIES = [
 ];
 
 /**
- * Validates a local phone number string against a country's pattern.
- * Strips spaces, dashes, parentheses before testing.
+ * Validates a phone number against a country pattern.
+ * Handles all common input forms:
+ *   - Local with leading 0:   0508465858
+ *   - Local without 0:        508465858
+ *   - With dial code:         972508465858
+ *   - With + and dial code:   +972508465858
+ * Strips formatting, removes country code prefix if present,
+ * then tests both with and without a leading 0.
  */
 function validatePhoneNumber(raw: string, country: typeof COUNTRIES[number]): boolean {
-  const stripped = raw.replace(/[\s\-().]/g, '');
+  // Strip formatting characters and leading +
+  let stripped = raw.replace(/[\s\-()]/g, '').replace(/^\+/, '');
   if (!stripped) return false;
-  return country.pattern.test(stripped);
+
+  // Remove country dial code prefix if the user typed the full international number
+  const dialDigits = country.dial.replace('+', '');
+  if (stripped.startsWith(dialDigits) && stripped.length > dialDigits.length) {
+    stripped = stripped.slice(dialDigits.length);
+  }
+
+  // Test as entered, then also with leading 0 added (handles countries where
+  // local format starts with 0 but international format omits it)
+  return country.pattern.test(stripped) || country.pattern.test('0' + stripped);
 }
 
 const COPY = {
@@ -303,32 +319,58 @@ interface OnboardingWizardProps {
  * Input: completion, back, and skip callbacks plus optional first name.
  * Output: localized wizard UI that emits validated form data to the parent.
  */
+const DRAFT_KEY = 'nexus_onboarding_draft';
+
+/** Reads a saved wizard draft from sessionStorage, returns null if none. */
+function loadDraft() {
+  try {
+    const raw = sessionStorage.getItem(DRAFT_KEY);
+    return raw ? JSON.parse(raw) as Record<string, unknown> : null;
+  } catch { return null; }
+}
+
+/** Saves wizard draft fields to sessionStorage so they survive modal close/reopen. */
+function saveDraft(data: Record<string, unknown>) {
+  try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(data)); } catch { /* ignore */ }
+}
+
+/** Clears the saved draft after successful submission. */
+export function clearOnboardingDraft() {
+  try { sessionStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+}
+
 export default function OnboardingWizard({ onComplete, onSkip, firstName }: OnboardingWizardProps) {
   const { language, isRTL } = useLanguage();
   const direction = isRTL ? 'rtl' : 'ltr';
   const c = COPY[language];
 
-  const [step, setStep] = useState(0);
+  // Restore from sessionStorage draft if available
+  const draft = loadDraft();
+  const savedCountry = draft?.countryCode
+    ? (COUNTRIES.find(c => c.code === draft.countryCode) ?? COUNTRIES[0])
+    : COUNTRIES[0];
+
+  const [step, setStep] = useState((draft?.step as number | undefined) ?? 0);
 
   // Step 0 fields
-  const [orgName, setOrgName]           = useState('');
-  const [website, setWebsite]           = useState('');
+  const [orgName, setOrgName]           = useState((draft?.orgName as string | undefined) ?? '');
+  const [website, setWebsite]           = useState((draft?.website as string | undefined) ?? '');
   const [websiteError, setWebsiteError] = useState(false);
-  const [businessDesc, setBusinessDesc] = useState('');
+  const [businessDesc, setBusinessDesc] = useState((draft?.businessDesc as string | undefined) ?? '');
 
   // Step 1
-  const [primarySelected, setPrimarySelected]   = useState<string[]>([]);
-  const [primarySuggested, setPrimarySuggested] = useState<string[]>([]);
+  const [primarySelected, setPrimarySelected]   = useState<string[]>((draft?.primarySelected as string[] | undefined) ?? []);
+  const [primarySuggested, setPrimarySuggested] = useState<string[]>((draft?.primarySuggested as string[] | undefined) ?? []);
 
   // "Why recommended" tooltip
   const [hoveredWhyId, setHoveredWhyId]   = useState<string | null>(null);
   const [whyPos, setWhyPos]               = useState({ top: 0, left: 0 });
 
   // Step 2 fields
-  const [selectedCountry, setSelectedCountry] = useState<typeof COUNTRIES[number]>(COUNTRIES[0]);
-  const [phoneNumber, setPhoneNumber]          = useState('');
+  const [selectedCountry, setSelectedCountry] = useState<typeof COUNTRIES[number]>(savedCountry);
+  const [phoneNumber, setPhoneNumber]          = useState((draft?.phoneNumber as string | undefined) ?? '');
   const [phoneTouched, setPhoneTouched]        = useState(false);
-  const [role, setRole]   = useState('');
+  const [role, setRole]   = useState((draft?.role as string | undefined) ?? '');
 
   // Disabled-continue tooltip
   const [showTooltip, setShowTooltip] = useState(false);
@@ -339,6 +381,11 @@ export default function OnboardingWizard({ onComplete, onSkip, firstName }: Onbo
   const descValid = descLen >= MIN_DESC_CHARS;
   const phoneValid = validatePhoneNumber(phoneNumber, selectedCountry);
   const phone = `${selectedCountry.dial} ${phoneNumber.trim()}`;
+
+  // Auto-save draft to sessionStorage whenever any field changes
+  useEffect(() => {
+    saveDraft({ step, orgName, website, businessDesc, primarySelected, primarySuggested, countryCode: selectedCountry.code, phoneNumber, role });
+  }, [step, orgName, website, businessDesc, primarySelected, primarySuggested, selectedCountry.code, phoneNumber, role]);
 
   // ── URL validation ────────────────────────────────────────────────────────
   const validateWebsite = (val: string) => {
@@ -368,6 +415,7 @@ export default function OnboardingWizard({ onComplete, onSkip, firstName }: Onbo
     } else if (step === 1) {
       setStep(2);
     } else {
+      clearOnboardingDraft();
       onComplete({
         org_name: orgName,
         website,
@@ -644,7 +692,7 @@ export default function OnboardingWizard({ onComplete, onSkip, firstName }: Onbo
 
         <div className="flex items-center gap-3">
           {step === 0 && (
-            <button onClick={onSkip} className="cursor-pointer text-[14px] text-slate-400 hover:text-slate-600 transition-colors">
+            <button onClick={() => { clearOnboardingDraft(); onSkip(); }} className="cursor-pointer text-[14px] text-slate-400 hover:text-slate-600 transition-colors">
               {c.skip}
             </button>
           )}
