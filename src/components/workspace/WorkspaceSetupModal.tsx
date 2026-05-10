@@ -2,14 +2,15 @@
  * Hosts the workspace setup flow and persists onboarding choices to backend APIs.
  * The backend remains the source of truth for tenant/member status.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import OnboardingWizard from './OnboardingWizard';
 import SetupAnimation from './SetupAnimation';
 import ScheduleStep from './ScheduleStep';
 import type { OnboardingData } from './OnboardingWizard';
+import { clearOnboardingDraft } from './OnboardingWizard';
 import nexusBlackLogo from '../../assets/logos/Nexus_wide_logo_blak.png';
-import { onboardingApi, type SkipReason } from '../../lib/api';
+import { onboardingApi, type SkipReason, type WizardDraftPayload } from '../../lib/api';
 import { useLanguage } from '../../i18n/LanguageContext';
 
 interface WorkspaceSetupModalProps {
@@ -49,6 +50,14 @@ const WorkspaceSetupModal = ({ onClose, onFinished, firstName, forceOpen = false
   const [, setOnboardingData] = useState<OnboardingData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [backendDraft, setBackendDraft] = useState<WizardDraftPayload | null>(null);
+
+  // Load MongoDB draft on mount so progress survives logout/login
+  useEffect(() => {
+    onboardingApi.loadWizardDraft()
+      .then(({ draft }) => { if (draft) setBackendDraft(draft); })
+      .catch(() => { /* non-fatal — localStorage fallback still active */ });
+  }, []);
 
   /**
    * Creates a tenant workspace through the protected backend API.
@@ -68,6 +77,9 @@ const WorkspaceSetupModal = ({ onClose, onFinished, firstName, forceOpen = false
         contactPhone: data.phone,
         contactRole: data.role,
       });
+      // Clear both localStorage and MongoDB draft on success
+      clearOnboardingDraft();
+      void onboardingApi.clearWizardDraft().catch(() => { /* non-fatal */ });
       await onFinished?.();
       setPhase('animation');
     } catch (err) {
@@ -111,10 +123,14 @@ const WorkspaceSetupModal = ({ onClose, onFinished, firstName, forceOpen = false
    * Input: skip reason chosen in the localized choice screen.
    * Output: backend onboarding state is updated and the modal closes.
    */
-  const handleSkipChoice = async (skipReason: SkipReason) => {
+  const handleSkipChoice = async (skipReason: SkipReason, draft?: WizardDraftPayload) => {
     setIsSubmitting(true);
     setError(null);
     try {
+      // Save wizard progress to MongoDB before deferring so it survives logout
+      if (skipReason === 'complete_later' && draft) {
+        await onboardingApi.saveWizardDraft(draft).catch(() => { /* non-fatal */ });
+      }
       await onboardingApi.skipWorkspace(skipReason);
       await onFinished?.();
       onClose();
@@ -154,7 +170,9 @@ const WorkspaceSetupModal = ({ onClose, onFinished, firstName, forceOpen = false
               onComplete={handleWizardComplete}
               onBack={onClose}
               onSkip={handleSkip}
+              onSkipWithDraft={(draft) => void handleSkipChoice('complete_later', draft)}
               firstName={firstName}
+              backendDraft={backendDraft}
             />
             {(isSubmitting || error) && (
               <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-[120] rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm shadow-lg">

@@ -253,6 +253,17 @@ export interface BusinessSetupResponse {
   updatedAt: string | null;
 }
 
+export interface WizardDraftPayload {
+  step?: number;
+  orgName?: string;
+  website?: string;
+  businessDesc?: string;
+  primarySelected?: string[];
+  primarySuggested?: string[];
+  phone?: string;
+  role?: string;
+}
+
 export const onboardingApi = {
   me: () => request<DashboardMe>('GET', '/api/me'),
   status: () => request<Pick<DashboardMe, 'context' | 'onboarding'>>('GET', '/api/onboarding/status'),
@@ -260,6 +271,12 @@ export const onboardingApi = {
     request<WorkspaceSetupResponse>('POST', '/api/onboarding/workspace', data),
   skipWorkspace: (skipReason: SkipReason) =>
     request<SkipWorkspaceResponse>('POST', '/api/onboarding/skip', { skipReason }),
+  loadWizardDraft: () =>
+    request<{ draft: WizardDraftPayload | null }>('GET', '/api/onboarding/wizard-draft'),
+  saveWizardDraft: (draft: WizardDraftPayload) =>
+    request<{ ok: boolean }>('PATCH', '/api/onboarding/wizard-draft', draft),
+  clearWizardDraft: () =>
+    request<{ ok: boolean }>('DELETE', '/api/onboarding/wizard-draft'),
 };
 
 export const businessSetupApi = {

@@ -3,9 +3,9 @@
  * The component collects tenant setup data but leaves persistence to the parent.
  */
 import { useState, useRef, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import nexusBlackLogo from '../../assets/logos/Nexus_wide_logo_blak.png';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { PhoneInputField } from '../ui/PhoneInputField';
 
 const TOTAL_STEPS = 3;
 const MIN_DESC_CHARS = 20;
@@ -40,82 +40,6 @@ const CONTACT_ROLES = [
   { id: 'developer', he: 'פיתוח', en: 'Developer' },
   { id: 'other', he: 'אחר', en: 'Other' },
 ] as const;
-
-// ── Country phone data: dial code, placeholder, and digit validation ────────
-// pattern: regex applied to local number (digits only, no dial code)
-// placeholder: displayed in the input field when empty
-const COUNTRIES = [
-  { code: 'IL', flag: '🇮🇱', name: 'Israel',              dial: '+972', placeholder: '050-000-0000', pattern: /^0[2-9]\d{7,8}$/ },
-  { code: 'US', flag: '🇺🇸', name: 'United States',        dial: '+1',   placeholder: '(555) 000-0000', pattern: /^[2-9]\d{2}[2-9]\d{6}$/ },
-  { code: 'GB', flag: '🇬🇧', name: 'United Kingdom',       dial: '+44',  placeholder: '07700 000000', pattern: /^0?[1-9]\d{8,9}$/ },
-  { code: 'DE', flag: '🇩🇪', name: 'Germany',              dial: '+49',  placeholder: '0151 00000000', pattern: /^0[1-9]\d{3,13}$/ },
-  { code: 'FR', flag: '🇫🇷', name: 'France',               dial: '+33',  placeholder: '06 00 00 00 00', pattern: /^0[1-9]\d{8}$/ },
-  { code: 'IT', flag: '🇮🇹', name: 'Italy',                dial: '+39',  placeholder: '312 000 0000', pattern: /^3\d{8,9}$|^0\d{6,11}$/ },
-  { code: 'ES', flag: '🇪🇸', name: 'Spain',                dial: '+34',  placeholder: '612 000 000', pattern: /^[6-9]\d{8}$/ },
-  { code: 'NL', flag: '🇳🇱', name: 'Netherlands',          dial: '+31',  placeholder: '06 00000000', pattern: /^0[1-9]\d{7,8}$/ },
-  { code: 'CA', flag: '🇨🇦', name: 'Canada',               dial: '+1',   placeholder: '(416) 000-0000', pattern: /^[2-9]\d{2}[2-9]\d{6}$/ },
-  { code: 'AU', flag: '🇦🇺', name: 'Australia',            dial: '+61',  placeholder: '0400 000 000', pattern: /^0[2-9]\d{8}$/ },
-  { code: 'BR', flag: '🇧🇷', name: 'Brazil',               dial: '+55',  placeholder: '(11) 91234-5678', pattern: /^\(?\d{2}\)?\s?\d{4,5}-?\d{4}$/ },
-  { code: 'IN', flag: '🇮🇳', name: 'India',                dial: '+91',  placeholder: '98765 43210', pattern: /^[6-9]\d{9}$/ },
-  { code: 'CN', flag: '🇨🇳', name: 'China',                dial: '+86',  placeholder: '138 0000 0000', pattern: /^1[3-9]\d{9}$/ },
-  { code: 'JP', flag: '🇯🇵', name: 'Japan',                dial: '+81',  placeholder: '090-0000-0000', pattern: /^0[5789]0-?\d{4}-?\d{4}$|^0\d{1,4}-?\d{1,4}-?\d{4}$/ },
-  { code: 'SG', flag: '🇸🇬', name: 'Singapore',            dial: '+65',  placeholder: '8123 4567', pattern: /^[689]\d{7}$/ },
-  { code: 'AE', flag: '🇦🇪', name: 'UAE',                  dial: '+971', placeholder: '050 000 0000', pattern: /^0?5[0-9]\d{7}$/ },
-  { code: 'SA', flag: '🇸🇦', name: 'Saudi Arabia',         dial: '+966', placeholder: '050 000 0000', pattern: /^0?5\d{8}$/ },
-  { code: 'TR', flag: '🇹🇷', name: 'Turkey',               dial: '+90',  placeholder: '0532 000 0000', pattern: /^0?5\d{9}$/ },
-  { code: 'PL', flag: '🇵🇱', name: 'Poland',               dial: '+48',  placeholder: '512 000 000', pattern: /^[4-9]\d{8}$/ },
-  { code: 'UA', flag: '🇺🇦', name: 'Ukraine',              dial: '+380', placeholder: '050 000 0000', pattern: /^0[3-9]\d{8}$/ },
-  { code: 'ZA', flag: '🇿🇦', name: 'South Africa',         dial: '+27',  placeholder: '071 000 0000', pattern: /^0[6-8]\d{8}$/ },
-  { code: 'NG', flag: '🇳🇬', name: 'Nigeria',              dial: '+234', placeholder: '0803 000 0000', pattern: /^0[7-9]\d{9}$/ },
-  { code: 'EG', flag: '🇪🇬', name: 'Egypt',                dial: '+20',  placeholder: '010 0000 0000', pattern: /^0[12]\d{9}$/ },
-  { code: 'MX', flag: '🇲🇽', name: 'Mexico',               dial: '+52',  placeholder: '55 1234 5678', pattern: /^\d{10}$/ },
-  { code: 'AR', flag: '🇦🇷', name: 'Argentina',            dial: '+54',  placeholder: '11 1234-5678', pattern: /^\d{10}$/ },
-  { code: 'RU', flag: '🇷🇺', name: 'Russia',               dial: '+7',   placeholder: '912 000-00-00', pattern: /^[79]\d{9}$/ },
-  { code: 'KR', flag: '🇰🇷', name: 'South Korea',          dial: '+82',  placeholder: '010-0000-0000', pattern: /^0\d{1,2}-?\d{3,4}-?\d{4}$/ },
-  { code: 'PT', flag: '🇵🇹', name: 'Portugal',             dial: '+351', placeholder: '912 000 000', pattern: /^[29]\d{8}$/ },
-  { code: 'SE', flag: '🇸🇪', name: 'Sweden',               dial: '+46',  placeholder: '070-000 00 00', pattern: /^0[1-9]\d{6,9}$/ },
-  { code: 'CH', flag: '🇨🇭', name: 'Switzerland',          dial: '+41',  placeholder: '076 000 00 00', pattern: /^0[1-9]\d{8}$/ },
-  { code: 'BE', flag: '🇧🇪', name: 'Belgium',              dial: '+32',  placeholder: '0470 00 00 00', pattern: /^0[1-9]\d{7,8}$/ },
-  { code: 'AT', flag: '🇦🇹', name: 'Austria',              dial: '+43',  placeholder: '0664 000 0000', pattern: /^0\d{3,12}$/ },
-  { code: 'GR', flag: '🇬🇷', name: 'Greece',               dial: '+30',  placeholder: '694 000 0000', pattern: /^[269]\d{9}$/ },
-  { code: 'CZ', flag: '🇨🇿', name: 'Czech Republic',       dial: '+420', placeholder: '601 000 000', pattern: /^[6-7]\d{8}$/ },
-  { code: 'RO', flag: '🇷🇴', name: 'Romania',              dial: '+40',  placeholder: '0712 000 000', pattern: /^0[23467]\d{8}$/ },
-  { code: 'HU', flag: '🇭🇺', name: 'Hungary',              dial: '+36',  placeholder: '06 30 000 0000', pattern: /^06?\d{8,9}$/ },
-  { code: 'TH', flag: '🇹🇭', name: 'Thailand',             dial: '+66',  placeholder: '081 000 0000', pattern: /^0[689]\d{8}$/ },
-  { code: 'MY', flag: '🇲🇾', name: 'Malaysia',             dial: '+60',  placeholder: '012-000 0000', pattern: /^0[1-9]\d{7,9}$/ },
-  { code: 'ID', flag: '🇮🇩', name: 'Indonesia',            dial: '+62',  placeholder: '0812-0000-0000', pattern: /^0[2-9]\d{6,12}$/ },
-  { code: 'PH', flag: '🇵🇭', name: 'Philippines',          dial: '+63',  placeholder: '0917 000 0000', pattern: /^0[9]\d{9}$/ },
-  { code: 'PK', flag: '🇵🇰', name: 'Pakistan',             dial: '+92',  placeholder: '0300 0000000', pattern: /^0[3]\d{9}$/ },
-  { code: 'BD', flag: '🇧🇩', name: 'Bangladesh',           dial: '+880', placeholder: '01700-000000', pattern: /^0[1][0-9]\d{8}$/ },
-  { code: 'VN', flag: '🇻🇳', name: 'Vietnam',              dial: '+84',  placeholder: '090 000 0000', pattern: /^0[3-9]\d{8}$/ },
-  { code: 'NZ', flag: '🇳🇿', name: 'New Zealand',          dial: '+64',  placeholder: '021 000 0000', pattern: /^0[2]\d{7,9}$/ },
-];
-
-/**
- * Validates a phone number against a country pattern.
- * Handles all common input forms:
- *   - Local with leading 0:   0508465858
- *   - Local without 0:        508465858
- *   - With dial code:         972508465858
- *   - With + and dial code:   +972508465858
- * Strips formatting, removes country code prefix if present,
- * then tests both with and without a leading 0.
- */
-function validatePhoneNumber(raw: string, country: typeof COUNTRIES[number]): boolean {
-  // Strip formatting characters and leading +
-  let stripped = raw.replace(/[\s\-()]/g, '').replace(/^\+/, '');
-  if (!stripped) return false;
-
-  // Remove country dial code prefix if the user typed the full international number
-  const dialDigits = country.dial.replace('+', '');
-  if (stripped.startsWith(dialDigits) && stripped.length > dialDigits.length) {
-    stripped = stripped.slice(dialDigits.length);
-  }
-
-  // Test as entered, then also with leading 0 added (handles countries where
-  // local format starts with 0 but international format omits it)
-  return country.pattern.test(stripped) || country.pattern.test('0' + stripped);
-}
 
 const COPY = {
   he: {
@@ -186,132 +110,27 @@ function getSuggested(desc: string): string[] {
   return matched.length > 0 ? matched : ['benefits_club', 'loyalty'];
 }
 
-// ── Country Selector component ─────────────────────────────────────────────
-interface CountrySelectorProps {
-  selected: typeof COUNTRIES[number];
-  onSelect: (country: typeof COUNTRIES[number]) => void;
-  language: 'he' | 'en';
-  searchPlaceholder: string;
-}
-
-/**
- * Renders a compact country/dial-code selector with portal dropdown.
- * Escapes any overflow clipping from parent containers.
- */
-function CountrySelector({ selected, onSelect, language, searchPlaceholder }: CountrySelectorProps) {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState('');
-  const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const searchRef = useRef<HTMLInputElement>(null);
-
-  const filtered = COUNTRIES.filter(c =>
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.dial.includes(search) ||
-    c.code.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const recalc = () => {
-    if (!btnRef.current) return;
-    const r = btnRef.current.getBoundingClientRect();
-    setMenuStyle({
-      position: 'fixed',
-      top: r.bottom + 4,
-      left: r.left,
-      width: Math.max(r.width, 240),
-      zIndex: 99999,
-    });
-  };
-
-  useEffect(() => {
-    if (open) {
-      recalc();
-      setTimeout(() => searchRef.current?.focus(), 50);
-    } else {
-      setSearch('');
-    }
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent) => {
-      if (btnRef.current?.contains(e.target as Node) || menuRef.current?.contains(e.target as Node)) return;
-      setOpen(false);
-    };
-    const scroll = () => recalc();
-    document.addEventListener('mousedown', close);
-    window.addEventListener('scroll', scroll, true);
-    return () => {
-      document.removeEventListener('mousedown', close);
-      window.removeEventListener('scroll', scroll, true);
-    };
-  }, [open]);
-
-  return (
-    <div className="relative">
-      <button
-        ref={btnRef}
-        type="button"
-        onClick={() => setOpen(p => !p)}
-        className="flex h-full cursor-pointer items-center gap-1.5 rounded-s-lg border border-e-0 border-slate-200 bg-slate-50 px-3 py-2.5 text-[14px] transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-      >
-        <span className="text-base leading-none">{selected.flag}</span>
-        <span className="font-medium text-slate-700">{selected.dial}</span>
-        <svg width="10" height="6" viewBox="0 0 10 6" fill="none" className="text-slate-400">
-          <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      </button>
-
-      {open && createPortal(
-        <div
-          ref={menuRef}
-          style={menuStyle}
-          className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl"
-        >
-          <div className="border-b border-slate-100 p-2">
-            <input
-              ref={searchRef}
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder={searchPlaceholder}
-              className="w-full rounded-md border border-slate-200 px-3 py-1.5 text-[13px] focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
-              dir={language === 'he' ? 'rtl' : 'ltr'}
-            />
-          </div>
-          <ul role="listbox" className="max-h-48 overflow-y-auto">
-            {filtered.map(country => (
-              <li key={country.code}>
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={selected.code === country.code}
-                  onClick={() => { onSelect(country); setOpen(false); }}
-                  className={`flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-[13px] transition-colors hover:bg-slate-50 ${selected.code === country.code ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700'}`}
-                >
-                  <span className="text-base leading-none">{country.flag}</span>
-                  <span className="flex-1 text-start">{country.name}</span>
-                  <span className="font-medium text-slate-500">{country.dial}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>,
-        document.body
-      )}
-    </div>
-  );
-}
-
 // ── Component ──────────────────────────────────────────────────────────────
+export interface WizardDraft {
+  step?: number;
+  orgName?: string;
+  website?: string;
+  businessDesc?: string;
+  primarySelected?: string[];
+  primarySuggested?: string[];
+  phone?: string;
+  role?: string;
+}
+
 interface OnboardingWizardProps {
   onComplete: (data: OnboardingData) => void;
   onBack: () => void;
   onSkip: () => void;
+  /** Called when user skips with "complete later" — receives current draft to persist. */
+  onSkipWithDraft?: (draft: WizardDraft) => void;
   firstName?: string;
+  /** Draft loaded from MongoDB — takes priority over localStorage. */
+  backendDraft?: WizardDraft | null;
 }
 
 /**
@@ -321,34 +140,32 @@ interface OnboardingWizardProps {
  */
 const DRAFT_KEY = 'nexus_onboarding_draft';
 
-/** Reads a saved wizard draft from sessionStorage, returns null if none. */
+/** Reads a saved wizard draft from localStorage, returns null if none. */
 function loadDraft() {
   try {
-    const raw = sessionStorage.getItem(DRAFT_KEY);
+    const raw = localStorage.getItem(DRAFT_KEY);
     return raw ? JSON.parse(raw) as Record<string, unknown> : null;
   } catch { return null; }
 }
 
-/** Saves wizard draft fields to sessionStorage so they survive modal close/reopen. */
+/** Saves wizard draft fields to localStorage so they survive logout and browser restart. */
 function saveDraft(data: Record<string, unknown>) {
-  try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(data)); } catch { /* ignore */ }
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(data)); } catch { /* ignore */ }
 }
 
-/** Clears the saved draft after successful submission. */
+/** Clears the saved draft after successful submission or explicit skip. */
 export function clearOnboardingDraft() {
-  try { sessionStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+  try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
 }
 
-export default function OnboardingWizard({ onComplete, onSkip, firstName }: OnboardingWizardProps) {
+export default function OnboardingWizard({ onComplete, onSkip, onSkipWithDraft, firstName, backendDraft }: OnboardingWizardProps) {
   const { language, isRTL } = useLanguage();
   const direction = isRTL ? 'rtl' : 'ltr';
   const c = COPY[language];
 
-  // Restore from sessionStorage draft if available
-  const draft = loadDraft();
-  const savedCountry = draft?.countryCode
-    ? (COUNTRIES.find(c => c.code === draft.countryCode) ?? COUNTRIES[0])
-    : COUNTRIES[0];
+  // Backend draft (from MongoDB) takes priority over localStorage draft
+  const localDraft = loadDraft();
+  const draft: WizardDraft | null = backendDraft ?? localDraft;
 
   const [step, setStep] = useState((draft?.step as number | undefined) ?? 0);
 
@@ -366,11 +183,11 @@ export default function OnboardingWizard({ onComplete, onSkip, firstName }: Onbo
   const [hoveredWhyId, setHoveredWhyId]   = useState<string | null>(null);
   const [whyPos, setWhyPos]               = useState({ top: 0, left: 0 });
 
-  // Step 2 fields
-  const [selectedCountry, setSelectedCountry] = useState<typeof COUNTRIES[number]>(savedCountry);
-  const [phoneNumber, setPhoneNumber]          = useState((draft?.phoneNumber as string | undefined) ?? '');
-  const [phoneTouched, setPhoneTouched]        = useState(false);
-  const [role, setRole]   = useState((draft?.role as string | undefined) ?? '');
+  // Step 2 fields — phone stored as E164 (e.g. "+972508465858")
+  const [phone, setPhone]           = useState((draft?.phone as string | undefined) ?? '');
+  const [phoneValid, setPhoneValid] = useState(false);
+  const [phoneTouched, setPhoneTouched] = useState(false);
+  const [role, setRole]             = useState((draft?.role as string | undefined) ?? '');
 
   // Disabled-continue tooltip
   const [showTooltip, setShowTooltip] = useState(false);
@@ -379,13 +196,11 @@ export default function OnboardingWizard({ onComplete, onSkip, firstName }: Onbo
 
   const descLen = businessDesc.trim().length;
   const descValid = descLen >= MIN_DESC_CHARS;
-  const phoneValid = validatePhoneNumber(phoneNumber, selectedCountry);
-  const phone = `${selectedCountry.dial} ${phoneNumber.trim()}`;
 
   // Auto-save draft to sessionStorage whenever any field changes
   useEffect(() => {
-    saveDraft({ step, orgName, website, businessDesc, primarySelected, primarySuggested, countryCode: selectedCountry.code, phoneNumber, role });
-  }, [step, orgName, website, businessDesc, primarySelected, primarySuggested, selectedCountry.code, phoneNumber, role]);
+    saveDraft({ step, orgName, website, businessDesc, primarySelected, primarySuggested, phone, role });
+  }, [step, orgName, website, businessDesc, primarySelected, primarySuggested, phone, role]);
 
   // ── URL validation ────────────────────────────────────────────────────────
   const validateWebsite = (val: string) => {
@@ -404,6 +219,24 @@ export default function OnboardingWizard({ onComplete, onSkip, firstName }: Onbo
     step === 1 ? primarySelected.length > 0 :
     phoneValid && role.trim() !== '';
 
+  const handlePhoneChange = (e164: string, valid: boolean) => {
+    setPhone(e164);
+    setPhoneValid(valid);
+    setPhoneTouched(true);
+  };
+
+  /** Returns current wizard field values for draft persistence. */
+  const getCurrentDraft = (): WizardDraft => ({
+    step,
+    orgName,
+    website,
+    businessDesc,
+    primarySelected,
+    primarySuggested,
+    phone,
+    role,
+  });
+
   // ── Navigation ────────────────────────────────────────────────────────────
   const handleNext = () => {
     if (!canContinue) return;
@@ -416,14 +249,7 @@ export default function OnboardingWizard({ onComplete, onSkip, firstName }: Onbo
       setStep(2);
     } else {
       clearOnboardingDraft();
-      onComplete({
-        org_name: orgName,
-        website,
-        business_desc: businessDesc,
-        primary_use_cases: primarySelected,
-        phone,
-        role,
-      });
+      onComplete({ org_name: orgName, website, business_desc: businessDesc, primary_use_cases: primarySelected, phone, role });
     }
   };
 
@@ -636,34 +462,15 @@ export default function OnboardingWizard({ onComplete, onSkip, firstName }: Onbo
             </div>
 
             <div className="space-y-4">
-              {/* Phone: country selector + number input */}
-              <div>
-                <label className="block text-[13px] font-medium text-slate-700 mb-1.5">{c.phoneLabel}</label>
-                <div className="flex" dir="ltr">
-                  <CountrySelector
-                    selected={selectedCountry}
-                    onSelect={(country) => {
-                      setSelectedCountry(country);
-                      setPhoneNumber('');
-                      setPhoneTouched(false);
-                    }}
-                    language={language}
-                    searchPlaceholder={c.searchCountry}
-                  />
-                  <input
-                    type="tel"
-                    value={phoneNumber}
-                    onChange={e => { setPhoneNumber(e.target.value); setPhoneTouched(true); }}
-                    onBlur={() => setPhoneTouched(true)}
-                    placeholder={selectedCountry.placeholder}
-                    dir="ltr"
-                    className={`min-w-0 flex-1 rounded-e-lg border px-3.5 py-2.5 text-[14px] text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-2 transition-all ${phoneTouched && phoneNumber && !phoneValid ? 'border-red-300 focus:ring-red-500/20 focus:border-red-400' : 'border-slate-200 focus:ring-indigo-500/30 focus:border-indigo-400'}`}
-                  />
-                </div>
-                {phoneTouched && phoneNumber && !phoneValid && (
-                  <p className="mt-1 text-[12px] text-red-500">{c.phoneError}</p>
-                )}
-              </div>
+              <PhoneInputField
+                value={phone}
+                defaultCountry="il"
+                onChange={handlePhoneChange}
+                label={c.phoneLabel}
+                errorText={c.phoneError}
+                searchPlaceholder={c.searchCountry}
+                touched={phoneTouched}
+              />
 
               <div>
                 <label className="block text-[13px] font-medium text-slate-700 mb-1.5">{c.roleLabel}</label>
@@ -691,11 +498,20 @@ export default function OnboardingWizard({ onComplete, onSkip, firstName }: Onbo
         )}
 
         <div className="flex items-center gap-3">
-          {step === 0 && (
-            <button onClick={() => { clearOnboardingDraft(); onSkip(); }} className="cursor-pointer text-[14px] text-slate-400 hover:text-slate-600 transition-colors">
-              {c.skip}
-            </button>
-          )}
+          {/* Skip visible on every step — saves draft to MongoDB when "complete later" */}
+          <button
+            onClick={() => {
+              if (onSkipWithDraft) {
+                onSkipWithDraft(getCurrentDraft());
+              } else {
+                clearOnboardingDraft();
+                onSkip();
+              }
+            }}
+            className="cursor-pointer text-[14px] text-slate-400 hover:text-slate-600 transition-colors"
+          >
+            {c.skip}
+          </button>
           <button
             ref={btnRef}
             onClick={handleNext}
