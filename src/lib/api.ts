@@ -314,6 +314,33 @@ export interface TenantMemberListItem {
   joinedAt: string;
 }
 
+/** Pagination metadata returned by paged list endpoints. */
+export interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  pages: number;
+}
+
+/** Query params accepted by GET /api/v1/tenant/members. */
+export interface ListMembersParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: string;
+  role?: TenantRole;
+}
+
+/** One pending invitation row shown in the admin pending-invitations panel. */
+export interface PendingInvitationItem {
+  invitationId: string;
+  email: string;
+  roles: TenantRole[];
+  status: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
 export interface TenantMemberInviteInput {
   email: string;
   displayName?: string;
@@ -356,8 +383,28 @@ export interface TenantMemberInvitationPreview {
   expiresAt: string;
 }
 
+/**
+ * Serialises ListMembersParams into a URL query string.
+ * Skips undefined values so the backend receives only active filters.
+ */
+function buildMembersQuery(params?: ListMembersParams): string {
+  if (!params) return '';
+  const entries = Object.entries(params).filter(([, v]) => v !== undefined && v !== '');
+  if (entries.length === 0) return '';
+  return '?' + new URLSearchParams(entries.map(([k, v]) => [k, String(v)])).toString();
+}
+
 export const tenantMembersApi = {
-  list: () => request<{ tenantId: string; members: TenantMemberListItem[] }>('GET', '/api/v1/tenant/members'),
+  list: (params?: ListMembersParams) =>
+    request<{ tenantId: string; members: TenantMemberListItem[]; pagination: PaginationMeta }>(
+      'GET',
+      `/api/v1/tenant/members${buildMembersQuery(params)}`,
+    ),
+  pendingInvitations: () =>
+    request<{ pendingInvitations: PendingInvitationItem[]; total: number; hasMore: boolean }>(
+      'GET',
+      '/api/v1/tenant/members/pending-invitations',
+    ),
   roles: () => request<{ roles: TenantRolePermissions[] }>('GET', '/api/v1/tenant/roles'),
   invite: (data: TenantMemberInviteInput) =>
     request<TenantMemberInviteResponse>('POST', '/api/v1/tenant/members/invitations', data),
