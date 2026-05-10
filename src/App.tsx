@@ -264,32 +264,65 @@ function AppRoutes() {
   const canManageMembers = me.authorization.canManageMembers === true;
   const firstName = user?.fullName?.split(/\s+/)[0] ?? me?.user.name?.split(/\s+/)[0];
 
-  if (requiresWorkspaceSetup) {
-    return (
-      <WorkspaceSetupModal
-        onClose={() => undefined}
-        onFinished={reloadMe}
-        firstName={firstName}
-        forceOpen
-      />
-    );
-  }
-
-  if (isWorkspaceSetupDeferred) {
+  // Setup states: always show the full tenant admin dashboard behind a wizard overlay.
+  // For requiresWorkspaceSetup: wizard is always visible (modal backdrop blurs the dashboard).
+  // For isWorkspaceSetupDeferred: transparent interceptor catches all dashboard clicks and
+  // opens the wizard. User sees the full dashboard but can't act until setup is complete.
+  if (requiresWorkspaceSetup || isWorkspaceSetupDeferred) {
     return (
       <>
-        <DeferredWorkspaceScreen
-          onContinue={() => setIsDeferredSetupOpen(true)}
-          onLogout={logout}
-        />
-        {isDeferredSetupOpen && (
+        {/* Full tenant admin dashboard always visible in background */}
+        <Routes>
+          <Route path="/api-docs" element={<ApiDocs />} />
+          <Route path="/member-invite/accept" element={<MemberInviteAccept />} />
+          <Route path="/business-setup" element={<BusinessSetupPage />} />
+          <Route path="/" element={<DashboardLayout onLogout={logout} showBusinessSetup />}>
+            <Route index element={<Home />} />
+            <Route path="projects" element={<Lobby />} />
+            <Route path="projects/new" element={<CreateProject />} />
+            <Route path="users" element={<RolesPermissions />} />
+            <Route path="transactions" element={<Transactions />} />
+            <Route path="points-gifts" element={<PointsGifts />} />
+            <Route path="benefits-partnerships" element={<BenefitsPartnerships />} />
+            <Route path="benefits-partnerships/edit-benefit/:id" element={<EditBenefit />} />
+            <Route path="benefits-partnerships/edit-business/:id" element={<EditBenefit />} />
+            <Route path="send-gift/event" element={<SendGiftEvent />} />
+            <Route path="send-gift/brands" element={<SendGiftBrands />} />
+            <Route path="send-gift/greeting" element={<SendGiftGreeting />} />
+            <Route path="send-gift/recipients" element={<SendGiftRecipients />} />
+            <Route path="send-gift/summary" element={<SendGiftSummary />} />
+            <Route path="organizations" element={<Organizations />} />
+            <Route path="organizations/:slug" element={<OrgDetail />} />
+            <Route path="marketing/sms" element={<SmsCampaign />} />
+            <Route path="inbox" element={<Inbox />} />
+            <Route path="content" element={<Content />} />
+            <Route path="settings" element={<Settings />} />
+            <Route path="settings/roles-permissions" element={<RolesPermissions />} />
+            <Route path="settings/roles-permissions/invite" element={<InviteCollaborators />} />
+            <Route path="dev" element={<DevPlaygroundRoute />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Route>
+        </Routes>
+
+        {/* Transparent click interceptor for deferred state — opens wizard on any click */}
+        {isWorkspaceSetupDeferred && !isDeferredSetupOpen && (
+          <div
+            style={{ position: 'fixed', inset: 0, zIndex: 50, cursor: 'default' }}
+            onClick={() => setIsDeferredSetupOpen(true)}
+            aria-hidden="true"
+          />
+        )}
+
+        {/* Wizard overlay — always open for requiresWorkspaceSetup, toggled for deferred */}
+        {(requiresWorkspaceSetup || isDeferredSetupOpen) && (
           <WorkspaceSetupModal
-            onClose={() => setIsDeferredSetupOpen(false)}
+            onClose={requiresWorkspaceSetup ? () => undefined : () => setIsDeferredSetupOpen(false)}
             onFinished={async () => {
               setIsDeferredSetupOpen(false);
               await reloadMe();
             }}
             firstName={firstName}
+            forceOpen={requiresWorkspaceSetup}
           />
         )}
       </>
