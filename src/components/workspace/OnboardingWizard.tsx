@@ -41,25 +41,65 @@ const CONTACT_ROLES = [
   { id: 'other', he: 'אחר', en: 'Other' },
 ] as const;
 
-// ── Country phone codes ────────────────────────────────────────────────────
+// ── Country phone data: dial code, placeholder, and digit validation ────────
+// pattern: regex applied to local number (digits only, no dial code)
+// placeholder: displayed in the input field when empty
 const COUNTRIES = [
-  { code: 'IL', flag: '🇮🇱', name: 'Israel',         dial: '+972' },
-  { code: 'US', flag: '🇺🇸', name: 'United States',  dial: '+1' },
-  { code: 'GB', flag: '🇬🇧', name: 'United Kingdom', dial: '+44' },
-  { code: 'DE', flag: '🇩🇪', name: 'Germany',        dial: '+49' },
-  { code: 'FR', flag: '🇫🇷', name: 'France',         dial: '+33' },
-  { code: 'IT', flag: '🇮🇹', name: 'Italy',          dial: '+39' },
-  { code: 'ES', flag: '🇪🇸', name: 'Spain',          dial: '+34' },
-  { code: 'NL', flag: '🇳🇱', name: 'Netherlands',    dial: '+31' },
-  { code: 'CA', flag: '🇨🇦', name: 'Canada',         dial: '+1' },
-  { code: 'AU', flag: '🇦🇺', name: 'Australia',      dial: '+61' },
-  { code: 'BR', flag: '🇧🇷', name: 'Brazil',         dial: '+55' },
-  { code: 'IN', flag: '🇮🇳', name: 'India',          dial: '+91' },
-  { code: 'CN', flag: '🇨🇳', name: 'China',          dial: '+86' },
-  { code: 'JP', flag: '🇯🇵', name: 'Japan',          dial: '+81' },
-  { code: 'SG', flag: '🇸🇬', name: 'Singapore',      dial: '+65' },
-  { code: 'AE', flag: '🇦🇪', name: 'UAE',            dial: '+971' },
-] as const;
+  { code: 'IL', flag: '🇮🇱', name: 'Israel',              dial: '+972', placeholder: '050-000-0000', pattern: /^0[2-9]\d{7,8}$/ },
+  { code: 'US', flag: '🇺🇸', name: 'United States',        dial: '+1',   placeholder: '(555) 000-0000', pattern: /^[2-9]\d{2}[2-9]\d{6}$/ },
+  { code: 'GB', flag: '🇬🇧', name: 'United Kingdom',       dial: '+44',  placeholder: '07700 000000', pattern: /^0?[1-9]\d{8,9}$/ },
+  { code: 'DE', flag: '🇩🇪', name: 'Germany',              dial: '+49',  placeholder: '0151 00000000', pattern: /^0[1-9]\d{3,13}$/ },
+  { code: 'FR', flag: '🇫🇷', name: 'France',               dial: '+33',  placeholder: '06 00 00 00 00', pattern: /^0[1-9]\d{8}$/ },
+  { code: 'IT', flag: '🇮🇹', name: 'Italy',                dial: '+39',  placeholder: '312 000 0000', pattern: /^3\d{8,9}$|^0\d{6,11}$/ },
+  { code: 'ES', flag: '🇪🇸', name: 'Spain',                dial: '+34',  placeholder: '612 000 000', pattern: /^[6-9]\d{8}$/ },
+  { code: 'NL', flag: '🇳🇱', name: 'Netherlands',          dial: '+31',  placeholder: '06 00000000', pattern: /^0[1-9]\d{7,8}$/ },
+  { code: 'CA', flag: '🇨🇦', name: 'Canada',               dial: '+1',   placeholder: '(416) 000-0000', pattern: /^[2-9]\d{2}[2-9]\d{6}$/ },
+  { code: 'AU', flag: '🇦🇺', name: 'Australia',            dial: '+61',  placeholder: '0400 000 000', pattern: /^0[2-9]\d{8}$/ },
+  { code: 'BR', flag: '🇧🇷', name: 'Brazil',               dial: '+55',  placeholder: '(11) 91234-5678', pattern: /^\(?\d{2}\)?\s?\d{4,5}-?\d{4}$/ },
+  { code: 'IN', flag: '🇮🇳', name: 'India',                dial: '+91',  placeholder: '98765 43210', pattern: /^[6-9]\d{9}$/ },
+  { code: 'CN', flag: '🇨🇳', name: 'China',                dial: '+86',  placeholder: '138 0000 0000', pattern: /^1[3-9]\d{9}$/ },
+  { code: 'JP', flag: '🇯🇵', name: 'Japan',                dial: '+81',  placeholder: '090-0000-0000', pattern: /^0[5789]0-?\d{4}-?\d{4}$|^0\d{1,4}-?\d{1,4}-?\d{4}$/ },
+  { code: 'SG', flag: '🇸🇬', name: 'Singapore',            dial: '+65',  placeholder: '8123 4567', pattern: /^[689]\d{7}$/ },
+  { code: 'AE', flag: '🇦🇪', name: 'UAE',                  dial: '+971', placeholder: '050 000 0000', pattern: /^0?5[0-9]\d{7}$/ },
+  { code: 'SA', flag: '🇸🇦', name: 'Saudi Arabia',         dial: '+966', placeholder: '050 000 0000', pattern: /^0?5\d{8}$/ },
+  { code: 'TR', flag: '🇹🇷', name: 'Turkey',               dial: '+90',  placeholder: '0532 000 0000', pattern: /^0?5\d{9}$/ },
+  { code: 'PL', flag: '🇵🇱', name: 'Poland',               dial: '+48',  placeholder: '512 000 000', pattern: /^[4-9]\d{8}$/ },
+  { code: 'UA', flag: '🇺🇦', name: 'Ukraine',              dial: '+380', placeholder: '050 000 0000', pattern: /^0[3-9]\d{8}$/ },
+  { code: 'ZA', flag: '🇿🇦', name: 'South Africa',         dial: '+27',  placeholder: '071 000 0000', pattern: /^0[6-8]\d{8}$/ },
+  { code: 'NG', flag: '🇳🇬', name: 'Nigeria',              dial: '+234', placeholder: '0803 000 0000', pattern: /^0[7-9]\d{9}$/ },
+  { code: 'EG', flag: '🇪🇬', name: 'Egypt',                dial: '+20',  placeholder: '010 0000 0000', pattern: /^0[12]\d{9}$/ },
+  { code: 'MX', flag: '🇲🇽', name: 'Mexico',               dial: '+52',  placeholder: '55 1234 5678', pattern: /^\d{10}$/ },
+  { code: 'AR', flag: '🇦🇷', name: 'Argentina',            dial: '+54',  placeholder: '11 1234-5678', pattern: /^\d{10}$/ },
+  { code: 'RU', flag: '🇷🇺', name: 'Russia',               dial: '+7',   placeholder: '912 000-00-00', pattern: /^[79]\d{9}$/ },
+  { code: 'KR', flag: '🇰🇷', name: 'South Korea',          dial: '+82',  placeholder: '010-0000-0000', pattern: /^0\d{1,2}-?\d{3,4}-?\d{4}$/ },
+  { code: 'PT', flag: '🇵🇹', name: 'Portugal',             dial: '+351', placeholder: '912 000 000', pattern: /^[29]\d{8}$/ },
+  { code: 'SE', flag: '🇸🇪', name: 'Sweden',               dial: '+46',  placeholder: '070-000 00 00', pattern: /^0[1-9]\d{6,9}$/ },
+  { code: 'CH', flag: '🇨🇭', name: 'Switzerland',          dial: '+41',  placeholder: '076 000 00 00', pattern: /^0[1-9]\d{8}$/ },
+  { code: 'BE', flag: '🇧🇪', name: 'Belgium',              dial: '+32',  placeholder: '0470 00 00 00', pattern: /^0[1-9]\d{7,8}$/ },
+  { code: 'AT', flag: '🇦🇹', name: 'Austria',              dial: '+43',  placeholder: '0664 000 0000', pattern: /^0\d{3,12}$/ },
+  { code: 'GR', flag: '🇬🇷', name: 'Greece',               dial: '+30',  placeholder: '694 000 0000', pattern: /^[269]\d{9}$/ },
+  { code: 'CZ', flag: '🇨🇿', name: 'Czech Republic',       dial: '+420', placeholder: '601 000 000', pattern: /^[6-7]\d{8}$/ },
+  { code: 'RO', flag: '🇷🇴', name: 'Romania',              dial: '+40',  placeholder: '0712 000 000', pattern: /^0[23467]\d{8}$/ },
+  { code: 'HU', flag: '🇭🇺', name: 'Hungary',              dial: '+36',  placeholder: '06 30 000 0000', pattern: /^06?\d{8,9}$/ },
+  { code: 'TH', flag: '🇹🇭', name: 'Thailand',             dial: '+66',  placeholder: '081 000 0000', pattern: /^0[689]\d{8}$/ },
+  { code: 'MY', flag: '🇲🇾', name: 'Malaysia',             dial: '+60',  placeholder: '012-000 0000', pattern: /^0[1-9]\d{7,9}$/ },
+  { code: 'ID', flag: '🇮🇩', name: 'Indonesia',            dial: '+62',  placeholder: '0812-0000-0000', pattern: /^0[2-9]\d{6,12}$/ },
+  { code: 'PH', flag: '🇵🇭', name: 'Philippines',          dial: '+63',  placeholder: '0917 000 0000', pattern: /^0[9]\d{9}$/ },
+  { code: 'PK', flag: '🇵🇰', name: 'Pakistan',             dial: '+92',  placeholder: '0300 0000000', pattern: /^0[3]\d{9}$/ },
+  { code: 'BD', flag: '🇧🇩', name: 'Bangladesh',           dial: '+880', placeholder: '01700-000000', pattern: /^0[1][0-9]\d{8}$/ },
+  { code: 'VN', flag: '🇻🇳', name: 'Vietnam',              dial: '+84',  placeholder: '090 000 0000', pattern: /^0[3-9]\d{8}$/ },
+  { code: 'NZ', flag: '🇳🇿', name: 'New Zealand',          dial: '+64',  placeholder: '021 000 0000', pattern: /^0[2]\d{7,9}$/ },
+];
+
+/**
+ * Validates a local phone number string against a country's pattern.
+ * Strips spaces, dashes, parentheses before testing.
+ */
+function validatePhoneNumber(raw: string, country: typeof COUNTRIES[number]): boolean {
+  const stripped = raw.replace(/[\s\-().]/g, '');
+  if (!stripped) return false;
+  return country.pattern.test(stripped);
+}
 
 const COPY = {
   he: {
@@ -80,7 +120,7 @@ const COPY = {
     step2Title: 'כמה פרטים עליכם',
     step2Sub: 'כל השדות נדרשים כדי ליצור סביבת עבודה מאובטחת.',
     phoneLabel: 'טלפון',
-    phonePlaceholder: '050-000-0000',
+    phoneError: 'מספר הטלפון אינו תקין',
     roleLabel: 'תפקיד',
     rolePlaceholder: 'בחרו תפקיד',
     back: 'חזרה',
@@ -88,7 +128,7 @@ const COPY = {
     continue: 'המשך',
     finish: 'סיים הגדרה',
     tooltipMsg: 'יש להשלים את כל השדות הנדרשים',
-    searchCountry: 'חיפוש מדינה...',
+    searchCountry: 'חיפוש מדינה',
   },
   en: {
     welcomeTitle: (firstName?: string) => firstName ? `Welcome to Nexus, ${firstName}.` : 'Welcome to Nexus.',
@@ -108,7 +148,7 @@ const COPY = {
     step2Title: 'A few details about you',
     step2Sub: 'All fields are required to create a secure workspace.',
     phoneLabel: 'Phone',
-    phonePlaceholder: '050-000-0000',
+    phoneError: 'Phone number is not valid',
     roleLabel: 'Role',
     rolePlaceholder: 'Select role',
     back: 'Back',
@@ -116,7 +156,7 @@ const COPY = {
     continue: 'Continue',
     finish: 'Finish setup',
     tooltipMsg: 'Complete all required fields to continue',
-    searchCountry: 'Search country...',
+    searchCountry: 'Search country',
   },
 } as const;
 
@@ -287,6 +327,7 @@ export default function OnboardingWizard({ onComplete, onSkip, firstName }: Onbo
   // Step 2 fields
   const [selectedCountry, setSelectedCountry] = useState<typeof COUNTRIES[number]>(COUNTRIES[0]);
   const [phoneNumber, setPhoneNumber]          = useState('');
+  const [phoneTouched, setPhoneTouched]        = useState(false);
   const [role, setRole]   = useState('');
 
   // Disabled-continue tooltip
@@ -296,7 +337,8 @@ export default function OnboardingWizard({ onComplete, onSkip, firstName }: Onbo
 
   const descLen = businessDesc.trim().length;
   const descValid = descLen >= MIN_DESC_CHARS;
-  const phone = `${selectedCountry.dial}${phoneNumber.trim() ? ' ' + phoneNumber.trim() : ''}`;
+  const phoneValid = validatePhoneNumber(phoneNumber, selectedCountry);
+  const phone = `${selectedCountry.dial} ${phoneNumber.trim()}`;
 
   // ── URL validation ────────────────────────────────────────────────────────
   const validateWebsite = (val: string) => {
@@ -313,7 +355,7 @@ export default function OnboardingWizard({ onComplete, onSkip, firstName }: Onbo
   const canContinue =
     step === 0 ? orgName.trim() !== '' && website.trim() !== '' && descValid && !websiteError :
     step === 1 ? primarySelected.length > 0 :
-    phoneNumber.trim() !== '' && role.trim() !== '';
+    phoneValid && role.trim() !== '';
 
   // ── Navigation ────────────────────────────────────────────────────────────
   const handleNext = () => {
@@ -552,19 +594,27 @@ export default function OnboardingWizard({ onComplete, onSkip, firstName }: Onbo
                 <div className="flex" dir="ltr">
                   <CountrySelector
                     selected={selectedCountry}
-                    onSelect={setSelectedCountry}
+                    onSelect={(country) => {
+                      setSelectedCountry(country);
+                      setPhoneNumber('');
+                      setPhoneTouched(false);
+                    }}
                     language={language}
                     searchPlaceholder={c.searchCountry}
                   />
                   <input
                     type="tel"
                     value={phoneNumber}
-                    onChange={e => setPhoneNumber(e.target.value)}
-                    placeholder={c.phonePlaceholder}
+                    onChange={e => { setPhoneNumber(e.target.value); setPhoneTouched(true); }}
+                    onBlur={() => setPhoneTouched(true)}
+                    placeholder={selectedCountry.placeholder}
                     dir="ltr"
-                    className="min-w-0 flex-1 rounded-e-lg border border-slate-200 px-3.5 py-2.5 text-[14px] text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all"
+                    className={`min-w-0 flex-1 rounded-e-lg border px-3.5 py-2.5 text-[14px] text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-2 transition-all ${phoneTouched && phoneNumber && !phoneValid ? 'border-red-300 focus:ring-red-500/20 focus:border-red-400' : 'border-slate-200 focus:ring-indigo-500/30 focus:border-indigo-400'}`}
                   />
                 </div>
+                {phoneTouched && phoneNumber && !phoneValid && (
+                  <p className="mt-1 text-[12px] text-red-500">{c.phoneError}</p>
+                )}
               </div>
 
               <div>
