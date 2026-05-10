@@ -24,6 +24,10 @@
           document.documentElement.lang = 'he';
           document.documentElement.dir = 'rtl';
         }
+        // Force light mode in development so dark Tailwind classes don't interfere.
+        if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+          document.documentElement.classList.remove('dark');
+        }
       })();
     </script>
   </head>
