@@ -12,6 +12,7 @@ export interface ContactsTableProps {
   loading: boolean;
   language: 'he' | 'en';
   canManage: boolean;
+  tenantName?: string;
 }
 
 const COPY = {
@@ -22,7 +23,7 @@ const COPY = {
     address: 'כתובת',
     lastActivity: 'פעילות אחרונה',
     firstEntry: 'כניסה ראשונה',
-    invite: 'הזמן ל-Tenant',
+    invitePrefix: 'הזמן ל-',
     empty: 'אין אנשי קשר עדיין.',
     noAddress: 'לא צוין',
     noActivity: 'לא ידוע',
@@ -34,7 +35,7 @@ const COPY = {
     address: 'Address',
     lastActivity: 'Last Activity',
     firstEntry: 'First Entry',
-    invite: 'Invite to tenant',
+    invitePrefix: 'Invite to ',
     empty: 'No contacts yet.',
     noAddress: 'Not provided',
     noActivity: 'Unknown',
@@ -69,11 +70,13 @@ function RowMenu({
   contact,
   canManage,
   language,
+  tenantName,
   onInvite,
 }: {
   contact: TenantContact;
   canManage: boolean;
   language: 'he' | 'en';
+  tenantName: string;
   onInvite: (email: string) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -100,9 +103,9 @@ function RowMenu({
               className="flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-start text-sm transition-colors hover:bg-slate-50 dark:hover:bg-slate-700"
             >
               <span className="material-icons text-sm text-primary">person_add</span>
-              <div>
-                <div className="font-medium">{copy.invite}</div>
-                <div className="text-xs text-slate-500">{contact.email}</div>
+              <div className="min-w-0">
+                <div className="font-medium">{copy.invitePrefix}{tenantName}</div>
+                <div className="truncate text-xs text-slate-500">{contact.email}</div>
               </div>
             </button>
           </div>
@@ -117,7 +120,7 @@ function RowMenu({
  * Input: contact list, loading state, language, and manage permission.
  * Output: responsive data display with per-row action menus.
  */
-export default function ContactsTable({ contacts, loading, language, canManage }: ContactsTableProps) {
+export default function ContactsTable({ contacts, loading, language, canManage, tenantName = 'Tenant' }: ContactsTableProps) {
   const navigate = useNavigate();
   const copy = COPY[language];
 
@@ -161,7 +164,7 @@ export default function ContactsTable({ contacts, loading, language, canManage }
                 <td className="px-6 py-2.5 text-slate-500">{fmtDate(c.lastActivityAt, language, copy.noActivity)}</td>
                 <td className="px-6 py-2.5 text-slate-500">{fmtDate(c.createdAt, language, '-')}</td>
                 <td className="px-6 py-2.5 text-end">
-                  <RowMenu contact={c} canManage={canManage} language={language} onInvite={handleInvite} />
+                  <RowMenu contact={c} canManage={canManage} language={language} tenantName={tenantName} onInvite={handleInvite} />
                 </td>
               </tr>
             ))}
@@ -196,7 +199,7 @@ export default function ContactsTable({ contacts, loading, language, canManage }
                   onClick={() => handleInvite(c.email)}
                   className="cursor-pointer font-medium text-primary hover:underline"
                 >
-                  {copy.invite}
+                  {copy.invitePrefix}{tenantName}
                 </button>
               )}
             </div>

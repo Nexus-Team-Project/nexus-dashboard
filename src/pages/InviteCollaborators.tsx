@@ -141,12 +141,35 @@ export default function InviteCollaborators() {
       : `${copy.titlePrefix} ${tenantName}`
     : language === 'he' ? 'הזמן חברים' : 'Invite members';
 
+  const ROWS_PER_PAGE = 10;
+  const [rowsPage, setRowsPage] = useState(1);
+
   const [rows, setRows] = useState<InviteRow[]>(() => {
-    // Pre-fill from ?email= query param when navigating from the Contacts page.
+    // Pre-fill from sessionStorage when navigating from the Members page inactive-invite flow.
+    const stored = sessionStorage.getItem('pendingInviteEmails');
+    if (stored) {
+      sessionStorage.removeItem('pendingInviteEmails');
+      try {
+        const emails: string[] = JSON.parse(stored);
+        if (emails.length > 0) {
+          return emails.map((email) => ({
+            id: `${email}_${crypto.randomUUID()}`,
+            email,
+            roles: ['member' as TenantRole],
+            status: 'draft' as const,
+          }));
+        }
+      } catch { /* fall through */ }
+    }
+    // Pre-fill from ?email= query param when navigating from the Contacts row action.
     const email = new URLSearchParams(location.search).get('email');
     if (!email) return [];
     return [{ id: `${email}_${crypto.randomUUID()}`, email, roles: ['member'], status: 'draft' }];
   });
+  const totalRowPages = Math.max(1, Math.ceil(rows.length / ROWS_PER_PAGE));
+  const safeRowsPage = Math.min(rowsPage, totalRowPages);
+  const visibleRows = rows.slice((safeRowsPage - 1) * ROWS_PER_PAGE, safeRowsPage * ROWS_PER_PAGE);
+
   const [rolePermissions, setRolePermissions] = useState<TenantRolePermissions[]>([]);
   const [manualEmail, setManualEmail] = useState('');
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -184,6 +207,7 @@ export default function InviteCollaborators() {
       return;
     }
     setRows((current) => mergeRows(current, emails, ['member']));
+    setRowsPage(1);
     setManualEmail('');
     setSubmitError(null);
   };
@@ -420,6 +444,36 @@ export default function InviteCollaborators() {
 
       {/* Invite table */}
       <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-card-dark">
+        {/* Pagination controls — only shown when rows exceed one page */}
+        {totalRowPages > 1 && (
+          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-2.5 dark:border-slate-800">
+            <span className="text-xs text-slate-500">
+              {language === 'he'
+                ? `עמוד ${safeRowsPage} מתוך ${totalRowPages} · ${rows.length} אימיילים`
+                : `Page ${safeRowsPage} of ${totalRowPages} · ${rows.length} emails`}
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                disabled={safeRowsPage <= 1}
+                onClick={() => setRowsPage((p) => Math.max(1, p - 1))}
+                className="inline-flex cursor-pointer items-center gap-0.5 rounded px-2 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <span className="material-icons text-base">{isRTL ? 'chevron_right' : 'chevron_left'}</span>
+                {language === 'he' ? 'הקודם' : 'Prev'}
+              </button>
+              <button
+                type="button"
+                disabled={safeRowsPage >= totalRowPages}
+                onClick={() => setRowsPage((p) => Math.min(totalRowPages, p + 1))}
+                className="inline-flex cursor-pointer items-center gap-0.5 rounded px-2 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {language === 'he' ? 'הבא' : 'Next'}
+                <span className="material-icons text-base">{isRTL ? 'chevron_left' : 'chevron_right'}</span>
+              </button>
+            </div>
+          </div>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full min-w-[860px] text-sm">
             <thead className="bg-slate-50 text-slate-500 dark:bg-slate-900/40">
@@ -432,7 +486,7 @@ export default function InviteCollaborators() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {rows.map((row) => {
+              {visibleRows.map((row) => {
                 const permissions = getRowPermissions(row.roles, permissionsByRole);
                 return (
                   <tr key={row.id} className="align-top">

@@ -23,6 +23,7 @@ import ColumnMapping, { type ResolvedContactRow } from '../components/ColumnMapp
 import ContactsTable from '../components/members/ContactsTable';
 import RegisteredTable from '../components/members/RegisteredTable';
 import FilterPanel from '../components/members/FilterPanel';
+import AddContactModal from '../components/members/AddContactModal';
 
 type ActiveTab = 'contacts' | 'members';
 
@@ -177,6 +178,7 @@ export default function Members() {
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [showMemberTooltip, setShowMemberTooltip] = useState(false);
   const [showImportMenu, setShowImportMenu] = useState(false);
+  const [showAddContact, setShowAddContact] = useState(false);
 
   // Contacts state
   const [contacts, setContacts] = useState<TenantContact[]>([]);
@@ -189,6 +191,8 @@ export default function Members() {
   const [membersPagination, setMembersPagination] = useState<PaginationMeta | null>(null);
   const [membersParams, setMembersParams] = useState<ListMembersParams>({ page: 1, limit: PAGE_SIZE });
   const [membersLoading, setMembersLoading] = useState(false);
+
+  const [invitingInactive, setInvitingInactive] = useState(false);
 
   // CSV import state
   const [csvData, setCsvData] = useState<{ headers: string[]; rows: Record<string, string>[] } | null>(null);
@@ -262,6 +266,30 @@ export default function Members() {
     contactsParams.search, contactsParams.status,
     membersParams.search, membersParams.status, membersParams.role,
   ].filter(Boolean).length;
+
+  /**
+   * Paginates through all inactive contacts, stores their emails in sessionStorage,
+   * then navigates to the invite page so InviteCollaborators pre-populates the rows.
+   */
+  const handleInviteInactive = async () => {
+    setInvitingInactive(true);
+    try {
+      const emails: string[] = [];
+      let page = 1;
+      while (true) {
+        const result = await tenantContactsApi.list({ status: 'inactive', limit: 100, page });
+        result.contacts.forEach((c) => { if (c.email) emails.push(c.email); });
+        if (page >= (result.pagination?.pages ?? 1)) break;
+        page++;
+      }
+      if (emails.length > 0) {
+        sessionStorage.setItem('pendingInviteEmails', JSON.stringify(emails));
+      }
+      navigate('/settings/roles-permissions/invite');
+    } finally {
+      setInvitingInactive(false);
+    }
+  };
 
   /** Handles CSV file selection and opens the column-mapping modal. */
   const handleCsvFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -397,6 +425,15 @@ export default function Members() {
                 badge={activeFilterCount}
               />
 
+              {/* Add contact button — contacts tab only */}
+              {activeTab === 'contacts' && canManage && (
+                <TooltipButton
+                  icon="person_add_alt"
+                  label={language === 'he' ? 'הוסף איש קשר' : 'Add contact'}
+                  onClick={() => setShowAddContact(true)}
+                />
+              )}
+
               {/* Import / Export dropdown */}
               <div className="relative">
                 <TooltipButton
@@ -445,26 +482,20 @@ export default function Members() {
               {canManage && (
                 <button
                   type="button"
-                  onClick={() => navigate('/settings/roles-permissions/invite')}
-                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
+                  onClick={() => void handleInviteInactive()}
+                  disabled={invitingInactive}
+                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  <span className="material-icons text-sm">person_add</span>
+                  <span className="material-icons text-sm">{invitingInactive ? 'hourglass_empty' : 'person_add'}</span>
                   {copy.inviteMembers}
                 </button>
               )}
             </div>
           </div>
 
-          {/* Tab content */}
-          {activeTab === 'contacts' ? (
-            <ContactsTable contacts={contacts} loading={contactsLoading} language={language} canManage={canManage} />
-          ) : (
-            <RegisteredTable members={members} loading={membersLoading} language={language} />
-          )}
-
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between border-t border-slate-100 px-6 py-3 dark:border-slate-800">
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-3 dark:border-slate-800">
               <button
                 type="button"
                 disabled={currentPage <= 1}
@@ -494,8 +525,24 @@ export default function Members() {
               </button>
             </div>
           )}
+
+          {/* Tab content */}
+          {activeTab === 'contacts' ? (
+            <ContactsTable contacts={contacts} loading={contactsLoading} language={language} canManage={canManage} tenantName={me?.context.tenantName} />
+          ) : (
+            <RegisteredTable members={members} loading={membersLoading} language={language} />
+          )}
         </div>
       </div>
+
+      {/* Add contact modal */}
+      {showAddContact && (
+        <AddContactModal
+          language={language}
+          onClose={() => setShowAddContact(false)}
+          onCreated={() => void fetchContacts(contactsParams)}
+        />
+      )}
 
       {/* Hidden CSV file input */}
       <input
