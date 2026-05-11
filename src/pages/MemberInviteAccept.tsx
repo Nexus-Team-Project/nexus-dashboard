@@ -2,9 +2,10 @@
  * Accepts a tenant member invitation after website-backed authentication.
  * The page verifies the token, accepts it, refreshes /api/me, and opens tenant mode.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { tenantMemberInvitationsApi, type TenantMemberInvitationPreview } from '../lib/api';
+import { tenantMemberInvitationsApi, type TenantMemberInvitationPreview, type TenantRole } from '../lib/api';
+import { getTenantRoleLabel } from '../lib/tenantRoles';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
 
@@ -44,24 +45,31 @@ export default function MemberInviteAccept() {
   const { language, isRTL } = useLanguage();
   const copy = COPY[language];
   const [state, setState] = useState<AcceptState>({ status: 'loading' });
+  const firedRef = useRef(false);
+  const reloadMeRef = useRef(reloadMe);
+  reloadMeRef.current = reloadMe;
 
   useEffect(() => {
     /**
      * Loads invite details and accepts the invite for the current user.
+     * Guarded by firedRef so it runs exactly once even if deps change.
      * Input: token from the current URL.
      * Output: state update and refreshed dashboard context.
      */
-    const acceptInvite = async () => {
-      const token = params.get('token');
-      if (!token) {
-        setState({ status: 'error', message: copy.missing });
-        return;
-      }
+    if (firedRef.current) return;
+    firedRef.current = true;
 
+    const token = params.get('token');
+    if (!token) {
+      setState({ status: 'error', message: copy.missing });
+      return;
+    }
+
+    const acceptInvite = async () => {
       try {
         const preview = await tenantMemberInvitationsApi.get(token);
         const accepted = await tenantMemberInvitationsApi.accept(token);
-        await reloadMe();
+        await reloadMeRef.current();
         setState({ status: 'accepted', preview, alreadyAccepted: accepted.alreadyAccepted });
       } catch (error) {
         setState({ status: 'error', message: error instanceof Error ? error.message : copy.missing });
@@ -69,7 +77,8 @@ export default function MemberInviteAccept() {
     };
 
     void acceptInvite();
-  }, [copy.missing, params, reloadMe]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <main dir={isRTL ? 'rtl' : 'ltr'} className="min-h-screen bg-[#edf1fc] px-6 py-10 text-slate-950">
@@ -98,11 +107,23 @@ export default function MemberInviteAccept() {
             <h1 className="text-2xl font-bold text-slate-950">
               {state.alreadyAccepted ? copy.already : copy.accepted}
             </h1>
+            {(state.preview.roles ?? []).length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(state.preview.roles as TenantRole[]).map((role) => (
+                  <span
+                    key={role}
+                    className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700"
+                  >
+                    {getTenantRoleLabel(role, language)}
+                  </span>
+                ))}
+              </div>
+            )}
             <p className="mt-3 text-sm leading-6 text-slate-600">{copy.body}</p>
             <button
               type="button"
               onClick={() => navigate('/')}
-              className="mt-8 rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white"
+              className="mt-8 cursor-pointer rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
             >
               {copy.dashboard}
             </button>

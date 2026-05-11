@@ -4,7 +4,8 @@
  */
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { tenantMemberInvitationsApi, type TenantMemberInvitationPreview } from '../lib/api';
+import { tenantMemberInvitationsApi, type TenantMemberInvitationPreview, type TenantRole } from '../lib/api';
+import { getTenantRoleLabel } from '../lib/tenantRoles';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
 
@@ -88,7 +89,16 @@ export default function PendingInvitationsPanel() {
           >
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-slate-950">{invitation.tenantName}</p>
-              <p className="text-xs text-slate-500">{invitation.role}</p>
+              <div className="mt-1 flex flex-wrap gap-1">
+                {(invitation.roles ?? []).map((role: TenantRole) => (
+                  <span
+                    key={role}
+                    className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700"
+                  >
+                    {getTenantRoleLabel(role, language)}
+                  </span>
+                ))}
+              </div>
             </div>
             {invitation.invitationId && (
               <button

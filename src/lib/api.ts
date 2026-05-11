@@ -253,6 +253,17 @@ export interface BusinessSetupResponse {
   updatedAt: string | null;
 }
 
+export interface WizardDraftPayload {
+  step?: number;
+  orgName?: string;
+  website?: string;
+  businessDesc?: string;
+  primarySelected?: string[];
+  primarySuggested?: string[];
+  phone?: string;
+  role?: string;
+}
+
 export const onboardingApi = {
   me: () => request<DashboardMe>('GET', '/api/me'),
   status: () => request<Pick<DashboardMe, 'context' | 'onboarding'>>('GET', '/api/onboarding/status'),
@@ -260,6 +271,12 @@ export const onboardingApi = {
     request<WorkspaceSetupResponse>('POST', '/api/onboarding/workspace', data),
   skipWorkspace: (skipReason: SkipReason) =>
     request<SkipWorkspaceResponse>('POST', '/api/onboarding/skip', { skipReason }),
+  loadWizardDraft: () =>
+    request<{ draft: WizardDraftPayload | null }>('GET', '/api/onboarding/wizard-draft'),
+  saveWizardDraft: (draft: WizardDraftPayload) =>
+    request<{ ok: boolean }>('PATCH', '/api/onboarding/wizard-draft', draft),
+  clearWizardDraft: () =>
+    request<{ ok: boolean }>('DELETE', '/api/onboarding/wizard-draft'),
 };
 
 export const businessSetupApi = {
@@ -297,10 +314,37 @@ export interface TenantMemberListItem {
   joinedAt: string;
 }
 
+/** Pagination metadata returned by paged list endpoints. */
+export interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  pages: number;
+}
+
+/** Query params accepted by GET /api/v1/tenant/members. */
+export interface ListMembersParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: string;
+  role?: TenantRole;
+}
+
+/** One pending invitation row shown in the admin pending-invitations panel. */
+export interface PendingInvitationItem {
+  invitationId: string;
+  email: string;
+  roles: TenantRole[];
+  status: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
 export interface TenantMemberInviteInput {
   email: string;
   displayName?: string;
-  role: TenantRole;
+  roles: TenantRole[];
   groupIds?: string[];
   employeeId?: string;
   customFields?: Record<string, unknown>;
@@ -313,7 +357,7 @@ export interface TenantMemberInviteResponse {
   tenantMemberId: string;
   nexusIdentityId: string;
   email: string;
-  role: TenantRole;
+  roles: TenantRole[];
   status: 'active';
   groupIds: string[];
   invitationId: string;
@@ -334,13 +378,33 @@ export interface TenantMemberInvitationPreview {
   tenantId?: string;
   tenantName: string;
   invitedEmail: string;
-  role: TenantRole;
+  roles: TenantRole[];
   status: string;
   expiresAt: string;
 }
 
+/**
+ * Serialises ListMembersParams into a URL query string.
+ * Skips undefined values so the backend receives only active filters.
+ */
+function buildMembersQuery(params?: ListMembersParams): string {
+  if (!params) return '';
+  const entries = Object.entries(params).filter(([, v]) => v !== undefined && v !== '');
+  if (entries.length === 0) return '';
+  return '?' + new URLSearchParams(entries.map(([k, v]) => [k, String(v)])).toString();
+}
+
 export const tenantMembersApi = {
-  list: () => request<{ tenantId: string; members: TenantMemberListItem[] }>('GET', '/api/v1/tenant/members'),
+  list: (params?: ListMembersParams) =>
+    request<{ tenantId: string; members: TenantMemberListItem[]; pagination: PaginationMeta }>(
+      'GET',
+      `/api/v1/tenant/members${buildMembersQuery(params)}`,
+    ),
+  pendingInvitations: () =>
+    request<{ pendingInvitations: PendingInvitationItem[]; total: number; hasMore: boolean }>(
+      'GET',
+      '/api/v1/tenant/members/pending-invitations',
+    ),
   roles: () => request<{ roles: TenantRolePermissions[] }>('GET', '/api/v1/tenant/roles'),
   invite: (data: TenantMemberInviteInput) =>
     request<TenantMemberInviteResponse>('POST', '/api/v1/tenant/members/invitations', data),
@@ -357,12 +421,12 @@ export const tenantMemberInvitationsApi = {
   get: (token: string) =>
     request<TenantMemberInvitationPreview>('GET', `/api/v1/member-invitations/${encodeURIComponent(token)}`),
   accept: (token: string) =>
-    request<{ tenantId: string; role: TenantRole; alreadyAccepted: boolean }>(
+    request<{ tenantId: string; roles: TenantRole[]; alreadyAccepted: boolean }>(
       'POST',
       `/api/v1/member-invitations/${encodeURIComponent(token)}/accept`,
     ),
   acceptMine: (invitationId: string) =>
-    request<{ tenantId: string; role: TenantRole; alreadyAccepted: boolean }>(
+    request<{ tenantId: string; roles: TenantRole[]; alreadyAccepted: boolean }>(
       'POST',
       `/api/v1/member-invitations/mine/${encodeURIComponent(invitationId)}/accept`,
     ),

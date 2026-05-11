@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* Force class-based dark mode so system preference alone does not trigger it.
+   Dark styles only apply when the .dark class is on <html>. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-primary: #635bff;
   --color-background-light: #f3f7fa;
