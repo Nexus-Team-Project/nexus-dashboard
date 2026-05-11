@@ -211,9 +211,14 @@ const ColumnMapping = ({ onClose, onImport, fileName, csvHeaders, csvRows }: Col
                           style={{ appearance: 'none', backgroundImage: 'none' }}
                         >
                           <option value="">{t('cm_chooseColumn')}</option>
-                          {SYSTEM_FIELDS.filter((f) => f !== '').map((field) => (
-                            <option key={field} value={field}>{field}</option>
-                          ))}
+                          {SYSTEM_FIELDS.filter((f) => f !== '').map((field) => {
+                            const claimedByOther = mappings.some((m, i) => i !== index && m.systemField === field);
+                            return (
+                              <option key={field} value={field} disabled={claimedByOther}>
+                                {field}{claimedByOther ? ' ✓' : ''}
+                              </option>
+                            );
+                          })}
                         </select>
                         <span className="material-icons absolute end-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-lg">
                           expand_more

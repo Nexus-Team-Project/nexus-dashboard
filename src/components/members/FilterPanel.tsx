@@ -143,6 +143,7 @@ export default function FilterPanel({
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                   <option value="pending">Pending</option>
+                  <option value="expired">Expired</option>
                 </>
               ) : (
                 <>
