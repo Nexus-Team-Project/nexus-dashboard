@@ -135,11 +135,10 @@ export default function InviteCollaborators() {
 
   const tenantName = me?.context.tenantName ?? null;
 
-  // Seat-limit enforcement: disable non-member roles in dropdowns when at limit.
-  const seatLimitReached = me?.context.seats?.isAtLimit === true;
-  const disabledRoles = seatLimitReached
-    ? TENANT_ROLE_ORDER.filter(isSeatConsumingRole)
-    : [];
+  // Server seat state - draft row counts computed later after rows state is declared.
+  const serverSeatsRemaining = me?.context.seats?.remaining ?? Infinity;
+  const serverAtLimit = me?.context.seats?.isAtLimit === true;
+
   const disabledReason =
     language === 'he'
       ? 'שדרג את התוכנית כדי להזמין תפקידים נוספים'
@@ -179,6 +178,14 @@ export default function InviteCollaborators() {
   const totalRowPages = Math.max(1, Math.ceil(rows.length / ROWS_PER_PAGE));
   const safeRowsPage = Math.min(rowsPage, totalRowPages);
   const visibleRows = rows.slice((safeRowsPage - 1) * ROWS_PER_PAGE, safeRowsPage * ROWS_PER_PAGE);
+
+  // Count draft rows that would each consume one new non-member seat, then derive
+  // whether the effective limit is reached including uncommitted form state.
+  const draftNonMemberRowCount = rows.filter(
+    (r) => r.status !== 'pending' && r.roles.some(isSeatConsumingRole),
+  ).length;
+  const effectiveSeatsRemaining = Math.max(0, serverSeatsRemaining - draftNonMemberRowCount);
+  const seatLimitReached = serverAtLimit || effectiveSeatsRemaining <= 0;
 
   const [rolePermissions, setRolePermissions] = useState<TenantRolePermissions[]>([]);
   const [manualEmail, setManualEmail] = useState('');
@@ -531,6 +538,14 @@ export default function InviteCollaborators() {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {visibleRows.map((row) => {
                 const permissions = getRowPermissions(row.roles, permissionsByRole);
+                // A row that already has a non-member role has claimed its seat -
+                // allow switching between non-member roles freely. Only block rows
+                // that are still member-only and would require a new seat.
+                const rowAlreadyConsumesASeat = row.roles.some(isSeatConsumingRole);
+                const rowDisabledRoles =
+                  !rowAlreadyConsumesASeat && seatLimitReached
+                    ? TENANT_ROLE_ORDER.filter(isSeatConsumingRole)
+                    : [];
                 return (
                   <tr key={row.id} className="align-top">
                     <td className="px-5 py-4 font-medium text-slate-950 dark:text-white">
@@ -544,7 +559,7 @@ export default function InviteCollaborators() {
                         language={language}
                         onToggle={toggleRole}
                         placeholder={copy.selectRoles}
-                        disabledRoles={disabledRoles}
+                        disabledRoles={rowDisabledRoles}
                         disabledReason={disabledReason}
                       />
                     </td>
