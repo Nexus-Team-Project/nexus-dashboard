@@ -1,9 +1,9 @@
 /**
- * Lets tenant admins invite one member or bulk upload a .txt email list.
- * Each row has a multi-role selector and permission preview before sending.
+ * Tenant admin page for inviting one member or bulk-importing from a CSV file.
+ * Each row in the invite table has a multi-role selector and permission preview.
+ * CSV imports go through a column-mapping step before rows are added to the table.
  */
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -12,8 +12,13 @@ import {
   type TenantRole,
   type TenantRolePermissions,
 } from '../lib/api';
-import { getTenantRoleLabel, parseEmails, TENANT_ROLE_COPY, TENANT_ROLE_ORDER } from '../lib/tenantRoles';
+import { getTenantRoleLabel, parseEmails, TENANT_ROLE_COPY } from '../lib/tenantRoles';
+import { parseCsv, type ParsedCsv } from '../lib/csvParser';
 import { useLanguage } from '../i18n/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
+import RoleDropdown from '../components/invite/RoleDropdown';
+import CsvColumnMapper, { type ResolvedInviteRow } from '../components/invite/CsvColumnMapper';
+import CsvImportGuide from '../components/invite/CsvImportGuide';
 
 interface InviteRow {
   id: string;
@@ -26,12 +31,12 @@ interface InviteRow {
 const COPY = {
   he: {
     back: 'חזרה',
-    title: 'הזמן חברי tenant',
-    body: 'הוסף אימייל אחד, הדבק כמה אימיילים, או העלה קובץ txt. לכל אימייל אפשר לבחור תפקידים.',
+    titlePrefix: 'הזמן חברים ל',
+    body: 'הוסף אימייל אחד, הדבק כמה אימיילים, או ייבא קובץ CSV.',
     manual: 'הוסף אימייל',
     manualPlaceholder: 'name@example.com',
     add: 'הוסף',
-    upload: 'העלה קובץ txt',
+    uploadCsv: 'ייבא CSV',
     email: 'אימייל',
     roles: 'תפקידים',
     permissions: 'הרשאות',
@@ -40,7 +45,6 @@ const COPY = {
     sending: 'שולח...',
     cancel: 'ביטול',
     empty: 'עדיין אין אימיילים להזמנה.',
-    sent: 'נשלח',
     pending: 'ממתין לאישור',
     draft: 'טיוטה',
     failed: 'נכשל',
@@ -48,16 +52,16 @@ const COPY = {
     successToast: 'ההזמנות נשלחו',
     failedToast: 'חלק מההזמנות נכשלו',
     selectRoles: 'בחר תפקידים',
-    noRoles: 'לא נבחרו תפקידים',
+    csvTooBig: 'הקובץ ריק או לא נמצאו עמודות.',
   },
   en: {
     back: 'Back',
-    title: 'Invite tenant members',
-    body: 'Add one email, paste many emails, or upload a txt file. Each email can receive multiple roles.',
+    titlePrefix: 'Invite members to',
+    body: 'Add one email, paste many emails, or import a CSV file.',
     manual: 'Add email',
     manualPlaceholder: 'name@example.com',
     add: 'Add',
-    upload: 'Upload txt file',
+    uploadCsv: 'Import CSV',
     email: 'Email',
     roles: 'Roles',
     permissions: 'Permissions',
@@ -66,7 +70,6 @@ const COPY = {
     sending: 'Sending...',
     cancel: 'Cancel',
     empty: 'No invite emails yet.',
-    sent: 'Sent',
     pending: 'Invite pending',
     draft: 'Draft',
     failed: 'Failed',
@@ -74,16 +77,21 @@ const COPY = {
     successToast: 'Invites sent',
     failedToast: 'Some invites failed',
     selectRoles: 'Select roles',
-    noRoles: 'No roles selected',
+    csvTooBig: 'File is empty or has no columns.',
   },
 } as const;
 
 /**
- * Creates invite rows from emails while keeping existing row choices.
- * Input: existing rows, parsed emails, and default roles.
- * Output: merged rows with unique email addresses.
+ * Merges new emails into the existing invite row list without duplicates.
+ * Preserves roles already set on existing rows.
+ * Input: current rows, new email strings, and default roles for new rows.
+ * Output: deduplicated merged row array.
  */
-function mergeRows(existingRows: InviteRow[], emails: string[], defaultRoles: TenantRole[]): InviteRow[] {
+function mergeRows(
+  existingRows: InviteRow[],
+  emails: string[],
+  defaultRoles: TenantRole[],
+): InviteRow[] {
   const existing = new Set(existingRows.map((row) => row.email));
   const newRows = emails
     .filter((email) => !existing.has(email))
@@ -96,161 +104,72 @@ function mergeRows(existingRows: InviteRow[], emails: string[], defaultRoles: Te
   return [...existingRows, ...newRows];
 }
 
-interface RoleDropdownProps {
-  rowId: string;
-  selectedRoles: TenantRole[];
-  disabled: boolean;
-  language: 'he' | 'en';
-  onToggle: (rowId: string, role: TenantRole) => void;
-  placeholder: string;
-}
-
 /**
- * Renders a multi-role selector as a dropdown with checkboxes per role.
- * Uses a portal + fixed positioning to escape table overflow clipping.
- * Input: row id, currently selected roles, and toggle handler.
- * Output: pill-based display + checkbox dropdown anchored to the button.
+ * Returns the deduplicated union of permissions for a set of roles.
+ * Input: role names and the full role→permissions map.
+ * Output: sorted unique permission strings.
  */
-function RoleDropdown({ rowId, selectedRoles, disabled, language, onToggle, placeholder }: RoleDropdownProps) {
-  const [open, setOpen] = useState(false);
-  const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLUListElement>(null);
-
-  /** Recalculate fixed position whenever the dropdown opens or the window scrolls. */
-  const recalcPosition = () => {
-    if (!btnRef.current) return;
-    const rect = btnRef.current.getBoundingClientRect();
-    setMenuStyle({
-      position: 'fixed',
-      top: rect.bottom + 4,
-      left: rect.left,
-      width: Math.max(rect.width, 220),
-      zIndex: 9999,
-    });
-  };
-
-  useLayoutEffect(() => {
-    if (open) recalcPosition();
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const handleClose = (e: MouseEvent) => {
-      if (
-        btnRef.current?.contains(e.target as Node) ||
-        menuRef.current?.contains(e.target as Node)
-      ) return;
-      setOpen(false);
-    };
-    const handleScroll = () => recalcPosition();
-    document.addEventListener('mousedown', handleClose);
-    window.addEventListener('scroll', handleScroll, true);
-    return () => {
-      document.removeEventListener('mousedown', handleClose);
-      window.removeEventListener('scroll', handleScroll, true);
-    };
-  }, [open]);
-
-  return (
-    <div className="min-w-[180px]">
-      <button
-        ref={btnRef}
-        type="button"
-        disabled={disabled}
-        onClick={() => setOpen((prev) => !prev)}
-        className="flex w-full cursor-pointer flex-wrap items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm transition-colors hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-      >
-        {selectedRoles.length === 0 ? (
-          <span className="text-slate-400">{placeholder}</span>
-        ) : (
-          selectedRoles.map((role) => (
-            <span
-              key={role}
-              className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200"
-            >
-              {getTenantRoleLabel(role, language)}
-            </span>
-          ))
-        )}
-        <span className="material-icons ms-auto text-base text-slate-400">
-          {open ? 'expand_less' : 'expand_more'}
-        </span>
-      </button>
-
-      {open &&
-        createPortal(
-          <ul
-            ref={menuRef}
-            role="listbox"
-            aria-multiselectable="true"
-            style={menuStyle}
-            className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900"
-          >
-            {TENANT_ROLE_ORDER.map((role) => {
-              const checked = selectedRoles.includes(role);
-              return (
-                <li key={role}>
-                  <label className="flex cursor-pointer items-center gap-3 px-3 py-2.5 text-sm transition-colors hover:bg-slate-50 dark:hover:bg-slate-800">
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => onToggle(rowId, role)}
-                      className="h-4 w-4 cursor-pointer rounded border-slate-300 accent-primary"
-                    />
-                    <span className="font-medium text-slate-800 dark:text-slate-200">
-                      {getTenantRoleLabel(role, language)}
-                    </span>
-                  </label>
-                </li>
-              );
-            })}
-          </ul>,
-          document.body,
-        )}
-    </div>
-  );
+function getRowPermissions(
+  roles: TenantRole[],
+  byRole: Map<TenantRole, string[]>,
+): string[] {
+  const all = new Set<string>();
+  for (const role of roles) {
+    for (const perm of byRole.get(role) ?? []) all.add(perm);
+  }
+  return Array.from(all).sort();
 }
 
 /**
- * Renders the tenant member invite form with multi-role support.
+ * Renders the invite page with a manual email input, CSV import, and invite table.
+ * CSV imports open a column-mapping step before rows are added to the table.
  * Input: none.
- * Output: single and bulk invite UI connected to Mongo-backed v1 APIs.
+ * Output: connected invite UI backed by Mongo domain v1 APIs.
  */
 export default function InviteCollaborators() {
   const navigate = useNavigate();
   const { language, isRTL } = useLanguage();
+  const { me } = useAuth();
   const copy = COPY[language];
+
+  const tenantName = me?.context.tenantName ?? null;
+  /** "הזמן חברים ל-Acme" / "Invite members to Acme" */
+  const pageTitle = tenantName
+    ? language === 'he'
+      ? `${copy.titlePrefix}-${tenantName}`
+      : `${copy.titlePrefix} ${tenantName}`
+    : language === 'he' ? 'הזמן חברים' : 'Invite members';
+
   const [rows, setRows] = useState<InviteRow[]>([]);
   const [rolePermissions, setRolePermissions] = useState<TenantRolePermissions[]>([]);
   const [manualEmail, setManualEmail] = useState('');
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
+  /** Controls whether the CSV import guide modal is open. */
+  const [guideOpen, setGuideOpen] = useState(false);
+  /** Holds parsed CSV data while the column-mapping step is active. */
+  const [csvData, setCsvData] = useState<ParsedCsv | null>(null);
 
   useEffect(() => {
-    /**
-     * Loads available role permissions from the backend.
-     * Input: current authenticated tenant admin session.
-     * Output: role permission cards for permission preview.
-     */
+    /** Loads role permission data for the permission preview column. */
     const loadRoles = async () => {
       const result = await tenantMembersApi.roles();
       setRolePermissions(result.roles);
     };
-
-    void loadRoles().catch((error) => setSubmitError(error instanceof Error ? error.message : 'Failed to load roles'));
+    void loadRoles().catch((err) =>
+      setSubmitError(err instanceof Error ? err.message : 'Failed to load roles'),
+    );
   }, []);
 
-  const permissionsByRole = useMemo(() => {
-    return new Map(rolePermissions.map((r) => [r.role, r.permissions]));
-  }, [rolePermissions]);
+  const permissionsByRole = useMemo(
+    () => new Map(rolePermissions.map((r) => [r.role, r.permissions])),
+    [rolePermissions],
+  );
 
   /**
-   * Adds parsed emails into the invite table.
-   * Input: free text from input, paste, or file.
-   * Output: rows state updated or validation error shown.
+   * Parses free-text or pasted content and merges valid emails into the table.
+   * Input: raw text from the manual input, paste, or .txt drop.
+   * Output: rows state updated; error shown when no valid email is found.
    */
   const addEmails = (value: string) => {
     const emails = parseEmails(value);
@@ -264,22 +183,47 @@ export default function InviteCollaborators() {
   };
 
   /**
-   * Reads a .txt file and extracts email addresses from it.
-   * Input: browser file input change event.
-   * Output: parsed email rows.
+   * Reads a CSV File object and opens the column-mapping step.
+   * Called by CsvImportGuide once the user selects a file.
+   * Input: File from the guide's hidden file input.
+   * Output: csvData state set, which renders the CsvColumnMapper card.
    */
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
+  const handleCsvFile = async (file: File) => {
     const text = await file.text();
-    addEmails(text);
+    const parsed = parseCsv(text);
+    if (parsed.headers.length === 0) {
+      setSubmitError(copy.csvTooBig);
+      return;
+    }
+    setSubmitError(null);
+    setCsvData(parsed);
   };
 
   /**
-   * Toggles one role on or off for a given invite row.
-   * Input: row id and role to toggle.
-   * Output: rows state updated; at least one role always selected.
+   * Called when the user confirms the CSV column mapping.
+   * Merges resolved rows into the invite table and closes the mapper.
+   * Input: array of resolved email+roles from CsvColumnMapper.
+   * Output: rows state updated, csvData cleared.
+   */
+  const handleCsvConfirm = (resolved: ResolvedInviteRow[]) => {
+    setRows((current) =>
+      mergeRows(
+        current,
+        resolved.map((r) => r.email),
+        ['member'], // fallback; actual roles applied below
+      ).map((row) => {
+        const match = resolved.find((r) => r.email === row.email);
+        return match ? { ...row, roles: match.roles } : row;
+      }),
+    );
+    setCsvData(null);
+  };
+
+  /**
+   * Toggles one role on a specific invite row.
+   * Prevents removing the last remaining role from a row.
+   * Input: row id and the role to toggle.
+   * Output: rows state updated.
    */
   const toggleRole = (rowId: string, role: TenantRole) => {
     setRows((current) =>
@@ -296,9 +240,9 @@ export default function InviteCollaborators() {
   };
 
   /**
-   * Sends all draft invite rows through single or bulk API.
-   * Input: current table rows.
-   * Output: row statuses reflect backend results and emails are sent.
+   * Sends all draft invite rows through the single or bulk invite API.
+   * Input: current table rows with status 'draft' or 'failed'.
+   * Output: row statuses updated to 'pending' or 'failed', toast shown.
    */
   const sendInvites = async () => {
     const draftRows = rows.filter((row) => row.status !== 'pending');
@@ -313,10 +257,20 @@ export default function InviteCollaborators() {
         language,
         sendEmail: true,
       }));
+
       const response =
         payload.length === 1
-          ? { results: [{ email: payload[0].email, ok: true, result: await tenantMembersApi.invite(payload[0]) }] }
+          ? {
+              results: [
+                {
+                  email: payload[0].email,
+                  ok: true,
+                  result: await tenantMembersApi.invite(payload[0]),
+                },
+              ],
+            }
           : await tenantMembersApi.bulkInvite(payload, language);
+
       applyResults(response.results);
       const failedCount = response.results.filter((r) => !r.ok).length;
       if (failedCount > 0) {
@@ -334,9 +288,9 @@ export default function InviteCollaborators() {
   };
 
   /**
-   * Applies backend bulk results to the visible rows.
-   * Input: per-email success or failure results.
-   * Output: row status and errors update in place.
+   * Applies per-email backend results to the visible invite rows.
+   * Input: array of { email, ok, error } results from the bulk invite API.
+   * Output: matching rows updated to 'pending' or 'failed'.
    */
   const applyResults = (results: BulkTenantMemberInviteResult[]) => {
     const byEmail = new Map(results.map((r) => [r.email, r]));
@@ -351,21 +305,9 @@ export default function InviteCollaborators() {
     );
   };
 
-  /**
-   * Aggregates unique permissions for all selected roles in a row.
-   * Input: selected role names and the full permissionsByRole map.
-   * Output: sorted deduplicated permission strings.
-   */
-  const getRowPermissions = (roles: TenantRole[], byRole: Map<TenantRole, string[]>): string[] => {
-    const all = new Set<string>();
-    for (const role of roles) {
-      for (const perm of byRole.get(role) ?? []) all.add(perm);
-    }
-    return Array.from(all).sort();
-  };
-
   return (
     <div dir={isRTL ? 'rtl' : 'ltr'} className="mx-auto max-w-7xl space-y-6">
+      {/* Page header */}
       <header className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <button
@@ -376,8 +318,12 @@ export default function InviteCollaborators() {
             <span className="material-icons text-lg">{isRTL ? 'arrow_forward' : 'arrow_back'}</span>
             {copy.back}
           </button>
-          <h1 className="text-3xl font-bold tracking-normal text-slate-950 dark:text-white">{copy.title}</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">{copy.body}</p>
+          <h1 className="text-3xl font-bold tracking-normal text-slate-950 dark:text-white">
+            {pageTitle}
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">
+            {copy.body}
+          </p>
         </div>
         <div className="flex gap-3">
           <button
@@ -398,21 +344,29 @@ export default function InviteCollaborators() {
         </div>
       </header>
 
+      {/* Global error banner */}
       {submitError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{submitError}</div>
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-400">
+          {submitError}
+        </div>
       )}
 
+      {/* Manual input and upload controls */}
       <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-card-dark">
-        <label className="mb-2 block text-sm font-semibold text-slate-800 dark:text-white">{copy.manual}</label>
+        <label className="mb-2 block text-sm font-semibold text-slate-800 dark:text-white">
+          {copy.manual}
+        </label>
         <div className="flex flex-col gap-3 md:flex-row">
           <input
             value={manualEmail}
-            onChange={(event) => setManualEmail(event.target.value)}
-            onKeyDown={(event) => { if (event.key === 'Enter') addEmails(manualEmail); }}
-            onPaste={(event) => {
-              const pasted = event.clipboardData.getData('text');
+            onChange={(e) => setManualEmail(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') addEmails(manualEmail);
+            }}
+            onPaste={(e) => {
+              const pasted = e.clipboardData.getData('text');
               if (parseEmails(pasted).length > 1) {
-                event.preventDefault();
+                e.preventDefault();
                 addEmails(pasted);
               }
             }}
@@ -427,14 +381,38 @@ export default function InviteCollaborators() {
           >
             {copy.add}
           </button>
-          <label className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200">
-            <span className="material-icons text-lg ltr:mr-2 rtl:ml-2">upload_file</span>
-            {copy.upload}
-            <input type="file" accept=".txt,text/plain" onChange={(event) => void handleFileChange(event)} className="sr-only" />
-          </label>
+          {/* CSV import — opens the guide modal first */}
+          <button
+            type="button"
+            onClick={() => setGuideOpen(true)}
+            className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200"
+          >
+            <span className="material-icons text-lg">upload_file</span>
+            {copy.uploadCsv}
+          </button>
         </div>
       </section>
 
+      {/* CSV import guide modal — shown when the user clicks Import CSV */}
+      {guideOpen && (
+        <CsvImportGuide
+          language={language}
+          onFileSelected={(file) => void handleCsvFile(file)}
+          onClose={() => setGuideOpen(false)}
+        />
+      )}
+
+      {/* CSV column-mapping step — shown after a CSV file is selected */}
+      {csvData && (
+        <CsvColumnMapper
+          csv={csvData}
+          language={language}
+          onConfirm={handleCsvConfirm}
+          onCancel={() => setCsvData(null)}
+        />
+      )}
+
+      {/* Invite table */}
       <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-card-dark">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[860px] text-sm">
@@ -452,7 +430,9 @@ export default function InviteCollaborators() {
                 const permissions = getRowPermissions(row.roles, permissionsByRole);
                 return (
                   <tr key={row.id} className="align-top">
-                    <td className="px-5 py-4 font-medium text-slate-950 dark:text-white">{row.email}</td>
+                    <td className="px-5 py-4 font-medium text-slate-950 dark:text-white">
+                      {row.email}
+                    </td>
                     <td className="px-5 py-4">
                       <RoleDropdown
                         rowId={row.id}
@@ -466,7 +446,11 @@ export default function InviteCollaborators() {
                     <td className="max-w-[260px] px-5 py-4 text-xs text-slate-500">
                       {row.roles.length === 1 ? (
                         <p className="mb-2 font-medium text-slate-700 dark:text-slate-300">
-                          {TENANT_ROLE_COPY[row.roles[0]][language === 'he' ? 'descriptionHe' : 'descriptionEn']}
+                          {
+                            TENANT_ROLE_COPY[row.roles[0]][
+                              language === 'he' ? 'descriptionHe' : 'descriptionEn'
+                            ]
+                          }
                         </p>
                       ) : (
                         <p className="mb-2 font-medium text-slate-700 dark:text-slate-300">
@@ -509,7 +493,9 @@ export default function InviteCollaborators() {
                       <button
                         type="button"
                         disabled={row.status === 'pending'}
-                        onClick={() => setRows((current) => current.filter((item) => item.id !== row.id))}
+                        onClick={() =>
+                          setRows((current) => current.filter((item) => item.id !== row.id))
+                        }
                         className="cursor-pointer rounded-lg px-3 py-2 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         {copy.remove}
