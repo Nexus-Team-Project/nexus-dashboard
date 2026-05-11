@@ -421,7 +421,7 @@ export interface TenantContact {
   tenantContactId: string;
   email: string;
   displayName: string;
-  status: 'active' | 'inactive' | 'pending';
+  status: 'active' | 'inactive' | 'pending' | 'expired';
   address: string | null;
   lastActivityAt: string | null;
   createdAt: string;
@@ -454,11 +454,11 @@ export const tenantContactsApi = {
       'GET',
       `/api/v1/tenant/contacts${buildContactsQuery(params)}`,
     ),
-  create: (data: { email: string; displayName?: string; status?: string; address?: string }) =>
+  create: (data: { email: string; displayName?: string; address?: string }) =>
     request<TenantContact>('POST', '/api/v1/tenant/contacts', data),
-  update: (contactId: string, data: { displayName?: string; status?: string; address?: string }) =>
+  update: (contactId: string, data: { displayName?: string; address?: string }) =>
     request<TenantContact>('PATCH', `/api/v1/tenant/contacts/${encodeURIComponent(contactId)}`, data),
-  importContacts: (rows: Array<{ email: string; displayName?: string; status?: string; address?: string }>) =>
+  importContacts: (rows: Array<{ email: string; displayName?: string; address?: string }>) =>
     request<ContactImportResult>('POST', '/api/v1/tenant/contacts/import', { rows }),
 };
 

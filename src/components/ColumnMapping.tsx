@@ -8,8 +8,8 @@
 import { useState, useMemo } from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
 
-/** System fields a CSV column can be mapped to. */
-type SystemField = 'Full Name' | 'Email Address' | 'Status' | 'Address' | '';
+/** System fields a CSV column can be mapped to. Status is lifecycle-managed, not imported. */
+type SystemField = 'Full Name' | 'Email Address' | 'Address' | '';
 
 interface ColumnMappingRow {
   csvColumn: string;
@@ -18,11 +18,10 @@ interface ColumnMappingRow {
   isMapped: boolean;
 }
 
-/** A resolved contact row after column mapping is confirmed. */
+/** A resolved contact row after column mapping is confirmed. Status is set by the server. */
 export interface ResolvedContactRow {
   email: string;
   displayName?: string;
-  status?: string;
   address?: string;
 }
 
@@ -37,7 +36,7 @@ export interface ColumnMappingProps {
   csvRows: Record<string, string>[];
 }
 
-const SYSTEM_FIELDS: SystemField[] = ['Full Name', 'Email Address', 'Status', 'Address', ''];
+const SYSTEM_FIELDS: SystemField[] = ['Full Name', 'Email Address', 'Address', ''];
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -50,7 +49,6 @@ function autoDetect(header: string): SystemField {
   const h = header.toLowerCase().trim();
   if (/e[-_]?mail|mail address|כתובת.?אימייל|אימייל|מייל/.test(h)) return 'Email Address';
   if (/\bname\b|full.?name|שם|שם.?מלא/.test(h)) return 'Full Name';
-  if (/\bstatus\b|סטטוס/.test(h)) return 'Status';
   if (/address|כתובת/.test(h)) return 'Address';
   return '';
 }
@@ -76,7 +74,6 @@ function resolveRows(
 ): { rows: ResolvedContactRow[]; skipped: number } {
   const emailCol = mappings.find((m) => m.systemField === 'Email Address')?.csvColumn;
   const nameCol = mappings.find((m) => m.systemField === 'Full Name')?.csvColumn;
-  const statusCol = mappings.find((m) => m.systemField === 'Status')?.csvColumn;
   const addressCol = mappings.find((m) => m.systemField === 'Address')?.csvColumn;
 
   const seen = new Set<string>();
@@ -90,7 +87,6 @@ function resolveRows(
     rows.push({
       email,
       ...(nameCol && row[nameCol] ? { displayName: row[nameCol].trim() } : {}),
-      ...(statusCol && row[statusCol] ? { status: row[statusCol].trim().toLowerCase() } : {}),
       ...(addressCol && row[addressCol] ? { address: row[addressCol].trim() } : {}),
     });
   }

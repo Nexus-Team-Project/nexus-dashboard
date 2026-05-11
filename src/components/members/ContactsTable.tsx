@@ -45,6 +45,7 @@ const STATUS_CLASSES: Record<string, string> = {
   active: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400',
   inactive: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
   pending: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
+  expired: 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400',
 };
 
 /**
