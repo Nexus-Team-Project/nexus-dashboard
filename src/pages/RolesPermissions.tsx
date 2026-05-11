@@ -77,8 +77,34 @@ export default function RolesPermissions() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-7xl rounded-lg border border-slate-200 bg-white p-6 text-sm text-slate-600 shadow-sm">
-        {copy.loading}
+      <div dir={isRTL ? 'rtl' : 'ltr'} className="mx-auto max-w-7xl space-y-6 animate-pulse">
+        {/* Header skeleton */}
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div className="space-y-3">
+            <div className="h-3 w-24 rounded bg-slate-200 dark:bg-slate-700" />
+            <div className="h-8 w-56 rounded bg-slate-200 dark:bg-slate-700" />
+            <div className="h-4 w-96 rounded bg-slate-200 dark:bg-slate-700" />
+          </div>
+          <div className="h-10 w-36 rounded-lg bg-slate-200 dark:bg-slate-700" />
+        </div>
+        {/* Role cards skeleton */}
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 7 }).map((_, i) => (
+            <div key={i} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-card-dark space-y-2">
+              <div className="h-4 w-24 rounded bg-slate-200 dark:bg-slate-700" />
+              <div className="h-3 w-16 rounded bg-slate-200 dark:bg-slate-700" />
+            </div>
+          ))}
+        </div>
+        {/* Pending panel skeleton */}
+        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-card-dark space-y-3">
+          <div className="h-4 w-40 rounded bg-slate-200 dark:bg-slate-700" />
+          <div className="flex flex-wrap gap-2">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-7 w-40 rounded-full bg-slate-200 dark:bg-slate-700" />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }

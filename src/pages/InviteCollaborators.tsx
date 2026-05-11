@@ -179,15 +179,19 @@ export default function InviteCollaborators() {
   /** Holds parsed CSV data while the column-mapping step is active. */
   const [csvData, setCsvData] = useState<ParsedCsv | null>(null);
 
+  const [rolesLoading, setRolesLoading] = useState(true);
+
   useEffect(() => {
     /** Loads role permission data for the permission preview column. */
     const loadRoles = async () => {
       const result = await tenantMembersApi.roles();
       setRolePermissions(result.roles);
+      setRolesLoading(false);
     };
-    void loadRoles().catch((err) =>
-      setSubmitError(err instanceof Error ? err.message : 'Failed to load roles'),
-    );
+    void loadRoles().catch((err) => {
+      setSubmitError(err instanceof Error ? err.message : 'Failed to load roles');
+      setRolesLoading(false);
+    });
   }, []);
 
   const permissionsByRole = useMemo(
@@ -444,6 +448,22 @@ export default function InviteCollaborators() {
 
       {/* Invite table */}
       <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-card-dark">
+        {rolesLoading && (
+          <div className="animate-pulse divide-y divide-slate-100 dark:divide-slate-800">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4 px-5 py-4">
+                <div className="h-4 w-40 rounded bg-slate-200 dark:bg-slate-700" />
+                <div className="h-8 w-32 rounded-lg bg-slate-200 dark:bg-slate-700" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="h-3 w-full rounded bg-slate-200 dark:bg-slate-700" />
+                  <div className="h-3 w-3/4 rounded bg-slate-200 dark:bg-slate-700" />
+                </div>
+                <div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-700" />
+              </div>
+            ))}
+          </div>
+        )}
+        {!rolesLoading && <>
         {/* Pagination controls — only shown when rows exceed one page */}
         {totalRowPages > 1 && (
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-2.5 dark:border-slate-800">
@@ -574,6 +594,7 @@ export default function InviteCollaborators() {
             </tbody>
           </table>
         </div>
+        </>}
       </section>
     </div>
   );

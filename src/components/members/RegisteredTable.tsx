@@ -204,7 +204,7 @@ export default function RegisteredTable({ members, loading, language, canManage,
   return (
     <>
       {/* Desktop table */}
-      <div className={`hidden overflow-x-auto md:block transition-opacity duration-150 ${loading ? 'opacity-50' : ''}`}>
+      <div className="hidden overflow-x-auto md:block">
         <table className="w-full min-w-[780px] text-sm" style={{ borderSpacing: 0 }}>
           <thead className="border-y-2 border-violet-200/60 bg-violet-50 text-xs font-bold uppercase tracking-wider text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
             <tr>
@@ -217,7 +217,25 @@ export default function RegisteredTable({ members, loading, language, canManage,
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-            {members.map((m) => {
+            {loading && Array.from({ length: 5 }).map((_, i) => (
+              <tr key={i} className="animate-pulse border-b border-slate-100 dark:border-slate-800">
+                <td className="px-6 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="h-9 w-9 shrink-0 rounded-full bg-slate-200 dark:bg-slate-700" />
+                    <div className="space-y-1.5">
+                      <div className="h-3.5 w-28 rounded bg-slate-200 dark:bg-slate-700" />
+                      <div className="h-3 w-36 rounded bg-slate-200 dark:bg-slate-700" />
+                    </div>
+                  </div>
+                </td>
+                <td className="px-6 py-3"><div className="h-5 w-16 rounded-full bg-slate-200 dark:bg-slate-700" /></td>
+                <td className="px-6 py-3"><div className="h-5 w-14 rounded-full bg-slate-200 dark:bg-slate-700" /></td>
+                <td className="px-6 py-3"><div className="h-5 w-16 rounded-full bg-slate-200 dark:bg-slate-700" /></td>
+                <td className="px-6 py-3"><div className="h-4 w-20 rounded bg-slate-200 dark:bg-slate-700" /></td>
+                {canManage && <td className="px-6 py-3" />}
+              </tr>
+            ))}
+            {!loading && members.map((m) => {
               const invite = inviteChip(m.invitationStatus, language);
               return (
                 <tr key={m.tenantMemberId} className="group cursor-default transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/30">
@@ -267,7 +285,7 @@ export default function RegisteredTable({ members, loading, language, canManage,
                 </tr>
               );
             })}
-            {members.length === 0 && !loading && (
+            {!loading && members.length === 0 && (
               <tr>
                 <td colSpan={canManage ? 6 : 5} className="px-6 py-10 text-center text-sm text-slate-500">{copy.empty}</td>
               </tr>
@@ -277,8 +295,23 @@ export default function RegisteredTable({ members, loading, language, canManage,
       </div>
 
       {/* Mobile cards */}
-      <div className={`grid gap-3 p-3 md:hidden transition-opacity duration-150 ${loading ? 'opacity-50' : ''}`}>
-        {members.map((m) => {
+      <div className="grid gap-3 p-3 md:hidden">
+        {loading && Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="animate-pulse rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 shrink-0 rounded-full bg-slate-200 dark:bg-slate-700" />
+              <div className="flex-1 space-y-1.5">
+                <div className="h-4 w-32 rounded bg-slate-200 dark:bg-slate-700" />
+                <div className="h-3 w-44 rounded bg-slate-200 dark:bg-slate-700" />
+              </div>
+            </div>
+            <div className="mt-3 space-y-2">
+              <div className="h-3 w-full rounded bg-slate-200 dark:bg-slate-700" />
+              <div className="h-3 w-3/4 rounded bg-slate-200 dark:bg-slate-700" />
+            </div>
+          </div>
+        ))}
+        {!loading && members.map((m) => {
           const invite = inviteChip(m.invitationStatus, language);
           return (
             <article key={m.tenantMemberId} className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
@@ -351,7 +384,7 @@ export default function RegisteredTable({ members, loading, language, canManage,
             </article>
           );
         })}
-        {members.length === 0 && !loading && (
+        {!loading && members.length === 0 && (
           <div className="py-8 text-center text-sm text-slate-500">{copy.empty}</div>
         )}
       </div>

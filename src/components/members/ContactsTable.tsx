@@ -183,7 +183,7 @@ export default function ContactsTable({ contacts, loading, language, canManage, 
   return (
     <>
       {/* Desktop table */}
-      <div className={`hidden overflow-x-auto md:block transition-opacity duration-150 ${loading ? 'opacity-50' : ''}`}>
+      <div className="hidden overflow-x-auto md:block">
         <table className="w-full min-w-[860px] text-sm" style={{ borderSpacing: 0 }}>
           <thead className="border-y-2 border-violet-200/60 bg-violet-50 text-xs font-bold uppercase tracking-wider text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
             <tr>
@@ -197,7 +197,18 @@ export default function ContactsTable({ contacts, loading, language, canManage, 
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-            {contacts.map((c) => (
+            {loading && Array.from({ length: 6 }).map((_, i) => (
+              <tr key={i} className="animate-pulse border-b border-slate-100 dark:border-slate-800">
+                <td className="px-6 py-3"><div className="h-4 w-28 rounded bg-slate-200 dark:bg-slate-700" /></td>
+                <td className="px-6 py-3"><div className="h-4 w-40 rounded bg-slate-200 dark:bg-slate-700" /></td>
+                <td className="px-6 py-3"><div className="h-5 w-16 rounded-full bg-slate-200 dark:bg-slate-700" /></td>
+                <td className="px-6 py-3"><div className="h-4 w-32 rounded bg-slate-200 dark:bg-slate-700" /></td>
+                <td className="px-6 py-3"><div className="h-4 w-20 rounded bg-slate-200 dark:bg-slate-700" /></td>
+                <td className="px-6 py-3"><div className="h-4 w-20 rounded bg-slate-200 dark:bg-slate-700" /></td>
+                <td className="px-6 py-3" />
+              </tr>
+            ))}
+            {!loading && contacts.map((c) => (
               <tr
                 key={c.tenantContactId}
                 className="group cursor-default transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/30"
@@ -219,7 +230,7 @@ export default function ContactsTable({ contacts, loading, language, canManage, 
                 </td>
               </tr>
             ))}
-            {contacts.length === 0 && !loading && (
+            {!loading && contacts.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-6 py-10 text-center text-sm text-slate-500">{copy.empty}</td>
               </tr>
@@ -229,8 +240,19 @@ export default function ContactsTable({ contacts, loading, language, canManage, 
       </div>
 
       {/* Mobile cards */}
-      <div className={`grid gap-3 p-3 md:hidden transition-opacity duration-150 ${loading ? 'opacity-50' : ''}`}>
-        {contacts.map((c) => (
+      <div className="grid gap-3 p-3 md:hidden">
+        {loading && Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="animate-pulse rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-2 flex-1">
+                <div className="h-4 w-32 rounded bg-slate-200 dark:bg-slate-700" />
+                <div className="h-3 w-40 rounded bg-slate-200 dark:bg-slate-700" />
+              </div>
+              <div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-700" />
+            </div>
+          </div>
+        ))}
+        {!loading && contacts.map((c) => (
           <article key={c.tenantContactId} className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
@@ -278,7 +300,7 @@ export default function ContactsTable({ contacts, loading, language, canManage, 
             )}
           </article>
         ))}
-        {contacts.length === 0 && !loading && (
+        {!loading && contacts.length === 0 && (
           <div className="py-8 text-center text-sm text-slate-500">{copy.empty}</div>
         )}
       </div>
