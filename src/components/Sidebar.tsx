@@ -270,6 +270,7 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
                   <div key={page.path} className="group/shortcut">
                     <NavLink
                       to={page.path}
+                      end
                       onClick={onNavigate}
                       className={({ isActive }) =>
                         `flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 text-[13px] ${

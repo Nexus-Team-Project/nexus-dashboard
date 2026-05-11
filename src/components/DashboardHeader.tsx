@@ -101,7 +101,7 @@ const DashboardHeader = ({ onLogout, isChatOpen, onChatToggle, onMenuToggle }: D
         {/* All buttons and user profile at far left */}
         <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto no-scrollbar">
           <div className="relative me-1 shrink-0">
-            <div className="absolute -start-1.5 -bottom-1 w-4 h-4 rounded-full bg-white border border-slate-200 flex items-center justify-center z-10 overflow-hidden">
+            <div className="absolute -end-1.5 -bottom-1 w-4 h-4 rounded-full bg-white border border-slate-200 flex items-center justify-center z-10 overflow-hidden">
               <img src={orgLogo} alt="Organization" className="w-3 h-3 object-contain" />
             </div>
             <button
@@ -201,7 +201,7 @@ const DashboardHeader = ({ onLogout, isChatOpen, onChatToggle, onMenuToggle }: D
         </div>
 
         {/* Logo at far right */}
-        <div className="hidden items-center ms-auto -me-2 sm:flex">
+        <div className="hidden items-center shrink-0 sm:flex">
           <div
             className="cursor-pointer transition-transform duration-300 hover:scale-105"
             onMouseEnter={() => setIsLogoHovered(true)}
