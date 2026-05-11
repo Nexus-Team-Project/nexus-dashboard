@@ -3,6 +3,7 @@
  * Columns: Name+Email, Roles, Status, Invitation status, Joined.
  * Reuses the visual patterns from the original RolesPermissions member table.
  */
+import { useRef, useState } from 'react';
 import type { TenantMemberListItem, TenantRole } from '../../lib/api';
 import { getTenantRoleLabel } from '../../lib/tenantRoles';
 
@@ -10,6 +11,12 @@ export interface RegisteredTableProps {
   members: TenantMemberListItem[];
   loading: boolean;
   language: 'he' | 'en';
+  canManage?: boolean;
+  /** Email of the currently logged-in user — their own row never shows a Remove option. */
+  currentUserEmail?: string;
+  onEditEmail?: (member: TenantMemberListItem) => void;
+  onEditRoles?: (member: TenantMemberListItem) => void;
+  onRemove?: (member: TenantMemberListItem) => void;
 }
 
 const COPY = {
@@ -19,12 +26,16 @@ const COPY = {
     status: 'סטטוס',
     invitation: 'הזמנה',
     joined: 'הצטרף',
+    actions: 'פעולות',
     empty: 'אין חברים רשומים עדיין.',
     pending: 'ממתין לאישור',
     accepted: 'אושר',
     expired: 'פג תוקף',
     revoked: 'בוטל',
     noInvite: 'ללא הזמנה',
+    editEmail: 'שינוי אימייל',
+    editRoles: 'שינוי תפקידים',
+    remove: 'הסר חבר',
   },
   en: {
     name: 'Name',
@@ -32,14 +43,109 @@ const COPY = {
     status: 'Status',
     invitation: 'Invite',
     joined: 'Joined',
+    actions: 'Actions',
     empty: 'No registered members yet.',
     pending: 'Pending',
     accepted: 'Accepted',
     expired: 'Expired',
     revoked: 'Revoked',
     noInvite: 'No invite',
+    editEmail: 'Change email',
+    editRoles: 'Change roles',
+    remove: 'Remove member',
   },
 } as const;
+
+/** Invite statuses where email and role edits are allowed. */
+const ACTIONABLE_INVITE_STATUSES = ['pending', 'expired'];
+
+/**
+ * Three-dot action menu on each member row.
+ * Remove is always available. Edit email + edit roles only when invite is pending/expired.
+ * Input: member row, language, and optional action callbacks.
+ * Output: dropdown with contextual options.
+ */
+function RowMenu({
+  member,
+  language,
+  onEditEmail,
+  onEditRoles,
+  onRemove,
+}: {
+  member: TenantMemberListItem;
+  language: 'he' | 'en';
+  onEditEmail?: (m: TenantMemberListItem) => void;
+  onEditRoles?: (m: TenantMemberListItem) => void;
+  onRemove?: (m: TenantMemberListItem) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [dropPos, setDropPos] = useState({ top: 0, right: 0 });
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const copy = COPY[language];
+  const canEditInvite = ACTIONABLE_INVITE_STATUSES.includes(member.invitationStatus ?? '');
+
+  const handleOpen = () => {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setDropPos({ top: r.bottom + 4, right: window.innerWidth - r.right });
+    }
+    setOpen((v) => !v);
+  };
+
+  return (
+    <div className="relative">
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={handleOpen}
+        className="cursor-pointer rounded p-1 text-slate-300 opacity-0 transition-all group-hover:opacity-100 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700"
+        aria-label={copy.actions}
+      >
+        <span className="material-icons text-xl">more_horiz</span>
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} aria-hidden="true" />
+          <div
+            className="fixed z-20 w-48 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800"
+            style={{ top: dropPos.top, right: dropPos.right }}
+          >
+            {canEditInvite && onEditEmail && (
+              <button
+                type="button"
+                onClick={() => { setOpen(false); onEditEmail(member); }}
+                className="flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-start text-sm transition-colors hover:bg-slate-50 dark:hover:bg-slate-700"
+              >
+                <span className="material-icons text-sm text-slate-500">edit</span>
+                <span className="font-medium">{copy.editEmail}</span>
+              </button>
+            )}
+            {canEditInvite && onEditRoles && (
+              <button
+                type="button"
+                onClick={() => { setOpen(false); onEditRoles(member); }}
+                className="flex w-full cursor-pointer items-center gap-3 border-t border-slate-100 px-4 py-3 text-start text-sm transition-colors hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-700"
+              >
+                <span className="material-icons text-sm text-slate-500">manage_accounts</span>
+                <span className="font-medium">{copy.editRoles}</span>
+              </button>
+            )}
+            {onRemove && (
+              <button
+                type="button"
+                onClick={() => { setOpen(false); onRemove(member); }}
+                className={`flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-start text-sm text-red-600 transition-colors hover:bg-red-50 dark:hover:bg-red-900/20 ${canEditInvite ? 'border-t border-slate-100 dark:border-slate-700' : ''}`}
+              >
+                <span className="material-icons text-sm">person_remove</span>
+                <span className="font-medium">{copy.remove}</span>
+              </button>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 const MEMBER_STATUS_CLASSES: Record<string, string> = {
   active: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400',
@@ -92,7 +198,7 @@ function inviteChip(status: string | null, language: 'he' | 'en') {
  * Input: member list, loading state, and language.
  * Output: responsive table/card display.
  */
-export default function RegisteredTable({ members, loading, language }: RegisteredTableProps) {
+export default function RegisteredTable({ members, loading, language, canManage, currentUserEmail, onEditEmail, onEditRoles, onRemove }: RegisteredTableProps) {
   const copy = COPY[language];
 
   return (
@@ -107,13 +213,14 @@ export default function RegisteredTable({ members, loading, language }: Register
               <th className="px-6 py-2.5 text-start">{copy.status}</th>
               <th className="px-6 py-2.5 text-start">{copy.invitation}</th>
               <th className="px-6 py-2.5 text-start">{copy.joined}</th>
+              {canManage && <th className="w-12 px-6 py-2.5" />}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {members.map((m) => {
               const invite = inviteChip(m.invitationStatus, language);
               return (
-                <tr key={m.tenantMemberId} className="cursor-default transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                <tr key={m.tenantMemberId} className="group cursor-default transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/30">
                   <td className="px-6 py-2.5">
                     <div className="flex items-center gap-3">
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-white">
@@ -144,12 +251,25 @@ export default function RegisteredTable({ members, loading, language }: Register
                     <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${invite.cls}`}>{invite.label}</span>
                   </td>
                   <td className="px-6 py-2.5 text-slate-500">{fmtDate(m.joinedAt, language)}</td>
+                  {canManage && (
+                    <td className="px-6 py-2.5 text-end">
+                      {m.email.toLowerCase() !== (currentUserEmail ?? '').toLowerCase() && (
+                        <RowMenu
+                          member={m}
+                          language={language}
+                          onEditEmail={onEditEmail}
+                          onEditRoles={onEditRoles}
+                          onRemove={onRemove}
+                        />
+                      )}
+                    </td>
+                  )}
                 </tr>
               );
             })}
             {members.length === 0 && !loading && (
               <tr>
-                <td colSpan={5} className="px-6 py-10 text-center text-sm text-slate-500">{copy.empty}</td>
+                <td colSpan={canManage ? 6 : 5} className="px-6 py-10 text-center text-sm text-slate-500">{copy.empty}</td>
               </tr>
             )}
           </tbody>
@@ -191,6 +311,43 @@ export default function RegisteredTable({ members, loading, language }: Register
                   <span className="text-slate-700 dark:text-slate-300">{fmtDate(m.joinedAt, language)}</span>
                 </div>
               </div>
+              {canManage && m.email.toLowerCase() !== (currentUserEmail ?? '').toLowerCase() && (onEditEmail || onEditRoles || onRemove) && (() => {
+                const canEdit = ACTIONABLE_INVITE_STATUSES.includes(m.invitationStatus ?? '');
+                const effectiveRemove = onRemove;
+                const hasActions = (canEdit && (onEditEmail || onEditRoles)) || effectiveRemove;
+                if (!hasActions) return null;
+                return (
+                  <div className="mt-2 flex items-center gap-3 border-t border-slate-100 pt-2 dark:border-slate-800">
+                    {canEdit && onEditEmail && (
+                      <button
+                        type="button"
+                        onClick={() => onEditEmail(m)}
+                        className="cursor-pointer text-xs font-medium text-slate-500 hover:text-primary"
+                      >
+                        {copy.editEmail}
+                      </button>
+                    )}
+                    {canEdit && onEditRoles && (
+                      <button
+                        type="button"
+                        onClick={() => onEditRoles(m)}
+                        className="cursor-pointer text-xs font-medium text-slate-500 hover:text-primary"
+                      >
+                        {copy.editRoles}
+                      </button>
+                    )}
+                    {effectiveRemove && (
+                      <button
+                        type="button"
+                        onClick={() => effectiveRemove(m)}
+                        className="cursor-pointer text-xs font-medium text-red-500 hover:text-red-700"
+                      >
+                        {copy.remove}
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
             </article>
           );
         })}

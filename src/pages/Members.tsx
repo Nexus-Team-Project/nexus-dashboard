@@ -12,6 +12,7 @@ import {
   tenantMembersApi,
   type TenantContact,
   type TenantMemberListItem,
+  type TenantRole,
   type PaginationMeta,
   type ListContactsParams,
   type ListMembersParams,
@@ -24,6 +25,9 @@ import ContactsTable from '../components/members/ContactsTable';
 import RegisteredTable from '../components/members/RegisteredTable';
 import FilterPanel from '../components/members/FilterPanel';
 import AddContactModal from '../components/members/AddContactModal';
+import EditEmailModal from '../components/members/EditEmailModal';
+import EditRolesModal from '../components/members/EditRolesModal';
+import ConfirmRemoveModal from '../components/members/ConfirmRemoveModal';
 
 type ActiveTab = 'contacts' | 'members';
 
@@ -163,7 +167,7 @@ function TooltipButton({
 export default function Members() {
   const navigate = useNavigate();
   const { language, isRTL } = useLanguage();
-  const { me } = useAuth();
+  const { me, user } = useAuth();
   const copy = COPY[language];
 
   const canViewMembers = me?.authorization.canViewMembers === true || me?.authorization.canManageMembers === true;
@@ -179,6 +183,11 @@ export default function Members() {
   const [showMemberTooltip, setShowMemberTooltip] = useState(false);
   const [showImportMenu, setShowImportMenu] = useState(false);
   const [showAddContact, setShowAddContact] = useState(false);
+  const [editEmailContact, setEditEmailContact] = useState<TenantContact | null>(null);
+  const [editEmailMember, setEditEmailMember] = useState<TenantMemberListItem | null>(null);
+  const [editRolesMember, setEditRolesMember] = useState<TenantMemberListItem | null>(null);
+  const [removeContact, setRemoveContact] = useState<TenantContact | null>(null);
+  const [removeMember, setRemoveMember] = useState<TenantMemberListItem | null>(null);
 
   // Contacts state
   const [contacts, setContacts] = useState<TenantContact[]>([]);
@@ -479,7 +488,7 @@ export default function Members() {
               <span className="text-xs text-slate-400">
                 {copy.showing} {pagination?.total ?? 0} {activeTab === 'contacts' ? copy.contacts : copy.members}
               </span>
-              {canManage && (
+              {canManage && activeTab === 'contacts' && (
                 <button
                   type="button"
                   onClick={() => void handleInviteInactive()}
@@ -528,9 +537,26 @@ export default function Members() {
 
           {/* Tab content */}
           {activeTab === 'contacts' ? (
-            <ContactsTable contacts={contacts} loading={contactsLoading} language={language} canManage={canManage} tenantName={me?.context.tenantName} />
+            <ContactsTable
+              contacts={contacts}
+              loading={contactsLoading}
+              language={language}
+              canManage={canManage}
+              tenantName={me?.context.tenantName ?? undefined}
+              onEditEmail={canManage ? (c) => setEditEmailContact(c) : undefined}
+              onRemove={canManage ? (c) => setRemoveContact(c) : undefined}
+            />
           ) : (
-            <RegisteredTable members={members} loading={membersLoading} language={language} />
+            <RegisteredTable
+              members={members}
+              loading={membersLoading}
+              language={language}
+              canManage={canManage}
+              currentUserEmail={user?.email ?? ''}
+              onEditEmail={canManage ? (m) => setEditEmailMember(m) : undefined}
+              onEditRoles={canManage ? (m) => setEditRolesMember(m) : undefined}
+              onRemove={canManage ? (m) => setRemoveMember(m) : undefined}
+            />
           )}
         </div>
       </div>
@@ -541,6 +567,91 @@ export default function Members() {
           language={language}
           onClose={() => setShowAddContact(false)}
           onCreated={() => void fetchContacts(contactsParams)}
+        />
+      )}
+
+      {/* Edit email — contact */}
+      {editEmailContact && (
+        <EditEmailModal
+          language={language}
+          currentEmail={editEmailContact.email}
+          wasInvited={editEmailContact.status === 'pending' || editEmailContact.status === 'expired'}
+          onClose={() => setEditEmailContact(null)}
+          onSubmit={async (email) => {
+            await tenantContactsApi.updateEmail(editEmailContact.tenantContactId, email);
+            setEditEmailContact(null);
+            toast.success(language === 'he' ? 'האימייל עודכן' : 'Email updated');
+            void fetchContacts(contactsParams);
+            void fetchMembers(membersParams);
+          }}
+        />
+      )}
+
+      {/* Edit email — member */}
+      {editEmailMember && (
+        <EditEmailModal
+          language={language}
+          currentEmail={editEmailMember.email}
+          wasInvited={true}
+          onClose={() => setEditEmailMember(null)}
+          onSubmit={async (email) => {
+            await tenantMembersApi.updateEmail(editEmailMember.tenantMemberId, email);
+            setEditEmailMember(null);
+            toast.success(language === 'he' ? 'האימייל עודכן וההזמנה נשלחה מחדש' : 'Email updated and new invite sent');
+            void fetchMembers(membersParams);
+            void fetchContacts(contactsParams);
+          }}
+        />
+      )}
+
+      {/* Edit roles — member */}
+      {editRolesMember && (
+        <EditRolesModal
+          language={language}
+          currentRoles={editRolesMember.roles as TenantRole[]}
+          onClose={() => setEditRolesMember(null)}
+          onSubmit={async (roles) => {
+            await tenantMembersApi.updateRoles(editRolesMember.tenantMemberId, roles);
+            setEditRolesMember(null);
+            toast.success(language === 'he' ? 'התפקידים עודכנו' : 'Roles updated');
+            void fetchMembers(membersParams);
+          }}
+        />
+      )}
+
+      {/* Confirm remove — contact */}
+      {removeContact && (
+        <ConfirmRemoveModal
+          language={language}
+          tenantName={me?.context.tenantName ?? ''}
+          displayName={removeContact.displayName}
+          email={removeContact.email}
+          willSendEmail={removeContact.status === 'pending' || removeContact.status === 'expired'}
+          onClose={() => setRemoveContact(null)}
+          onConfirm={async () => {
+            await tenantContactsApi.remove(removeContact.tenantContactId);
+            setRemoveContact(null);
+            toast.success(language === 'he' ? 'איש הקשר הוסר' : 'Contact removed');
+            void fetchContacts(contactsParams);
+          }}
+        />
+      )}
+
+      {/* Confirm remove — member */}
+      {removeMember && (
+        <ConfirmRemoveModal
+          language={language}
+          tenantName={me?.context.tenantName ?? ''}
+          displayName={removeMember.displayName ?? ''}
+          email={removeMember.email}
+          willSendEmail={true}
+          onClose={() => setRemoveMember(null)}
+          onConfirm={async () => {
+            await tenantMembersApi.remove(removeMember.tenantMemberId);
+            setRemoveMember(null);
+            toast.success(language === 'he' ? 'החבר הוסר' : 'Member removed');
+            void fetchMembers(membersParams);
+          }}
         />
       )}
 

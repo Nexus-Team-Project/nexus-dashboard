@@ -413,6 +413,20 @@ export const tenantMembersApi = {
       invitations,
       language,
     }),
+  updateRoles: (tenantMemberId: string, roles: TenantRole[]) =>
+    request<{ roles: TenantRole[] }>(
+      'PATCH',
+      `/api/v1/tenant/members/${encodeURIComponent(tenantMemberId)}/roles`,
+      { roles },
+    ),
+  updateEmail: (tenantMemberId: string, email: string) =>
+    request<{ tenantMemberId: string; invitationId: string }>(
+      'PATCH',
+      `/api/v1/tenant/members/${encodeURIComponent(tenantMemberId)}/email`,
+      { email },
+    ),
+  remove: (tenantMemberId: string) =>
+    request<void>('DELETE', `/api/v1/tenant/members/${encodeURIComponent(tenantMemberId)}`),
 };
 
 // ─── Tenant Contacts ─────────────────────────────────────────────
@@ -460,6 +474,14 @@ export const tenantContactsApi = {
     request<TenantContact>('PATCH', `/api/v1/tenant/contacts/${encodeURIComponent(contactId)}`, data),
   importContacts: (rows: Array<{ email: string; displayName?: string; address?: string }>) =>
     request<ContactImportResult>('POST', '/api/v1/tenant/contacts/import', { rows }),
+  updateEmail: (tenantContactId: string, email: string) =>
+    request<{ ok: boolean }>(
+      'PATCH',
+      `/api/v1/tenant/contacts/${encodeURIComponent(tenantContactId)}/email`,
+      { email },
+    ),
+  remove: (tenantContactId: string) =>
+    request<void>('DELETE', `/api/v1/tenant/contacts/${encodeURIComponent(tenantContactId)}`),
 };
 
 export const tenantMemberInvitationsApi = {

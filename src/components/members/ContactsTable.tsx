@@ -3,7 +3,7 @@
  * Columns: Full Name, Email, Status, Address, Last Activity, First Entry.
  * Per-row action menu lets admins invite a contact to the tenant.
  */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { TenantContact } from '../../lib/api';
 
@@ -13,6 +13,8 @@ export interface ContactsTableProps {
   language: 'he' | 'en';
   canManage: boolean;
   tenantName?: string;
+  onEditEmail?: (contact: TenantContact) => void;
+  onRemove?: (contact: TenantContact) => void;
 }
 
 const COPY = {
@@ -24,6 +26,8 @@ const COPY = {
     lastActivity: 'פעילות אחרונה',
     firstEntry: 'כניסה ראשונה',
     invitePrefix: 'הזמן ל-',
+    editEmail: 'שינוי אימייל',
+    remove: 'הסר',
     empty: 'אין אנשי קשר עדיין.',
     noAddress: 'לא צוין',
     noActivity: 'לא ידוע',
@@ -36,6 +40,8 @@ const COPY = {
     lastActivity: 'Last Activity',
     firstEntry: 'First Entry',
     invitePrefix: 'Invite to ',
+    editEmail: 'Change email',
+    remove: 'Remove',
     empty: 'No contacts yet.',
     noAddress: 'Not provided',
     noActivity: 'Unknown',
@@ -66,28 +72,47 @@ function fmtDate(iso: string | null | undefined, language: 'he' | 'en', fallback
  * Input: contact, manage permission flag, language, and navigate function.
  * Output: three-dot button that opens an action dropdown.
  */
+const NOT_ACCEPTED: TenantContact['status'][] = ['inactive', 'pending', 'expired'];
+
 function RowMenu({
   contact,
   canManage,
   language,
   tenantName,
   onInvite,
+  onEditEmail,
+  onRemove,
 }: {
   contact: TenantContact;
   canManage: boolean;
   language: 'he' | 'en';
   tenantName: string;
   onInvite: (email: string) => void;
+  onEditEmail?: (contact: TenantContact) => void;
+  onRemove?: (contact: TenantContact) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [dropPos, setDropPos] = useState({ top: 0, right: 0 });
+  const btnRef = useRef<HTMLButtonElement>(null);
   const copy = COPY[language];
   if (!canManage) return null;
+
+  const isNotAccepted = NOT_ACCEPTED.includes(contact.status);
+
+  const handleOpen = () => {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setDropPos({ top: r.bottom + 4, right: window.innerWidth - r.right });
+    }
+    setOpen((v) => !v);
+  };
 
   return (
     <div className="relative">
       <button
+        ref={btnRef}
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={handleOpen}
         className="cursor-pointer rounded p-1 text-slate-300 opacity-0 transition-all group-hover:opacity-100 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700"
         aria-label="Actions"
       >
@@ -96,7 +121,11 @@ function RowMenu({
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} aria-hidden="true" />
-          <div className="absolute end-0 z-20 mt-1 w-52 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800">
+          <div
+            className="fixed z-20 w-52 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800"
+            style={{ top: dropPos.top, right: dropPos.right }}
+          >
+            {/* Invite to tenant */}
             <button
               type="button"
               onClick={() => { setOpen(false); onInvite(contact.email); }}
@@ -108,6 +137,28 @@ function RowMenu({
                 <div className="truncate text-xs text-slate-500">{contact.email}</div>
               </div>
             </button>
+            {/* Change email — only for not-yet-accepted */}
+            {isNotAccepted && onEditEmail && (
+              <button
+                type="button"
+                onClick={() => { setOpen(false); onEditEmail(contact); }}
+                className="flex w-full cursor-pointer items-center gap-3 border-t border-slate-100 px-4 py-3 text-start text-sm transition-colors hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-700"
+              >
+                <span className="material-icons text-sm text-slate-500">edit</span>
+                <span className="font-medium">{copy.editEmail}</span>
+              </button>
+            )}
+            {/* Remove — only for not-yet-accepted */}
+            {isNotAccepted && onRemove && (
+              <button
+                type="button"
+                onClick={() => { setOpen(false); onRemove(contact); }}
+                className="flex w-full cursor-pointer items-center gap-3 border-t border-slate-100 px-4 py-3 text-start text-sm text-red-600 transition-colors hover:bg-red-50 dark:border-slate-700 dark:hover:bg-red-900/20"
+              >
+                <span className="material-icons text-sm">person_remove</span>
+                <span className="font-medium">{copy.remove}</span>
+              </button>
+            )}
           </div>
         </>
       )}
@@ -120,7 +171,7 @@ function RowMenu({
  * Input: contact list, loading state, language, and manage permission.
  * Output: responsive data display with per-row action menus.
  */
-export default function ContactsTable({ contacts, loading, language, canManage, tenantName = 'Tenant' }: ContactsTableProps) {
+export default function ContactsTable({ contacts, loading, language, canManage, tenantName = 'Tenant', onEditEmail, onRemove }: ContactsTableProps) {
   const navigate = useNavigate();
   const copy = COPY[language];
 
@@ -164,7 +215,7 @@ export default function ContactsTable({ contacts, loading, language, canManage, 
                 <td className="px-6 py-2.5 text-slate-500">{fmtDate(c.lastActivityAt, language, copy.noActivity)}</td>
                 <td className="px-6 py-2.5 text-slate-500">{fmtDate(c.createdAt, language, '-')}</td>
                 <td className="px-6 py-2.5 text-end">
-                  <RowMenu contact={c} canManage={canManage} language={language} tenantName={tenantName} onInvite={handleInvite} />
+                  <RowMenu contact={c} canManage={canManage} language={language} tenantName={tenantName} onInvite={handleInvite} onEditEmail={onEditEmail} onRemove={onRemove} />
                 </td>
               </tr>
             ))}
@@ -203,6 +254,28 @@ export default function ContactsTable({ contacts, loading, language, canManage, 
                 </button>
               )}
             </div>
+            {canManage && NOT_ACCEPTED.includes(c.status) && (
+              <div className="mt-2 flex items-center gap-3 border-t border-slate-100 pt-2 dark:border-slate-800">
+                {onEditEmail && (
+                  <button
+                    type="button"
+                    onClick={() => onEditEmail(c)}
+                    className="cursor-pointer text-xs font-medium text-slate-500 hover:text-primary"
+                  >
+                    {copy.editEmail}
+                  </button>
+                )}
+                {onRemove && (
+                  <button
+                    type="button"
+                    onClick={() => onRemove(c)}
+                    className="cursor-pointer text-xs font-medium text-red-500 hover:text-red-700"
+                  >
+                    {copy.remove}
+                  </button>
+                )}
+              </div>
+            )}
           </article>
         ))}
         {contacts.length === 0 && !loading && (
