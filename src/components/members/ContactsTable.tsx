@@ -92,7 +92,7 @@ function RowMenu({
   onRemove?: (contact: TenantContact) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [dropPos, setDropPos] = useState({ top: 0, right: 0 });
+  const [dropPos, setDropPos] = useState<{ top?: number; bottom?: number; right: number }>({ right: 0 });
   const btnRef = useRef<HTMLButtonElement>(null);
   const copy = COPY[language];
   if (!canManage) return null;
@@ -102,7 +102,14 @@ function RowMenu({
   const handleOpen = () => {
     if (!open && btnRef.current) {
       const r = btnRef.current.getBoundingClientRect();
-      setDropPos({ top: r.bottom + 4, right: window.innerWidth - r.right });
+      const right = window.innerWidth - r.right;
+      // 64px bottom buffer accounts for the wizard bar fixed at the bottom.
+      const spaceBelow = window.innerHeight - r.bottom - 64;
+      if (spaceBelow < 160) {
+        setDropPos({ bottom: window.innerHeight - r.top + 4, right });
+      } else {
+        setDropPos({ top: r.bottom + 4, right });
+      }
     }
     setOpen((v) => !v);
   };
@@ -123,7 +130,9 @@ function RowMenu({
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} aria-hidden="true" />
           <div
             className="fixed z-20 w-52 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800"
-            style={{ top: dropPos.top, right: dropPos.right }}
+            style={dropPos.bottom !== undefined
+              ? { bottom: dropPos.bottom, right: dropPos.right }
+              : { top: dropPos.top, right: dropPos.right }}
           >
             {/* Invite to tenant */}
             <button

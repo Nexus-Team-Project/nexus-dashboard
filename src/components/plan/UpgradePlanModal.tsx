@@ -1,50 +1,193 @@
 /**
- * Coming-soon upgrade plan modal that shows the three available plan tiers.
- * Real billing via PayMe is not yet implemented — this is an informational screen.
- * Uses createPortal to render directly into document.body so the backdrop
- * escapes all stacking contexts (header, wizard bar) and covers everything.
+ * Upgrade plan modal — premium SaaS pricing sheet.
+ * Three plan cards: dark featured card for the recommended tier (Vercel/Linear pattern),
+ * seat count only (no feature lists), coming-soon upgrade state.
+ * Portal-rendered to document.body to escape all stacking contexts.
  */
 import { createPortal } from 'react-dom';
 import { useLanguage } from '../../i18n/LanguageContext';
 import type { TenantPlan } from '../../lib/api';
 import { getPlanLabel, PLAN_SEAT_LIMITS } from '../../lib/tenantRoles';
 
+// ─── Copy ────────────────────────────────────────────────────────────────────
+
 const COPY = {
   he: {
-    title: 'שדרג את התוכנית שלך',
-    subtitle: 'בחר את התוכנית המתאימה לצוות שלך',
-    comingSoon: 'שדרוג אמיתי יגיע בקרוב',
-    comingSoonDetail: 'פנה אלינו כדי לשדרג ידנית',
-    currentPlan: 'תוכנית נוכחית',
-    seatsLabel: 'מושבים שאינם חבר',
-    gotIt: 'הבנתי',
-    unlimited: 'ללא הגבלה',
-    memberNote: 'הזמנות חבר: ללא הגבלה בכל תוכנית',
+    eyebrow: 'תוכניות',
+    title: 'הגדל את הצוות שלך',
+    subtitle: 'הכל כלול - שדרג כשתהיה מוכן',
+    seats: 'מושבים',
+    active: 'פעיל',
+    recommended: 'מומלץ',
+    comingSoon: 'בקרוב',
+    billingNote: 'חיוב דרך PayMe · משיקים בקרוב',
+    close: 'סגור',
+    membersFree: 'הזמנות חבר ללא הגבלה בכל תוכנית',
     plans: {
-      basic:    { tagline: 'מתחילים' },
-      advanced: { tagline: 'צוותים גדלים' },
-      premium:  { tagline: 'ארגונים' },
+      basic: { tagline: 'צוות קטן' },
+      advanced: { tagline: 'צוות גדל' },
+      premium: { tagline: 'ארגון' },
     },
   },
   en: {
-    title: 'Upgrade your plan',
-    subtitle: 'Choose the plan that fits your team',
-    comingSoon: 'Real upgrades coming soon',
-    comingSoonDetail: 'Contact us to upgrade manually',
-    currentPlan: 'Current plan',
-    seatsLabel: 'Non-member seats',
-    gotIt: 'Got it',
-    unlimited: 'Unlimited',
-    memberNote: 'Member invites: unlimited on every plan',
+    eyebrow: 'Plans',
+    title: 'Scale your team',
+    subtitle: 'Everything included — upgrade when ready',
+    seats: 'seats',
+    active: 'Active',
+    recommended: 'Recommended',
+    comingSoon: 'Coming soon',
+    billingNote: 'Billing via PayMe · Launching soon',
+    close: 'Close',
+    membersFree: 'Member invites are free on every plan',
     plans: {
-      basic:    { tagline: 'Getting started' },
-      advanced: { tagline: 'Growing teams' },
-      premium:  { tagline: 'Organisations' },
+      basic: { tagline: 'Small team' },
+      advanced: { tagline: 'Growing team' },
+      premium: { tagline: 'Organisation' },
     },
   },
 } as const;
 
 const PLAN_ORDER: TenantPlan[] = ['basic', 'advanced', 'premium'];
+const FEATURED_PLAN: TenantPlan = 'advanced';
+
+// ─── Icons ───────────────────────────────────────────────────────────────────
+
+function CloseIcon() {
+  return (
+    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      <path fillRule="evenodd" clipRule="evenodd"
+        d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
+    </svg>
+  );
+}
+
+function CheckCircleIcon() {
+  return (
+    <svg className="h-3.5 w-3.5" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <circle cx="7" cy="7" r="6.5" fill="currentColor" fillOpacity="0.15" stroke="currentColor" strokeWidth="1" />
+      <path d="M4.5 7l1.75 1.75L9.5 5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// ─── Plan card ───────────────────────────────────────────────────────────────
+
+interface CardProps {
+  plan: TenantPlan;
+  isCurrent: boolean;
+  isFeatured: boolean;
+  language: 'he' | 'en';
+}
+
+function PlanCard({ plan, isCurrent, isFeatured, language }: CardProps) {
+  const t = COPY[language];
+  const seats = PLAN_SEAT_LIMITS[plan];
+
+  if (isFeatured) {
+    /* ── Dark featured card ──────────────────────────────────────────── */
+    return (
+      <div className="relative flex flex-col rounded-2xl bg-slate-950 px-6 py-7 shadow-2xl">
+        {/* Subtle grid texture overlay */}
+        <div
+          className="pointer-events-none absolute inset-0 rounded-2xl opacity-[0.04]"
+          style={{
+            backgroundImage:
+              'linear-gradient(rgba(255,255,255,.6) 1px, transparent 1px), linear-gradient(to right, rgba(255,255,255,.6) 1px, transparent 1px)',
+            backgroundSize: '20px 20px',
+          }}
+        />
+
+        {/* Top badges */}
+        <div className="mb-5 flex items-center justify-between">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-white/40">
+            {getPlanLabel(plan, language)}
+          </span>
+          {isCurrent ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/20 px-2.5 py-1 text-[10px] font-semibold text-primary">
+              <CheckCircleIcon />
+              {t.active}
+            </span>
+          ) : (
+            <span className="rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-semibold text-white/60">
+              {t.recommended}
+            </span>
+          )}
+        </div>
+
+        {/* Seat number */}
+        <div className="mb-1">
+          <span className="text-6xl font-black tracking-tighter text-white sm:text-7xl">
+            {seats}
+          </span>
+        </div>
+        <p className="mb-6 text-sm font-medium text-white/40">{t.seats}</p>
+
+        {/* Tagline */}
+        <p className="mb-8 text-xs text-white/30">{t.plans[plan].tagline}</p>
+
+        {/* CTA */}
+        {isCurrent ? (
+          <div className="mt-auto rounded-xl bg-white/10 px-4 py-3 text-center text-sm font-semibold text-white/50 select-none">
+            {t.active}
+          </div>
+        ) : (
+          <div className="mt-auto space-y-1.5">
+            <div className="cursor-not-allowed rounded-xl bg-white px-4 py-3 text-center text-sm font-semibold text-slate-950 opacity-30 select-none">
+              Upgrade
+            </div>
+            <p className="text-center text-[11px] text-white/25">{t.comingSoon}</p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  /* ── Light card ────────────────────────────────────────────────────── */
+  return (
+    <div className="relative flex flex-col rounded-2xl border border-slate-100 bg-white px-6 py-7 dark:border-slate-800 dark:bg-slate-900">
+      {/* Top badges */}
+      <div className="mb-5 flex items-center justify-between">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">
+          {getPlanLabel(plan, language)}
+        </span>
+        {isCurrent && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-semibold text-primary">
+            <CheckCircleIcon />
+            {t.active}
+          </span>
+        )}
+      </div>
+
+      {/* Seat number */}
+      <div className="mb-1">
+        <span className="text-6xl font-black tracking-tighter text-slate-950 dark:text-white sm:text-7xl">
+          {seats}
+        </span>
+      </div>
+      <p className="mb-6 text-sm font-medium text-slate-400 dark:text-slate-500">{t.seats}</p>
+
+      {/* Tagline */}
+      <p className="mb-8 text-xs text-slate-400 dark:text-slate-600">{t.plans[plan].tagline}</p>
+
+      {/* CTA */}
+      {isCurrent ? (
+        <div className="mt-auto rounded-xl border border-slate-100 px-4 py-3 text-center text-sm font-semibold text-slate-400 dark:border-slate-800 dark:text-slate-600 select-none">
+          {t.active}
+        </div>
+      ) : (
+        <div className="mt-auto space-y-1.5">
+          <div className="cursor-not-allowed rounded-xl border border-slate-200 px-4 py-3 text-center text-sm font-semibold text-slate-300 dark:border-slate-700 dark:text-slate-600 select-none">
+            Upgrade
+          </div>
+          <p className="text-center text-[11px] text-slate-300 dark:text-slate-700">{t.comingSoon}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Modal ───────────────────────────────────────────────────────────────────
 
 interface Props {
   currentPlan: TenantPlan;
@@ -52,9 +195,9 @@ interface Props {
 }
 
 /**
- * Full-screen backdrop modal with three plan tier cards side-by-side.
- * Input: currentPlan to highlight, onClose callback.
- * Output: informational upgrade screen with a "Got it" close button.
+ * Portal-rendered premium pricing modal.
+ * Input: currentPlan to mark active, onClose callback.
+ * Output: three plan cards over a blurred backdrop, always centered.
  */
 export function UpgradePlanModal({ currentPlan, onClose }: Props) {
   const { language, isRTL } = useLanguage();
@@ -62,91 +205,65 @@ export function UpgradePlanModal({ currentPlan, onClose }: Props) {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/60 backdrop-blur-md p-4 sm:items-center"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4 backdrop-blur-lg"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       dir={isRTL ? 'rtl' : 'ltr'}
     >
-      <div className="flex w-full max-w-3xl flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900 animate-in fade-in zoom-in duration-200 max-h-[92vh]">
-        {/* Header — always visible */}
-        <div className="flex shrink-0 items-start justify-between border-b border-slate-100 px-6 py-5 dark:border-slate-800">
+      <div className="flex w-full max-w-xl flex-col overflow-hidden rounded-3xl bg-slate-50 shadow-2xl dark:bg-slate-950 animate-in fade-in zoom-in duration-200 max-h-[88vh]">
+
+        {/* ── Header ───────────────────────────────────────────────────── */}
+        <div className="flex shrink-0 items-center justify-between px-7 pt-7 pb-1">
           <div>
-            <h2 className="text-xl font-bold text-slate-950 dark:text-white">{t.title}</h2>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t.subtitle}</p>
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
+              {t.eyebrow}
+            </p>
+            <h2 className="text-2xl font-black tracking-tight text-slate-950 dark:text-white">
+              {t.title}
+            </h2>
+            <p className="mt-1 text-sm text-slate-400 dark:text-slate-500">{t.subtitle}</p>
           </div>
           <button
             type="button"
             aria-label="Close"
             onClick={onClose}
-            className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
+            className="ms-4 cursor-pointer self-start rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
           >
-            <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-            </svg>
+            <CloseIcon />
           </button>
         </div>
 
-        {/* Scrollable content */}
-        <div className="overflow-y-auto">
-        {/* Plan cards */}
-        <div className="grid grid-cols-1 gap-4 p-6 sm:grid-cols-3">
-          {PLAN_ORDER.map((plan) => {
-            const isCurrent = plan === currentPlan;
-            const seats = PLAN_SEAT_LIMITS[plan];
-            return (
-              <div
+        {/* ── Cards ────────────────────────────────────────────────────── */}
+        <div className="overflow-y-auto px-5 py-5">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {PLAN_ORDER.map((plan) => (
+              <PlanCard
                 key={plan}
-                className={`relative flex flex-col gap-3 rounded-xl border p-5 transition-all ${
-                  isCurrent
-                    ? 'border-primary ring-2 ring-primary bg-primary/5 dark:bg-primary/10'
-                    : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/50'
-                }`}
-              >
-                {isCurrent && (
-                  <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-0.5 text-xs font-semibold text-white">
-                    {t.currentPlan}
-                  </span>
-                )}
-                <div>
-                  <p className="text-lg font-bold text-slate-950 dark:text-white">
-                    {getPlanLabel(plan, language)}
-                  </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {t.plans[plan].tagline}
-                  </p>
-                </div>
-                <div className="mt-auto">
-                  <p className="text-3xl font-extrabold text-slate-950 dark:text-white">
-                    {seats}
-                  </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{t.seatsLabel}</p>
-                </div>
-              </div>
-            );
-          })}
+                plan={plan}
+                isCurrent={plan === currentPlan}
+                isFeatured={plan === FEATURED_PLAN}
+                language={language}
+              />
+            ))}
+          </div>
+
+          {/* Member note */}
+          <p className="mt-4 text-center text-[11px] text-slate-300 dark:text-slate-700">
+            {t.membersFree}
+          </p>
         </div>
 
-        {/* Member note */}
-        <p className="px-6 pb-2 text-center text-xs text-slate-400 dark:text-slate-500">
-          {t.memberNote}
-        </p>
-
-        {/* Coming soon banner */}
-        <div className="mx-6 mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-center dark:border-amber-800 dark:bg-amber-900/20">
-          <p className="text-sm font-semibold text-amber-800 dark:text-amber-400">{t.comingSoon}</p>
-          <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-500">{t.comingSoonDetail}</p>
-        </div>
-        </div>{/* end scrollable content */}
-
-        {/* Footer — always visible at bottom */}
-        <div className="flex shrink-0 items-center justify-end border-t border-slate-100 px-6 py-4 dark:border-slate-800">
+        {/* ── Footer ───────────────────────────────────────────────────── */}
+        <div className="flex shrink-0 items-center justify-between border-t border-slate-200/60 px-7 py-4 dark:border-slate-800">
+          <p className="text-[11px] text-slate-300 dark:text-slate-700">{t.billingNote}</p>
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90"
+            className="cursor-pointer rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-80 dark:bg-white dark:text-slate-950"
           >
-            {t.gotIt}
+            {t.close}
           </button>
         </div>
+
       </div>
     </div>,
     document.body,
