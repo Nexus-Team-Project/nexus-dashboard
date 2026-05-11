@@ -4,9 +4,9 @@
  * restoring refresh-cookie sessions, and exposing the current user to pages.
  */
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
-import { onboardingApi, setToken, type AdminUser, type DashboardMe } from '../lib/api';
+import { onboardingApi, setToken, refreshAccessToken, type AdminUser, type DashboardMe } from '../lib/api';
 
-const AUTH_URL = import.meta.env.VITE_AUTH_URL ?? import.meta.env.VITE_API_URL ?? '';
+const AUTH_URL = (import.meta.env.VITE_AUTH_URL ?? import.meta.env.VITE_API_URL ?? '') as string;
 const WEBSITE_URL = import.meta.env.VITE_WEBSITE_URL ?? 'http://localhost:3000';
 
 interface AuthResponse {
@@ -109,6 +109,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   /**
    * Loads the current profile with a fresh access token.
+   * Only clears auth state on a 401/403 — network errors keep the existing
+   * user intact so a transient backend hiccup does not log the user out.
    * Input: access token returned by auth endpoints.
    * Output: user state is set when the token is valid.
    */
@@ -119,41 +121,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         headers: { Authorization: `Bearer ${token}` },
         credentials: 'include',
       });
-      if (!res.ok) throw new Error('Failed to fetch user');
+      if (res.status === 401 || res.status === 403) {
+        setUser(null);
+        setMe(null);
+        setToken(null);
+        return;
+      }
+      if (!res.ok) return; // Transient error — keep existing state.
       const data = await res.json();
       setUser(data);
       await reloadMe();
     } catch {
-      setUser(null);
-      setMe(null);
-      setToken(null);
+      // Network error — keep existing state, will retry on next action.
     }
   }, [reloadMe]);
 
   /**
    * Restores or rotates the dashboard session from the httpOnly refresh cookie.
+   * Uses the shared refreshAccessToken helper so concurrent calls are deduplicated
+   * and never race each other into a destructive token-reuse cascade.
+   * Only clears auth state on a definitive 401 — transient network errors or
+   * backend 5xx responses leave the current user intact to retry on the next action.
    * Input: none.
    * Output: user and in-memory access token are refreshed when possible.
    */
   const refreshSession = useCallback(async () => {
     try {
-      const res = await fetch(`${AUTH_URL}/api/auth/refresh`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-      if (!res.ok) throw new Error('Refresh failed');
-      const data = await res.json() as AuthResponse;
-      setToken(data.accessToken);
-      if (data.user) {
-        setUser(data.user);
-      } else {
-        await fetchUser(data.accessToken);
+      const result = await refreshAccessToken();
+      if (!result) {
+        // Definitive auth failure — refresh cookie expired or invalid.
+        setUser(null);
+        setMe(null);
+        setToken(null);
+        return;
       }
+      setToken(result.accessToken);
+      await fetchUser(result.accessToken);
       await reloadMe();
-    } catch {
-      setUser(null);
-      setMe(null);
-      setToken(null);
+    } catch (err: unknown) {
+      const status = (err as { status?: number })?.status;
+      if (status === 401 || status === 403) {
+        // Confirmed auth failure — clear state and let App.tsx redirect to login.
+        setUser(null);
+        setMe(null);
+        setToken(null);
+      }
+      // Any other error (network, 5xx) — keep existing state; retry on next action.
     }
   }, [fetchUser, reloadMe]);
 
@@ -211,14 +224,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     });
   }, [fetchUser, refreshSession, reloadMe]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (user) void refreshSession();
-    }, 10 * 60 * 1000);
-
-    return () => clearInterval(interval);
-  }, [refreshSession, user]);
 
   return (
     <AuthContext.Provider

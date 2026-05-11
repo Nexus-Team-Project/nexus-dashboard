@@ -1,8 +1,11 @@
 /**
  * Connects dashboard features to the shared Nexus backend with an in-memory
  * access token and credentialed requests for the httpOnly refresh cookie.
+ * Includes in-flight deduplication for refresh calls and automatic 401 retry,
+ * mirroring the website API client to prevent concurrent-refresh races.
  */
 
+const AUTH_BASE = (import.meta.env.VITE_AUTH_URL as string | undefined) ?? (import.meta.env.VITE_API_URL as string | undefined) ?? '';
 const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '';
 
 let _token: string | null = null;
@@ -16,15 +19,57 @@ export function setToken(token: string | null) {
   _token = token;
 }
 
+// ─── Refresh deduplication ────────────────────────────────────────
+// Module-level promise ensures multiple concurrent 401s only trigger one
+// /api/auth/refresh call, preventing the replacement-chain races that caused
+// the backend to bulk-revoke all user tokens and force a logout.
+
+interface RefreshResult { accessToken: string }
+let _refreshPromise: Promise<RefreshResult | null> | null = null;
+
+/**
+ * Calls /api/auth/refresh once and deduplicates concurrent callers.
+ * Input: none — uses the httpOnly refresh cookie automatically via credentials.
+ * Output: the new access token on success, or null when the session is expired.
+ */
+export async function refreshAccessToken(): Promise<RefreshResult | null> {
+  if (_refreshPromise) return _refreshPromise;
+  _refreshPromise = _doRefresh();
+  try {
+    return await _refreshPromise;
+  } finally {
+    _refreshPromise = null;
+  }
+}
+
+async function _doRefresh(): Promise<RefreshResult | null> {
+  try {
+    const res = await fetch(`${AUTH_BASE}/api/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+    if (!res.ok) return null;
+    const data = await res.json() as { accessToken: string };
+    _token = data.accessToken;
+    return { accessToken: data.accessToken };
+  } catch {
+    return null;
+  }
+}
+
+// ─── Core request helper ──────────────────────────────────────────
+
 /**
  * Sends a typed JSON request to the backend API.
- * Input: HTTP method, API path, and optional JSON body.
- * Output: parsed JSON response or an Error when the backend rejects it.
+ * On 401, refreshes the access token once and retries automatically.
+ * Input: HTTP method, API path, optional JSON body, and internal retry flag.
+ * Output: parsed JSON response or throws with the backend error message.
  */
 async function request<T>(
   method: string,
   path: string,
   body?: unknown,
+  retried = false,
 ): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (_token) headers['Authorization'] = `Bearer ${_token}`;
@@ -35,6 +80,13 @@ async function request<T>(
     credentials: 'include',
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
+
+  // Auto-refresh on 401 then retry once — silent recovery without logging out.
+  if (res.status === 401 && !retried) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) return request<T>(method, path, body, true);
+    throw Object.assign(new Error('Session expired'), { status: 401 });
+  }
 
   if (res.status === 204) return undefined as T;
 
