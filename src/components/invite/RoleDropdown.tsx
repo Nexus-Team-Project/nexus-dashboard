@@ -2,6 +2,7 @@
  * Multi-role selector dropdown for the tenant member invite table.
  * Renders selected roles as pill chips; a portal dropdown lists all roles
  * with checkboxes so the menu escapes table overflow clipping.
+ * Supports per-role disabling for plan-based seat limits.
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -16,6 +17,10 @@ export interface RoleDropdownProps {
   /** Called when a role checkbox is toggled. At least one role stays selected. */
   onToggle: (rowId: string, role: TenantRole) => void;
   placeholder: string;
+  /** Roles that cannot be selected (e.g. seat limit reached). */
+  disabledRoles?: TenantRole[];
+  /** Tooltip shown on disabled role items. */
+  disabledReason?: string;
 }
 
 /**
@@ -30,6 +35,8 @@ export default function RoleDropdown({
   language,
   onToggle,
   placeholder,
+  disabledRoles = [],
+  disabledReason,
 }: RoleDropdownProps) {
   const [open, setOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
@@ -114,18 +121,29 @@ export default function RoleDropdown({
           >
             {TENANT_ROLE_ORDER.map((role) => {
               const checked = selectedRoles.includes(role);
+              const isRoleDisabled = disabledRoles.includes(role) && !checked;
               return (
-                <li key={role}>
-                  <label className="flex cursor-pointer items-center gap-3 px-3 py-2.5 text-sm transition-colors hover:bg-slate-50 dark:hover:bg-slate-800">
+                <li key={role} title={isRoleDisabled ? disabledReason : undefined}>
+                  <label
+                    className={`flex items-center gap-3 px-3 py-2.5 text-sm transition-colors ${
+                      isRoleDisabled
+                        ? 'cursor-not-allowed opacity-50'
+                        : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800'
+                    }`}
+                  >
                     <input
                       type="checkbox"
                       checked={checked}
-                      onChange={() => onToggle(rowId, role)}
-                      className="h-4 w-4 cursor-pointer rounded border-slate-300 accent-primary"
+                      disabled={isRoleDisabled}
+                      onChange={() => !isRoleDisabled && onToggle(rowId, role)}
+                      className="h-4 w-4 rounded border-slate-300 accent-primary disabled:cursor-not-allowed"
                     />
                     <span className="font-medium text-slate-800 dark:text-slate-200">
                       {getTenantRoleLabel(role, language)}
                     </span>
+                    {isRoleDisabled && (
+                      <span className="material-icons ms-auto text-sm text-slate-400">lock</span>
+                    )}
                   </label>
                 </li>
               );

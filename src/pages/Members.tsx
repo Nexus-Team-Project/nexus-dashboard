@@ -172,6 +172,7 @@ export default function Members() {
 
   const canViewMembers = me?.authorization.canViewMembers === true || me?.authorization.canManageMembers === true;
   const canManage = me?.authorization.canManageMembers === true;
+  const isAtSeatLimit = me?.context.seats?.isAtLimit === true;
 
   // Redirect unauthorized users — must be a useEffect so it runs after all hooks.
   useEffect(() => {
@@ -609,6 +610,7 @@ export default function Members() {
         <EditRolesModal
           language={language}
           currentRoles={editRolesMember.roles as TenantRole[]}
+          isAtSeatLimit={isAtSeatLimit}
           onClose={() => setEditRolesMember(null)}
           onSubmit={async (roles) => {
             await tenantMembersApi.updateRoles(editRolesMember.tenantMemberId, roles);
