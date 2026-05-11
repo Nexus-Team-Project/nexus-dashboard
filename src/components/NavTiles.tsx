@@ -36,7 +36,7 @@ const NavTiles = () => {
                 : 'bg-white dark:bg-card-dark text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'
             }`
           }
-          end={item.to === '/'}
+          end={item.to === '/' || item.to === '/settings'}
         >
           <span className="material-icons mb-1">{item.icon}</span>
           <span className="text-[10px] font-medium uppercase tracking-wider text-center">{item.label}</span>

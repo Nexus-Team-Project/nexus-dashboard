@@ -12,6 +12,7 @@ import DashboardLayout from './layouts/DashboardLayout';
 import Home from './pages/Home';
 import Content from './pages/Content';
 import Settings from './pages/Settings';
+import Members from './pages/Members';
 import RolesPermissions from './pages/RolesPermissions';
 import InviteCollaborators from './pages/InviteCollaborators';
 import MemberInviteAccept from './pages/MemberInviteAccept';
@@ -170,6 +171,7 @@ function MemberDashboardScreen({ onLogout }: { onLogout: () => Promise<void> }) 
  * Input: continue callback and logout callback.
  * Output: no tenant data is mounted; user can reopen setup.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function DeferredWorkspaceScreen({
   onContinue,
   onLogout,
@@ -280,7 +282,7 @@ function AppRoutes() {
             <Route index element={<Home />} />
             <Route path="projects" element={<Lobby />} />
             <Route path="projects/new" element={<CreateProject />} />
-            <Route path="users" element={<RolesPermissions />} />
+            <Route path="users" element={<Members />} />
             <Route path="transactions" element={<Transactions />} />
             <Route path="points-gifts" element={<PointsGifts />} />
             <Route path="benefits-partnerships" element={<BenefitsPartnerships />} />
@@ -368,7 +370,7 @@ function AppRoutes() {
         <Route index element={<Home />} />
         <Route path="projects" element={<Lobby />} />
         <Route path="projects/new" element={<CreateProject />} />
-        <Route path="users" element={canViewMembers ? <RolesPermissions /> : <Navigate to="/" replace />} />
+        <Route path="users" element={canViewMembers ? <Members /> : <Navigate to="/" replace />} />
         <Route path="transactions" element={<Transactions />} />
         <Route path="points-gifts" element={<PointsGifts />} />
         <Route path="benefits-partnerships" element={<BenefitsPartnerships />} />
