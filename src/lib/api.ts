@@ -244,6 +244,15 @@ export type OnboardingStep = 'workspace_setup' | 'workspace_setup_deferred' | 'b
 export type DashboardMode = 'tenant' | 'regular_user' | 'workspace_setup_deferred' | 'needs_workspace_setup';
 export type SkipReason = 'regular_user' | 'complete_later';
 
+export type TenantPlan = 'basic' | 'advanced' | 'premium';
+
+export interface TenantSeats {
+  used: number;
+  limit: number;
+  remaining: number;
+  isAtLimit: boolean;
+}
+
 export interface DashboardMe {
   user: {
     id: string;
@@ -258,6 +267,8 @@ export interface DashboardMe {
     tenantName: string | null;
     memberId: string | null;
     role: string | null;
+    plan?: TenantPlan;
+    seats?: TenantSeats;
   };
   authorization: {
     tenantRole: string | null;

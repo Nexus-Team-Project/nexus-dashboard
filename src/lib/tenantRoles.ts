@@ -1,8 +1,9 @@
 /**
- * Shares tenant role labels, descriptions, and email parsing for member UI.
- * The dashboard reads real permissions from the backend and only formats them here.
+ * Shares tenant role labels, descriptions, plan helpers, and email parsing for
+ * member UI. The dashboard reads real permissions from the backend and only
+ * formats them here.
  */
-import type { TenantRole } from './api';
+import type { TenantPlan, TenantRole } from './api';
 
 export const TENANT_ROLE_ORDER: TenantRole[] = [
   'admin',
@@ -66,6 +67,32 @@ export const TENANT_ROLE_COPY: Record<TenantRole, { he: string; en: string; desc
  */
 export function getTenantRoleLabel(role: TenantRole, language: 'he' | 'en'): string {
   return TENANT_ROLE_COPY[role]?.[language] ?? role;
+}
+
+/** Non-member roles that consume one plan seat per distinct identity. */
+export function isSeatConsumingRole(role: TenantRole): boolean {
+  return role !== 'member';
+}
+
+export const PLAN_SEAT_LIMITS: Record<TenantPlan, number> = {
+  basic: 3,
+  advanced: 5,
+  premium: 10,
+};
+
+const PLAN_LABELS: Record<TenantPlan, { he: string; en: string }> = {
+  basic: { he: 'בסיסי', en: 'Basic' },
+  advanced: { he: 'מתקדם', en: 'Advanced' },
+  premium: { he: 'פרימיום', en: 'Premium' },
+};
+
+/**
+ * Returns a human-readable plan label.
+ * Input: plan tier and language.
+ * Output: localized plan name.
+ */
+export function getPlanLabel(plan: TenantPlan, language: 'he' | 'en'): string {
+  return PLAN_LABELS[plan]?.[language] ?? plan;
 }
 
 /**

@@ -5,7 +5,7 @@
  */
 import { useState } from 'react';
 import type { TenantRole } from '../../lib/api';
-import { TENANT_ROLE_ORDER, TENANT_ROLE_COPY, getTenantRoleLabel } from '../../lib/tenantRoles';
+import { isSeatConsumingRole, TENANT_ROLE_ORDER, TENANT_ROLE_COPY, getTenantRoleLabel } from '../../lib/tenantRoles';
 
 interface EditRolesModalProps {
   language: 'he' | 'en';
@@ -13,6 +13,12 @@ interface EditRolesModalProps {
   onClose: () => void;
   /** Called with the new role list when the user confirms. */
   onSubmit: (roles: TenantRole[]) => Promise<void>;
+  /**
+   * When true, non-member roles are disabled for members who currently hold
+   * only the `member` role (promoting them would consume a new seat).
+   * Members already holding a non-member role can still switch between roles freely.
+   */
+  isAtSeatLimit?: boolean;
 }
 
 const COPY = {
@@ -46,8 +52,18 @@ export default function EditRolesModal({
   currentRoles,
   onClose,
   onSubmit,
+  isAtSeatLimit = false,
 }: EditRolesModalProps) {
   const copy = COPY[language];
+
+  // Only restrict promotion when the member currently holds NO non-member role.
+  // A member already occupying a non-member seat can freely switch between roles.
+  const memberAlreadyHasNonMemberRole = currentRoles.some(isSeatConsumingRole);
+  const restrictNonMemberRoles = isAtSeatLimit && !memberAlreadyHasNonMemberRole;
+  const seatDisabledReason =
+    language === 'he'
+      ? 'שדרג את התוכנית כדי להקצות תפקידים נוספים'
+      : 'Upgrade your plan to assign more non-member roles';
   const [selected, setSelected] = useState<Set<TenantRole>>(new Set(currentRoles));
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -97,18 +113,25 @@ export default function EditRolesModal({
             {TENANT_ROLE_ORDER.map((role) => {
               const roleCopy = TENANT_ROLE_COPY[role];
               const isChecked = selected.has(role);
+              const isDisabled = restrictNonMemberRoles && isSeatConsumingRole(role) && !isChecked;
               return (
                 <label
                   key={role}
-                  className={`flex cursor-pointer items-start gap-3 rounded-lg px-4 py-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50 ${isChecked ? 'bg-primary/5' : ''}`}
+                  title={isDisabled ? seatDisabledReason : undefined}
+                  className={`flex items-start gap-3 rounded-lg px-4 py-3 transition-colors ${
+                    isDisabled
+                      ? 'cursor-not-allowed opacity-50'
+                      : `cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 ${isChecked ? 'bg-primary/5' : ''}`
+                  }`}
                 >
                   <input
                     type="checkbox"
                     checked={isChecked}
-                    onChange={() => toggle(role)}
-                    className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-primary"
+                    disabled={isDisabled}
+                    onChange={() => !isDisabled && toggle(role)}
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-primary disabled:cursor-not-allowed"
                   />
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className={`text-sm font-semibold ${isChecked ? 'text-primary' : 'text-slate-800 dark:text-slate-200'}`}>
                       {getTenantRoleLabel(role, language)}
                     </p>
@@ -116,6 +139,9 @@ export default function EditRolesModal({
                       {language === 'he' ? roleCopy.descriptionHe : roleCopy.descriptionEn}
                     </p>
                   </div>
+                  {isDisabled && (
+                    <span className="material-icons mt-0.5 text-sm text-slate-400">lock</span>
+                  )}
                 </label>
               );
             })}

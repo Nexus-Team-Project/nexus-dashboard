@@ -12,7 +12,7 @@ import {
   type TenantRole,
   type TenantRolePermissions,
 } from '../lib/api';
-import { getTenantRoleLabel, parseEmails, TENANT_ROLE_COPY } from '../lib/tenantRoles';
+import { getTenantRoleLabel, isSeatConsumingRole, parseEmails, TENANT_ROLE_COPY, TENANT_ROLE_ORDER } from '../lib/tenantRoles';
 import { parseCsv, type ParsedCsv } from '../lib/csvParser';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -134,6 +134,16 @@ export default function InviteCollaborators() {
   const copy = COPY[language];
 
   const tenantName = me?.context.tenantName ?? null;
+
+  // Seat-limit enforcement: disable non-member roles in dropdowns when at limit.
+  const seatLimitReached = me?.context.seats?.isAtLimit === true;
+  const disabledRoles = seatLimitReached
+    ? TENANT_ROLE_ORDER.filter(isSeatConsumingRole)
+    : [];
+  const disabledReason =
+    language === 'he'
+      ? 'שדרג את התוכנית כדי להזמין תפקידים נוספים'
+      : 'Upgrade your plan to invite more non-member roles';
   /** "הזמן חברים ל-Acme" / "Invite members to Acme" */
   const pageTitle = tenantName
     ? language === 'he'
@@ -369,7 +379,11 @@ export default function InviteCollaborators() {
           </button>
           <button
             type="button"
-            disabled={isSending || rows.length === 0}
+            disabled={
+              isSending ||
+              rows.length === 0 ||
+              (seatLimitReached && rows.some((r) => r.status !== 'pending' && r.roles.some(isSeatConsumingRole)))
+            }
             onClick={() => void sendInvites()}
             className="cursor-pointer rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -377,6 +391,15 @@ export default function InviteCollaborators() {
           </button>
         </div>
       </header>
+
+      {/* Seat-limit warning banner */}
+      {seatLimitReached && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
+          {language === 'he'
+            ? `הגעת למגבלת המושבים של התוכנית שלך. ניתן עדיין להזמין תפקיד "חבר" ללא הגבלה. שדרג כדי להזמין תפקידים אחרים.`
+            : `Your plan seat limit is reached. You can still invite the "Member" role freely. Upgrade your plan to add more non-member roles.`}
+        </div>
+      )}
 
       {/* Global error banner */}
       {submitError && (
@@ -521,6 +544,8 @@ export default function InviteCollaborators() {
                         language={language}
                         onToggle={toggleRole}
                         placeholder={copy.selectRoles}
+                        disabledRoles={disabledRoles}
+                        disabledReason={disabledReason}
                       />
                     </td>
                     <td className="max-w-[260px] px-5 py-4 text-xs text-slate-500">

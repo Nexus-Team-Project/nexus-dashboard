@@ -12,6 +12,7 @@ import {
 import { getTenantRoleLabel } from '../lib/tenantRoles';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
+import { PlanSummaryCard } from '../components/plan/PlanSummaryCard';
 
 const COPY = {
   he: {
@@ -121,6 +122,15 @@ export default function RolesPermissions() {
           </button>
         )}
       </header>
+
+      {/* Plan + seat summary (tenant admins only) */}
+      {me?.context.isTenant && (
+        <PlanSummaryCard
+          plan={me.context.plan}
+          seats={me.context.seats}
+          isLoading={!me.context.plan}
+        />
+      )}
 
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
