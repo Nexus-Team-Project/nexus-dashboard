@@ -4,7 +4,7 @@
  * CSV imports go through a column-mapping step before rows are added to the table.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   tenantMembersApi,
@@ -128,6 +128,7 @@ function getRowPermissions(
  */
 export default function InviteCollaborators() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { language, isRTL } = useLanguage();
   const { me } = useAuth();
   const copy = COPY[language];
@@ -140,7 +141,12 @@ export default function InviteCollaborators() {
       : `${copy.titlePrefix} ${tenantName}`
     : language === 'he' ? 'הזמן חברים' : 'Invite members';
 
-  const [rows, setRows] = useState<InviteRow[]>([]);
+  const [rows, setRows] = useState<InviteRow[]>(() => {
+    // Pre-fill from ?email= query param when navigating from the Contacts page.
+    const email = new URLSearchParams(location.search).get('email');
+    if (!email) return [];
+    return [{ id: `${email}_${crypto.randomUUID()}`, email, roles: ['member'], status: 'draft' }];
+  });
   const [rolePermissions, setRolePermissions] = useState<TenantRolePermissions[]>([]);
   const [manualEmail, setManualEmail] = useState('');
   const [submitError, setSubmitError] = useState<string | null>(null);

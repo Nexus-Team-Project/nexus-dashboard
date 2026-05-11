@@ -415,6 +415,53 @@ export const tenantMembersApi = {
     }),
 };
 
+// ─── Tenant Contacts ─────────────────────────────────────────────
+
+export interface TenantContact {
+  tenantContactId: string;
+  email: string;
+  displayName: string;
+  status: 'active' | 'inactive' | 'pending';
+  address: string | null;
+  lastActivityAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ContactImportResult {
+  imported: number;
+  skipped: number;
+  errors: string[];
+}
+
+export interface ListContactsParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: string;
+}
+
+function buildContactsQuery(params?: ListContactsParams): string {
+  if (!params) return '';
+  const entries = Object.entries(params).filter(([, v]) => v !== undefined && v !== '');
+  if (entries.length === 0) return '';
+  return '?' + new URLSearchParams(entries.map(([k, v]) => [k, String(v)])).toString();
+}
+
+export const tenantContactsApi = {
+  list: (params?: ListContactsParams) =>
+    request<{ tenantId: string; contacts: TenantContact[]; pagination: PaginationMeta }>(
+      'GET',
+      `/api/v1/tenant/contacts${buildContactsQuery(params)}`,
+    ),
+  create: (data: { email: string; displayName?: string; status?: string; address?: string }) =>
+    request<TenantContact>('POST', '/api/v1/tenant/contacts', data),
+  update: (contactId: string, data: { displayName?: string; status?: string; address?: string }) =>
+    request<TenantContact>('PATCH', `/api/v1/tenant/contacts/${encodeURIComponent(contactId)}`, data),
+  importContacts: (rows: Array<{ email: string; displayName?: string; status?: string; address?: string }>) =>
+    request<ContactImportResult>('POST', '/api/v1/tenant/contacts/import', { rows }),
+};
+
 export const tenantMemberInvitationsApi = {
   mine: () =>
     request<{ invitations: TenantMemberInvitationPreview[] }>('GET', '/api/v1/member-invitations/mine'),
