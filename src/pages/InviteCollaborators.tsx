@@ -130,7 +130,7 @@ export default function InviteCollaborators() {
   const navigate = useNavigate();
   const location = useLocation();
   const { language, isRTL } = useLanguage();
-  const { me } = useAuth();
+  const { me, reloadMe } = useAuth();
   const copy = COPY[language];
 
   const tenantName = me?.context.tenantName ?? null;
@@ -329,6 +329,8 @@ export default function InviteCollaborators() {
       } else {
         toast.success(copy.successToast, { description: `${response.results.length}` });
       }
+      // Refresh /api/me so seat counts update immediately without a hard reload.
+      void reloadMe();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to send invites';
       setSubmitError(message);
@@ -389,7 +391,7 @@ export default function InviteCollaborators() {
             disabled={
               isSending ||
               rows.length === 0 ||
-              (seatLimitReached && rows.some((r) => r.status !== 'pending' && r.roles.some(isSeatConsumingRole)))
+              (draftNonMemberRowCount > serverSeatsRemaining)
             }
             onClick={() => void sendInvites()}
             className="cursor-pointer rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"

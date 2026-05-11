@@ -45,18 +45,44 @@ export default function RoleDropdown({
 
   /**
    * Recalculates the fixed menu position from the trigger button's bounding rect.
+   * Flips above the button when there is not enough space below so the menu
+   * never overflows the bottom of the viewport.
    * Called on open and on scroll to keep menu aligned.
    */
   const recalcPosition = () => {
     if (!btnRef.current) return;
     const rect = btnRef.current.getBoundingClientRect();
-    setMenuStyle({
-      position: 'fixed',
-      top: rect.bottom + 4,
-      left: rect.left,
-      width: Math.max(rect.width, 220),
-      zIndex: 9999,
-    });
+    const menuWidth = Math.max(rect.width, 220);
+    // Estimate menu height: 7 roles × ~44px per row + borders
+    const estimatedMenuHeight = Math.min(
+      menuRef.current?.offsetHeight ?? 320,
+      320,
+    );
+    const spaceBelow = window.innerHeight - rect.bottom - 8;
+    const spaceAbove = rect.top - 8;
+    const openAbove = spaceBelow < estimatedMenuHeight && spaceAbove > spaceBelow;
+
+    setMenuStyle(
+      openAbove
+        ? {
+            position: 'fixed',
+            bottom: window.innerHeight - rect.top + 4,
+            left: rect.left,
+            width: menuWidth,
+            maxHeight: Math.min(spaceAbove, 320),
+            overflowY: 'auto',
+            zIndex: 9999,
+          }
+        : {
+            position: 'fixed',
+            top: rect.bottom + 4,
+            left: rect.left,
+            width: menuWidth,
+            maxHeight: Math.min(spaceBelow, 320),
+            overflowY: 'auto',
+            zIndex: 9999,
+          },
+    );
   };
 
   useLayoutEffect(() => {

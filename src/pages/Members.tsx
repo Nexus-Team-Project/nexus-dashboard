@@ -167,7 +167,7 @@ function TooltipButton({
 export default function Members() {
   const navigate = useNavigate();
   const { language, isRTL } = useLanguage();
-  const { me, user } = useAuth();
+  const { me, user, reloadMe } = useAuth();
   const copy = COPY[language];
 
   const canViewMembers = me?.authorization.canViewMembers === true || me?.authorization.canManageMembers === true;
@@ -653,6 +653,8 @@ export default function Members() {
             setRemoveMember(null);
             toast.success(language === 'he' ? 'החבר הוסר' : 'Member removed');
             void fetchMembers(membersParams);
+            void fetchContacts(contactsParams);
+            void reloadMe();
           }}
         />
       )}
