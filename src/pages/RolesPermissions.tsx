@@ -1,14 +1,11 @@
 /**
- * Shows tenant role definitions, permission counts, and pending invitations.
+ * Shows pending workspace invitations and the "Invite members" action.
  * The member table has moved to the Members page (/users).
- * This page focuses on who can do what and which invitations are outstanding.
+ * Role definitions and permission details are shown on the Invite page.
  */
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  tenantMembersApi,
-  type PendingInvitationItem,
-} from '../lib/api';
+import { tenantMembersApi, type PendingInvitationItem } from '../lib/api';
 import { getTenantRoleLabel } from '../lib/tenantRoles';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -18,12 +15,10 @@ const COPY = {
   he: {
     settings: 'הגדרות',
     title: 'תפקידים והרשאות',
-    body: 'ראה מי יכול לעבוד בסביבת העבודה ואילו הרשאות יש לכל תפקיד.',
+    body: 'ניהול הגישה לסביבת העבודה.',
     invite: 'הזמן חברים',
-    permissions: 'הרשאות',
     pendingInvites: 'הזמנות ממתינות',
     pendingHasMore: 'ועוד...',
-    loading: 'טוען...',
     invitePrompt: 'כדי להוסיף חברים לסביבת העבודה, לחץ על כפתור "הזמן חברים". הזמנות פתוחות יופיעו כאן.',
   },
   en: {
@@ -33,15 +28,14 @@ const COPY = {
     invite: 'Invite members',
     pendingInvites: 'Pending invitations',
     pendingHasMore: 'and more…',
-    loading: 'Loading…',
     invitePrompt: 'To add members to this workspace, press the "Invite members" button above. Pending invitations will appear here.',
   },
 } as const;
 
 /**
- * Renders role permission cards and the pending invitations panel.
+ * Renders the plan summary card, invite button, and pending invitations panel.
  * Input: none — reads tenant auth context from AuthContext.
- * Output: role cards grid + amber pending invitations chips.
+ * Output: header with invite action + amber pending invitations chips.
  */
 export default function RolesPermissions() {
   const navigate = useNavigate();
@@ -56,14 +50,14 @@ export default function RolesPermissions() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    /** Loads role permissions and pending invitations on mount. */
+    /** Loads pending invitations on mount. */
     const load = async () => {
       try {
         const pendingResult = await tenantMembersApi.pendingInvitations();
         setPendingInvites(pendingResult.pendingInvitations);
         setPendingHasMore(pendingResult.hasMore);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load roles');
+        setError(err instanceof Error ? err.message : 'Failed to load');
       } finally {
         setLoading(false);
       }
@@ -74,7 +68,6 @@ export default function RolesPermissions() {
   if (loading) {
     return (
       <div dir={isRTL ? 'rtl' : 'ltr'} className="mx-auto max-w-7xl space-y-6 animate-pulse">
-        {/* Header skeleton */}
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="space-y-3">
             <div className="h-3 w-24 rounded bg-slate-200 dark:bg-slate-700" />
@@ -83,7 +76,6 @@ export default function RolesPermissions() {
           </div>
           <div className="h-10 w-36 rounded-lg bg-slate-200 dark:bg-slate-700" />
         </div>
-        {/* Content area skeleton */}
         <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-card-dark space-y-4">
           <div className="h-4 w-48 rounded bg-slate-200 dark:bg-slate-700" />
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">

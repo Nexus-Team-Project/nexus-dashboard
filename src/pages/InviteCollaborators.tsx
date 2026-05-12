@@ -1,7 +1,9 @@
 /**
- * Tenant admin page for inviting one member or bulk-importing from a CSV file.
- * Each row in the invite table has a multi-role selector and permission preview.
- * CSV imports go through a column-mapping step before rows are added to the table.
+ * Tenant admin page for inviting workspace collaborators.
+ * Emails are added as expandable rows, each with its own role accordion.
+ * The role accordion is shown but disabled until at least one email is added.
+ * CSV import and the bulk-inactive flow from the Members page pre-populate
+ * email rows with the "member" role selected by default.
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -12,13 +14,15 @@ import {
   type TenantRole,
   type TenantRolePermissions,
 } from '../lib/api';
-import { getTenantRoleLabel, isSeatConsumingRole, parseEmails, TENANT_ROLE_COPY, TENANT_ROLE_ORDER } from '../lib/tenantRoles';
+import { getTenantRoleLabel, isSeatConsumingRole, parseEmails, PLAN_SEAT_LIMITS } from '../lib/tenantRoles';
 import { parseCsv, type ParsedCsv } from '../lib/csvParser';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
-import RoleDropdown from '../components/invite/RoleDropdown';
 import CsvColumnMapper, { type ResolvedInviteRow } from '../components/invite/CsvColumnMapper';
 import CsvImportGuide from '../components/invite/CsvImportGuide';
+import RoleGroupAccordion from '../components/invite/RoleGroupAccordion';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface InviteRow {
   id: string;
@@ -28,103 +32,88 @@ interface InviteRow {
   error?: string;
 }
 
+// ─── Copy ─────────────────────────────────────────────────────────────────────
+
 const COPY = {
   he: {
     back: 'חזרה',
     titlePrefix: 'הזמן חברים ל',
-    body: 'הוסף אימייל אחד, הדבק כמה אימיילים, או ייבא קובץ CSV.',
-    manual: 'הוסף אימייל',
-    manualPlaceholder: 'name@example.com',
-    add: 'הוסף',
+    titleFallback: 'הזמן חברים',
+    emailsLabel: 'הוסף אימייל',
+    emailPlaceholder: 'name@example.com',
+    addEmail: 'הוסף',
     uploadCsv: 'ייבא CSV',
-    email: 'אימייל',
-    roles: 'תפקידים',
-    permissions: 'הרשאות',
-    remove: 'הסר',
+    rolesLabel: 'בחר תפקידים',
+    rolesHint: 'לחץ על אימייל כדי לבחור את התפקידים שלו.',
+    rolesDisabledHint: 'הוסף לפחות אימייל אחד כדי לבחור תפקידים.',
+    searchRoles: 'חפש תפקידים',
     send: 'שלח הזמנות',
     sending: 'שולח...',
     cancel: 'ביטול',
-    empty: 'עדיין אין אימיילים להזמנה.',
-    pending: 'ממתין לאישור',
-    draft: 'טיוטה',
-    failed: 'נכשל',
     invalid: 'לא נמצא אימייל תקין.',
     successToast: 'ההזמנות נשלחו',
     failedToast: 'חלק מההזמנות נכשלו',
-    selectRoles: 'בחר תפקידים',
     csvTooBig: 'הקובץ ריק או לא נמצאו עמודות.',
+    seatLimitWarning: 'הגעת למגבלת המושבים. ניתן עדיין להזמין תפקיד "חבר" ללא הגבלה.',
+    upgradePlan: 'שדרג תוכנית',
+    pending: 'ממתין',
+    failed: 'נכשל',
+    draft: 'טיוטה',
+    rolesFor: 'תפקידים עבור',
+    seatsLeft: 'מושבים פנויים',
+    remove: 'הסר',
+    searchEmails: 'חפש לפי אימייל',
   },
   en: {
     back: 'Back',
     titlePrefix: 'Invite members to',
-    body: 'Add one email, paste many emails, or import a CSV file.',
-    manual: 'Add email',
-    manualPlaceholder: 'name@example.com',
-    add: 'Add',
+    titleFallback: 'Invite members',
+    emailsLabel: 'Add email',
+    emailPlaceholder: 'name@example.com',
+    addEmail: 'Add',
     uploadCsv: 'Import CSV',
-    email: 'Email',
-    roles: 'Roles',
-    permissions: 'Permissions',
-    remove: 'Remove',
+    rolesLabel: 'Select roles',
+    rolesHint: 'Click an email below to select roles for that person.',
+    rolesDisabledHint: 'Add at least one email above to select roles.',
+    searchRoles: 'Search roles',
     send: 'Send invites',
-    sending: 'Sending...',
+    sending: 'Sending…',
     cancel: 'Cancel',
-    empty: 'No invite emails yet.',
-    pending: 'Invite pending',
-    draft: 'Draft',
-    failed: 'Failed',
     invalid: 'No valid email found.',
     successToast: 'Invites sent',
     failedToast: 'Some invites failed',
-    selectRoles: 'Select roles',
     csvTooBig: 'File is empty or has no columns.',
+    seatLimitWarning: 'Seat limit reached. You can still freely invite the "Member" role.',
+    upgradePlan: 'Upgrade plan',
+    pending: 'Invite sent',
+    failed: 'Failed',
+    draft: 'Draft',
+    rolesFor: 'Roles for',
+    seatsLeft: 'seats left',
+    remove: 'Remove',
+    searchEmails: 'Search by email',
   },
 } as const;
 
-/**
- * Merges new emails into the existing invite row list without duplicates.
- * Preserves roles already set on existing rows.
- * Input: current rows, new email strings, and default roles for new rows.
- * Output: deduplicated merged row array.
- */
-function mergeRows(
-  existingRows: InviteRow[],
-  emails: string[],
-  defaultRoles: TenantRole[],
-): InviteRow[] {
-  const existing = new Set(existingRows.map((row) => row.email));
-  const newRows = emails
-    .filter((email) => !existing.has(email))
-    .map((email) => ({
-      id: `${email}_${crypto.randomUUID()}`,
-      email,
-      roles: [...defaultRoles],
-      status: 'draft' as const,
-    }));
-  return [...existingRows, ...newRows];
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Creates a new invite row with the default member role. */
+function makeRow(email: string): InviteRow {
+  return { id: `${email}_${crypto.randomUUID()}`, email, roles: ['member'], status: 'draft' };
 }
 
-/**
- * Returns the deduplicated union of permissions for a set of roles.
- * Input: role names and the full role→permissions map.
- * Output: sorted unique permission strings.
- */
-function getRowPermissions(
-  roles: TenantRole[],
-  byRole: Map<TenantRole, string[]>,
-): string[] {
-  const all = new Set<string>();
-  for (const role of roles) {
-    for (const perm of byRole.get(role) ?? []) all.add(perm);
-  }
-  return Array.from(all).sort();
+/** Merges new emails into an existing row list without duplicates. */
+function mergeRows(existing: InviteRow[], emails: string[]): InviteRow[] {
+  const seen = new Set(existing.map((r) => r.email));
+  return [...existing, ...emails.filter((e) => !seen.has(e)).map(makeRow)];
 }
 
+// ─── Component ────────────────────────────────────────────────────────────────
+
 /**
- * Renders the invite page with a manual email input, CSV import, and invite table.
- * CSV imports open a column-mapping step before rows are added to the table.
- * Input: none.
- * Output: connected invite UI backed by Mongo domain v1 APIs.
+ * Invite collaborators page with per-email role accordions.
+ * Input: none — reads tenant context from AuthContext.
+ * Output: sends invitations via the bulk invite API with per-email roles.
  */
 export default function InviteCollaborators() {
   const navigate = useNavigate();
@@ -134,509 +123,364 @@ export default function InviteCollaborators() {
   const copy = COPY[language];
 
   const tenantName = me?.context.tenantName ?? null;
+  const plan = me?.context.plan;
+  const seats = me?.context.seats;
+  const seatsLimit = plan ? PLAN_SEAT_LIMITS[plan] : null;
+  const seatsUsed = seats?.used ?? 0;
+  const atLimit = seats?.isAtLimit === true;
+  const seatsRemaining = seats?.remaining ?? Infinity;
 
-  // Server seat state - draft row counts computed later after rows state is declared.
-  const serverSeatsRemaining = me?.context.seats?.remaining ?? Infinity;
-  const serverAtLimit = me?.context.seats?.isAtLimit === true;
-
-  const disabledReason =
-    language === 'he'
-      ? 'שדרג את התוכנית כדי להזמין תפקידים נוספים'
-      : 'Upgrade your plan to invite more non-member roles';
-  /** "הזמן חברים ל-Acme" / "Invite members to Acme" */
   const pageTitle = tenantName
-    ? language === 'he'
-      ? `${copy.titlePrefix}-${tenantName}`
-      : `${copy.titlePrefix} ${tenantName}`
-    : language === 'he' ? 'הזמן חברים' : 'Invite members';
+    ? language === 'he' ? `${copy.titlePrefix}-${tenantName}` : `${copy.titlePrefix} ${tenantName}`
+    : copy.titleFallback;
 
-  const ROWS_PER_PAGE = 10;
-  const [rowsPage, setRowsPage] = useState(1);
-
-  const [rows, setRows] = useState<InviteRow[]>(() => {
-    // Pre-fill from sessionStorage when navigating from the Members page inactive-invite flow.
+  // ── Rows (one per invited email, each with its own roles) ───────────────────
+  // Compute initial rows outside useState so expandedId can reference them.
+  const initialRows = useMemo<InviteRow[]>(() => {
     const stored = sessionStorage.getItem('pendingInviteEmails');
     if (stored) {
       sessionStorage.removeItem('pendingInviteEmails');
       try {
         const emails: string[] = JSON.parse(stored);
-        if (emails.length > 0) {
-          return emails.map((email) => ({
-            id: `${email}_${crypto.randomUUID()}`,
-            email,
-            roles: ['member' as TenantRole],
-            status: 'draft' as const,
-          }));
-        }
-      } catch { /* fall through */ }
+        if (emails.length) return emails.map(makeRow);
+      } catch { /* ignore */ }
     }
-    // Pre-fill from ?email= query param when navigating from the Contacts row action.
-    const email = new URLSearchParams(location.search).get('email');
-    if (!email) return [];
-    return [{ id: `${email}_${crypto.randomUUID()}`, email, roles: ['member'], status: 'draft' }];
-  });
-  const totalRowPages = Math.max(1, Math.ceil(rows.length / ROWS_PER_PAGE));
-  const safeRowsPage = Math.min(rowsPage, totalRowPages);
-  const visibleRows = rows.slice((safeRowsPage - 1) * ROWS_PER_PAGE, safeRowsPage * ROWS_PER_PAGE);
+    const q = new URLSearchParams(location.search).get('email');
+    return q ? [makeRow(q)] : [];
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally empty — runs once on mount
 
-  // Count draft rows that would each consume one new non-member seat, then derive
-  // whether the effective limit is reached including uncommitted form state.
-  const draftNonMemberRowCount = rows.filter(
-    (r) => r.status !== 'pending' && r.roles.some(isSeatConsumingRole),
-  ).length;
-  const effectiveSeatsRemaining = Math.max(0, serverSeatsRemaining - draftNonMemberRowCount);
-  const seatLimitReached = serverAtLimit || effectiveSeatsRemaining <= 0;
+  const [rows, setRows] = useState<InviteRow[]>(initialRows);
+  // Auto-expand the first pre-filled row so the accordion is ready.
+  const [expandedId, setExpandedId] = useState<string | null>(initialRows[0]?.id ?? null);
 
-  const [rolePermissions, setRolePermissions] = useState<TenantRolePermissions[]>([]);
-  const [manualEmail, setManualEmail] = useState('');
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [emailInput, setEmailInput] = useState('');
+  const [inputError, setInputError] = useState<string | null>(null);
+  const [emailSearch, setEmailSearch] = useState('');
+  const [roleSearch, setRoleSearch] = useState('');
+  const [rolePerms, setRolePerms] = useState<TenantRolePermissions[]>([]);
   const [isSending, setIsSending] = useState(false);
-  /** Controls whether the CSV import guide modal is open. */
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
-  /** Holds parsed CSV data while the column-mapping step is active. */
   const [csvData, setCsvData] = useState<ParsedCsv | null>(null);
 
-  const [rolesLoading, setRolesLoading] = useState(true);
-
   useEffect(() => {
-    /** Loads role permission data for the permission preview column. */
-    const loadRoles = async () => {
-      const result = await tenantMembersApi.roles();
-      setRolePermissions(result.roles);
-      setRolesLoading(false);
-    };
-    void loadRoles().catch((err) => {
-      setSubmitError(err instanceof Error ? err.message : 'Failed to load roles');
-      setRolesLoading(false);
-    });
+    void tenantMembersApi.roles()
+      .then((res) => setRolePerms(res.roles))
+      .catch(() => { /* non-critical */ });
   }, []);
 
-  const permissionsByRole = useMemo(
-    () => new Map(rolePermissions.map((r) => [r.role, r.permissions])),
-    [rolePermissions],
+  // ── Seat limit ──────────────────────────────────────────────────────────────
+  const draftNonMemberCount = useMemo(
+    () => rows.filter((r) => r.status !== 'pending' && r.roles.some(isSeatConsumingRole)).length,
+    [rows],
   );
+  const seatLimitReached = atLimit || Math.max(0, seatsRemaining - draftNonMemberCount) <= 0;
 
-  /**
-   * Parses free-text or pasted content and merges valid emails into the table.
-   * Input: raw text from the manual input, paste, or .txt drop.
-   * Output: rows state updated; error shown when no valid email is found.
-   */
-  const addEmails = (value: string) => {
-    const emails = parseEmails(value);
-    if (emails.length === 0) {
-      setSubmitError(copy.invalid);
-      return;
-    }
-    setRows((current) => mergeRows(current, emails, ['member']));
-    setRowsPage(1);
-    setManualEmail('');
-    setSubmitError(null);
+  // ── Email helpers ───────────────────────────────────────────────────────────
+
+  const addEmails = (raw: string) => {
+    const parsed = parseEmails(raw);
+    if (!parsed.length) { setInputError(copy.invalid); return; }
+    setRows((cur) => {
+      const next = mergeRows(cur, parsed);
+      // Auto-expand the first newly added row.
+      const firstNew = next.find((r) => parsed.includes(r.email) && r.status === 'draft');
+      if (firstNew && expandedId === null) setExpandedId(firstNew.id);
+      return next;
+    });
+    setEmailInput('');
+    setInputError(null);
   };
 
-  /**
-   * Reads a CSV File object and opens the column-mapping step.
-   * Called by CsvImportGuide once the user selects a file.
-   * Input: File from the guide's hidden file input.
-   * Output: csvData state set, which renders the CsvColumnMapper card.
-   */
+  const removeRow = (id: string) => {
+    setRows((cur) => cur.filter((r) => r.id !== id));
+    if (expandedId === id) { setExpandedId(null); setRoleSearch(''); }
+  };
+
+  /** Rows visible after applying the email search filter. */
+  const visibleRows = useMemo(() => {
+    if (!emailSearch.trim()) return rows;
+    const q = emailSearch.toLowerCase();
+    return rows.filter((r) => r.email.toLowerCase().includes(q));
+  }, [rows, emailSearch]);
+
+  const toggleRole = (rowId: string, role: TenantRole) => {
+    setRows((cur) =>
+      cur.map((row) => {
+        if (row.id !== rowId) return row;
+        const has = row.roles.includes(role);
+        if (has && row.roles.length === 1) return row; // keep at least one role
+        return { ...row, roles: has ? row.roles.filter((r) => r !== role) : [...row.roles, role] };
+      }),
+    );
+  };
+
   const handleCsvFile = async (file: File) => {
     const text = await file.text();
     const parsed = parseCsv(text);
-    if (parsed.headers.length === 0) {
-      setSubmitError(copy.csvTooBig);
-      return;
-    }
+    if (!parsed.headers.length) { setSubmitError(copy.csvTooBig); return; }
     setSubmitError(null);
     setCsvData(parsed);
   };
 
-  /**
-   * Called when the user confirms the CSV column mapping.
-   * Merges resolved rows into the invite table and closes the mapper.
-   * Input: array of resolved email+roles from CsvColumnMapper.
-   * Output: rows state updated, csvData cleared.
-   */
   const handleCsvConfirm = (resolved: ResolvedInviteRow[]) => {
-    setRows((current) =>
-      mergeRows(
-        current,
-        resolved.map((r) => r.email),
-        ['member'], // fallback; actual roles applied below
-      ).map((row) => {
-        const match = resolved.find((r) => r.email === row.email);
-        return match ? { ...row, roles: match.roles } : row;
-      }),
-    );
+    setRows((cur) => mergeRows(cur, resolved.map((r) => r.email)));
     setCsvData(null);
   };
 
-  /**
-   * Toggles one role on a specific invite row.
-   * Prevents removing the last remaining role from a row.
-   * Input: row id and the role to toggle.
-   * Output: rows state updated.
-   */
-  const toggleRole = (rowId: string, role: TenantRole) => {
-    setRows((current) =>
-      current.map((row) => {
-        if (row.id !== rowId) return row;
-        const has = row.roles.includes(role);
-        if (has && row.roles.length === 1) return row;
-        return {
-          ...row,
-          roles: has ? row.roles.filter((r) => r !== role) : [...row.roles, role],
-        };
-      }),
-    );
-  };
+  // ── Send ────────────────────────────────────────────────────────────────────
 
-  /**
-   * Sends all draft invite rows through the single or bulk invite API.
-   * Input: current table rows with status 'draft' or 'failed'.
-   * Output: row statuses updated to 'pending' or 'failed', toast shown.
-   */
   const sendInvites = async () => {
-    const draftRows = rows.filter((row) => row.status !== 'pending');
-    if (draftRows.length === 0) return;
+    const draftRows = rows.filter((r) => r.status !== 'pending');
+    if (!draftRows.length) return;
     setIsSending(true);
     setSubmitError(null);
-
     try {
-      const payload = draftRows.map((row) => ({
-        email: row.email,
-        roles: row.roles,
-        language,
-        sendEmail: true,
-      }));
-
+      const payload = draftRows.map((r) => ({ email: r.email, roles: r.roles, language, sendEmail: true }));
       const response =
         payload.length === 1
-          ? {
-              results: [
-                {
-                  email: payload[0].email,
-                  ok: true,
-                  result: await tenantMembersApi.invite(payload[0]),
-                },
-              ],
-            }
+          ? { results: [{ email: payload[0].email, ok: true, result: await tenantMembersApi.invite(payload[0]) }] }
           : await tenantMembersApi.bulkInvite(payload, language);
 
-      applyResults(response.results);
-      const failedCount = response.results.filter((r) => !r.ok).length;
+      const results = response.results as BulkTenantMemberInviteResult[];
+      const byEmail = new Map(results.map((r) => [r.email, r]));
+      setRows((cur) =>
+        cur.map((row) => {
+          const res = byEmail.get(row.email);
+          if (!res) return row;
+          return res.ok ? { ...row, status: 'pending', error: undefined } : { ...row, status: 'failed', error: res.error ?? copy.failed };
+        }),
+      );
+      const failedCount = results.filter((r) => !r.ok).length;
       if (failedCount > 0) {
-        toast.error(copy.failedToast, { description: `${failedCount}/${response.results.length}` });
+        toast.error(copy.failedToast, { description: `${failedCount}/${results.length}` });
       } else {
-        toast.success(copy.successToast, { description: `${response.results.length}` });
+        toast.success(copy.successToast, { description: `${results.length}` });
+        void reloadMe();
       }
-      // Refresh /api/me so seat counts update immediately without a hard reload.
-      void reloadMe();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to send invites';
-      setSubmitError(message);
-      toast.error(copy.failedToast, { description: message });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed';
+      setSubmitError(msg);
+      toast.error(copy.failedToast, { description: msg });
     } finally {
       setIsSending(false);
     }
   };
 
-  /**
-   * Applies per-email backend results to the visible invite rows.
-   * Input: array of { email, ok, error } results from the bulk invite API.
-   * Output: matching rows updated to 'pending' or 'failed'.
-   */
-  const applyResults = (results: BulkTenantMemberInviteResult[]) => {
-    const byEmail = new Map(results.map((r) => [r.email, r]));
-    setRows((current) =>
-      current.map((row) => {
-        const result = byEmail.get(row.email);
-        if (!result) return row;
-        return result.ok
-          ? { ...row, status: 'pending', error: undefined }
-          : { ...row, status: 'failed', error: result.error ?? copy.failed };
-      }),
-    );
-  };
+  const hasDraft = rows.some((r) => r.status !== 'pending');
+
+  // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div dir={isRTL ? 'rtl' : 'ltr'} className="mx-auto max-w-7xl space-y-6">
-      {/* Page header */}
-      <header className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+    <div dir={isRTL ? 'rtl' : 'ltr'} className="mx-auto max-w-7xl space-y-5">
+      {/* Header */}
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <button
-            type="button"
-            onClick={() => navigate('/settings/roles-permissions')}
-            className="mb-3 inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-500 transition-colors hover:text-primary"
-          >
+          <button type="button" onClick={() => navigate('/settings/roles-permissions')}
+            className="mb-2 inline-flex cursor-pointer items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-primary transition-colors">
             <span className="material-icons text-lg">{isRTL ? 'arrow_forward' : 'arrow_back'}</span>
             {copy.back}
           </button>
-          <h1 className="text-3xl font-bold tracking-normal text-slate-950 dark:text-white">
-            {pageTitle}
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">
-            {copy.body}
-          </p>
+          <h1 className="text-2xl font-bold text-slate-950 dark:text-white">{pageTitle}</h1>
         </div>
         <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={() => navigate('/settings/roles-permissions')}
-            className="cursor-pointer rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-          >
+          <button type="button" onClick={() => navigate('/settings/roles-permissions')}
+            className="cursor-pointer rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 transition-colors">
             {copy.cancel}
           </button>
-          <button
-            type="button"
-            disabled={
-              isSending ||
-              rows.length === 0 ||
-              (draftNonMemberRowCount > serverSeatsRemaining)
-            }
+          <button type="button" disabled={isSending || !hasDraft}
             onClick={() => void sendInvites()}
-            className="cursor-pointer rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
+            className="cursor-pointer rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 transition-opacity">
             {isSending ? copy.sending : copy.send}
           </button>
         </div>
       </header>
 
-      {/* Seat-limit warning banner */}
+      {/* Seat bar */}
+      {seats && seatsLimit && (
+        <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-card-dark sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+              <span className="material-icons text-base text-primary">people</span>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-950 dark:text-white">
+                {language === 'he'
+                  ? `${Math.max(0, seatsLimit - seatsUsed)} מושבים פנויים`
+                  : `${Math.max(0, seatsLimit - seatsUsed)} ${copy.seatsLeft}`}
+              </p>
+              <div className="mt-1 flex items-center gap-2">
+                <div className="h-1.5 w-32 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                  <div className={`h-full rounded-full transition-all ${atLimit ? 'bg-rose-500' : 'bg-primary'}`}
+                    style={{ width: `${Math.min(100, Math.round((seatsUsed / seatsLimit) * 100))}%` }} />
+                </div>
+                <span className="text-xs text-slate-500">{seatsUsed}/{seatsLimit}</span>
+              </div>
+            </div>
+          </div>
+          <button type="button" className="cursor-pointer rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors whitespace-nowrap">
+            {copy.upgradePlan}
+          </button>
+        </div>
+      )}
+
       {seatLimitReached && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
-          {language === 'he'
-            ? `הגעת למגבלת המושבים של התוכנית שלך. ניתן עדיין להזמין תפקיד "חבר" ללא הגבלה. שדרג כדי להזמין תפקידים אחרים.`
-            : `Your plan seat limit is reached. You can still invite the "Member" role freely. Upgrade your plan to add more non-member roles.`}
+          {copy.seatLimitWarning}
         </div>
       )}
-
-      {/* Global error banner */}
       {submitError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-400">
-          {submitError}
-        </div>
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-400">{submitError}</div>
       )}
 
-      {/* Manual input and upload controls */}
-      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-card-dark">
-        <label className="mb-2 block text-sm font-semibold text-slate-800 dark:text-white">
-          {copy.manual}
-        </label>
-        <div className="flex flex-col gap-3 md:flex-row">
-          <input
-            value={manualEmail}
-            onChange={(e) => setManualEmail(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') addEmails(manualEmail);
-            }}
+      {/* Email input */}
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-card-dark">
+        <label className="mb-3 block text-sm font-semibold text-slate-800 dark:text-white">{copy.emailsLabel}</label>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <input value={emailInput} onChange={(e) => setEmailInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') addEmails(emailInput); }}
             onPaste={(e) => {
               const pasted = e.clipboardData.getData('text');
-              if (parseEmails(pasted).length > 1) {
-                e.preventDefault();
-                addEmails(pasted);
-              }
+              if (parseEmails(pasted).length > 1) { e.preventDefault(); addEmails(pasted); }
             }}
-            className="min-h-11 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-colors focus:border-primary dark:border-slate-700 dark:bg-slate-900"
-            placeholder={copy.manualPlaceholder}
-            type="email"
-          />
-          <button
-            type="button"
-            onClick={() => addEmails(manualEmail)}
-            className="cursor-pointer rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
-          >
-            {copy.add}
+            placeholder={copy.emailPlaceholder} type="email"
+            className="min-h-10 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-colors focus:border-primary dark:border-slate-700 dark:bg-slate-900" />
+          <button type="button" onClick={() => addEmails(emailInput)}
+            className="cursor-pointer rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-opacity">
+            {copy.addEmail}
           </button>
-          {/* CSV import — opens the guide modal first */}
-          <button
-            type="button"
-            onClick={() => setGuideOpen(true)}
-            className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200"
-          >
+          <button type="button" onClick={() => setGuideOpen(true)}
+            className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors">
             <span className="material-icons text-lg">upload_file</span>
             {copy.uploadCsv}
           </button>
         </div>
+        {inputError && <p className="mt-2 text-xs text-red-600">{inputError}</p>}
       </section>
 
-      {/* CSV import guide modal — shown when the user clicks Import CSV */}
-      {guideOpen && (
-        <CsvImportGuide
-          language={language}
-          onFileSelected={(file) => void handleCsvFile(file)}
-          onClose={() => setGuideOpen(false)}
-        />
-      )}
+      {/* CSV modals */}
+      {guideOpen && <CsvImportGuide language={language} onFileSelected={(f) => void handleCsvFile(f)} onClose={() => setGuideOpen(false)} />}
+      {csvData && <CsvColumnMapper csv={csvData} language={language} onConfirm={handleCsvConfirm} onCancel={() => setCsvData(null)} />}
 
-      {/* CSV column-mapping step — shown after a CSV file is selected */}
-      {csvData && (
-        <CsvColumnMapper
-          csv={csvData}
-          language={language}
-          onConfirm={handleCsvConfirm}
-          onCancel={() => setCsvData(null)}
-        />
-      )}
-
-      {/* Invite table */}
-      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-card-dark">
-        {rolesLoading && (
-          <div className="animate-pulse divide-y divide-slate-100 dark:divide-slate-800">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-4 px-5 py-4">
-                <div className="h-4 w-40 rounded bg-slate-200 dark:bg-slate-700" />
-                <div className="h-8 w-32 rounded-lg bg-slate-200 dark:bg-slate-700" />
-                <div className="flex-1 space-y-1.5">
-                  <div className="h-3 w-full rounded bg-slate-200 dark:bg-slate-700" />
-                  <div className="h-3 w-3/4 rounded bg-slate-200 dark:bg-slate-700" />
-                </div>
-                <div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-700" />
-              </div>
-            ))}
+      {/* Role selection section */}
+      <section className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-card-dark">
+        {/* Section header */}
+        <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 dark:border-slate-800 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-800 dark:text-white">
+              {expandedId
+                ? `${copy.rolesFor} ${rows.find((r) => r.id === expandedId)?.email ?? ''}`
+                : copy.rolesLabel}
+            </h2>
+            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+              {rows.length === 0 ? copy.rolesDisabledHint : copy.rolesHint}
+            </p>
           </div>
-        )}
-        {!rolesLoading && <>
-        {/* Pagination controls — only shown when rows exceed one page */}
-        {totalRowPages > 1 && (
-          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-2.5 dark:border-slate-800">
-            <span className="text-xs text-slate-500">
-              {language === 'he'
-                ? `עמוד ${safeRowsPage} מתוך ${totalRowPages} · ${rows.length} אימיילים`
-                : `Page ${safeRowsPage} of ${totalRowPages} · ${rows.length} emails`}
-            </span>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                disabled={safeRowsPage <= 1}
-                onClick={() => setRowsPage((p) => Math.max(1, p - 1))}
-                className="inline-flex cursor-pointer items-center gap-0.5 rounded px-2 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <span className="material-icons text-base">{isRTL ? 'chevron_right' : 'chevron_left'}</span>
-                {language === 'he' ? 'הקודם' : 'Prev'}
-              </button>
-              <button
-                type="button"
-                disabled={safeRowsPage >= totalRowPages}
-                onClick={() => setRowsPage((p) => Math.min(totalRowPages, p + 1))}
-                className="inline-flex cursor-pointer items-center gap-0.5 rounded px-2 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {language === 'he' ? 'הבא' : 'Next'}
-                <span className="material-icons text-base">{isRTL ? 'chevron_left' : 'chevron_right'}</span>
-              </button>
+          {/* Email search — only shown when there are rows to filter */}
+          {rows.length > 0 && (
+            <div className="relative shrink-0 sm:w-52">
+              <span className="material-icons absolute start-3 top-1/2 -translate-y-1/2 text-base text-slate-400">search</span>
+              <input
+                value={emailSearch}
+                onChange={(e) => setEmailSearch(e.target.value)}
+                placeholder={copy.searchEmails}
+                className="h-9 w-full rounded-lg border border-slate-200 bg-white ps-9 pe-3 text-sm outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-900"
+              />
             </div>
+          )}
+        </div>
+
+        {/* Email rows — each clickable to expand its role accordion */}
+        {visibleRows.map((row, ri) => {
+          const isExpanded = expandedId === row.id;
+          return (
+            <div key={row.id} className={ri > 0 ? 'border-t border-slate-100 dark:border-slate-800' : ''}>
+              {/* Row summary header */}
+              <div className="flex items-center gap-3 px-5 py-3">
+                <button type="button"
+                  onClick={() => {
+                    const opening = !isExpanded;
+                    setExpandedId(opening ? row.id : null);
+                    if (!opening) setRoleSearch('');
+                  }}
+                  className="flex flex-1 cursor-pointer items-center gap-3 min-w-0 text-start">
+                  <span className={`material-icons text-base transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''} text-slate-400`}>
+                    chevron_right
+                  </span>
+                  <span className="truncate text-sm font-medium text-slate-800 dark:text-white">{row.email}</span>
+                  {/* Role chips */}
+                  <div className="flex flex-wrap gap-1">
+                    {row.roles.map((r) => (
+                      <span key={r} className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                        {getTenantRoleLabel(r, language)}
+                      </span>
+                    ))}
+                  </div>
+                  {/* Status chip */}
+                  {row.status === 'pending' && (
+                    <span className="shrink-0 rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700">{copy.pending}</span>
+                  )}
+                  {row.status === 'failed' && (
+                    <span className="shrink-0 rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700" title={row.error}>{copy.failed}</span>
+                  )}
+                </button>
+                <button type="button" onClick={() => removeRow(row.id)} disabled={row.status === 'pending'}
+                  aria-label={copy.remove}
+                  className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-slate-800 transition-colors">
+                  <span className="material-icons text-base">close</span>
+                </button>
+              </div>
+
+              {/* Expanded role accordion for this email */}
+              {isExpanded && (
+                <div className="border-t border-slate-100 px-5 pb-4 pt-3 dark:border-slate-800">
+                  {/* Role search — only visible when accordion is open */}
+                  <div className="relative mb-3">
+                    <span className="material-icons absolute start-3 top-1/2 -translate-y-1/2 text-base text-slate-400">search</span>
+                    <input
+                      value={roleSearch}
+                      onChange={(e) => setRoleSearch(e.target.value)}
+                      placeholder={copy.searchRoles}
+                      className="h-9 w-full rounded-lg border border-slate-200 bg-white ps-9 pe-3 text-sm outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-900"
+                    />
+                  </div>
+                  <RoleGroupAccordion
+                    selectedRoles={row.roles}
+                    onToggle={(role) => toggleRole(row.id, role)}
+                    language={language}
+                    disabled={false}
+                    seatLimitReached={seatLimitReached && !row.roles.some(isSeatConsumingRole)}
+                    rolePerms={rolePerms}
+                    search={roleSearch}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Empty state — accordion shown disabled when no rows */}
+        {rows.length === 0 && (
+          <div className="px-5 pb-5 pt-3">
+            <RoleGroupAccordion
+              selectedRoles={['member']}
+              onToggle={() => { /* no-op while disabled */ }}
+              language={language}
+              disabled={true}
+              seatLimitReached={false}
+              rolePerms={rolePerms}
+              search=""
+            />
           </div>
         )}
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px] text-sm">
-            <thead className="bg-slate-50 text-slate-500 dark:bg-slate-900/40">
-              <tr>
-                <th className="px-5 py-3 text-start font-semibold">{copy.email}</th>
-                <th className="px-5 py-3 text-start font-semibold">{copy.roles}</th>
-                <th className="px-5 py-3 text-start font-semibold">{copy.permissions}</th>
-                <th className="px-5 py-3 text-start font-semibold">Status</th>
-                <th className="px-5 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {visibleRows.map((row) => {
-                const permissions = getRowPermissions(row.roles, permissionsByRole);
-                // A row that already has a non-member role has claimed its seat -
-                // allow switching between non-member roles freely. Only block rows
-                // that are still member-only and would require a new seat.
-                const rowAlreadyConsumesASeat = row.roles.some(isSeatConsumingRole);
-                const rowDisabledRoles =
-                  !rowAlreadyConsumesASeat && seatLimitReached
-                    ? TENANT_ROLE_ORDER.filter(isSeatConsumingRole)
-                    : [];
-                return (
-                  <tr key={row.id} className="align-top">
-                    <td className="px-5 py-4 font-medium text-slate-950 dark:text-white">
-                      {row.email}
-                    </td>
-                    <td className="px-5 py-4">
-                      <RoleDropdown
-                        rowId={row.id}
-                        selectedRoles={row.roles}
-                        disabled={row.status === 'pending'}
-                        language={language}
-                        onToggle={toggleRole}
-                        placeholder={copy.selectRoles}
-                        disabledRoles={rowDisabledRoles}
-                        disabledReason={disabledReason}
-                      />
-                    </td>
-                    <td className="max-w-[260px] px-5 py-4 text-xs text-slate-500">
-                      {row.roles.length === 1 ? (
-                        <p className="mb-2 font-medium text-slate-700 dark:text-slate-300">
-                          {
-                            TENANT_ROLE_COPY[row.roles[0]][
-                              language === 'he' ? 'descriptionHe' : 'descriptionEn'
-                            ]
-                          }
-                        </p>
-                      ) : (
-                        <p className="mb-2 font-medium text-slate-700 dark:text-slate-300">
-                          {row.roles.map((r) => getTenantRoleLabel(r, language)).join(' + ')}
-                        </p>
-                      )}
-                      <div className="flex flex-wrap gap-1">
-                        {permissions.length === 0 ? (
-                          <span className="text-slate-400">-</span>
-                        ) : (
-                          permissions.map((perm) => (
-                            <span
-                              key={perm}
-                              className="inline-block rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-600 dark:bg-slate-800 dark:text-slate-300"
-                            >
-                              {perm}
-                            </span>
-                          ))
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-5 py-4">
-                      {row.status === 'pending' && (
-                        <span className="rounded-full bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">
-                          {copy.pending}
-                        </span>
-                      )}
-                      {row.status === 'failed' && (
-                        <span className="rounded-full bg-red-50 px-2 py-1 text-xs font-semibold text-red-700">
-                          {row.error ?? copy.failed}
-                        </span>
-                      )}
-                      {row.status === 'draft' && (
-                        <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">
-                          {copy.draft}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-5 py-4 text-end">
-                      <button
-                        type="button"
-                        disabled={row.status === 'pending'}
-                        onClick={() =>
-                          setRows((current) => current.filter((item) => item.id !== row.id))
-                        }
-                        className="cursor-pointer rounded-lg px-3 py-2 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        {copy.remove}
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-              {rows.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-5 py-10 text-center text-sm text-slate-500">
-                    {copy.empty}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        </>}
+
+        {/* No results after email search */}
+        {rows.length > 0 && visibleRows.length === 0 && (
+          <p className="px-5 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
+            {language === 'he' ? 'לא נמצאו אימיילים תואמים.' : 'No emails match your search.'}
+          </p>
+        )}
       </section>
     </div>
   );
