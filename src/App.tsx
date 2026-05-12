@@ -260,8 +260,8 @@ function AppRoutes() {
   const requiresWorkspaceSetup = me.onboarding.required === true && me.onboarding.step === 'workspace_setup';
   const isWorkspaceSetupDeferred = me.context.mode === 'workspace_setup_deferred';
   const hasTenantWorkspace = me.context.isTenant === true;
-  const isTenantAdmin = hasTenantWorkspace && me.context.role === 'admin';
-  const shouldUseLimitedRoleDashboard = hasTenantWorkspace && me.context.role !== 'admin';
+  const isTenantAdmin = hasTenantWorkspace && (me.context.role === 'admin' || me.context.role === 'owner');
+  const shouldUseLimitedRoleDashboard = hasTenantWorkspace && me.context.role !== 'admin' && me.context.role !== 'owner';
   const canViewMembers = me.authorization.canViewMembers === true || me.authorization.canManageMembers === true;
   const canManageMembers = me.authorization.canManageMembers === true;
   const firstName = user?.fullName?.split(/\s+/)[0] ?? me?.user.name?.split(/\s+/)[0];

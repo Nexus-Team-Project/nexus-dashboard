@@ -19,28 +19,41 @@ const ROLE_GROUPS: RoleGroup[] = [
   {
     id: 'management', labelEn: 'Management', labelHe: 'ניהול',
     roles: [
-      { role: 'admin',    descEn: 'Full workspace control – manages team, billing, catalog, and all settings.', descHe: 'שליטה מלאה בסביבת העבודה – ניהול צוות, כספים, קטלוג וכל ההגדרות.' },
-      { role: 'operator', descEn: 'Day-to-day operations. Manages catalog items, allocations, and members.',      descHe: 'תפעול שוטף. ניהול פריטי קטלוג, הקצאות וחברי הארגון.' },
+      { role: 'admin',              descEn: 'Full workspace control - manages team, billing, catalog, and all settings.',              descHe: 'שליטה מלאה בסביבת העבודה - ניהול צוות, כספים, קטלוג וכל ההגדרות.' },
+      { role: 'back_office_manager', descEn: 'Day-to-day operations: catalog, allocations, approvals, and member management.',          descHe: 'תפעול שוטף: קטלוג, הקצאות, אישורים וניהול חברים.' },
     ],
   },
   {
-    id: 'finance', labelEn: 'Finance & Analytics', labelHe: 'כספים ואנליטיקה',
+    id: 'people', labelEn: 'People & HR', labelHe: 'אנשים ומשאבי אנוש',
     roles: [
-      { role: 'finance', descEn: 'Financial oversight – wallet, transactions, and financial reports.',   descHe: 'פיקוח פיננסי – ארנק, עסקאות ודוחות כספיים.' },
-      { role: 'analyst', descEn: 'Data & reporting – view catalog, member activity, and analytics.',     descHe: 'נתונים ודיווח – צפייה בקטלוג, פעילות חברים ואנליטיקה.' },
+      { role: 'hr_manager', descEn: 'Member lifecycle, group assignments, bulk import, and HR system integration.', descHe: 'מחזור חיי חברים, קבוצות, ייבוא ואינטגרציה עם מערכות HR.' },
+    ],
+  },
+  {
+    id: 'finance', labelEn: 'Finance', labelHe: 'כספים',
+    roles: [
+      { role: 'finance',          descEn: 'Financial strategy: budgets, allocations, pricing, and reporting.',           descHe: 'אסטרטגיה פיננסית: תקציבים, הקצאות, תמחור ודיווח.' },
+      { role: 'billing_manager',  descEn: 'Organization billing: subscriptions, payment methods, and platform invoices.', descHe: 'חיוב הארגון: מנויים, אמצעי תשלום וחשבוניות פלטפורמה.' },
+      { role: 'payments_manager', descEn: 'Member payments: transaction monitoring, refunds, and chargebacks.',           descHe: 'תשלומי חברים: מעקב עסקאות, החזרים וחיובים חוזרים.' },
+    ],
+  },
+  {
+    id: 'support', labelEn: 'Customer & Support', labelHe: 'לקוחות ותמיכה',
+    roles: [
+      { role: 'support_agent', descEn: 'Member support: case lookup, issue explanation, refund initiation, and escalation.', descHe: 'תמיכה בחברים: צפייה בתיקים, הסבר בעיות, יזום החזרים והסלמה.' },
     ],
   },
   {
     id: 'technical', labelEn: 'Technical', labelHe: 'טכני',
     roles: [
-      { role: 'developer',      descEn: 'Platform integration – API keys, webhooks, and developer tooling.',   descHe: 'אינטגרציה – מפתחות API, webhooks וכלי פיתוח.' },
-      { role: 'supply_manager', descEn: 'Supply & catalog – provider relationships and offer configuration.',   descHe: 'ספקים וקטלוג – קשרי ספקים וקונפיגורציית מבצעים.' },
+      { role: 'developer',      descEn: 'API keys, webhooks, and developer tooling.',              descHe: 'מפתחות API, webhooks וכלי פיתוח.' },
+      { role: 'supply_manager', descEn: 'Provider supply and catalog exposure management.',         descHe: 'ניהול ספקים וחשיפת קטלוג.' },
     ],
   },
   {
     id: 'members', labelEn: 'Members', labelHe: 'חברים',
     roles: [
-      { role: 'member', descEn: 'Standard member access – browse catalog and manage own purchases and wallet.', descHe: 'גישת חבר בסיסית – עיון בקטלוג וניהול רכישות אישיות וארנק.' },
+      { role: 'member', descEn: 'Standard member access - browse catalog and manage own purchases and wallet.', descHe: 'גישת חבר בסיסית - עיון בקטלוג וניהול רכישות אישיות וארנק.' },
     ],
   },
 ];
