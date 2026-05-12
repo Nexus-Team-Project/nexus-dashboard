@@ -13,7 +13,7 @@ import { getTenantRoleLabel } from '../../lib/tenantRoles';
 
 interface RoleContent {
   icon: string;
-  gradient: string; // CSS gradient string — avoids Tailwind purge issues
+  gradient: string; // CSS gradient string, avoids Tailwind purge issues
   taglineEn: string;
   taglineHe: string;
   aboutEn: string;
@@ -55,9 +55,9 @@ const ROLE_CONTENT: Record<TenantRole, RoleContent> = {
     taglineEn: 'Keeps day-to-day operations running',
     taglineHe: 'שומר על התפעול השוטף',
     aboutEn:
-      'Operators handle the daily work of running the workspace. They manage catalog content, run allocation campaigns, and support members — without touching billing or sensitive financial settings. A great fit for team leads or operations managers who need broad operational access.',
+      'Operators handle the daily work of running the workspace. They manage catalog content, run allocation campaigns, and support members, without touching billing or sensitive financial settings. A great fit for team leads or operations managers who need broad operational access.',
     aboutHe:
-      'מפעילים מטפלים בעבודה היומיומית של ניהול סביבת העבודה. הם מנהלים תוכן קטלוג, מריצים קמפיינים של הקצאות ותומכים בחברים — מבלי לגעת בחיוב או בהגדרות כספיות רגישות. מתאים מאוד לראשי צוותים או מנהלי תפעול הזקוקים לגישה תפעולית רחבה.',
+      'מפעילים מטפלים בעבודה היומיומית של ניהול סביבת העבודה. הם מנהלים תוכן קטלוג, מריצים קמפיינים של הקצאות ותומכים בחברים, מבלי לגעת בחיוב או בהגדרות כספיות רגישות. מתאים מאוד לראשי צוותים או מנהלי תפעול הזקוקים לגישה תפעולית רחבה.',
     capabilitiesEn: [
       'Browse and manage the benefits catalog',
       'Create and run allocation campaigns for members',
@@ -79,9 +79,9 @@ const ROLE_CONTENT: Record<TenantRole, RoleContent> = {
     taglineEn: 'Full visibility into the money flow',
     taglineHe: 'נראות מלאה לזרימת הכסף',
     aboutEn:
-      'Finance roles are designed for people who need to track and report on money — without being able to change workspace settings or manage members. They see everything financial: wallets, transactions, spending patterns, and reports. Ideal for accountants, CFOs, or finance analysts.',
+      'Finance roles are designed for people who need to track and report on money, without being able to change workspace settings or manage members. They see everything financial: wallets, transactions, spending patterns, and reports. Ideal for accountants, CFOs, or finance analysts.',
     aboutHe:
-      'תפקידי כספים מיועדים לאנשים שצריכים לעקוב ולדווח על כסף — מבלי שיוכלו לשנות הגדרות סביבת העבודה או לנהל חברים. הם רואים הכל פיננסי: ארנקות, עסקאות, דפוסי הוצאות ודוחות. אידיאלי לרואי חשבון, מנהלי כספים או אנליסטים פיננסיים.',
+      'תפקידי כספים מיועדים לאנשים שצריכים לעקוב ולדווח על כסף, מבלי שיוכלו לשנות הגדרות סביבת העבודה או לנהל חברים. הם רואים הכל פיננסי: ארנקות, עסקאות, דפוסי הוצאות ודוחות. אידיאלי לרואי חשבון, מנהלי כספים או אנליסטים פיננסיים.',
     capabilitiesEn: [
       'View all wallet balances across the workspace',
       'Access the full transaction history for all members',
@@ -103,9 +103,9 @@ const ROLE_CONTENT: Record<TenantRole, RoleContent> = {
     taglineEn: 'Data visibility without write access',
     taglineHe: 'נראות נתונים ללא גישת כתיבה',
     aboutEn:
-      "Analysts get read access to the workspace's data so they can build insights without disrupting operations. They can browse the catalog, review member engagement, and pull reports — but cannot change anything. Perfect for data analysts, business intelligence teams, or external consultants reviewing workspace performance.",
+      "Analysts get read access to the workspace's data so they can build insights without disrupting operations. They can browse the catalog, review member engagement, and pull reports, but cannot change anything. Perfect for data analysts, business intelligence teams, or external consultants reviewing workspace performance.",
     aboutHe:
-      'אנליסטים מקבלים גישת קריאה לנתוני סביבת העבודה כדי שיוכלו לבנות תובנות מבלי לשבש תפעול. הם יכולים לעיין בקטלוג, לבחון מעורבות חברים ולמשוך דוחות — אך אינם יכולים לשנות דבר. מושלם לאנליסטים, צוותי בינה עסקית או יועצים חיצוניים הסוקרים ביצועי סביבת עבודה.',
+      'אנליסטים מקבלים גישת קריאה לנתוני סביבת העבודה כדי שיוכלו לבנות תובנות מבלי לשבש תפעול. הם יכולים לעיין בקטלוג, לבחון מעורבות חברים ולמשוך דוחות, אך אינם יכולים לשנות דבר. מושלם לאנליסטים, צוותי בינה עסקית או יועצים חיצוניים הסוקרים ביצועי סביבת עבודה.',
     capabilitiesEn: [
       'Browse the benefits catalog in read-only mode',
       'View member engagement and activity data',
@@ -127,9 +127,9 @@ const ROLE_CONTENT: Record<TenantRole, RoleContent> = {
     taglineEn: 'Builds and manages technical integrations',
     taglineHe: 'בונה ומנהל אינטגרציות טכניות',
     aboutEn:
-      'Developers get the access they need to integrate external systems with the workspace — API keys, webhooks, and developer tooling — without touching member data, finances, or catalog content. Ideal for engineers or technical leads responsible for connecting your workspace to other platforms.',
+      'Developers get the access they need to integrate external systems with the workspace: API keys, webhooks, and developer tooling, without touching member data, finances, or catalog content. Ideal for engineers or technical leads responsible for connecting your workspace to other platforms.',
     aboutHe:
-      'מפתחים מקבלים את הגישה הדרושה להם לשילוב מערכות חיצוניות עם סביבת העבודה — מפתחות API, webhooks וכלי פיתוח — מבלי לגעת בנתוני חברים, כספים או תוכן קטלוג. אידיאלי למהנדסים או ראשי טכנולוגיה האחראים לחיבור סביבת העבודה שלכם לפלטפורמות אחרות.',
+      'מפתחים מקבלים את הגישה הדרושה להם לשילוב מערכות חיצוניות עם סביבת העבודה: מפתחות API, webhooks וכלי פיתוח, מבלי לגעת בנתוני חברים, כספים או תוכן קטלוג. אידיאלי למהנדסים או ראשי טכנולוגיה האחראים לחיבור סביבת העבודה שלכם לפלטפורמות אחרות.',
     capabilitiesEn: [
       'Create and manage API keys for external integrations',
       'Configure webhooks and event subscriptions',
@@ -151,9 +151,9 @@ const ROLE_CONTENT: Record<TenantRole, RoleContent> = {
     taglineEn: 'Controls what members see in the catalog',
     taglineHe: 'שולט במה שחברים רואים בקטלוג',
     aboutEn:
-      'Supply managers own the catalog layer between providers and members. They decide which offers are visible, configure pricing and availability, and manage relationships with external providers — all without access to member records or financial reports. The right role for procurement leads or catalog managers.',
+      'Supply managers own the catalog layer between providers and members. They decide which offers are visible, configure pricing and availability, and manage relationships with external providers, all without access to member records or financial reports. The right role for procurement leads or catalog managers.',
     aboutHe:
-      'מנהלי ספקים הם הבעלים של שכבת הקטלוג בין ספקים לחברים. הם מחליטים אילו מבצעים גלויים, מגדירים תמחור וזמינות, ומנהלים קשרים עם ספקים חיצוניים — הכל ללא גישה לרשומות חברים או דוחות כספיים. התפקיד הנכון לראשי רכש או מנהלי קטלוג.',
+      'מנהלי ספקים הם הבעלים של שכבת הקטלוג בין ספקים לחברים. הם מחליטים אילו מבצעים גלויים, מגדירים תמחור וזמינות, ומנהלים קשרים עם ספקים חיצוניים, הכל ללא גישה לרשומות חברים או דוחות כספיים. התפקיד הנכון לראשי רכש או מנהלי קטלוג.',
     capabilitiesEn: [
       'Control which catalog offers are visible to members',
       'Set pricing, availability, and expiry for each offer',
@@ -175,9 +175,9 @@ const ROLE_CONTENT: Record<TenantRole, RoleContent> = {
     taglineEn: 'Standard access to personal benefits',
     taglineHe: 'גישה רגילה להטבות אישיות',
     aboutEn:
-      "Members get access to the benefits that the workspace has made available to them. They can browse the catalog, use their wallet, and track their own purchases — but have no visibility into other members' data or any administrative controls. This is the baseline role for all staff who use the platform as end users.",
+      "Members get access to the benefits that the workspace has made available to them. They can browse the catalog, use their wallet, and track their own purchases, but have no visibility into other members' data or any administrative controls. This is the baseline role for all staff who use the platform as end users.",
     aboutHe:
-      'חברים מקבלים גישה להטבות שסביבת העבודה הפכה לזמינות עבורם. הם יכולים לעיין בקטלוג, להשתמש בארנק שלהם ולעקוב אחר הרכישות שלהם — אך אין להם נראות לנתונים של חברים אחרים או כל בקרה מינהלית. זהו תפקיד הבסיס לכל הצוות שמשתמש בפלטפורמה כמשתמשי קצה.',
+      'חברים מקבלים גישה להטבות שסביבת העבודה הפכה לזמינות עבורם. הם יכולים לעיין בקטלוג, להשתמש בארנק שלהם ולעקוב אחר הרכישות שלהם, אך אין להם נראות לנתונים של חברים אחרים או כל בקרה מינהלית. זהו תפקיד הבסיס לכל הצוות שמשתמש בפלטפורמה כמשתמשי קצה.',
     capabilitiesEn: [
       'Browse and search the full benefits catalog',
       'View their personal wallet balance and top-up history',
