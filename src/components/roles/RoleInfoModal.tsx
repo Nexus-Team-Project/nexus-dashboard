@@ -23,6 +23,26 @@ interface RoleContent {
 }
 
 const ROLE_CONTENT: Record<TenantRole, RoleContent> = {
+  owner: {
+    icon: 'workspace_premium',
+    gradient: 'linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%)',
+    taglineEn: 'Workspace creator and ultimate authority',
+    taglineHe: 'יוצר סביבת העבודה וסמכות עליונה',
+    aboutEn:
+      "The owner is the person who created the workspace. They hold the highest level of trust in the system and are the only one who can transfer ownership to another admin or permanently delete the workspace. There is exactly one owner per workspace and the role cannot be reassigned through the normal invite flow.",
+    aboutHe:
+      'הבעלים הוא האדם שיצר את סביבת העבודה. הם מחזיקים ברמת האמון הגבוהה ביותר במערכת והם היחידים שיכולים להעביר בעלות למנהל אחר או למחוק את סביבת העבודה לצמיתות. יש בעלים אחד בדיוק לכל סביבת עבודה.',
+    capabilitiesEn: [
+      'Everything an Admin can do',
+      'Transfer workspace ownership to another admin',
+      'Permanently delete the workspace and all its data',
+    ],
+    capabilitiesHe: [
+      'כל מה שמנהל יכול לעשות',
+      'העברת בעלות על סביבת העבודה למנהל אחר',
+      'מחיקה קבועה של סביבת העבודה וכל הנתונים שלה',
+    ],
+  },
   admin: {
     icon: 'admin_panel_settings',
     gradient: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
@@ -49,29 +69,141 @@ const ROLE_CONTENT: Record<TenantRole, RoleContent> = {
       'הפעלה וניהול שירותי סביבת העבודה',
     ],
   },
-  operator: {
+  back_office_manager: {
     icon: 'tune',
     gradient: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
     taglineEn: 'Keeps day-to-day operations running',
     taglineHe: 'שומר על התפעול השוטף',
     aboutEn:
-      'Operators handle the daily work of running the workspace. They manage catalog content, run allocation campaigns, and support members, without touching billing or sensitive financial settings. A great fit for team leads or operations managers who need broad operational access.',
+      'Back-office managers handle the daily work of running the workspace. They manage catalog content, run allocation campaigns, and manage members, without touching pricing decisions or financial strategy. A great fit for team leads or operations managers who need broad operational access.',
     aboutHe:
-      'מפעילים מטפלים בעבודה היומיומית של ניהול סביבת העבודה. הם מנהלים תוכן קטלוג, מריצים קמפיינים של הקצאות ותומכים בחברים, מבלי לגעת בחיוב או בהגדרות כספיות רגישות. מתאים מאוד לראשי צוותים או מנהלי תפעול הזקוקים לגישה תפעולית רחבה.',
+      'מנהלי הבק-אופיס מטפלים בעבודה היומיומית של ניהול סביבת העבודה. הם מנהלים תוכן קטלוג, מריצים קמפיינים של הקצאות ומנהלים חברים, מבלי לגעת בהחלטות תמחור או אסטרטגיה פיננסית. מתאים מאוד לראשי צוותים או מנהלי תפעול.',
     capabilitiesEn: [
       'Browse and manage the benefits catalog',
+      'Adopt and exclude catalog offers',
       'Create and run allocation campaigns for members',
-      'View and assist workspace members',
+      'View and manage workspace members and groups',
       'Access operational dashboards and activity reports',
-      'Update catalog items, offers, and availability',
     ],
     capabilitiesHe: [
       'עיון וניהול קטלוג ההטבות',
+      'אימוץ והסרת מבצעי קטלוג',
       'יצירה והפעלת קמפיינים של הקצאות לחברים',
-      'צפייה וסיוע לחברי סביבת העבודה',
+      'צפייה וניהול חברי סביבת העבודה וקבוצות',
       'גישה ללוחות מחוונים תפעוליים ודוחות פעילות',
-      'עדכון פריטי קטלוג, מבצעים וזמינות',
     ],
+  },
+  hr_manager: {
+    icon: 'people',
+    gradient: 'linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%)',
+    taglineEn: 'Manages people, groups, and HR data',
+    taglineHe: 'מנהל אנשים, קבוצות ונתוני HR',
+    aboutEn:
+      'HR managers own the member lifecycle: onboarding new members, updating their profile data, managing group assignments, and running bulk imports from HR systems. They have no access to financial data, catalog configuration, or developer settings.',
+    aboutHe:
+      'מנהלי HR הם הבעלים של מחזור חיי החברים: קבלת חברים חדשים, עדכון נתוני הפרופיל שלהם, ניהול שיוך לקבוצות והרצת ייבוא מרוכז ממערכות HR. אין להם גישה לנתונים פיננסיים, הגדרות קטלוג או הגדרות פיתוח.',
+    capabilitiesEn: [
+      'Add and update member profiles and employment data',
+      'Activate, suspend, or deactivate members',
+      'Bulk import members via CSV or HR system sync',
+      'Export member records',
+      'Create and manage groups and group rules',
+      'Assign members to groups',
+    ],
+    capabilitiesHe: [
+      'הוספה ועדכון פרופילי חברים ונתוני עבודה',
+      'הפעלה, השעיה או ביטול חשבונות חברים',
+      'ייבוא חברים בכמות גדולה דרך CSV או סנכרון מערכת HR',
+      'ייצוא רשומות חברים',
+      'יצירה וניהול קבוצות וכללי קבוצות',
+      'שיוך חברים לקבוצות',
+    ],
+  },
+  billing_manager: {
+    icon: 'receipt_long',
+    gradient: 'linear-gradient(135deg, #6366f1 0%, #4338ca 100%)',
+    taglineEn: 'Manages the organization\'s subscription with NEXUS',
+    taglineHe: 'מנהל את מנוי הארגון ב-NEXUS',
+    aboutEn:
+      "Billing managers handle the organization's financial relationship with the platform itself. They manage the subscription plan, keep payment methods on file up to date, and download invoices for accounting. This role is separate from financial strategy (Finance) and member payments (Payments Manager).",
+    aboutHe:
+      'מנהלי חיוב מטפלים בקשר הפיננסי של הארגון עם הפלטפורמה עצמה. הם מנהלים את תוכנית המנוי, שומרים על אמצעי תשלום עדכניים ומורידים חשבוניות לחשבונאות. תפקיד זה נפרד מאסטרטגיה פיננסית (כספים) ותשלומי חברים (מנהל תשלומים).',
+    capabilitiesEn: [
+      'View and manage the workspace subscription plan',
+      'Add, update, or remove payment methods on file',
+      'Download invoices issued by NEXUS to the organization',
+      'Configure custom domains and white-label settings',
+      'View billing history and current charges',
+    ],
+    capabilitiesHe: [
+      'צפייה וניהול תוכנית המנוי של סביבת העבודה',
+      'הוספה, עדכון או הסרה של אמצעי תשלום',
+      'הורדת חשבוניות שהנפיקה NEXUS לארגון',
+      'הגדרת דומיינים מותאמים אישית והגדרות white-label',
+      'צפייה בהיסטוריית חיוב וחיובים נוכחיים',
+    ],
+  },
+  payments_manager: {
+    icon: 'payments',
+    gradient: 'linear-gradient(135deg, #059669 0%, #065f46 100%)',
+    taglineEn: 'Handles member-side payment operations',
+    taglineHe: 'מטפל בפעולות תשלום בצד החברים',
+    aboutEn:
+      'Payments managers oversee member-facing financial flows: monitoring transactions, processing refunds, responding to chargebacks, and reviewing settlement reports. They do not manage the organization billing or financial strategy. Ideal for finance operations teams or payment processors.',
+    aboutHe:
+      'מנהלי תשלומים מפקחים על זרימות פיננסיות מול חברים: ניטור עסקאות, עיבוד החזרים, תגובה לחיובים חוזרים ובדיקת דוחות סליקה. הם לא מנהלים חיוב ארגוני או אסטרטגיה פיננסית. אידיאלי לצוותי תפעול פיננסי.',
+    capabilitiesEn: [
+      'Monitor all member payment transactions',
+      'Process full and partial refunds',
+      'Void transactions before completion',
+      'Respond to chargebacks and provide evidence',
+      'View settlement reports and payout history',
+      'Configure PSP settings and payment routing',
+    ],
+    capabilitiesHe: [
+      'ניטור כל עסקאות התשלום של חברים',
+      'עיבוד החזרים מלאים וחלקיים',
+      'ביטול עסקאות לפני השלמה',
+      'תגובה לחיובים חוזרים ומסירת ראיות',
+      'צפייה בדוחות סליקה והיסטוריית תשלומים',
+      'הגדרת הגדרות PSP וניתוב תשלומים',
+    ],
+  },
+  support_agent: {
+    icon: 'support_agent',
+    gradient: 'linear-gradient(135deg, #d97706 0%, #92400e 100%)',
+    taglineEn: 'Helps individual members resolve issues',
+    taglineHe: 'עוזר לחברים בודדים לפתור בעיות',
+    aboutEn:
+      'Support agents work one member at a time. They can look up a specific member\'s case, understand why a purchase failed, initiate a refund request, open a recovery investigation for a stuck transaction, and escalate to higher-tier roles when needed. They never have access to aggregate data or bulk operations.',
+    aboutHe:
+      'נציגי תמיכה עובדים עם חבר אחד בכל פעם. הם יכולים לחפש את התיק של חבר ספציפי, להבין מדוע רכישה נכשלה, ליזום בקשת החזר, לפתוח חקירת שחזור לעסקה תקועה ולהסלים לתפקידים בדרגה גבוהה יותר בעת הצורך.',
+    capabilitiesEn: [
+      'Look up a specific member\'s full case: wallet, transactions, entitlements, eligibility',
+      'Understand why a member\'s eligibility check passed or failed',
+      'Initiate a refund request for a member transaction',
+      'Open a recovery investigation for a stuck or failed transaction',
+      'Log communication with a member',
+      'Escalate a case to a higher-tier role',
+    ],
+    capabilitiesHe: [
+      'חיפוש התיק המלא של חבר ספציפי: ארנק, עסקאות, זכאויות, כשירות',
+      'הבנה מדוע בדיקת הכשירות של חבר עברה או נכשלה',
+      'יזום בקשת החזר עבור עסקת חבר',
+      'פתיחת חקירת שחזור לעסקה תקועה או כושלת',
+      'רישום תקשורת עם חבר',
+      'הסלמת תיק לתפקיד בדרגה גבוהה יותר',
+    ],
+  },
+  operator: {
+    icon: 'tune',
+    gradient: 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)',
+    taglineEn: 'Deprecated - replaced by Back-office manager',
+    taglineHe: 'תפקיד ישן - הוחלף ב"ניהול תפעולי"',
+    aboutEn: 'This role has been renamed to Back-office manager. Existing members with this role retain their access until migrated.',
+    aboutHe: 'תפקיד זה שונה שמו ל"ניהול תפעולי". חברים קיימים עם תפקיד זה שומרים על גישתם עד להגירה.',
+    capabilitiesEn: ['Same permissions as Back-office manager.'],
+    capabilitiesHe: ['אותן הרשאות כמו "ניהול תפעולי".'],
   },
   finance: {
     icon: 'account_balance',
@@ -192,6 +324,78 @@ const ROLE_CONTENT: Record<TenantRole, RoleContent> = {
       'מעקב אחר היסטוריית עסקאות ורכישות אישיות',
       'ניהול פרופיל אישי בתוך סביבת העבודה',
     ],
+  },
+
+  // Platform roles - shown only for platform staff, not in tenant invite UI
+  platform_admin: {
+    icon: 'admin_panel_settings',
+    gradient: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+    taglineEn: 'Full platform authority',
+    taglineHe: 'סמכות פלטפורמה מלאה',
+    aboutEn: 'NEXUS staff role with full authority over all tenants, providers, and platform configuration.',
+    aboutHe: 'תפקיד צוות NEXUS עם סמכות מלאה על כל הדיירים, הספקים והגדרות הפלטפורמה.',
+    capabilitiesEn: ['All platform permissions including global configuration and role assignment.'],
+    capabilitiesHe: ['כל הרשאות הפלטפורמה כולל הגדרות גלובליות ושיוך תפקידים.'],
+  },
+  platform_operator: {
+    icon: 'security',
+    gradient: 'linear-gradient(135deg, #dc2626 0%, #7f1d1d 100%)',
+    taglineEn: 'Cross-tenant incident response',
+    taglineHe: 'תגובה לאירועים חוצי-דיירים',
+    aboutEn: 'NEXUS staff role for incident response: suspend workspaces, process recovery decisions. Always step-up authenticated.',
+    aboutHe: 'תפקיד צוות NEXUS לתגובה לאירועים: השעיית סביבות עבודה, עיבוד החלטות שחזור. תמיד מאומת ב-step-up.',
+    capabilitiesEn: ['Suspend and unsuspend workspaces', 'Process recovery decisions', 'Cross-tenant read access'],
+    capabilitiesHe: ['השעיה וביטול השעיה של סביבות עבודה', 'עיבוד החלטות שחזור', 'גישת קריאה חוצה-דיירים'],
+  },
+  platform_back_office: {
+    icon: 'business_center',
+    gradient: 'linear-gradient(135deg, #0891b2 0%, #164e63 100%)',
+    taglineEn: 'Routine cross-tenant operations',
+    taglineHe: 'תפעול שוטף חוצה-דיירים',
+    aboutEn: 'NEXUS staff role for routine operations: approving provider activations and workspace requests.',
+    aboutHe: 'תפקיד צוות NEXUS לתפעול שוטף: אישור הפעלות ספקים ובקשות סביבת עבודה.',
+    capabilitiesEn: ['Approve or reject provider activations', 'View all tenants', 'Cross-tenant read access'],
+    capabilitiesHe: ['אישור או דחיית הפעלות ספקים', 'צפייה בכל הדיירים', 'גישת קריאה חוצה-דיירים'],
+  },
+  platform_marketing: {
+    icon: 'campaign',
+    gradient: 'linear-gradient(135deg, #db2777 0%, #831843 100%)',
+    taglineEn: 'Platform-wide communications',
+    taglineHe: 'תקשורת ברחבי הפלטפורמה',
+    aboutEn: 'NEXUS staff role for platform-wide announcements, newsletters, and feature launch communications.',
+    aboutHe: 'תפקיד צוות NEXUS להודעות ברחבי הפלטפורמה, ניוזלטרים ותקשורת השקת תכונות.',
+    capabilitiesEn: ['Send platform-wide announcements', 'Manage platform marketing communications'],
+    capabilitiesHe: ['שליחת הודעות ברחבי הפלטפורמה', 'ניהול תקשורת שיווקית של הפלטפורמה'],
+  },
+  platform_commerce: {
+    icon: 'storefront',
+    gradient: 'linear-gradient(135deg, #d97706 0%, #78350f 100%)',
+    taglineEn: 'Provider relations and platform pricing',
+    taglineHe: 'קשרי ספקים ותמחור פלטפורמה',
+    aboutEn: 'NEXUS staff role managing provider commercial agreements, platform pricing strategy, and cross-tenant catalog curation.',
+    aboutHe: 'תפקיד צוות NEXUS לניהול הסכמים מסחריים עם ספקים, אסטרטגיית תמחור פלטפורמה וקיצור קטלוג חוצה-דיירים.',
+    capabilitiesEn: ['Manage provider relations and agreements', 'Set platform-level pricing', 'View settlement reports'],
+    capabilitiesHe: ['ניהול קשרי ספקים והסכמים', 'הגדרת תמחור ברמת הפלטפורמה', 'צפייה בדוחות סליקה'],
+  },
+  platform_support: {
+    icon: 'headset_mic',
+    gradient: 'linear-gradient(135deg, #6366f1 0%, #312e81 100%)',
+    taglineEn: 'Read-only cross-tenant support access',
+    taglineHe: 'גישת תמיכה לקריאה בלבד חוצה-דיירים',
+    aboutEn: 'NEXUS staff role for customer support investigations - read-only access across all tenants.',
+    aboutHe: 'תפקיד צוות NEXUS לחקירות תמיכת לקוחות - גישת קריאה בלבד על כל הדיירים.',
+    capabilitiesEn: ['Cross-tenant read access for support investigations', 'View cross-tenant audit log'],
+    capabilitiesHe: ['גישת קריאה חוצה-דיירים לחקירות תמיכה', 'צפייה ביומן ביקורת חוצה-דיירים'],
+  },
+  platform_finance: {
+    icon: 'account_balance',
+    gradient: 'linear-gradient(135deg, #16a34a 0%, #14532d 100%)',
+    taglineEn: 'Settlement, reconciliation, and platform billing',
+    taglineHe: 'סליקה, פיוס וחיוב פלטפורמה',
+    aboutEn: 'NEXUS staff role managing settlement reports, platform billing configuration, and payout oversight.',
+    aboutHe: 'תפקיד צוות NEXUS לניהול דוחות סליקה, הגדרות חיוב פלטפורמה ופיקוח על תשלומים.',
+    capabilitiesEn: ['View settlement reports and payout history', 'Manage platform billing configuration', 'View cross-tenant audit log'],
+    capabilitiesHe: ['צפייה בדוחות סליקה והיסטוריית תשלומים', 'ניהול הגדרות חיוב פלטפורמה', 'צפייה ביומן ביקורת חוצה-דיירים'],
   },
 };
 

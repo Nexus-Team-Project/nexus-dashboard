@@ -351,13 +351,29 @@ export const businessSetupApi = {
 };
 
 export type TenantRole =
+  // Active tenant roles
+  | 'owner'
   | 'admin'
+  | 'back_office_manager'
+  | 'hr_manager'
   | 'finance'
-  | 'operator'
-  | 'analyst'
+  | 'billing_manager'
+  | 'payments_manager'
+  | 'support_agent'
   | 'developer'
   | 'supply_manager'
-  | 'member';
+  | 'member'
+  // Deprecated - existing DB rows only, hidden from invite UI
+  | 'operator'
+  | 'analyst'
+  // Platform roles
+  | 'platform_admin'
+  | 'platform_operator'
+  | 'platform_back_office'
+  | 'platform_marketing'
+  | 'platform_commerce'
+  | 'platform_support'
+  | 'platform_finance';
 
 export interface TenantRolePermissions {
   role: TenantRole;
