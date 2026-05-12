@@ -448,7 +448,6 @@ export default function InviteCollaborators() {
                   <RoleGroupAccordion
                     selectedRoles={row.roles}
                     onToggle={(role) => toggleRole(row.id, role)}
-                    language={language}
                     disabled={false}
                     seatLimitReached={seatLimitReached && !row.roles.some(isSeatConsumingRole)}
                     rolePerms={rolePerms}
@@ -466,7 +465,6 @@ export default function InviteCollaborators() {
             <RoleGroupAccordion
               selectedRoles={['member']}
               onToggle={() => { /* no-op while disabled */ }}
-              language={language}
               disabled={true}
               seatLimitReached={false}
               rolePerms={rolePerms}
