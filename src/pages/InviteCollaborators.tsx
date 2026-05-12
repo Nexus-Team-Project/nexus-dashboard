@@ -62,6 +62,7 @@ const COPY = {
     rolesFor: 'תפקידים עבור',
     seatsLeft: 'מושבים פנויים',
     remove: 'הסר',
+    searchEmails: 'חפש לפי אימייל',
   },
   en: {
     back: 'Back',
@@ -90,6 +91,7 @@ const COPY = {
     rolesFor: 'Roles for',
     seatsLeft: 'seats left',
     remove: 'Remove',
+    searchEmails: 'Search by email',
   },
 } as const;
 
@@ -154,6 +156,7 @@ export default function InviteCollaborators() {
 
   const [emailInput, setEmailInput] = useState('');
   const [inputError, setInputError] = useState<string | null>(null);
+  const [emailSearch, setEmailSearch] = useState('');
   const [roleSearch, setRoleSearch] = useState('');
   const [rolePerms, setRolePerms] = useState<TenantRolePermissions[]>([]);
   const [isSending, setIsSending] = useState(false);
@@ -192,8 +195,15 @@ export default function InviteCollaborators() {
 
   const removeRow = (id: string) => {
     setRows((cur) => cur.filter((r) => r.id !== id));
-    if (expandedId === id) setExpandedId(null);
+    if (expandedId === id) { setExpandedId(null); setRoleSearch(''); }
   };
+
+  /** Rows visible after applying the email search filter. */
+  const visibleRows = useMemo(() => {
+    if (!emailSearch.trim()) return rows;
+    const q = emailSearch.toLowerCase();
+    return rows.filter((r) => r.email.toLowerCase().includes(q));
+  }, [rows, emailSearch]);
 
   const toggleRole = (rowId: string, role: TenantRole) => {
     setRows((cur) =>
@@ -367,22 +377,33 @@ export default function InviteCollaborators() {
               {rows.length === 0 ? copy.rolesDisabledHint : copy.rolesHint}
             </p>
           </div>
-          <div className="relative shrink-0 sm:w-48">
-            <span className="material-icons absolute start-3 top-1/2 -translate-y-1/2 text-base text-slate-400">search</span>
-            <input value={roleSearch} onChange={(e) => setRoleSearch(e.target.value)}
-              placeholder={copy.searchRoles}
-              className="h-9 w-full rounded-lg border border-slate-200 bg-white ps-9 pe-3 text-sm outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-900" />
-          </div>
+          {/* Email search — only shown when there are rows to filter */}
+          {rows.length > 0 && (
+            <div className="relative shrink-0 sm:w-52">
+              <span className="material-icons absolute start-3 top-1/2 -translate-y-1/2 text-base text-slate-400">search</span>
+              <input
+                value={emailSearch}
+                onChange={(e) => setEmailSearch(e.target.value)}
+                placeholder={copy.searchEmails}
+                className="h-9 w-full rounded-lg border border-slate-200 bg-white ps-9 pe-3 text-sm outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-900"
+              />
+            </div>
+          )}
         </div>
 
         {/* Email rows — each clickable to expand its role accordion */}
-        {rows.map((row, ri) => {
+        {visibleRows.map((row, ri) => {
           const isExpanded = expandedId === row.id;
           return (
             <div key={row.id} className={ri > 0 ? 'border-t border-slate-100 dark:border-slate-800' : ''}>
               {/* Row summary header */}
               <div className="flex items-center gap-3 px-5 py-3">
-                <button type="button" onClick={() => setExpandedId(isExpanded ? null : row.id)}
+                <button type="button"
+                  onClick={() => {
+                    const opening = !isExpanded;
+                    setExpandedId(opening ? row.id : null);
+                    if (!opening) setRoleSearch('');
+                  }}
                   className="flex flex-1 cursor-pointer items-center gap-3 min-w-0 text-start">
                   <span className={`material-icons text-base transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''} text-slate-400`}>
                     chevron_right
@@ -414,6 +435,16 @@ export default function InviteCollaborators() {
               {/* Expanded role accordion for this email */}
               {isExpanded && (
                 <div className="border-t border-slate-100 px-5 pb-4 pt-3 dark:border-slate-800">
+                  {/* Role search — only visible when accordion is open */}
+                  <div className="relative mb-3">
+                    <span className="material-icons absolute start-3 top-1/2 -translate-y-1/2 text-base text-slate-400">search</span>
+                    <input
+                      value={roleSearch}
+                      onChange={(e) => setRoleSearch(e.target.value)}
+                      placeholder={copy.searchRoles}
+                      className="h-9 w-full rounded-lg border border-slate-200 bg-white ps-9 pe-3 text-sm outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-900"
+                    />
+                  </div>
                   <RoleGroupAccordion
                     selectedRoles={row.roles}
                     onToggle={(role) => toggleRole(row.id, role)}
@@ -439,9 +470,16 @@ export default function InviteCollaborators() {
               disabled={true}
               seatLimitReached={false}
               rolePerms={rolePerms}
-              search={roleSearch}
+              search=""
             />
           </div>
+        )}
+
+        {/* No results after email search */}
+        {rows.length > 0 && visibleRows.length === 0 && (
+          <p className="px-5 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
+            {language === 'he' ? 'לא נמצאו אימיילים תואמים.' : 'No emails match your search.'}
+          </p>
         )}
       </section>
     </div>
