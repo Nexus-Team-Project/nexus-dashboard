@@ -19,6 +19,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import { toast } from 'sonner';
+import ServiceActivationBanner from '../components/ServiceActivationBanner';
 
 interface Business {
   id: string;
@@ -130,8 +131,8 @@ const BenefitsPartnerships = () => {
 
   // ─── Real catalog API state ───────────────────────────────────────────────
 
-  /** Auth context provides catalogMode (inactive|sandbox|live) for the tenant. */
-  const { me } = useAuth();
+  /** Auth context provides catalogMode (inactive|sandbox|live) for the tenant and reloadMe for in-place refresh. */
+  const { me, reloadMe } = useAuth();
   /** Language for localized toast messages. */
   const { language } = useLanguage();
   const catalogMode = me?.authorization.catalogMode ?? 'inactive';
@@ -145,14 +146,8 @@ const BenefitsPartnerships = () => {
   /** offerId of a benefit whose adoption toggle is currently being saved. */
   const [adoptingId, setAdoptingId] = useState<string | null>(null);
 
-  /** True while the go-live request is in-flight. */
-  const [isGoingLive, setIsGoingLive] = useState(false);
-
-  /** True while the deactivation request is in-flight. */
-  const [isDeactivating, setIsDeactivating] = useState(false);
-
-  /** True when the two-step disable confirmation prompt is showing. */
-  const [isConfirmingDisable, setIsConfirmingDisable] = useState(false);
+  /** True while /api/me is being re-fetched after a service state change. Shows loading skeleton. */
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   /** Buffered inline edits keyed by offerId. Cleared after a successful PATCH. */
   const [pendingEdits, setPendingEdits] = useState<Record<string, PendingOffer>>({});
@@ -223,38 +218,54 @@ const BenefitsPartnerships = () => {
   };
 
   /**
-   * Requests the backend to transition the tenant catalog from sandbox to live.
-   * Reloads the page so catalogMode reflects the new state.
+   * Activates the Benefits Catalog service and refreshes /api/me in-place.
+   * Shows loading skeleton during the refresh; no page reload needed.
    */
-  const handleGoLive = async () => {
-    setIsGoingLive(true);
+  const handleActivateCatalog = async () => {
     try {
-      await goLiveCatalog();
-      window.location.reload();
-    } catch {
-      // Silent - user can retry.
+      await activateBenefitsCatalog();
+      setIsRefreshing(true);
+      await reloadMe();
+    } catch (err) {
+      console.error('[handleActivateCatalog] Failed to activate catalog:', err);
+      toast.error('שגיאה בהפעלת השירות. נסה שוב.');
     } finally {
-      setIsGoingLive(false);
+      setIsRefreshing(false);
     }
   };
 
   /**
-   * Deactivates the Benefits Catalog service for this tenant.
-   * Suspends the service and marks tenant-created offers as inactive.
-   * Shows a toast and reloads to reflect new catalogMode from /api/me.
+   * Transitions the tenant catalog from sandbox to live and refreshes /api/me.
+   * No page reload needed.
    */
-  const handleDeactivate = async () => {
-    setIsDeactivating(true);
+  const handleGoLiveCatalog = async () => {
+    try {
+      await goLiveCatalog();
+      setIsRefreshing(true);
+      await reloadMe();
+    } catch (err) {
+      console.error('[handleGoLiveCatalog] Failed to go live:', err);
+      toast.error('שגיאה במעבר ל-live. נסה שוב.');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  /**
+   * Deactivates the Benefits Catalog service and refreshes /api/me in-place.
+   * No page reload needed.
+   */
+  const handleDeactivateCatalog = async () => {
     try {
       const result = await deactivateBenefitsCatalog();
       toast.success(`שירות הושבת. ${result.offersDeactivated} הצעות הושהו.`);
-      window.location.reload();
+      setIsRefreshing(true);
+      await reloadMe();
     } catch (err) {
-      console.error('[handleDeactivate] Failed to deactivate benefits catalog:', err);
+      console.error('[handleDeactivateCatalog] Failed to deactivate catalog:', err);
       toast.error('שגיאה בהשבתת השירות. נסה שוב.');
     } finally {
-      setIsDeactivating(false);
-      setIsConfirmingDisable(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -563,127 +574,18 @@ const BenefitsPartnerships = () => {
   return (
     <div className="min-h-screen bg-white dark:bg-background-dark">
       <main className="max-w-7xl mx-auto px-6 pb-12">
-        {/* Inactive - activation toggle card */}
-        {catalogMode === 'inactive' && (
-          <div className="mb-6 rounded-xl border border-slate-200 bg-white shadow-sm p-5 flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-semibold text-slate-900">שירות קטלוג ההטבות</p>
-              <p className="mt-0.5 text-xs text-slate-500">
-                הפעל כדי לאפשר לחברים לצפות ולרכוש הטבות. ניתן לבטל בכל עת.
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                void activateBenefitsCatalog().then(() => {
-                  window.location.reload();
-                }).catch(() => {
-                  // reload will reflect actual state from the server
-                });
-              }}
-              className="relative inline-flex h-7 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent bg-slate-200 transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-              role="switch"
-              aria-checked={false}
-              aria-label="הפעל שירות קטלוג ההטבות"
-            >
-              <span className="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition-transform translate-x-0.5" />
-            </button>
-          </div>
-        )}
-
-        {/* Sandbox - service active but not yet live */}
-        {catalogMode === 'sandbox' && (
-          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-5 flex items-center justify-between gap-4">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-semibold text-amber-900">שירות קטלוג ההטבות פעיל - מצב sandbox</p>
-                {/* Toggle shown as ON */}
-                <div className="relative inline-flex h-7 w-14 items-center rounded-full bg-primary border-2 border-transparent pointer-events-none">
-                  <span className="inline-block h-5 w-5 rounded-full bg-white shadow translate-x-7" />
-                </div>
-              </div>
-              <p className="mt-0.5 text-xs text-amber-700">
-                חברים יכולים לצפות בהצעות אך לא לרכוש עדיין. השלם הגדרת עסק ולחץ &quot;Go Live&quot; להפעלה מלאה.
-              </p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {isConfirmingDisable ? (
-                <>
-                  <span className="text-xs text-slate-600">בטוח?</span>
-                  <button
-                    onClick={() => void handleDeactivate()}
-                    disabled={isDeactivating}
-                    className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg text-xs font-semibold"
-                  >
-                    {isDeactivating ? 'מושבת...' : 'כן, השבת'}
-                  </button>
-                  <button
-                    onClick={() => setIsConfirmingDisable(false)}
-                    disabled={isDeactivating}
-                    className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold"
-                  >
-                    ביטול
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={() => void handleGoLive()}
-                    disabled={isGoingLive}
-                    className="shrink-0 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-xs font-semibold"
-                  >
-                    {isGoingLive ? 'מעדכן...' : 'Go Live'}
-                  </button>
-                  <button
-                    onClick={() => setIsConfirmingDisable(true)}
-                    className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-semibold"
-                  >
-                    השבת שירות
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Live - card with disable option */}
-        {catalogMode === 'live' && (
-          <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="relative inline-flex h-7 w-14 items-center rounded-full bg-emerald-500 border-2 border-transparent pointer-events-none">
-                <span className="inline-block h-5 w-5 rounded-full bg-white shadow translate-x-7" />
-              </div>
-              <p className="text-sm font-medium text-emerald-700">שירות קטלוג ההטבות פעיל</p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {isConfirmingDisable ? (
-                <>
-                  <span className="text-xs text-slate-600">בטוח? הכבה תשהה את כל ההצעות.</span>
-                  <button
-                    onClick={() => void handleDeactivate()}
-                    disabled={isDeactivating}
-                    className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg text-xs font-semibold"
-                  >
-                    {isDeactivating ? 'מושבת...' : 'כן, השבת'}
-                  </button>
-                  <button
-                    onClick={() => setIsConfirmingDisable(false)}
-                    disabled={isDeactivating}
-                    className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold"
-                  >
-                    ביטול
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={() => setIsConfirmingDisable(true)}
-                  className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-semibold"
-                >
-                  השבת שירות
-                </button>
-              )}
-            </div>
-          </div>
-        )}
+        {/* Service activation lifecycle banner - handles inactive/sandbox/live/loading states */}
+        <ServiceActivationBanner
+          config={{
+            name: 'שירות קטלוג ההטבות',
+            inactiveNote: 'הפעל כדי לאפשר לחברים לצפות ולרכוש הטבות. ניתן לבטל בכל עת.',
+            sandboxNote: 'חברים יכולים לצפות בהצעות אך לא לרכוש עדיין. השלם הגדרת עסק ולחץ "Go Live" להפעלה מלאה.',
+          }}
+          mode={isRefreshing ? 'loading' : catalogMode}
+          onActivate={handleActivateCatalog}
+          onGoLive={handleGoLiveCatalog}
+          onDisable={handleDeactivateCatalog}
+        />
 
         {/* Hero Section */}
         <section className="relative py-20 md:py-28 flex flex-col items-center text-center overflow-hidden">
