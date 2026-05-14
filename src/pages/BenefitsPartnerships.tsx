@@ -11,10 +11,13 @@ import {
   excludeOffer,
   goLiveCatalog,
   activateBenefitsCatalog,
+  updateOfferApi,
   EXECUTION_TYPE_LABELS,
   type CatalogItem,
 } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../i18n/LanguageContext';
+import { toast } from 'sonner';
 
 interface Business {
   id: string;
@@ -99,6 +102,18 @@ function toBenefitType(executionType?: string): Benefit['benefitType'] {
   return 'amount';
 }
 
+/**
+ * Partial offer fields that can be edited inline in the benefits table.
+ * Matches the data parameter type of updateOfferApi.
+ */
+type PendingOffer = {
+  description?: string;
+  implementationLink?: string | null;
+  implementationInstructions?: string;
+  terms?: string;
+  tags?: string[];
+};
+
 const BenefitsPartnerships = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
@@ -116,6 +131,8 @@ const BenefitsPartnerships = () => {
 
   /** Auth context provides catalogMode (inactive|sandbox|live) for the tenant. */
   const { me } = useAuth();
+  /** Language for localized toast messages. */
+  const { language } = useLanguage();
   const catalogMode = me?.authorization.catalogMode ?? 'inactive';
 
   /** Live catalog items fetched from the platform offer API. */
@@ -129,6 +146,11 @@ const BenefitsPartnerships = () => {
 
   /** True while the go-live request is in-flight. */
   const [isGoingLive, setIsGoingLive] = useState(false);
+
+  /** Buffered inline edits keyed by offerId. Cleared after a successful PATCH. */
+  const [pendingEdits, setPendingEdits] = useState<Record<string, PendingOffer>>({});
+  /** offerId currently being saved to the backend. */
+  const [savingId, setSavingId] = useState<string | null>(null);
 
   /**
    * Fetches platform offers and syncs adoption states into benefitActiveStates.
@@ -159,10 +181,19 @@ const BenefitsPartnerships = () => {
 
   /**
    * Toggles adopt/unadopt for a catalog offer via the backend API.
-   * Input: offerId - the offer to toggle; currentlyAdopted - its current state.
-   * Output: reloads the catalog on success; silently swallows errors.
+   * Uses optimistic updates: flips UI immediately and reverts on error.
+   * Input: offerId - the offer to toggle; currentlyAdopted - its current server state.
+   * Output: void; reverts on failure to keep UI consistent with server state.
    */
   const handleToggleAdopt = async (offerId: string, currentlyAdopted: boolean) => {
+    // Flip UI immediately - do not wait for the server round-trip.
+    setBenefitActiveStates(prev => ({ ...prev, [offerId]: !currentlyAdopted }));
+    setCatalogItems(prev =>
+      prev.map(item => item.offerId === offerId
+        ? { ...item, isAdopted: !currentlyAdopted }
+        : item
+      )
+    );
     setAdoptingId(offerId);
     try {
       if (currentlyAdopted) {
@@ -170,9 +201,15 @@ const BenefitsPartnerships = () => {
       } else {
         await adoptOffer(offerId);
       }
-      await loadCatalog();
     } catch {
-      // Silent - user will see stale state until next reload.
+      // Revert on error to keep UI consistent with server state.
+      setBenefitActiveStates(prev => ({ ...prev, [offerId]: currentlyAdopted }));
+      setCatalogItems(prev =>
+        prev.map(item => item.offerId === offerId
+          ? { ...item, isAdopted: currentlyAdopted }
+          : item
+        )
+      );
     } finally {
       setAdoptingId(null);
     }
@@ -191,6 +228,42 @@ const BenefitsPartnerships = () => {
       // Silent - user can retry.
     } finally {
       setIsGoingLive(false);
+    }
+  };
+
+  /**
+   * Returns true when the current user may edit offer fields.
+   * Platform admins can edit any offer; supply managers only edit their own.
+   * Input: CatalogItem to check ownership of.
+   * Output: boolean.
+   */
+  const canEditOffer = (item: CatalogItem): boolean => {
+    if (me?.authorization.isPlatformAdmin === true) return true;
+    const myTenantId = me?.context?.tenantId;
+    return !!myTenantId && item.createdByTenantId === myTenantId;
+  };
+
+  /**
+   * PATCHes pending edits for a single offer and clears them on success.
+   * Input: offerId - the offer to save edits for.
+   * Output: void; reloads catalog on success to reflect changes everywhere.
+   */
+  const saveOfferEdit = async (offerId: string) => {
+    const edits = pendingEdits[offerId];
+    if (!edits || Object.keys(edits).length === 0) return;
+    setSavingId(offerId);
+    try {
+      await updateOfferApi(offerId, edits);
+      setPendingEdits(prev => {
+        const next = { ...prev };
+        delete next[offerId];
+        return next;
+      });
+      await loadCatalog();
+    } catch {
+      toast.error(language === 'he' ? 'שמירה נכשלה. נסה שוב.' : 'Failed to save. Please try again.');
+    } finally {
+      setSavingId(null);
     }
   };
 
@@ -398,7 +471,7 @@ const BenefitsPartnerships = () => {
     id: item.offerId,
     isActive: item.isAdopted,
     businessId: item.createdByTenantId,
-    businessName: 'Platform',
+    businessName: item.title,
     businessLogo: '',
     backgroundImage: item.imageUrl,
     implementationMethod: toImplementationMethod(item.executionType),
@@ -436,14 +509,23 @@ const BenefitsPartnerships = () => {
 
   const getCategoryColor = (category: string) => {
     const colors: Record<string, string> = {
-      food: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400',
-      shopping: 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400',
-      entertainment: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400',
-      travel: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
-      wellness: 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400',
-      tech: 'bg-slate-100 dark:bg-slate-900/30 text-slate-700 dark:text-slate-400',
+      food_beverage:   'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400',
+      fashion:         'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400',
+      health_wellness: 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400',
+      entertainment:   'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400',
+      travel:          'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
+      technology:      'bg-slate-100 dark:bg-slate-900/30 text-slate-700 dark:text-slate-400',
+      education:       'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
+      financial:       'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400',
+      home_living:     'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400',
+      other:           'bg-slate-100 dark:bg-slate-900/30 text-slate-700 dark:text-slate-400',
+      // Legacy IDs for mock businesses table
+      food:            'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400',
+      shopping:        'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400',
+      wellness:        'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400',
+      tech:            'bg-slate-100 dark:bg-slate-900/30 text-slate-700 dark:text-slate-400',
     };
-    return colors[category] || 'bg-slate-100 dark:bg-slate-900/30 text-slate-700 dark:text-slate-400';
+    return colors[category] ?? 'bg-slate-100 dark:bg-slate-900/30 text-slate-700 dark:text-slate-400';
   };
 
   const handleBenefitClick = (benefit: Benefit) => {
@@ -752,7 +834,12 @@ const BenefitsPartnerships = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {filteredBenefits.map((benefit) => (
+                      {(() => {
+                        /* Pre-compute a Map from offerId to CatalogItem for O(1) lookups per row. */
+                        const itemMap = new Map(catalogItems.map(c => [c.offerId, c]));
+                        return filteredBenefits.map((benefit) => {
+                          const item = itemMap.get(benefit.id);
+                          return (
                         <tr key={benefit.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                           <td className="px-4 py-4 sticky right-0 bg-white dark:bg-slate-900 z-10">
                             {/* Toggle calls real adopt/unadopt API when catalog items are loaded */}
@@ -781,9 +868,14 @@ const BenefitsPartnerships = () => {
                             </button>
                           </td>
                           <td className="px-4 py-4">
-                            <div className="w-12 h-12 rounded-lg bg-slate-100 dark:bg-slate-800 p-2 flex items-center justify-center border border-slate-200 dark:border-slate-700 text-2xl">
-                              {benefit.businessLogo}
-                            </div>
+                            {item?.imageUrl ? (
+                              <img src={item.imageUrl} alt={item.title}
+                                className="w-12 h-12 rounded-lg object-cover border border-slate-200 dark:border-slate-700" />
+                            ) : (
+                              <div className="w-12 h-12 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center border border-slate-200 dark:border-slate-700">
+                                <span className="material-icons text-base text-slate-400">image</span>
+                              </div>
+                            )}
                           </td>
                           <td className="px-4 py-4">
                             {benefit.backgroundImage ? (
@@ -793,9 +885,9 @@ const BenefitsPartnerships = () => {
                             )}
                           </td>
                           <td className="px-4 py-4 bg-violet-50/50 dark:bg-violet-900/10">
-                            <button className="text-sm font-semibold text-violet-600 dark:text-violet-400 hover:underline">
-                              {benefit.businessName}
-                            </button>
+                            <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                              {benefit.title}
+                            </span>
                           </td>
                           <td className="px-4 py-4 bg-violet-50/50 dark:bg-violet-900/10">
                             <span className="text-sm text-slate-700 dark:text-slate-300 font-medium">
@@ -902,118 +994,220 @@ const BenefitsPartnerships = () => {
                             </div>
                           </td>
                           <td className="px-4 py-4">
-                            <span className="text-sm text-slate-600 dark:text-slate-400">{benefit.endDate}</span>
+                            <span className="text-sm text-slate-600 dark:text-slate-400">
+                              {item?.validUntil ? new Date(item.validUntil).toLocaleDateString('he-IL') : '-'}
+                            </span>
                           </td>
                           <td className="px-4 py-4">
-                            <a href={benefit.implementationLink} target="_blank" rel="noopener noreferrer" className="text-sm text-violet-600 dark:text-violet-400 hover:underline truncate block max-w-xs">
-                              {benefit.implementationLink}
-                            </a>
+                            {item && (() => {
+                              const editable = canEditOffer(item);
+                              const edited = pendingEdits[item.offerId]?.implementationLink;
+                              const value = edited !== undefined ? edited : (item.implementationLink ?? '');
+                              return editable ? (
+                                <input
+                                  type="url"
+                                  value={value ?? ''}
+                                  onChange={(e) => setPendingEdits(prev => ({
+                                    ...prev,
+                                    [item.offerId]: { ...prev[item.offerId], implementationLink: e.target.value || null },
+                                  }))}
+                                  placeholder="https://..."
+                                  className="text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 focus:ring-2 focus:ring-emerald-500 focus:border-transparent w-36"
+                                />
+                              ) : (
+                                value ? (
+                                  <a href={value} target="_blank" rel="noopener noreferrer"
+                                    className="text-sm text-violet-600 dark:text-violet-400 hover:underline truncate block max-w-xs">
+                                    {value}
+                                  </a>
+                                ) : <span className="text-xs text-slate-400">-</span>
+                              );
+                            })() ?? <span className="text-xs text-slate-400">-</span>}
                           </td>
                           <td className="px-4 py-4 bg-violet-50/50 dark:bg-violet-900/10">
-                            <p className="text-xs text-slate-600 dark:text-slate-400 max-w-xs truncate">{benefit.implementationInstructions}</p>
+                            {item && (() => {
+                              const editable = canEditOffer(item);
+                              const edited = pendingEdits[item.offerId]?.implementationInstructions;
+                              const value = edited !== undefined ? edited : (item.implementationInstructions ?? '');
+                              return editable ? (
+                                <input
+                                  type="text"
+                                  value={value}
+                                  onChange={(e) => setPendingEdits(prev => ({
+                                    ...prev,
+                                    [item.offerId]: { ...prev[item.offerId], implementationInstructions: e.target.value },
+                                  }))}
+                                  className="text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 focus:ring-2 focus:ring-emerald-500 focus:border-transparent max-w-xs"
+                                />
+                              ) : (
+                                <p className="text-xs text-slate-600 dark:text-slate-400 max-w-xs truncate">{value || '-'}</p>
+                              );
+                            })() ?? <p className="text-xs text-slate-400">-</p>}
                           </td>
                           <td className="px-4 py-4 bg-violet-50/50 dark:bg-violet-900/10">
-                            <p className="text-xs text-slate-600 dark:text-slate-400 max-w-xs truncate">{benefit.terms}</p>
+                            {item && (() => {
+                              const editable = canEditOffer(item);
+                              const edited = pendingEdits[item.offerId]?.terms;
+                              const value = edited !== undefined ? edited : (item.terms ?? '');
+                              return editable ? (
+                                <input
+                                  type="text"
+                                  value={value}
+                                  onChange={(e) => setPendingEdits(prev => ({
+                                    ...prev,
+                                    [item.offerId]: { ...prev[item.offerId], terms: e.target.value },
+                                  }))}
+                                  className="text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 focus:ring-2 focus:ring-emerald-500 focus:border-transparent max-w-xs"
+                                />
+                              ) : (
+                                <p className="text-xs text-slate-600 dark:text-slate-400 max-w-xs truncate">{value || '-'}</p>
+                              );
+                            })() ?? <p className="text-xs text-slate-400">-</p>}
                           </td>
                           <td className="px-4 py-4 bg-green-50/50 dark:bg-green-900/10">
-                            <input
-                              type="text"
-                              defaultValue={benefit.description}
-                              className="text-sm px-2 py-1 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 focus:ring-2 focus:ring-emerald-500 focus:border-transparent max-w-xs"
-                            />
+                            {item && (() => {
+                              const editable = canEditOffer(item);
+                              const edited = pendingEdits[item.offerId]?.description;
+                              const value = edited !== undefined ? edited : (item.description ?? '');
+                              const hasPending = !!(pendingEdits[item.offerId] && Object.keys(pendingEdits[item.offerId]).length > 0);
+                              return editable ? (
+                                <div className="flex items-center gap-1.5">
+                                  <input
+                                    type="text"
+                                    value={value}
+                                    onChange={(e) => setPendingEdits(prev => ({
+                                      ...prev,
+                                      [item.offerId]: { ...prev[item.offerId], description: e.target.value },
+                                    }))}
+                                    className="text-sm px-2 py-1 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 focus:ring-2 focus:ring-emerald-500 focus:border-transparent max-w-[160px]"
+                                  />
+                                  {hasPending && (
+                                    <button
+                                      onClick={() => void saveOfferEdit(item.offerId)}
+                                      disabled={savingId === item.offerId}
+                                      className="text-xs text-emerald-600 hover:text-emerald-700 font-semibold disabled:opacity-50 whitespace-nowrap"
+                                    >
+                                      {savingId === item.offerId ? '...' : 'שמור'}
+                                    </button>
+                                  )}
+                                </div>
+                              ) : (
+                                <p className="text-xs text-slate-600 dark:text-slate-400 max-w-xs truncate">{value || '-'}</p>
+                              );
+                            })()}
                           </td>
                           <td className="px-4 py-4">
                             <div className="flex flex-wrap gap-1 max-w-xs">
                               {benefit.categories.map((cat, idx) => (
                                 <span key={idx} className={`text-xs px-2 py-1 rounded-full ${getCategoryColor(cat)}`}>
-                                  {categories.find(c => c.id === cat)?.label}
+                                  {categories.find(c => c.id === cat)?.label ?? cat.replace(/_/g, ' ')}
                                 </span>
                               ))}
                             </div>
                           </td>
                           <td className="px-4 py-4">
-                            <div className="flex flex-wrap gap-1 max-w-xs relative">
-                              {/* User-defined tags - can be removed */}
-                              {benefit.ribbon && (
-                                <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full border border-slate-200 dark:border-slate-700">
-                                  {benefit.ribbon}
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                    }}
-                                    className="hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors -mr-1.5 flex items-center justify-center w-2.5 h-2.5"
-                                  >
-                                    <span className="material-icons text-[6px] leading-none">close</span>
-                                  </button>
-                                </span>
-                              )}
-
-                              {/* Add tag button with dropdown */}
-                              <div className="relative">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setOpenTagDropdown(openTagDropdown === benefit.id ? null : benefit.id);
-                                  }}
-                                  className="inline-flex items-center gap-1 text-xs px-2.5 py-1 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 rounded-full border border-dashed border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                                >
-                                  <span className="material-icons text-xs">add</span>
-                                  הוסף תג
-                                </button>
-
-                                {/* Dropdown menu */}
-                                {openTagDropdown === benefit.id && (
-                                  <div className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-50">
-                                    <div className="py-1 max-h-60 overflow-y-auto">
-                                      {/* Predefined tags */}
-                                      {availableTags.map((tag, idx) => (
+                            {item && (() => {
+                              const editable = canEditOffer(item);
+                              const editedTags = pendingEdits[item.offerId]?.tags;
+                              const currentTags = editedTags !== undefined ? editedTags : (item.tags ?? []);
+                              const hasPending = !!(pendingEdits[item.offerId] && Object.keys(pendingEdits[item.offerId]).length > 0);
+                              return (
+                                <div className="flex flex-wrap gap-1 max-w-xs relative">
+                                  {currentTags.map((tag) => (
+                                    <span key={tag} className="inline-flex items-center gap-0.5 text-xs px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full border border-slate-200 dark:border-slate-700">
+                                      {tag}
+                                      {editable && (
                                         <button
-                                          key={idx}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setOpenTagDropdown(null);
+                                          onClick={() => {
+                                            const next = currentTags.filter((t) => t !== tag);
+                                            setPendingEdits(prev => ({ ...prev, [item.offerId]: { ...prev[item.offerId], tags: next } }));
                                           }}
-                                          className="w-full text-right px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                                          className="hover:text-red-500 transition-colors ml-0.5"
+                                          aria-label={`Remove tag ${tag}`}
                                         >
-                                          {tag}
+                                          <span className="material-icons text-[10px]">close</span>
                                         </button>
-                                      ))}
-
-                                      {/* Divider */}
-                                      <div className="border-t border-slate-200 dark:border-slate-700 my-1"></div>
-
-                                      {/* Define new tag option */}
+                                      )}
+                                    </span>
+                                  ))}
+                                  {editable && (
+                                    <div className="relative">
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          setOpenTagDropdown(null);
+                                          setOpenTagDropdown(openTagDropdown === benefit.id ? null : benefit.id);
                                         }}
-                                        className="w-full text-right px-4 py-2 text-sm text-primary font-medium hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-2"
+                                        className="inline-flex items-center gap-1 text-xs px-2.5 py-1 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 rounded-full border border-dashed border-slate-300 dark:border-slate-600 hover:border-slate-400 hover:bg-slate-50 transition-colors"
                                       >
-                                        <span className="material-icons text-sm">edit</span>
-                                        הגדר תג חדש
+                                        <span className="material-icons text-xs">add</span>
+                                        הוסף תג
                                       </button>
+                                      {openTagDropdown === benefit.id && (
+                                        <div className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-50">
+                                          <div className="py-1 max-h-48 overflow-y-auto">
+                                            {availableTags.filter(t => !currentTags.includes(t)).map((tag, idx) => (
+                                              <button
+                                                key={idx}
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  const next = [...currentTags, tag];
+                                                  setPendingEdits(prev => ({ ...prev, [item.offerId]: { ...prev[item.offerId], tags: next } }));
+                                                  setOpenTagDropdown(null);
+                                                }}
+                                                className="w-full text-right px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                                              >
+                                                {tag}
+                                              </button>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
                                     </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
+                                  )}
+                                  {editable && hasPending && (
+                                    <button
+                                      onClick={() => void saveOfferEdit(item.offerId)}
+                                      disabled={savingId === item.offerId}
+                                      className="text-xs text-emerald-600 hover:text-emerald-700 font-semibold disabled:opacity-50"
+                                    >
+                                      {savingId === item.offerId ? '...' : 'שמור'}
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </td>
                           <td className="px-4 py-4 text-center">
-                            <div className="relative">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(`/benefits-partnerships/edit-benefit/${benefit.id}`);
-                                }}
-                                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                              >
-                                <span className="material-icons text-lg text-slate-600 dark:text-slate-400">more_vert</span>
-                              </button>
-                            </div>
+                            {(() => {
+                              const hasPending = !!(item && pendingEdits[item.offerId] && Object.keys(pendingEdits[item.offerId]).length > 0);
+                              return (
+                                <div className="flex items-center justify-center gap-1">
+                                  {hasPending && item && (
+                                    <button
+                                      onClick={() => void saveOfferEdit(item.offerId)}
+                                      disabled={savingId === item.offerId}
+                                      className="rounded-lg bg-emerald-500 text-white px-2.5 py-1 text-xs font-semibold hover:bg-emerald-600 disabled:opacity-50 transition-colors"
+                                    >
+                                      {savingId === item.offerId ? '...' : 'שמור'}
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigate(`/benefits-partnerships/edit-benefit/${benefit.id}`);
+                                    }}
+                                    className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                                  >
+                                    <span className="material-icons text-lg text-slate-600 dark:text-slate-400">more_vert</span>
+                                  </button>
+                                </div>
+                              );
+                            })()}
                           </td>
                         </tr>
-                      ))}
+                          );
+                        }); // end filteredBenefits.map
+                      })(/* end outer IIFE */)}
                     </tbody>
                   </table>
                 )}

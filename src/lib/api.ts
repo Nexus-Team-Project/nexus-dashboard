@@ -736,6 +736,16 @@ export interface CatalogItem {
   stockAvailable: number | null;
   /** True when stockLimit is set and stockAvailable has reached 0. */
   isSoldOut: boolean;
+  /** Redemption URL set by the offer creator. */
+  implementationLink?: string | null;
+  /** Step-by-step redemption instructions. */
+  implementationInstructions?: string;
+  /** Offer expiry date as ISO string (serialised from backend Date). */
+  validUntil?: string | null;
+  /** Terms and conditions text. */
+  terms?: string;
+  /** Display tags set by the offer creator. */
+  tags: string[];
 }
 
 /**
@@ -762,6 +772,11 @@ export interface NexusOffer {
   stockLimit: number | null;
   /** Number of units already consumed by redemptions. */
   stockUsed: number;
+  implementationLink?: string | null;
+  implementationInstructions?: string;
+  validUntil?: string | null;
+  terms?: string;
+  tags?: string[];
 }
 
 /**
@@ -888,6 +903,28 @@ export async function createOfferApi(formData: FormData): Promise<NexusOffer> {
   // browser can set the correct multipart/form-data boundary automatically.
   const data = await request<{ offer: NexusOffer }>('POST', '/api/v1/offers', formData);
   return data.offer;
+}
+
+/**
+ * PATCHes mutable fields on an existing offer.
+ * Only the offer creator or platform admin can call this — the backend
+ * enforces ownership before applying the update.
+ * Input: offerId - the offer to update; data - partial offer fields.
+ * Output: the updated NexusOffer (raw_cost excluded by the backend).
+ */
+export async function updateOfferApi(
+  offerId: string,
+  data: {
+    title?: string;
+    description?: string;
+    implementationLink?: string | null;
+    implementationInstructions?: string;
+    validUntil?: string | null;
+    terms?: string;
+    tags?: string[];
+  },
+): Promise<NexusOffer> {
+  return request<NexusOffer>('PATCH', `/api/v1/offers/${offerId}`, data);
 }
 
 /**
