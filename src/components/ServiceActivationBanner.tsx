@@ -98,9 +98,14 @@ function GoLiveButton({
         type="button"
         onClick={handleClick}
         disabled={isGoingLive}
+        aria-disabled={disabled || isGoingLive}
         onMouseEnter={() => disabled && setShowTooltip(true)}
         onMouseLeave={() => disabled && setShowTooltip(false)}
-        className="bg-amber-600 hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
+        className={`bg-amber-600 text-white px-4 py-2 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+          disabled || isGoingLive
+            ? 'opacity-50 cursor-not-allowed'
+            : 'hover:bg-amber-700 cursor-pointer'
+        }`}
         aria-describedby={disabled ? 'go-live-tooltip' : undefined}
       >
         {isGoingLive ? (
