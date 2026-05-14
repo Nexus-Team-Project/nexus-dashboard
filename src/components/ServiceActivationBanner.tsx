@@ -289,9 +289,9 @@ export default function ServiceActivationBanner({
                   )}
                 </button>
                 {goLiveDisabled && (
-                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-max max-w-[200px] rounded-lg bg-slate-900 text-white text-xs px-3 py-2 text-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                  <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-max max-w-[200px] rounded-lg bg-slate-900 text-white text-xs px-3 py-2 text-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                    <div className="absolute -top-2 left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-900" />
                     יש להשלים את הגדרת העסק לפני המעבר ל-live
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900" />
                   </div>
                 )}
               </div>
