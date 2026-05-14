@@ -50,34 +50,38 @@ export interface ServiceActivationBannerProps {
 }
 
 /**
- * Decorative or interactive ON toggle switch - RTL-safe via dir="ltr".
- * When onClick is provided, renders as a focusable button to start disable flow.
- * Input: color class, optional click handler.
- * Output: toggle element with correct thumb position in both LTR and RTL layouts.
+ * Animated toggle switch that reflects service on/off state with smooth transition.
+ * Shows ON (colored, thumb right) or OFF (grey, thumb left).
+ * RTL-safe via dir="ltr" so translate-x-* always positions thumb correctly.
+ * Clicking when ON starts the disable flow; clicking when OFF cancels it.
+ * Input: isOn, activeColor, onTurnOff, onCancel.
+ * Output: accessible animated toggle button.
  */
-function OnToggle({ color, onClick }: { color: string; onClick?: () => void }) {
-  if (onClick) {
-    return (
-      <button
-        type="button"
-        onClick={onClick}
-        dir="ltr"
-        className={`relative inline-flex h-7 w-14 shrink-0 cursor-pointer items-center rounded-full ${color} border-2 border-transparent transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary`}
-        role="switch"
-        aria-checked={true}
-        aria-label="כבה שירות"
-      >
-        <span className="inline-block h-5 w-5 rounded-full bg-white shadow translate-x-7" />
-      </button>
-    );
-  }
+function ToggleSwitch({
+  isOn,
+  activeColor,
+  onTurnOff,
+  onCancel,
+}: {
+  isOn: boolean;
+  activeColor: string;
+  onTurnOff: () => void;
+  onCancel: () => void;
+}) {
   return (
-    <div
+    <button
+      type="button"
+      onClick={isOn ? onTurnOff : onCancel}
       dir="ltr"
-      className={`relative inline-flex h-7 w-14 shrink-0 items-center rounded-full ${color} border-2 border-transparent pointer-events-none`}
+      className={`relative inline-flex h-7 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-all duration-200 hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary ${isOn ? activeColor : 'bg-slate-300'}`}
+      role="switch"
+      aria-checked={isOn}
+      aria-label={isOn ? 'כבה שירות' : 'ביטול - הפעל שוב'}
     >
-      <span className="inline-block h-5 w-5 rounded-full bg-white shadow translate-x-7" />
-    </div>
+      <span
+        className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${isOn ? 'translate-x-7' : 'translate-x-0.5'}`}
+      />
+    </button>
   );
 }
 
@@ -254,8 +258,13 @@ export default function ServiceActivationBanner({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="text-sm font-semibold text-amber-900">{config.name} - מצב sandbox</p>
-            {/* Interactive ON toggle - clicking starts the disable confirmation flow */}
-            <OnToggle color="bg-primary" onClick={() => setIsConfirming(true)} />
+            {/* Toggle shows ON normally, flips to OFF when confirming disable */}
+            <ToggleSwitch
+              isOn={!isConfirming}
+              activeColor="bg-primary"
+              onTurnOff={() => setIsConfirming(true)}
+              onCancel={() => setIsConfirming(false)}
+            />
           </div>
           <p className="mt-0.5 text-xs text-amber-700">{config.sandboxNote}</p>
         </div>
@@ -303,8 +312,13 @@ export default function ServiceActivationBanner({
   return (
     <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 flex items-center justify-between gap-4">
       <div className="flex items-center gap-3">
-        {/* Interactive ON toggle - clicking starts the disable confirmation flow */}
-        <OnToggle color="bg-emerald-500" onClick={() => setIsConfirming(true)} />
+        {/* Toggle shows ON normally, flips to OFF when confirming disable */}
+        <ToggleSwitch
+          isOn={!isConfirming}
+          activeColor="bg-emerald-500"
+          onTurnOff={() => setIsConfirming(true)}
+          onCancel={() => setIsConfirming(false)}
+        />
         <p className="text-sm font-medium text-emerald-700">{config.name} פעיל</p>
       </div>
       {disableSection}

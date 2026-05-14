@@ -120,7 +120,6 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
   // Products section items
   const productItems: { to: string; icon: string; label: string }[] = [
     { to: '/benefits-partnerships', icon: 'local_offer', label: t('benefitsPartnerships') },
-    ...(showCreateOffer ? [{ to: '/supply/create', icon: 'add_circle', label: 'Create Offer' }] : []),
     { to: '/points-gifts', icon: 'card_giftcard', label: t('gifts') },
     { to: '/payments', icon: 'payment', label: t('payments') },
     { to: '/charges', icon: 'request_quote', label: t('charges') },
