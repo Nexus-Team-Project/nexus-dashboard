@@ -11,6 +11,7 @@ import {
   excludeOffer,
   goLiveCatalog,
   activateBenefitsCatalog,
+  deactivateBenefitsCatalog,
   updateOfferApi,
   EXECUTION_TYPE_LABELS,
   type CatalogItem,
@@ -147,6 +148,12 @@ const BenefitsPartnerships = () => {
   /** True while the go-live request is in-flight. */
   const [isGoingLive, setIsGoingLive] = useState(false);
 
+  /** True while the deactivation request is in-flight. */
+  const [isDeactivating, setIsDeactivating] = useState(false);
+
+  /** True when the two-step disable confirmation prompt is showing. */
+  const [isConfirmingDisable, setIsConfirmingDisable] = useState(false);
+
   /** Buffered inline edits keyed by offerId. Cleared after a successful PATCH. */
   const [pendingEdits, setPendingEdits] = useState<Record<string, PendingOffer>>({});
   /** offerId currently being saved to the backend. */
@@ -228,6 +235,26 @@ const BenefitsPartnerships = () => {
       // Silent - user can retry.
     } finally {
       setIsGoingLive(false);
+    }
+  };
+
+  /**
+   * Deactivates the Benefits Catalog service for this tenant.
+   * Suspends the service and marks tenant-created offers as inactive.
+   * Shows a toast and reloads to reflect new catalogMode from /api/me.
+   */
+  const handleDeactivate = async () => {
+    setIsDeactivating(true);
+    try {
+      const result = await deactivateBenefitsCatalog();
+      toast.success(`שירות הושבת. ${result.offersDeactivated} הצעות הושהו.`);
+      window.location.reload();
+    } catch (err) {
+      console.error('[handleDeactivate] Failed to deactivate benefits catalog:', err);
+      toast.error('שגיאה בהשבתת השירות. נסה שוב.');
+    } finally {
+      setIsDeactivating(false);
+      setIsConfirmingDisable(false);
     }
   };
 
@@ -566,7 +593,7 @@ const BenefitsPartnerships = () => {
         {/* Sandbox - service active but not yet live */}
         {catalogMode === 'sandbox' && (
           <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-5 flex items-center justify-between gap-4">
-            <div>
+            <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <p className="text-sm font-semibold text-amber-900">שירות קטלוג ההטבות פעיל - מצב sandbox</p>
                 {/* Toggle shown as ON */}
@@ -578,23 +605,83 @@ const BenefitsPartnerships = () => {
                 חברים יכולים לצפות בהצעות אך לא לרכוש עדיין. השלם הגדרת עסק ולחץ &quot;Go Live&quot; להפעלה מלאה.
               </p>
             </div>
-            <button
-              onClick={() => void handleGoLive()}
-              disabled={isGoingLive}
-              className="shrink-0 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-xs font-semibold"
-            >
-              {isGoingLive ? 'מעדכן...' : 'Go Live'}
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              {isConfirmingDisable ? (
+                <>
+                  <span className="text-xs text-slate-600">בטוח?</span>
+                  <button
+                    onClick={() => void handleDeactivate()}
+                    disabled={isDeactivating}
+                    className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg text-xs font-semibold"
+                  >
+                    {isDeactivating ? 'מושבת...' : 'כן, השבת'}
+                  </button>
+                  <button
+                    onClick={() => setIsConfirmingDisable(false)}
+                    disabled={isDeactivating}
+                    className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold"
+                  >
+                    ביטול
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => void handleGoLive()}
+                    disabled={isGoingLive}
+                    className="shrink-0 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-xs font-semibold"
+                  >
+                    {isGoingLive ? 'מעדכן...' : 'Go Live'}
+                  </button>
+                  <button
+                    onClick={() => setIsConfirmingDisable(true)}
+                    className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-semibold"
+                  >
+                    השבת שירות
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         )}
 
-        {/* Live - minimal green indicator */}
+        {/* Live - card with disable option */}
         {catalogMode === 'live' && (
-          <div className="mb-4 flex items-center gap-3">
-            <div className="relative inline-flex h-7 w-14 items-center rounded-full bg-emerald-500 border-2 border-transparent pointer-events-none">
-              <span className="inline-block h-5 w-5 rounded-full bg-white shadow translate-x-7" />
+          <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="relative inline-flex h-7 w-14 items-center rounded-full bg-emerald-500 border-2 border-transparent pointer-events-none">
+                <span className="inline-block h-5 w-5 rounded-full bg-white shadow translate-x-7" />
+              </div>
+              <p className="text-sm font-medium text-emerald-700">שירות קטלוג ההטבות פעיל</p>
             </div>
-            <p className="text-sm font-medium text-emerald-700">שירות קטלוג ההטבות פעיל</p>
+            <div className="flex items-center gap-2 shrink-0">
+              {isConfirmingDisable ? (
+                <>
+                  <span className="text-xs text-slate-600">בטוח? הכבה תשהה את כל ההצעות.</span>
+                  <button
+                    onClick={() => void handleDeactivate()}
+                    disabled={isDeactivating}
+                    className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg text-xs font-semibold"
+                  >
+                    {isDeactivating ? 'מושבת...' : 'כן, השבת'}
+                  </button>
+                  <button
+                    onClick={() => setIsConfirmingDisable(false)}
+                    disabled={isDeactivating}
+                    className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold"
+                  >
+                    ביטול
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setIsConfirmingDisable(true)}
+                  className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-semibold"
+                >
+                  השבת שירות
+                </button>
+              )}
+            </div>
           </div>
         )}
 

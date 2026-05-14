@@ -952,3 +952,23 @@ export async function activateBenefitsCatalog(): Promise<void> {
     startingMode: 'plug_and_play',
   });
 }
+
+/**
+ * Deactivates the Benefits Catalog service for the current tenant.
+ * Sets TenantServiceActivation.status to 'suspended' and bulk-marks
+ * all active tenant-created offers as inactive.
+ * Matches POST /api/v1/tenant/services/benefits-catalog/deactivate.
+ * Input: none - tenant is derived from the authenticated session on the backend.
+ * Output: deactivation summary on success; throws on failure.
+ */
+export async function deactivateBenefitsCatalog(): Promise<{
+  tenantId: string;
+  serviceKey: string;
+  status: string;
+  offersDeactivated: number;
+}> {
+  return request<{ tenantId: string; serviceKey: string; status: string; offersDeactivated: number }>(
+    'POST',
+    '/api/v1/tenant/services/benefits-catalog/deactivate',
+  );
+}
