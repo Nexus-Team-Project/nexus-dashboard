@@ -43,6 +43,10 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
   const canViewMembers = me?.authorization.canViewMembers === true || me?.authorization.canManageMembers === true;
   /** True when the user holds the supply_manager role or is a platform admin. */
   const canManageSupply = me?.authorization.canManageSupply === true || me?.authorization.isPlatformAdmin === true;
+  /** True once the tenant has activated Benefits Catalog. Platform admins bypass this gate. */
+  const catalogServiceActive = me?.authorization.catalogServiceActive === true;
+  /** Show "Create Offer" link only after catalog service is active, or always for platform admins. */
+  const showCreateOffer = me?.authorization.isPlatformAdmin === true || (canManageSupply && catalogServiceActive);
 
   const DEFAULT_SHORTCUTS_COUNT = 5;
   const permittedRecentPages = recentPages.filter((page) =>
@@ -116,7 +120,7 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
   // Products section items
   const productItems: { to: string; icon: string; label: string }[] = [
     { to: '/benefits-partnerships', icon: 'local_offer', label: t('benefitsPartnerships') },
-    ...(canManageSupply ? [{ to: '/supply/create', icon: 'add_circle', label: 'Create Offer' }] : []),
+    ...(showCreateOffer ? [{ to: '/supply/create', icon: 'add_circle', label: 'Create Offer' }] : []),
     { to: '/points-gifts', icon: 'card_giftcard', label: t('gifts') },
     { to: '/payments', icon: 'payment', label: t('payments') },
     { to: '/charges', icon: 'request_quote', label: t('charges') },

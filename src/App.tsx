@@ -273,6 +273,9 @@ function AppRoutes() {
   /** True when the user is allowed to create or manage supply catalog offers.
    *  Granted to platform admins and tenant supply_manager roles. */
   const canManageSupply = me.authorization.canManageSupply === true || isPlatformAdmin;
+  /** True when the tenant has activated the Benefits Catalog service.
+   *  Platform admins bypass this gate since they manage the global catalog. */
+  const catalogServiceActive = me.authorization.catalogServiceActive === true;
   const firstName = user?.fullName?.split(/\s+/)[0] ?? me?.user.name?.split(/\s+/)[0];
 
   // Setup states: always show the full tenant admin dashboard behind a wizard overlay.
@@ -300,7 +303,7 @@ function AppRoutes() {
             <Route path="product-catalog" element={<ProductCatalog />} />
             <Route
               path="supply/create"
-              element={<CreateOffer />}
+              element={(isTenantAdmin && catalogServiceActive) || isPlatformAdmin ? <CreateOffer /> : <Navigate to="/benefits-partnerships" replace />}
             />
             <Route path="send-gift/event" element={<SendGiftEvent />} />
             <Route path="send-gift/brands" element={<SendGiftBrands />} />
@@ -396,7 +399,7 @@ function AppRoutes() {
         <Route path="product-catalog" element={isTenantAdmin ? <ProductCatalog /> : <Navigate to="/" replace />} />
         <Route
           path="supply/create"
-          element={(isTenantAdmin || isPlatformAdmin) ? <CreateOffer /> : <Navigate to="/" replace />}
+          element={(isTenantAdmin && catalogServiceActive) || isPlatformAdmin ? <CreateOffer /> : <Navigate to="/benefits-partnerships" replace />}
         />
         <Route path="send-gift/event" element={<SendGiftEvent />} />
         <Route path="send-gift/brands" element={<SendGiftBrands />} />
