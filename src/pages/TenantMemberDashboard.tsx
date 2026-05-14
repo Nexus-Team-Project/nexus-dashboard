@@ -1,7 +1,9 @@
 /**
  * Shows a limited dashboard for non-admin tenant roles with role-specific scope.
  * This prevents operational roles from seeing tenant-admin analytics or controls.
+ * Renders a "View Benefits Catalog" button when the tenant's catalogMode is not inactive.
  */
+import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../i18n/LanguageContext';
 import PendingInvitationsPanel from '../components/PendingInvitationsPanel';
 
@@ -11,6 +13,11 @@ interface TenantMemberDashboardProps {
   tenantName: string | null;
   role: string | null;
   onLogout: () => Promise<void>;
+  /**
+   * Catalog activation state from /api/me.
+   * When not 'inactive', a "View Benefits Catalog" button is shown.
+   */
+  catalogMode?: 'inactive' | 'sandbox' | 'live';
 }
 
 type CopyLanguage = 'he' | 'en';
@@ -127,8 +134,12 @@ export default function TenantMemberDashboard({
   tenantName,
   role,
   onLogout,
+  catalogMode,
 }: TenantMemberDashboardProps) {
+  const navigate = useNavigate();
   const { language, isRTL } = useLanguage();
+  /** Show the catalog entry point whenever the tenant has activated the service. */
+  const showCatalogButton = catalogMode !== undefined && catalogMode !== 'inactive';
   const copy = COPY[language];
   const roleLabel = getRoleLabel(role, language);
   const capabilities = getRoleCapabilities(role, language);
@@ -170,10 +181,20 @@ export default function TenantMemberDashboard({
             <div className="min-w-0 text-sm text-slate-500">
               <span className="font-semibold text-slate-700">{userName}</span>
             </div>
+            {/* Benefits Catalog entry point - visible when tenant has activated the service */}
+            {showCatalogButton && (
+              <button
+                type="button"
+                onClick={() => navigate('/member-catalog')}
+                className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
+              >
+                View Benefits Catalog
+              </button>
+            )}
             <button
               type="button"
               onClick={() => void onLogout()}
-              className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
+              className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
             >
               {copy.signOut}
             </button>

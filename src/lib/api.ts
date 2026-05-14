@@ -60,9 +60,12 @@ async function _doRefresh(): Promise<RefreshResult | null> {
 // ─── Core request helper ──────────────────────────────────────────
 
 /**
- * Sends a typed JSON request to the backend API.
+ * Sends a typed request to the backend API.
+ * Automatically sets Content-Type to application/json unless the body is
+ * FormData, in which case the browser sets the multipart boundary itself.
  * On 401, refreshes the access token once and retries automatically.
- * Input: HTTP method, API path, optional JSON body, and internal retry flag.
+ * Input: HTTP method, API path, optional body (JSON-serializable or FormData),
+ *        and internal retry flag.
  * Output: parsed JSON response or throws with the backend error message.
  */
 async function request<T>(
@@ -71,14 +74,19 @@ async function request<T>(
   body?: unknown,
   retried = false,
 ): Promise<T> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const isFormData = body instanceof FormData;
+  // Only set Content-Type for JSON payloads - FormData needs the browser to
+  // inject the multipart boundary into Content-Type automatically.
+  const headers: Record<string, string> = isFormData
+    ? {}
+    : { 'Content-Type': 'application/json' };
   if (_token) headers['Authorization'] = `Bearer ${_token}`;
 
   const res = await fetch(`${BASE}${path}`, {
     method,
     headers,
     credentials: 'include',
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body: body !== undefined ? (isFormData ? body : JSON.stringify(body)) : undefined,
   });
 
   // Auto-refresh on 401 then retry once — silent recovery without logging out.
@@ -273,10 +281,20 @@ export interface DashboardMe {
   authorization: {
     tenantRole: string | null;
     platformRole: 'nexusAdmin' | null;
+    /** True when the user is a NEXUS platform admin (NEXUS_ADMIN_EMAILS env). */
+    isPlatformAdmin?: boolean;
     canSeeDevMode: boolean;
     canUseDevPlayground: boolean;
     canViewMembers: boolean;
     canManageMembers: boolean;
+    /** True when the user can create or manage supply catalog offers. */
+    canManageSupply?: boolean;
+    /** Catalog activation mode derived from TenantServiceActivation + Tenant.status. */
+    catalogMode?: 'inactive' | 'sandbox' | 'live';
+    /** True when the benefits_catalog service is active for this tenant. */
+    catalogServiceActive?: boolean;
+    /** True when this user holds the 'member' role AND the catalog is not inactive. */
+    canPurchaseCatalog?: boolean;
   };
   onboarding: {
     required: boolean;
@@ -427,6 +445,11 @@ export interface TenantMemberInviteInput {
   groupIds?: string[];
   employeeId?: string;
   customFields?: Record<string, unknown>;
+  /**
+   * Services granted to this member at invite time.
+   * Omit or pass undefined to use the backend default (benefits_catalog).
+   */
+  services?: string[];
   language?: 'he' | 'en';
   sendEmail?: boolean;
 }
@@ -686,3 +709,166 @@ export const invitesApi = {
       `/api/invites/${token}/accept`,
     ),
 };
+
+// ─── Supply & Catalog ─────────────────────────────────────────────────────────
+
+/**
+ * A single catalog offer as seen by a tenant admin (platform view) or member.
+ * isAdopted reflects whether this tenant has included the offer in their catalog.
+ */
+export interface CatalogItem {
+  offerId: string;
+  title: string;
+  description: string;
+  imageUrl?: string;
+  category: string;
+  nexus_price: number;
+  market_price?: number;
+  member_price: number;
+  isAdopted: boolean;
+  adoptedAt?: string;
+  createdByTenantId: string;
+}
+
+/**
+ * A NEXUS platform offer as stored in the supply catalog.
+ * Returned on creation; nexus_price is the internal cost and must not be
+ * surfaced to end members - use member_price for member-facing display.
+ */
+export interface NexusOffer {
+  offerId: string;
+  title: string;
+  description: string;
+  imageUrl?: string;
+  category: string;
+  nexus_price: number;
+  market_price?: number;
+  status: string;
+  visibility: string;
+  createdByTenantId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Static list of offer category options shared across supply/catalog UI.
+ * Values match the backend enum; labels are display strings.
+ */
+export const OFFER_CATEGORIES = [
+  { value: 'food_beverage',  label: 'Food & Beverage' },
+  { value: 'fashion',        label: 'Fashion' },
+  { value: 'health_wellness',label: 'Health & Wellness' },
+  { value: 'entertainment',  label: 'Entertainment' },
+  { value: 'travel',         label: 'Travel' },
+  { value: 'technology',     label: 'Technology' },
+  { value: 'education',      label: 'Education' },
+  { value: 'financial',      label: 'Financial' },
+  { value: 'home_living',    label: 'Home & Living' },
+  { value: 'other',          label: 'Other' },
+] as const;
+
+/**
+ * Fetches all platform offers with per-tenant adoption status (admin view).
+ * Matches GET /api/v1/offers/platform.
+ * Input: optional category filter string; pass 'all' or omit to fetch all.
+ * Output: array of CatalogItem with isAdopted flag set for the calling tenant.
+ */
+export async function getPlatformOffers(category?: string): Promise<CatalogItem[]> {
+  const params = category && category !== 'all'
+    ? `?category=${encodeURIComponent(category)}`
+    : '';
+  const data = await request<{ items: CatalogItem[] }>(
+    'GET',
+    `/api/v1/offers/platform${params}`,
+  );
+  return data.items;
+}
+
+/**
+ * Fetches the adopted offers for a tenant's member-facing catalog.
+ * Matches GET /api/v1/offers/:tenantId.
+ * Input: tenantId - the tenant whose catalog to fetch; optional category filter.
+ * Output: array of CatalogItem adopted by that tenant.
+ */
+export async function getMemberCatalog(
+  tenantId: string,
+  category?: string,
+): Promise<CatalogItem[]> {
+  const params = category && category !== 'all'
+    ? `?category=${encodeURIComponent(category)}`
+    : '';
+  const data = await request<{ offers: CatalogItem[] }>(
+    'GET',
+    `/api/v1/offers/${encodeURIComponent(tenantId)}${params}`,
+  );
+  return data.offers;
+}
+
+/**
+ * Fetches a single offer's full detail record.
+ * Matches GET /api/v1/offers/:offerId/details.
+ * Input: offerId - the platform offer identifier.
+ * Output: CatalogItem detail, or null when the offer is not found.
+ */
+export async function getOfferDetails(offerId: string): Promise<CatalogItem | null> {
+  const data = await request<{ offer: CatalogItem }>(
+    'GET',
+    `/api/v1/offers/${encodeURIComponent(offerId)}/details`,
+  );
+  return data.offer;
+}
+
+/**
+ * Adopts a platform offer into this tenant's catalog.
+ * Matches POST /api/v1/offers/:offerId/adopt.
+ * Input: offerId - the platform offer to adopt.
+ * Output: void on success; throws on error.
+ */
+export async function adoptOffer(offerId: string): Promise<void> {
+  await request<void>('POST', `/api/v1/offers/${encodeURIComponent(offerId)}/adopt`);
+}
+
+/**
+ * Removes (excludes) an adopted offer from this tenant's catalog.
+ * Matches DELETE /api/v1/offers/:offerId/adopt.
+ * Input: offerId - the platform offer to remove from the catalog.
+ * Output: void on success; throws on error.
+ */
+export async function excludeOffer(offerId: string): Promise<void> {
+  await request<void>('DELETE', `/api/v1/offers/${encodeURIComponent(offerId)}/adopt`);
+}
+
+/**
+ * Permanently deletes a platform offer (supply manager / platform admin only).
+ * Matches DELETE /api/v1/offers/:offerId.
+ * Input: offerId - the offer to delete.
+ * Output: void on success; throws on error.
+ */
+export async function deleteOffer(offerId: string): Promise<void> {
+  await request<void>('DELETE', `/api/v1/offers/${encodeURIComponent(offerId)}`);
+}
+
+/**
+ * Creates a new platform offer, uploading the image as multipart/form-data.
+ * Matches POST /api/v1/offers.
+ * Input: FormData with fields: title, description, category, raw_cost, and
+ *        optionally an image file. raw_cost is stripped by the backend before
+ *        the offer is exposed to members.
+ * Output: the created NexusOffer record returned by the backend.
+ */
+export async function createOfferApi(formData: FormData): Promise<NexusOffer> {
+  // FormData body triggers the request() helper to omit Content-Type so the
+  // browser can set the correct multipart/form-data boundary automatically.
+  const data = await request<{ offer: NexusOffer }>('POST', '/api/v1/offers', formData);
+  return data.offer;
+}
+
+/**
+ * Requests the backend to transition the tenant's catalog from sandbox to live.
+ * Matches POST /api/v1/tenant/go-live.
+ * Input: none - tenant is derived from the authenticated session on the backend.
+ * Output: void on success; throws on failure.
+ */
+export async function goLiveCatalog(): Promise<void> {
+  await request<void>('POST', '/api/v1/tenant/go-live');
+}

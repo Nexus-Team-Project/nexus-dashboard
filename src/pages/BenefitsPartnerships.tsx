@@ -1,5 +1,18 @@
+/**
+ * BenefitsPartnerships page - displays the platform catalog of offers/benefits.
+ * Wires to real backend data via getPlatformOffers while preserving the existing
+ * card/table UI structure. Adoption state is driven by the live API.
+ */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  getPlatformOffers,
+  adoptOffer,
+  excludeOffer,
+  goLiveCatalog,
+  type CatalogItem,
+} from '../lib/api';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Business {
   id: string;
@@ -65,6 +78,90 @@ const BenefitsPartnerships = () => {
   const [openUsageTermsDropdown, setOpenUsageTermsDropdown] = useState<string | null>(null);
   const [benefitActiveStates, setBenefitActiveStates] = useState<Record<string, boolean>>({});
   const [businessActiveStates, setBusinessActiveStates] = useState<Record<string, boolean>>({});
+
+  // ─── Real catalog API state ───────────────────────────────────────────────
+
+  /** Auth context provides catalogMode (inactive|sandbox|live) for the tenant. */
+  const { me } = useAuth();
+  const catalogMode = me?.authorization.catalogMode ?? 'inactive';
+
+  /** Live catalog items fetched from the platform offer API. */
+  const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([]);
+
+  /** True while the initial catalog load is in-flight. */
+  const [isLoadingCatalog, setIsLoadingCatalog] = useState(true);
+
+  /** offerId of a benefit whose adoption toggle is currently being saved. */
+  const [adoptingId, setAdoptingId] = useState<string | null>(null);
+
+  /** True while the go-live request is in-flight. */
+  const [isGoingLive, setIsGoingLive] = useState(false);
+
+  /**
+   * Fetches platform offers and syncs adoption states into benefitActiveStates.
+   * Falls back silently so the existing mock UI remains visible on errors.
+   */
+  const loadCatalog = async () => {
+    setIsLoadingCatalog(true);
+    try {
+      const items = await getPlatformOffers();
+      setCatalogItems(items);
+      // Mirror server adoption state into the toggle state map.
+      const adoptedStates: Record<string, boolean> = {};
+      items.forEach(item => {
+        adoptedStates[item.offerId] = item.isAdopted;
+      });
+      setBenefitActiveStates(adoptedStates);
+    } catch {
+      // Silent fallback - mock data still populates filteredBenefits below.
+    } finally {
+      setIsLoadingCatalog(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadCatalog();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /**
+   * Toggles adopt/unadopt for a catalog offer via the backend API.
+   * Input: offerId - the offer to toggle; currentlyAdopted - its current state.
+   * Output: reloads the catalog on success; silently swallows errors.
+   */
+  const handleToggleAdopt = async (offerId: string, currentlyAdopted: boolean) => {
+    setAdoptingId(offerId);
+    try {
+      if (currentlyAdopted) {
+        await excludeOffer(offerId);
+      } else {
+        await adoptOffer(offerId);
+      }
+      await loadCatalog();
+    } catch {
+      // Silent - user will see stale state until next reload.
+    } finally {
+      setAdoptingId(null);
+    }
+  };
+
+  /**
+   * Requests the backend to transition the tenant catalog from sandbox to live.
+   * Reloads the page so catalogMode reflects the new state.
+   */
+  const handleGoLive = async () => {
+    setIsGoingLive(true);
+    try {
+      await goLiveCatalog();
+      window.location.reload();
+    } catch {
+      // Silent - user can retry.
+    } finally {
+      setIsGoingLive(false);
+    }
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────
 
   // Predefined tags that can be added
   const availableTags = [
@@ -258,7 +355,37 @@ const BenefitsPartnerships = () => {
     },
   ];
 
-  const filteredBenefits = benefits.filter((benefit) => {
+  /**
+   * Maps a CatalogItem from the backend API into the local Benefit shape so it
+   * can populate the existing card and table JSX without structural changes.
+   * member_price is used as the discount display; category maps to a single-item array.
+   */
+  const catalogAsBenefits: Benefit[] = catalogItems.map(item => ({
+    id: item.offerId,
+    isActive: item.isAdopted,
+    businessId: item.createdByTenantId,
+    businessName: 'Platform',
+    businessLogo: '',
+    backgroundImage: item.imageUrl,
+    implementationMethod: 'nexus' as const,
+    benefitType: 'amount' as const,
+    usageTerms: [],
+    endDate: '',
+    implementationLink: '',
+    implementationInstructions: '',
+    terms: '',
+    description: item.description,
+    categories: [item.category],
+    featured: false,
+    image: item.imageUrl,
+    title: item.title,
+    discount: `₪${item.member_price}`,
+  }));
+
+  // Use real catalog items when loaded; fall back to mock benefits during load or on error.
+  const activeBenefits = catalogItems.length > 0 ? catalogAsBenefits : benefits;
+
+  const filteredBenefits = activeBenefits.filter((benefit) => {
     const matchesSearch =
       benefit.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       benefit.businessName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -290,6 +417,25 @@ const BenefitsPartnerships = () => {
   return (
     <div className="min-h-screen bg-white dark:bg-background-dark">
       <main className="max-w-7xl mx-auto px-6 pb-12">
+        {/* Sandbox mode banner - shown when catalog is activated but not yet live */}
+        {catalogMode === 'sandbox' && (
+          <div className="mt-6 mb-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-amber-900">Catalog is in Sandbox Mode</p>
+              <p className="mt-0.5 text-xs text-amber-700">
+                Members can browse offers but cannot purchase yet. Complete business setup and go live to enable purchases.
+              </p>
+            </div>
+            <button
+              onClick={() => void handleGoLive()}
+              disabled={isGoingLive}
+              className="shrink-0 ml-4 bg-amber-600 hover:bg-amber-700 disabled:opacity-60 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+            >
+              {isGoingLive ? 'Going Live...' : 'Go Live'}
+            </button>
+          </div>
+        )}
+
         {/* Hero Section */}
         <section className="relative py-20 md:py-28 flex flex-col items-center text-center overflow-hidden">
           {/* Floating Logos */}
@@ -529,12 +675,19 @@ const BenefitsPartnerships = () => {
                       {filteredBenefits.map((benefit) => (
                         <tr key={benefit.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                           <td className="px-4 py-4 sticky right-0 bg-white dark:bg-slate-900 z-10">
+                            {/* Toggle calls real adopt/unadopt API when catalog items are loaded */}
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                toggleBenefitActive(benefit.id);
+                                if (catalogItems.length > 0) {
+                                  void handleToggleAdopt(benefit.id, benefitActiveStates[benefit.id] ?? false);
+                                } else {
+                                  toggleBenefitActive(benefit.id);
+                                }
                               }}
-                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all hover:ring-2 hover:ring-cyan-400 hover:ring-offset-1 ${
+                              disabled={adoptingId === benefit.id}
+                              aria-label={benefitActiveStates[benefit.id] ? 'Unadopt offer' : 'Adopt offer'}
+                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all hover:ring-2 hover:ring-cyan-400 hover:ring-offset-1 disabled:opacity-60 disabled:cursor-not-allowed ${
                                 benefitActiveStates[benefit.id]
                                   ? 'bg-emerald-500'
                                   : 'bg-slate-300 dark:bg-slate-600'
@@ -1002,8 +1155,17 @@ const BenefitsPartnerships = () => {
         {/* Benefits View */}
         {displayMode === 'cards' && viewMode === 'benefits' && (
           <section className="py-12 space-y-8">
+            {/* Skeleton while initial catalog load is in-flight */}
+            {isLoadingCatalog && (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="animate-pulse rounded-2xl border border-slate-200 bg-white h-48" />
+                ))}
+              </div>
+            )}
+
             {/* Featured Benefits */}
-            {featuredBenefits.length > 0 && (
+            {!isLoadingCatalog && featuredBenefits.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {featuredBenefits.map((benefit) => (
                   <div
@@ -1055,7 +1217,7 @@ const BenefitsPartnerships = () => {
             )}
 
             {/* Regular Benefits */}
-            {regularBenefits.length > 0 && (
+            {!isLoadingCatalog && regularBenefits.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {regularBenefits.map((benefit) => (
                   <div

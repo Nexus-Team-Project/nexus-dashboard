@@ -28,6 +28,8 @@ interface InviteRow {
   id: string;
   email: string;
   roles: TenantRole[];
+  /** Services granted to this member at invite time. Defaults to benefits_catalog. */
+  services: string[];
   status: 'draft' | 'pending' | 'failed';
   error?: string;
 }
@@ -97,9 +99,9 @@ const COPY = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Creates a new invite row with the default member role. */
+/** Creates a new invite row with the default member role and benefits_catalog service. */
 function makeRow(email: string): InviteRow {
-  return { id: `${email}_${crypto.randomUUID()}`, email, roles: ['member'], status: 'draft' };
+  return { id: `${email}_${crypto.randomUUID()}`, email, roles: ['member'], services: ['benefits_catalog'], status: 'draft' };
 }
 
 /** Merges new emails into an existing row list without duplicates. */
@@ -216,6 +218,15 @@ export default function InviteCollaborators() {
     );
   };
 
+  /**
+   * Updates the services array for a specific invite row.
+   * Input: row id and updated services array.
+   * Output: row updated in state; other rows untouched.
+   */
+  const updateRowServices = (rowId: string, services: string[]) => {
+    setRows((cur) => cur.map((r) => r.id === rowId ? { ...r, services } : r));
+  };
+
   const handleCsvFile = async (file: File) => {
     const text = await file.text();
     const parsed = parseCsv(text);
@@ -237,7 +248,7 @@ export default function InviteCollaborators() {
     setIsSending(true);
     setSubmitError(null);
     try {
-      const payload = draftRows.map((r) => ({ email: r.email, roles: r.roles, language, sendEmail: true }));
+      const payload = draftRows.map((r) => ({ email: r.email, roles: r.roles, services: r.services ?? ['benefits_catalog'], language, sendEmail: true }));
       const response =
         payload.length === 1
           ? { results: [{ email: payload[0].email, ok: true, result: await tenantMembersApi.invite(payload[0]) }] }
@@ -453,6 +464,32 @@ export default function InviteCollaborators() {
                     rolePerms={rolePerms}
                     search={roleSearch}
                   />
+
+                  {/* Service access — shown per invite row so admins can opt members in/out of catalog */}
+                  <div className="mt-3 border-t border-slate-100 pt-3 dark:border-slate-800">
+                    <p className="mb-2 text-xs font-medium text-slate-600 dark:text-slate-400">
+                      {language === 'he' ? 'גישה לשירותים' : 'Service Access'}
+                    </p>
+                    <label className="flex cursor-pointer items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={row.services?.includes('benefits_catalog') ?? true}
+                        onChange={(e) => {
+                          const updated = e.target.checked
+                            ? [...(row.services ?? []), 'benefits_catalog']
+                            : (row.services ?? []).filter((s) => s !== 'benefits_catalog');
+                          updateRowServices(row.id, updated);
+                        }}
+                        className="h-4 w-4 rounded border-slate-300 accent-primary"
+                      />
+                      <span className="text-sm text-slate-700 dark:text-slate-200">
+                        {language === 'he' ? 'קטלוג הטבות' : 'Benefits Catalog'}
+                      </span>
+                      <span className="ml-1 text-xs text-slate-400">
+                        {language === 'he' ? '(עיון ורכישת הצעות)' : '(browse and purchase offers)'}
+                      </span>
+                    </label>
+                  </div>
                 </div>
               )}
             </div>
