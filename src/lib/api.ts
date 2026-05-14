@@ -924,7 +924,8 @@ export async function updateOfferApi(
     tags?: string[];
   },
 ): Promise<NexusOffer> {
-  return request<NexusOffer>('PATCH', `/api/v1/offers/${offerId}`, data);
+  const res = await request<{ offer: NexusOffer }>('PATCH', `/api/v1/offers/${offerId}`, data);
+  return res.offer;
 }
 
 /**
