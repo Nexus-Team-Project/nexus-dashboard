@@ -454,7 +454,7 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
 
             {/* New Product button */}
             {isOpen && (
-              <button onClick={() => { navigate('/projects'); onNavigate?.(); }} className="w-full flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 text-[13px] text-[#676879] hover:bg-slate-200 mt-0.5">
+              <button onClick={() => { navigate('/supply/create'); onNavigate?.(); }} className="w-full flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 text-[13px] text-[#676879] hover:bg-slate-200 mt-0.5">
                 <span className="material-symbols-rounded !text-[16px]">add</span>
                 <span>{t('sb_createProduct')}</span>
               </button>

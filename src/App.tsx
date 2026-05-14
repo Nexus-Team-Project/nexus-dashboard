@@ -303,7 +303,7 @@ function AppRoutes() {
             <Route path="product-catalog" element={<ProductCatalog />} />
             <Route
               path="supply/create"
-              element={(isTenantAdmin && catalogServiceActive) || isPlatformAdmin ? <CreateOffer /> : <Navigate to="/benefits-partnerships" replace />}
+              element={isTenantAdmin || isPlatformAdmin ? <CreateOffer /> : <Navigate to="/" replace />}
             />
             <Route path="send-gift/event" element={<SendGiftEvent />} />
             <Route path="send-gift/brands" element={<SendGiftBrands />} />
@@ -399,7 +399,7 @@ function AppRoutes() {
         <Route path="product-catalog" element={isTenantAdmin ? <ProductCatalog /> : <Navigate to="/" replace />} />
         <Route
           path="supply/create"
-          element={(isTenantAdmin && catalogServiceActive) || isPlatformAdmin ? <CreateOffer /> : <Navigate to="/benefits-partnerships" replace />}
+          element={isTenantAdmin || isPlatformAdmin ? <CreateOffer /> : <Navigate to="/" replace />}
         />
         <Route path="send-gift/event" element={<SendGiftEvent />} />
         <Route path="send-gift/brands" element={<SendGiftBrands />} />

@@ -49,6 +49,8 @@ const CreateOffer = () => {
   /** Platform admins always publish to the full ecosystem; the visibility
    *  toggle is hidden for them to prevent accidental scoping. */
   const isPlatformAdmin = me?.isPlatformAdmin === true || me?.authorization?.isPlatformAdmin === true;
+  /** True when the tenant has activated the Benefits Catalog service. */
+  const catalogServiceActive = me?.authorization?.catalogServiceActive === true;
 
   // ─── Offer details state ─────────────────────────────────────────────────────
   const [title, setTitle] = useState('');
@@ -148,6 +150,31 @@ const CreateOffer = () => {
   };
 
   // ─── Render ──────────────────────────────────────────────────────────────────
+
+  // Tenant admins who haven't activated the catalog service yet see an
+  // activation prompt instead of the form. Platform admins bypass this.
+  if (!isPlatformAdmin && !catalogServiceActive) {
+    return (
+      <div className="mx-auto max-w-7xl">
+        <div className="flex flex-col items-center justify-center rounded-xl border border-amber-200 bg-amber-50 p-12 text-center shadow-sm dark:border-amber-800/40 dark:bg-amber-900/10">
+          <span className="material-symbols-rounded !text-[48px] text-amber-500 mb-4">lock</span>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+            {t('co_serviceInactiveTitle')}
+          </h2>
+          <p className="text-sm text-slate-600 dark:text-slate-400 max-w-md mb-6">
+            {t('co_serviceInactiveBody')}
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate('/benefits-partnerships')}
+            className="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-opacity"
+          >
+            {t('co_serviceInactiveBtn')}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
