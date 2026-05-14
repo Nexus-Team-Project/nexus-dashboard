@@ -899,3 +899,16 @@ export async function createOfferApi(formData: FormData): Promise<NexusOffer> {
 export async function goLiveCatalog(): Promise<void> {
   await request<void>('POST', '/api/v1/tenant/go-live');
 }
+
+/**
+ * Activates the Benefits Catalog service for the current tenant.
+ * Uses plug_and_play mode by default (auto-adopt offers, no manual review).
+ * Matches POST /api/v1/tenant/services/benefits-catalog/activate.
+ * Input: none - tenant is derived from the authenticated session on the backend.
+ * Output: void on success; throws on failure.
+ */
+export async function activateBenefitsCatalog(): Promise<void> {
+  await request<void>('POST', '/api/v1/tenant/services/benefits-catalog/activate', {
+    startingMode: 'plug_and_play',
+  });
+}

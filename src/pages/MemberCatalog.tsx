@@ -13,6 +13,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../i18n/LanguageContext';
 import { getMemberCatalog, type CatalogItem, OFFER_CATEGORIES } from '../lib/api';
 import OfferModal from '../components/catalog/OfferModal';
 
@@ -50,6 +51,7 @@ interface OfferCardProps {
  * Output: styled card with image, title, category, price, and discount indicator.
  */
 function OfferCard({ item, onClick }: OfferCardProps) {
+  const { t } = useLanguage();
   const hasDiscount = item.market_price !== undefined && item.market_price > item.member_price;
 
   return (
@@ -103,7 +105,7 @@ function OfferCard({ item, onClick }: OfferCardProps) {
             )}
           </div>
           <span className="text-xs text-slate-400" aria-hidden>
-            Tap to view &rarr;
+            {t('mc_tapToView')}
           </span>
         </div>
       </div>
@@ -127,6 +129,7 @@ function OfferCard({ item, onClick }: OfferCardProps) {
 const MemberCatalog = () => {
   const navigate = useNavigate();
   const { me } = useAuth();
+  const { t } = useLanguage();
 
   /** Catalog activation mode - controls redeem button state in OfferModal. */
   const catalogMode = me?.authorization.catalogMode ?? 'sandbox';
@@ -154,7 +157,7 @@ const MemberCatalog = () => {
         setError(null);
       })
       .catch(() => {
-        setError('Could not load catalog. Please try again or contact your admin.');
+        setError(t('mc_errorLoad'));
       })
       .finally(() => setIsLoading(false));
   }, [tenantId]);
@@ -173,10 +176,10 @@ const MemberCatalog = () => {
       <div className="mb-6 flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-950">
-            Benefits Catalog
+            {t('mc_pageTitle')}
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            Exclusive offers available to you
+            {t('mc_subtitle')}
           </p>
         </div>
         <button
@@ -184,7 +187,7 @@ const MemberCatalog = () => {
           onClick={() => navigate(-1)}
           className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
         >
-          Back
+          {t('mc_btnBack')}
         </button>
       </div>
 
@@ -194,8 +197,8 @@ const MemberCatalog = () => {
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search offers..."
-          aria-label="Search offers"
+          placeholder={t('mc_searchPlaceholder')}
+          aria-label={t('mc_searchPlaceholder')}
           className="rounded-md border border-slate-200 px-3 py-2 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-primary/30"
         />
         <select
@@ -204,7 +207,7 @@ const MemberCatalog = () => {
           aria-label="Filter by category"
           className="rounded-md border border-slate-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/30"
         >
-          <option value="all">All categories</option>
+          <option value="all">{t('mc_allCategories')}</option>
           {OFFER_CATEGORIES.map((c) => (
             <option key={c.value} value={c.value}>
               {c.label}
@@ -229,8 +232,8 @@ const MemberCatalog = () => {
         <div className="rounded-lg border border-slate-200 bg-white p-12 text-center shadow-sm">
           <p className="text-sm text-slate-500 font-medium">
             {items.length === 0
-              ? 'No offers available yet. Check back later.'
-              : 'No offers match your search.'}
+              ? t('mc_emptyNoOffers')
+              : t('mc_emptyNoMatch')}
           </p>
         </div>
       ) : (

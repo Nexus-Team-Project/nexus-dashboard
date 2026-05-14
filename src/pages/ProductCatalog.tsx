@@ -9,6 +9,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../i18n/LanguageContext';
 import {
   getPlatformOffers,
   excludeOffer,
@@ -71,6 +72,7 @@ function SkeletonCard() {
  */
 const ProductCatalog = () => {
   const navigate = useNavigate();
+  const { t, isRTL } = useLanguage();
 
   // All adopted offers fetched from the backend
   const [items, setItems] = useState<CatalogItem[]>([]);
@@ -228,7 +230,9 @@ const ProductCatalog = () => {
               {/* Stock indicator - shown only when a stock limit is configured */}
               {item.stockLimit !== null && (
                 <span className={`text-xs font-medium whitespace-nowrap ${(item.stockAvailable ?? 0) <= 5 ? 'text-red-600' : 'text-slate-500'}`}>
-                  {item.stockAvailable === 0 ? '🔴 Sold out' : `${item.stockAvailable} left`}
+                  {item.stockAvailable === 0
+                    ? t('pc_soldOut')
+                    : `${item.stockAvailable} ${t('pc_stockLeft')}`}
                 </span>
               )}
             </div>
@@ -254,20 +258,20 @@ const ProductCatalog = () => {
             {/* Confirm / Remove button */}
             {isPendingConfirm ? (
               <div className="flex items-center gap-1.5">
-                <span className="text-xs text-slate-500 mr-1">Remove?</span>
+                <span className="text-xs text-slate-500 mr-1">{t('pc_removeQuestion')}</span>
                 <button
                   onClick={() => void confirmAndRemove(item.offerId)}
                   className="bg-red-500 text-white px-2.5 py-1 rounded text-xs font-medium hover:bg-red-600 transition-colors"
                   aria-label={`Confirm removal of ${item.title}`}
                 >
-                  Yes
+                  {t('pc_btnYes')}
                 </button>
                 <button
                   onClick={cancelRemove}
                   className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-2.5 py-1 rounded text-xs font-medium transition-colors"
                   aria-label="Cancel removal"
                 >
-                  No
+                  {t('pc_btnNo')}
                 </button>
               </div>
             ) : (
@@ -280,10 +284,10 @@ const ProductCatalog = () => {
                 {isRemoving ? (
                   <span className="flex items-center gap-1">
                     <span className="h-3 w-3 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600 inline-block" />
-                    Removing
+                    {t('pc_removing')}
                   </span>
                 ) : (
-                  'Remove'
+                  t('pc_btnRemove')
                 )}
               </button>
             )}
@@ -303,20 +307,22 @@ const ProductCatalog = () => {
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-950">
-            Product Catalog
+            {t('pc_pageTitle')}
           </h1>
           <p className="mt-1 text-sm text-slate-500">
             {isLoading
-              ? 'Loading your catalog...'
-              : `${items.length} offer${items.length !== 1 ? 's' : ''} active for your members`}
+              ? t('pc_subtitleLoading')
+              : isRTL
+                ? `${items.length} ${t('pc_subtitleActive')}`
+                : `${items.length} offer${items.length !== 1 ? 's' : ''} ${t('pc_subtitleActive')}`}
           </p>
         </div>
         <button
           onClick={() => navigate('/benefits-partnerships')}
           className="bg-primary shadow-sm hover:opacity-90 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-opacity"
-          aria-label="Browse platform catalog to add more offers"
+          aria-label={t('pc_btnAddFromCatalog')}
         >
-          + Add from catalog
+          {t('pc_btnAddFromCatalog')}
         </button>
       </div>
 
@@ -330,7 +336,7 @@ const ProductCatalog = () => {
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search offers..."
+          placeholder={t('pc_searchPlaceholder')}
           className="rounded-md border border-slate-200 px-3 py-2 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white"
         />
 
@@ -343,7 +349,7 @@ const ProductCatalog = () => {
           onChange={(e) => setSelectedCategory(e.target.value)}
           className="rounded-md border border-slate-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/30"
         >
-          <option value="all">All categories</option>
+          <option value="all">{t('pc_allCategories')}</option>
           {OFFER_CATEGORIES.map((cat) => (
             <option key={cat.value} value={cat.value}>
               {cat.label}
@@ -371,7 +377,7 @@ const ProductCatalog = () => {
             onClick={() => void loadAdoptedOffers()}
             className="mt-4 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
           >
-            Retry
+            {t('pc_btnRetry')}
           </button>
         </div>
       ) : filtered.length === 0 ? (
@@ -386,25 +392,25 @@ const ProductCatalog = () => {
                 inventory_2
               </span>
               <p className="text-sm font-medium text-slate-700">
-                No offers adopted yet
+                {t('pc_emptyTitle')}
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                Browse the platform catalog to add offers for your members.
+                {t('pc_emptyHint')}
               </p>
               <button
                 onClick={() => navigate('/benefits-partnerships')}
                 className="mt-5 bg-primary shadow-sm hover:opacity-90 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-opacity"
               >
-                Browse platform catalog
+                {t('pc_btnBrowseCatalog')}
               </button>
             </>
           ) : (
             <>
               <p className="text-sm font-medium text-slate-700">
-                No offers match your search
+                {t('pc_noSearchMatch')}
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                Try a different search term or category.
+                {t('pc_tryDifferent')}
               </p>
             </>
           )}

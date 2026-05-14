@@ -9,6 +9,7 @@
  * role="dialog", aria-modal, scroll-lock on body while open.
  */
 import { useEffect, useRef, useState } from 'react';
+import { useLanguage } from '../../i18n/LanguageContext';
 import { EXECUTION_TYPE_LABELS } from '../../lib/api';
 import type { CatalogItem } from '../../lib/api';
 
@@ -79,6 +80,7 @@ function AmbientOrbs() {
  * Output: portal-style fixed overlay with the offer card.
  */
 const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProps) => {
+  const { t } = useLanguage();
   const isLive = catalogMode === 'live';
   /** Only show the coupon tear-line and redemption section to eligible users. */
   const showRedeemSection = canPurchase;
@@ -149,7 +151,7 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
           ref={closeRef}
           onClick={onClose}
           className="absolute top-4 right-4 z-10 h-8 w-8 rounded-full flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 transition-colors"
-          aria-label="Close offer details"
+          aria-label={t('om_closeLabel')}
         >
           &#x2715;
         </button>
@@ -229,10 +231,10 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
           {offer.stockLimit !== null && (
             <p className={`mt-2 text-sm font-medium ${(offer.stockAvailable ?? 0) <= 5 ? 'text-red-400' : 'text-white/50'}`}>
               {offer.isSoldOut
-                ? '🔴 Sold out'
+                ? t('om_soldOutIndicator')
                 : offer.stockAvailable !== null && offer.stockAvailable <= 5
-                  ? `⚠️ Only ${offer.stockAvailable} left`
-                  : `${offer.stockAvailable} available`}
+                  ? `⚠️ ${[t('om_stockOnly'), String(offer.stockAvailable), t('om_stockLeft')].filter(Boolean).join(' ')}`
+                  : `${offer.stockAvailable} ${t('om_stockAvailable')}`}
             </p>
           )}
         </div>
@@ -253,7 +255,7 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
         {showRedeemSection ? (
           <div className="px-5 pb-6">
             <p className="mb-4 text-center text-xs text-white/40 uppercase tracking-widest">
-              Redeem your offer
+              {t('om_redeemTitle')}
             </p>
 
             {isLive ? (
@@ -266,7 +268,7 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
                   background: 'linear-gradient(135deg, #7c3aed 0%, #2563eb 100%)',
                 }}
               >
-                {offer.isSoldOut ? 'Sold Out' : mockingRedeem ? 'Processing...' : 'Redeem Now'}
+                {offer.isSoldOut ? t('om_soldOut') : mockingRedeem ? t('om_processing') : t('om_redeemNow')}
               </button>
             ) : (
               // Sandbox or inactive: show disabled "Coming Soon" state
@@ -274,23 +276,21 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
                 disabled
                 className="w-full rounded-2xl py-4 text-base font-bold text-white/30 shadow-lg cursor-not-allowed"
                 style={{ background: 'rgba(255,255,255,0.06)' }}
-                aria-label="Redemption not yet available - workspace is in sandbox mode"
+                aria-label={t('om_sandboxDisabledLabel')}
               >
-                Coming Soon
+                {t('om_comingSoon')}
               </button>
             )}
 
             <p className="mt-3 text-center text-xs text-white/30">
-              {isLive
-                ? 'Secure checkout via PayMe'
-                : 'Your workspace is in sandbox mode'}
+              {isLive ? t('om_secureCheckout') : t('om_sandboxMode')}
             </p>
           </div>
         ) : (
           // Admin / non-purchasing view: informational note only
           <div className="px-5 pb-6 pt-2">
             <p className="text-center text-xs text-white/30">
-              Admin view - members with catalog access can redeem this offer
+              {t('om_adminView')}
             </p>
           </div>
         )}

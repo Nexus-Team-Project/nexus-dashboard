@@ -12,6 +12,7 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../i18n/LanguageContext';
 import { createOfferApi, OFFER_CATEGORIES, EXECUTION_TYPE_LABELS } from '../lib/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -33,6 +34,7 @@ type OfferVisibility = 'ecosystem' | 'tenant_only';
 const CreateOffer = () => {
   const navigate = useNavigate();
   const { me } = useAuth();
+  const { t } = useLanguage();
 
   /** Platform admins always publish to the full ecosystem; the visibility
    *  toggle is hidden for them to prevent accidental scoping. */
@@ -70,11 +72,11 @@ const CreateOffer = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      setError('Please select a valid image file.');
+      setError(t('co_errInvalidImage'));
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      setError('Image must be under 5 MB.');
+      setError(t('co_errImageSize'));
       return;
     }
     setImageFile(file);
@@ -105,18 +107,18 @@ const CreateOffer = () => {
     e.preventDefault();
 
     if (!title.trim()) {
-      setError('Title is required.');
+      setError(t('co_errTitleRequired'));
       return;
     }
     const cost = Number(rawCost);
     if (!rawCost || isNaN(cost) || cost <= 0) {
-      setError('A valid cost (greater than 0) is required.');
+      setError(t('co_errCostRequired'));
       return;
     }
 
     const mp = marketPrice ? Number(marketPrice) : null;
     if (marketPrice && (isNaN(mp as number) || (mp as number) <= 0)) {
-      setError('Market price must be a positive number if provided.');
+      setError(t('co_errMarketPrice'));
       return;
     }
 
@@ -141,8 +143,8 @@ const CreateOffer = () => {
       await createOfferApi(fd);
       navigate('/benefits-partnerships');
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to publish offer.';
-      setError(`${message} Please try again.`);
+      const message = err instanceof Error ? err.message : t('co_errPublish');
+      setError(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -154,9 +156,9 @@ const CreateOffer = () => {
     <div className="mx-auto max-w-7xl space-y-6">
       {/* Page header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Create Offer</h1>
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{t('co_pageTitle')}</h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Publish a new offer to the NEXUS benefits catalog.
+          {t('co_pageSubtitle')}
         </p>
       </div>
 
@@ -167,7 +169,7 @@ const CreateOffer = () => {
             {/* Offer details card */}
             <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-card-dark">
               <h2 className="mb-4 text-base font-semibold text-slate-800 dark:text-white">
-                Offer Details
+                {t('co_sectionOfferDetails')}
               </h2>
 
               {/* Title */}
@@ -176,14 +178,14 @@ const CreateOffer = () => {
                   htmlFor="offer-title"
                   className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
                 >
-                  Title <span className="text-red-500" aria-hidden="true">*</span>
+                  {t('co_fieldTitle')} <span className="text-red-500" aria-hidden="true">*</span>
                 </label>
                 <input
                   id="offer-title"
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. 20% off at Coffee Chain"
+                  placeholder={t('co_titlePlaceholder')}
                   required
                   disabled={isSubmitting}
                   className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-colors focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white disabled:cursor-not-allowed disabled:opacity-60"
@@ -196,13 +198,13 @@ const CreateOffer = () => {
                   htmlFor="offer-description"
                   className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
                 >
-                  Description
+                  {t('co_fieldDescription')}
                 </label>
                 <textarea
                   id="offer-description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Describe the offer, terms, or redemption instructions..."
+                  placeholder={t('co_descriptionPlaceholder')}
                   rows={4}
                   disabled={isSubmitting}
                   className="w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-colors focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white disabled:cursor-not-allowed disabled:opacity-60"
@@ -215,7 +217,7 @@ const CreateOffer = () => {
                   htmlFor="offer-category"
                   className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
                 >
-                  Category
+                  {t('co_fieldCategory')}
                 </label>
                 <select
                   id="offer-category"
@@ -238,7 +240,7 @@ const CreateOffer = () => {
                   htmlFor="offer-execution-type"
                   className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
                 >
-                  Offer Type <span className="text-red-500" aria-hidden="true">*</span>
+                  {t('co_fieldOfferType')} <span className="text-red-500" aria-hidden="true">*</span>
                 </label>
                 <select
                   id="offer-execution-type"
@@ -254,7 +256,7 @@ const CreateOffer = () => {
                   ))}
                 </select>
                 <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
-                  Choose how members receive and use this offer.
+                  {t('co_offerTypeHint')}
                 </p>
               </div>
             </section>
@@ -262,11 +264,10 @@ const CreateOffer = () => {
             {/* Pricing card */}
             <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-card-dark">
               <h2 className="mb-1 text-base font-semibold text-slate-800 dark:text-white">
-                Pricing
+                {t('co_sectionPricing')}
               </h2>
               <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">
-                Enter your supplier cost. NEXUS adds a 30% margin automatically.
-                The resulting price is never shown directly to members.
+                {t('co_pricingHint')}
               </p>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -276,7 +277,7 @@ const CreateOffer = () => {
                     htmlFor="offer-raw-cost"
                     className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
                   >
-                    Your cost (&#8362;) <span className="text-red-500" aria-hidden="true">*</span>
+                    {t('co_fieldYourCost')} <span className="text-red-500" aria-hidden="true">*</span>
                   </label>
                   <input
                     id="offer-raw-cost"
@@ -298,8 +299,8 @@ const CreateOffer = () => {
                     htmlFor="offer-market-price"
                     className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
                   >
-                    Market price (&#8362;){' '}
-                    <span className="font-normal text-slate-400">optional</span>
+                    {t('co_fieldMarketPrice')}{' '}
+                    <span className="font-normal text-slate-400">{t('co_optional')}</span>
                   </label>
                   <input
                     id="offer-market-price"
@@ -313,7 +314,7 @@ const CreateOffer = () => {
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-colors focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white disabled:cursor-not-allowed disabled:opacity-60"
                   />
                   <p className="mt-1 text-xs text-slate-400">
-                    Shown to members as a reference price.
+                    {t('co_marketPriceHint')}
                   </p>
                 </div>
               </div>
@@ -324,9 +325,9 @@ const CreateOffer = () => {
                   htmlFor="offer-stock-limit"
                   className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
                 >
-                  Stock Limit{' '}
+                  {t('co_fieldStockLimit')}{' '}
                   <span className="font-normal text-xs text-slate-400">
-                    optional - leave blank for unlimited
+                    {t('co_stockLimitHint')}
                   </span>
                 </label>
                 <input
@@ -336,7 +337,7 @@ const CreateOffer = () => {
                   step="1"
                   value={stockLimit}
                   onChange={(e) => setStockLimit(e.target.value)}
-                  placeholder="e.g. 50 (leave blank = unlimited)"
+                  placeholder={t('co_stockLimitPlaceholder')}
                   disabled={isSubmitting}
                   className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-colors focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white disabled:cursor-not-allowed disabled:opacity-60"
                 />
@@ -347,14 +348,14 @@ const CreateOffer = () => {
             {!isPlatformAdmin && (
               <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-card-dark">
                 <h2 className="mb-1 text-base font-semibold text-slate-800 dark:text-white">
-                  Visibility
+                  {t('co_sectionVisibility')}
                 </h2>
                 <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">
-                  Choose who can see and adopt this offer.
+                  {t('co_visibilityHint')}
                 </p>
 
                 <fieldset>
-                  <legend className="sr-only">Offer visibility</legend>
+                  <legend className="sr-only">{t('co_visibilityLegend')}</legend>
                   <div className="space-y-3">
                     {/* Ecosystem option */}
                     <label className="flex cursor-pointer items-start gap-3">
@@ -369,10 +370,10 @@ const CreateOffer = () => {
                       />
                       <span>
                         <span className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                          All tenants
+                          {t('co_visAllTenants')}
                         </span>
                         <span className="text-xs text-slate-500 dark:text-slate-400">
-                          Any tenant in the NEXUS ecosystem can adopt this offer.
+                          {t('co_visAllTenantsHint')}
                         </span>
                       </span>
                     </label>
@@ -390,10 +391,10 @@ const CreateOffer = () => {
                       />
                       <span>
                         <span className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                          My tenant only
+                          {t('co_visMyTenantOnly')}
                         </span>
                         <span className="text-xs text-slate-500 dark:text-slate-400">
-                          Only your own organization can see and use this offer.
+                          {t('co_visMyTenantOnlyHint')}
                         </span>
                       </span>
                     </label>
@@ -406,7 +407,7 @@ const CreateOffer = () => {
             {isPlatformAdmin && (
               <div className="flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-700 dark:border-indigo-900/40 dark:bg-indigo-900/20 dark:text-indigo-300">
                 <span className="material-symbols-rounded !text-[18px]">public</span>
-                <span>Platform offers are visible to all tenants in the ecosystem.</span>
+                <span>{t('co_platformNote')}</span>
               </div>
             )}
           </div>
@@ -416,10 +417,10 @@ const CreateOffer = () => {
             {/* Image upload card */}
             <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-card-dark">
               <h2 className="mb-1 text-base font-semibold text-slate-800 dark:text-white">
-                Offer Image
+                {t('co_sectionImage')}
               </h2>
               <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">
-                A square or landscape image works best. Max 5 MB.
+                {t('co_imageHint')}
               </p>
 
               {/* Hidden file input */}
@@ -428,7 +429,7 @@ const CreateOffer = () => {
                 type="file"
                 accept="image/*"
                 className="sr-only"
-                aria-label="Upload offer image"
+                aria-label={t('co_sectionImage')}
                 onChange={handleImageChange}
                 disabled={isSubmitting}
               />
@@ -451,7 +452,7 @@ const CreateOffer = () => {
                       disabled={isSubmitting}
                       className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
                     >
-                      Replace
+                      {t('co_btnReplace')}
                     </button>
                     <button
                       type="button"
@@ -459,7 +460,7 @@ const CreateOffer = () => {
                       disabled={isSubmitting}
                       className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-red-900/20 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
                     >
-                      Remove
+                      {t('co_btnRemoveImage')}
                     </button>
                   </div>
                 </div>
@@ -469,11 +470,11 @@ const CreateOffer = () => {
                   onClick={() => fileRef.current?.click()}
                   disabled={isSubmitting}
                   className="flex h-48 w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 text-slate-400 transition-colors hover:border-primary hover:bg-primary/5 hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:hover:border-primary disabled:cursor-not-allowed disabled:opacity-50"
-                  aria-label="Click to upload image"
+                  aria-label={t('co_clickToUpload')}
                 >
                   <span className="material-symbols-rounded !text-3xl">add_photo_alternate</span>
-                  <span className="text-sm font-medium">Click to upload</span>
-                  <span className="text-xs">PNG, JPG, WEBP up to 5 MB</span>
+                  <span className="text-sm font-medium">{t('co_clickToUpload')}</span>
+                  <span className="text-xs">{t('co_imageFormats')}</span>
                 </button>
               )}
             </section>
@@ -498,10 +499,10 @@ const CreateOffer = () => {
                 {isSubmitting ? (
                   <span className="flex items-center justify-center gap-2">
                     <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                    Publishing...
+                    {t('co_btnPublishing')}
                   </span>
                 ) : (
-                  'Publish Offer'
+                  t('co_btnPublish')
                 )}
               </button>
 
@@ -511,7 +512,7 @@ const CreateOffer = () => {
                 onClick={() => navigate('/benefits-partnerships')}
                 className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
               >
-                Cancel
+                {t('co_btnCancel')}
               </button>
             </div>
           </div>

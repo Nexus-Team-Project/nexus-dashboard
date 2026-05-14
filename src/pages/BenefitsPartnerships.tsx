@@ -10,6 +10,7 @@ import {
   adoptOffer,
   excludeOffer,
   goLiveCatalog,
+  activateBenefitsCatalog,
   EXECUTION_TYPE_LABELS,
   type CatalogItem,
 } from '../lib/api';
@@ -66,6 +67,37 @@ interface Benefit {
 
 type ViewMode = 'benefits' | 'businesses';
 type DisplayMode = 'cards' | 'table';
+
+// ─── Catalog item mapping helpers ────────────────────────────────────────────
+
+/**
+ * Maps an API executionType string to the local Benefit implementationMethod.
+ * Falls back to 'nexus' for unknown or undefined values.
+ * Input: executionType string from the catalog API.
+ * Output: one of the Benefit['implementationMethod'] union members.
+ */
+function toImplementationMethod(executionType?: string): Benefit['implementationMethod'] {
+  const map: Record<string, Benefit['implementationMethod']> = {
+    voucher: 'voucher',
+    coupon: 'coupon',
+    gift_card: 'card',
+    product: 'product',
+    service: 'service',
+  };
+  return map[executionType ?? ''] ?? 'nexus';
+}
+
+/**
+ * Maps an API executionType string to the local Benefit benefitType.
+ * Coupons are percentage-based; gift cards are gift type; everything else is amount.
+ * Input: executionType string from the catalog API.
+ * Output: one of the Benefit['benefitType'] union members.
+ */
+function toBenefitType(executionType?: string): Benefit['benefitType'] {
+  if (executionType === 'coupon') return 'percentage';
+  if (executionType === 'gift_card') return 'gift';
+  return 'amount';
+}
 
 const BenefitsPartnerships = () => {
   const navigate = useNavigate();
@@ -359,7 +391,8 @@ const BenefitsPartnerships = () => {
   /**
    * Maps a CatalogItem from the backend API into the local Benefit shape so it
    * can populate the existing card and table JSX without structural changes.
-   * member_price is used as the discount display; category maps to a single-item array.
+   * member_price is used as the discount display; executionType drives the
+   * implementationMethod and benefitType fields; stockLimit provides usageTerms hints.
    */
   const catalogAsBenefits: Benefit[] = catalogItems.map(item => ({
     id: item.offerId,
@@ -368,9 +401,11 @@ const BenefitsPartnerships = () => {
     businessName: 'Platform',
     businessLogo: '',
     backgroundImage: item.imageUrl,
-    implementationMethod: 'nexus' as const,
-    benefitType: 'amount' as const,
-    usageTerms: [],
+    implementationMethod: toImplementationMethod(item.executionType),
+    benefitType: toBenefitType(item.executionType),
+    usageTerms: item.stockLimit !== null
+      ? [item.isSoldOut ? 'מכירה נגמרה' : `${item.stockAvailable ?? item.stockLimit} נותרו`]
+      : [],
     endDate: '',
     implementationLink: '',
     implementationInstructions: '',
@@ -383,8 +418,9 @@ const BenefitsPartnerships = () => {
     discount: `₪${item.member_price}`,
   }));
 
-  // Use real catalog items when loaded; fall back to mock benefits during load or on error.
-  const activeBenefits = catalogItems.length > 0 ? catalogAsBenefits : benefits;
+  // When service is inactive, show empty state (not mock data).
+  // When service is active but no offers exist yet, also show empty state.
+  const activeBenefits = catalogItems.length > 0 ? catalogAsBenefits : [];
 
   const filteredBenefits = activeBenefits.filter((benefit) => {
     const matchesSearch =
@@ -418,22 +454,65 @@ const BenefitsPartnerships = () => {
   return (
     <div className="min-h-screen bg-white dark:bg-background-dark">
       <main className="max-w-7xl mx-auto px-6 pb-12">
-        {/* Sandbox mode banner - shown when catalog is activated but not yet live */}
-        {catalogMode === 'sandbox' && (
-          <div className="mt-6 mb-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 flex items-center justify-between">
+        {/* Inactive - activation toggle card */}
+        {catalogMode === 'inactive' && (
+          <div className="mb-6 rounded-xl border border-slate-200 bg-white shadow-sm p-5 flex items-center justify-between gap-4">
             <div>
-              <p className="text-sm font-semibold text-amber-900">Catalog is in Sandbox Mode</p>
+              <p className="text-sm font-semibold text-slate-900">שירות קטלוג ההטבות</p>
+              <p className="mt-0.5 text-xs text-slate-500">
+                הפעל כדי לאפשר לחברים לצפות ולרכוש הטבות. ניתן לבטל בכל עת.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                void activateBenefitsCatalog().then(() => {
+                  window.location.reload();
+                }).catch(() => {
+                  // reload will reflect actual state from the server
+                });
+              }}
+              className="relative inline-flex h-7 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent bg-slate-200 transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+              role="switch"
+              aria-checked={false}
+              aria-label="הפעל שירות קטלוג ההטבות"
+            >
+              <span className="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition-transform translate-x-0.5" />
+            </button>
+          </div>
+        )}
+
+        {/* Sandbox - service active but not yet live */}
+        {catalogMode === 'sandbox' && (
+          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-5 flex items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-semibold text-amber-900">שירות קטלוג ההטבות פעיל - מצב sandbox</p>
+                {/* Toggle shown as ON */}
+                <div className="relative inline-flex h-7 w-14 items-center rounded-full bg-primary border-2 border-transparent pointer-events-none">
+                  <span className="inline-block h-5 w-5 rounded-full bg-white shadow translate-x-7" />
+                </div>
+              </div>
               <p className="mt-0.5 text-xs text-amber-700">
-                Members can browse offers but cannot purchase yet. Complete business setup and go live to enable purchases.
+                חברים יכולים לצפות בהצעות אך לא לרכוש עדיין. השלם הגדרת עסק ולחץ &quot;Go Live&quot; להפעלה מלאה.
               </p>
             </div>
             <button
               onClick={() => void handleGoLive()}
               disabled={isGoingLive}
-              className="shrink-0 ml-4 bg-amber-600 hover:bg-amber-700 disabled:opacity-60 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+              className="shrink-0 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-xs font-semibold"
             >
-              {isGoingLive ? 'Going Live...' : 'Go Live'}
+              {isGoingLive ? 'מעדכן...' : 'Go Live'}
             </button>
+          </div>
+        )}
+
+        {/* Live - minimal green indicator */}
+        {catalogMode === 'live' && (
+          <div className="mb-4 flex items-center gap-3">
+            <div className="relative inline-flex h-7 w-14 items-center rounded-full bg-emerald-500 border-2 border-transparent pointer-events-none">
+              <span className="inline-block h-5 w-5 rounded-full bg-white shadow translate-x-7" />
+            </div>
+            <p className="text-sm font-medium text-emerald-700">שירות קטלוג ההטבות פעיל</p>
           </div>
         )}
 
@@ -1162,6 +1241,22 @@ const BenefitsPartnerships = () => {
                 {Array.from({ length: 6 }).map((_, i) => (
                   <div key={i} className="animate-pulse rounded-2xl border border-slate-200 bg-white h-48" />
                 ))}
+              </div>
+            )}
+
+            {/* Empty state - shown when loaded but no offers available */}
+            {!isLoadingCatalog && filteredBenefits.length === 0 && viewMode === 'benefits' && (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <p className="text-slate-500 text-sm font-medium">
+                  {catalogMode === 'inactive'
+                    ? 'הפעל את שירות קטלוג ההטבות כדי לצפות בהצעות'
+                    : 'אין הצעות זמינות עדיין. צור הצעה ראשונה.'}
+                </p>
+                {catalogMode !== 'inactive' && (
+                  <a href="/supply/create" className="mt-3 text-sm text-primary hover:underline">
+                    + צור הצעה
+                  </a>
+                )}
               </div>
             )}
 
