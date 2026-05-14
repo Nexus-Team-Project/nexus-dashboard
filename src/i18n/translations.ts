@@ -72,6 +72,11 @@ export const translations = {
     transactions: 'Transactions',
     productCatalog: 'Product Catalog',
     balances: 'Balances',
+    // Member service navigation keys
+    ms_benefitsCatalog: 'Benefits Catalog',
+    ms_serviceInactive: 'Not yet active',
+    ms_serviceSandbox: 'Preview',
+    ms_serviceLive: 'Live',
     aiAssistant: 'AI Assistant',
     talkToAgent: 'Talk to a human agent',
     typeMessage: 'Type your message...',
@@ -864,6 +869,10 @@ export const translations = {
     mc_emptyNoOffers: 'No offers available yet. Check back later.',
     mc_emptyNoMatch: 'No offers match your search.',
     mc_errorLoad: 'Could not load catalog. Please try again or contact your admin.',
+    mc_inactiveTitle: 'Service not yet active',
+    mc_inactiveBody: "Your admin hasn't activated the Benefits Catalog service yet. Check back soon - you'll be notified when it's ready.",
+    mc_sandboxTitle: 'Preview mode',
+    mc_sandboxBody: 'You can browse available offers. Purchases will be enabled once the workspace goes live.',
 
     // OfferModal
     om_closeLabel: 'Close offer details',
@@ -954,6 +963,11 @@ export const translations = {
     transactions: 'עסקאות',
     productCatalog: 'קטלוג מוצרים',
     balances: 'יתרות',
+    // Member service navigation keys
+    ms_benefitsCatalog: 'קטלוג הטבות',
+    ms_serviceInactive: 'לא פעיל עדיין',
+    ms_serviceSandbox: 'תצוגה מקדימה',
+    ms_serviceLive: 'פעיל',
     aiAssistant: 'עוזר AI',
     talkToAgent: 'דבר עם נציג אנושי',
     typeMessage: 'כתוב הודעה...',
@@ -1746,6 +1760,10 @@ export const translations = {
     mc_emptyNoOffers: 'עדיין אין הצעות זמינות. בדוק שוב מאוחר יותר.',
     mc_emptyNoMatch: 'לא נמצאו הצעות התואמות לחיפוש.',
     mc_errorLoad: 'לא ניתן לטעון את הקטלוג. נסה שוב או פנה למנהל שלך.',
+    mc_inactiveTitle: 'השירות טרם הופעל',
+    mc_inactiveBody: 'מנהל הארגון עדיין לא הפעיל את שירות קטלוג ההטבות. בדוק שוב בקרוב.',
+    mc_sandboxTitle: 'מצב תצוגה מקדימה',
+    mc_sandboxBody: 'ניתן לעיין בהצעות הזמינות. הרכישה תופעל כאשר סביבת העבודה תעבור למצב פעיל.',
 
     // OfferModal
     om_closeLabel: 'סגור פרטי הצעה',

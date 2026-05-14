@@ -295,6 +295,8 @@ export interface DashboardMe {
     catalogServiceActive?: boolean;
     /** True when this user holds the 'member' role AND the catalog is not inactive. */
     canPurchaseCatalog?: boolean;
+    /** Services this member was granted at invite time (e.g. ['benefits_catalog']). */
+    memberServices?: string[];
   };
   onboarding: {
     required: boolean;

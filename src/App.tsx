@@ -9,6 +9,7 @@ import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
 import { DevModeProvider } from './contexts/DevModeContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import DashboardLayout from './layouts/DashboardLayout';
+import MemberLayout from './layouts/MemberLayout';
 import Home from './pages/Home';
 import Content from './pages/Content';
 import Settings from './pages/Settings';
@@ -361,22 +362,27 @@ function AppRoutes() {
   if (shouldUseLimitedRoleDashboard) {
     return (
       <Routes>
+        {/* Accept invite outside the layout shell - no chrome needed for this flow */}
         <Route path="/member-invite/accept" element={<MemberInviteAccept />} />
-        {/* Member-facing catalog - accessible from TenantMemberDashboard when catalog is active */}
-        <Route path="/member-catalog" element={<MemberCatalog />} />
-        <Route
-          path="*"
-          element={(
-            <TenantMemberDashboard
-              userName={me.user.name}
-              userEmail={me.user.email}
-              tenantName={me.context.tenantName}
-              role={me.context.role}
-              onLogout={logout}
-              catalogMode={me.authorization.catalogMode}
-            />
-          )}
-        />
+        {/* All member pages inside the layout shell (header + sidebar + outlet) */}
+        <Route element={<MemberLayout onLogout={logout} />}>
+          <Route
+            index
+            element={(
+              <TenantMemberDashboard
+                userName={me.user.name}
+                userEmail={me.user.email}
+                tenantName={me.context.tenantName}
+                role={me.context.role}
+                onLogout={logout}
+                catalogMode={me.authorization.catalogMode}
+                memberServices={me.authorization.memberServices}
+              />
+            )}
+          />
+          <Route path="member-catalog" element={<MemberCatalog />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
       </Routes>
     );
   }

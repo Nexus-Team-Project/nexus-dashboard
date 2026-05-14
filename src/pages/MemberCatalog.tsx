@@ -131,8 +131,10 @@ const MemberCatalog = () => {
   const { me } = useAuth();
   const { t } = useLanguage();
 
-  /** Catalog activation mode - controls redeem button state in OfferModal. */
-  const catalogMode = me?.authorization.catalogMode ?? 'sandbox';
+  /** Catalog activation mode - controls redeem button state in OfferModal.
+   * Defaults to 'inactive' (safest fallback) when the server has not yet
+   * set a mode - prevents accidental offer display before activation. */
+  const catalogMode = me?.authorization.catalogMode ?? 'inactive';
   /** Whether this user's role grants catalog purchase permission. */
   const canPurchase = me?.authorization.canPurchaseCatalog === true;
   /** Tenant whose adopted offers to display. Derived from server session only. */
@@ -148,7 +150,11 @@ const MemberCatalog = () => {
 
   // ── Load catalog on mount ─────────────────────────────────────────
   useEffect(() => {
-    if (!tenantId) return;
+    // Do not fetch when catalog is not active - no data will be returned.
+    if (!tenantId || catalogMode === 'inactive') {
+      setIsLoading(false);
+      return;
+    }
 
     setIsLoading(true);
     getMemberCatalog(tenantId)
@@ -160,7 +166,7 @@ const MemberCatalog = () => {
         setError(t('mc_errorLoad'));
       })
       .finally(() => setIsLoading(false));
-  }, [tenantId]);
+  }, [tenantId, catalogMode]);
 
   // ── Client-side filtering ─────────────────────────────────────────
   const filtered = items.filter((i) => {
@@ -168,6 +174,26 @@ const MemberCatalog = () => {
     const matchSearch = i.title.toLowerCase().includes(searchQuery.toLowerCase());
     return matchCat && matchSearch;
   });
+
+  // ── Inactive gate ────────────────────────────────────────────────
+  // Show a friendly placeholder when the Benefits Catalog has not yet
+  // been activated by the tenant admin. All hooks run above this point
+  // to satisfy React's rules of hooks.
+  if (catalogMode === 'inactive') {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-8">
+        <div className="flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-white p-12 text-center shadow-sm">
+          <span className="material-symbols-rounded !text-[48px] text-slate-300 mb-4">hourglass_empty</span>
+          <h2 className="text-lg font-bold text-slate-900 mb-2">
+            {t('mc_inactiveTitle')}
+          </h2>
+          <p className="text-sm text-slate-500 max-w-sm">
+            {t('mc_inactiveBody')}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // ── Render ────────────────────────────────────────────────────────
   return (
@@ -190,6 +216,17 @@ const MemberCatalog = () => {
           {t('mc_btnBack')}
         </button>
       </div>
+
+      {/* Sandbox preview mode banner - shown when catalog is active but workspace is not live */}
+      {catalogMode === 'sandbox' && (
+        <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+          <span className="material-symbols-rounded !text-[20px] text-amber-600 shrink-0 mt-0.5">info</span>
+          <div>
+            <p className="text-sm font-semibold text-amber-900">{t('mc_sandboxTitle')}</p>
+            <p className="text-xs text-amber-700 mt-0.5">{t('mc_sandboxBody')}</p>
+          </div>
+        </div>
+      )}
 
       {/* Search + category filters */}
       <div className="mb-5 flex flex-wrap gap-3">
