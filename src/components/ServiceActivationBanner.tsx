@@ -13,7 +13,7 @@
  * Loading states (isActivating, isGoingLive, isDisabling) are managed
  * internally so the parent only needs to pass async handler functions.
  */
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 /** Text labels for a single service - pass a different object per service. */
 export interface ServiceBannerConfig {
@@ -47,6 +47,83 @@ export interface ServiceActivationBannerProps {
    * Used when business setup is not yet complete.
    */
   goLiveDisabled?: boolean;
+}
+
+/**
+ * Go Live button with a tap/click-dismissible tooltip for mobile compatibility.
+ * CSS-only hover tooltips do not work on touch devices, so this manages tooltip
+ * visibility via state and closes it on outside tap via a document listener.
+ * Input: onGoLive handler, isGoingLive loading state, disabled flag.
+ * Output: button with accessible tooltip that works on both desktop and mobile.
+ */
+function GoLiveButton({
+  onGoLive,
+  isGoingLive,
+  disabled,
+}: {
+  onGoLive: () => Promise<void>;
+  isGoingLive: boolean;
+  disabled?: boolean;
+}) {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // Close tooltip when tapping outside — covers mobile dismiss and desktop click-away.
+  useEffect(() => {
+    if (!showTooltip) return;
+    const handler = (e: MouseEvent | TouchEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setShowTooltip(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    document.addEventListener('touchstart', handler);
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      document.removeEventListener('touchstart', handler);
+    };
+  }, [showTooltip]);
+
+  const handleClick = () => {
+    if (disabled) {
+      setShowTooltip((prev) => !prev);
+      return;
+    }
+    void onGoLive();
+  };
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={isGoingLive}
+        onMouseEnter={() => disabled && setShowTooltip(true)}
+        onMouseLeave={() => disabled && setShowTooltip(false)}
+        className="bg-amber-600 hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
+        aria-describedby={disabled ? 'go-live-tooltip' : undefined}
+      >
+        {isGoingLive ? (
+          <>
+            <Spinner />
+            <span>מעדכן...</span>
+          </>
+        ) : (
+          'Go Live'
+        )}
+      </button>
+      {disabled && showTooltip && (
+        <div
+          id="go-live-tooltip"
+          role="tooltip"
+          className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-max max-w-[200px] rounded-lg bg-slate-900 text-white text-xs px-3 py-2 text-center z-20 pointer-events-none"
+        >
+          <div className="absolute -top-2 left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-900" />
+          יש להשלים את הגדרת העסק לפני המעבר ל-live
+        </div>
+      )}
+    </div>
+  );
 }
 
 /**
@@ -273,28 +350,11 @@ export default function ServiceActivationBanner({
         ) : (
           <div className="flex items-center gap-2 shrink-0">
             {onGoLive && (
-              <div className="relative group">
-                <button
-                  onClick={() => void handleGoLive()}
-                  disabled={isGoingLive || goLiveDisabled}
-                  className="bg-amber-600 hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
-                >
-                  {isGoingLive ? (
-                    <>
-                      <Spinner />
-                      <span>מעדכן...</span>
-                    </>
-                  ) : (
-                    'Go Live'
-                  )}
-                </button>
-                {goLiveDisabled && (
-                  <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-max max-w-[200px] rounded-lg bg-slate-900 text-white text-xs px-3 py-2 text-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                    <div className="absolute -top-2 left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-900" />
-                    יש להשלים את הגדרת העסק לפני המעבר ל-live
-                  </div>
-                )}
-              </div>
+              <GoLiveButton
+                onGoLive={handleGoLive}
+                isGoingLive={isGoingLive}
+                disabled={goLiveDisabled}
+              />
             )}
             <button
               onClick={() => setIsConfirming(true)}
