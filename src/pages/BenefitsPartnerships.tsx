@@ -999,7 +999,7 @@ const BenefitsPartnerships = () => {
                             </span>
                           </td>
                           <td className="px-4 py-4">
-                            {item && (() => {
+                            {(item && (() => {
                               const editable = canEditOffer(item);
                               const edited = pendingEdits[item.offerId]?.implementationLink;
                               const value = edited !== undefined ? edited : (item.implementationLink ?? '');
@@ -1022,10 +1022,10 @@ const BenefitsPartnerships = () => {
                                   </a>
                                 ) : <span className="text-xs text-slate-400">-</span>
                               );
-                            })() ?? <span className="text-xs text-slate-400">-</span>}
+                            })()) ?? <span className="text-xs text-slate-400">-</span>}
                           </td>
                           <td className="px-4 py-4 bg-violet-50/50 dark:bg-violet-900/10">
-                            {item && (() => {
+                            {(item && (() => {
                               const editable = canEditOffer(item);
                               const edited = pendingEdits[item.offerId]?.implementationInstructions;
                               const value = edited !== undefined ? edited : (item.implementationInstructions ?? '');
@@ -1042,10 +1042,10 @@ const BenefitsPartnerships = () => {
                               ) : (
                                 <p className="text-xs text-slate-600 dark:text-slate-400 max-w-xs truncate">{value || '-'}</p>
                               );
-                            })() ?? <p className="text-xs text-slate-400">-</p>}
+                            })()) ?? <p className="text-xs text-slate-400">-</p>}
                           </td>
                           <td className="px-4 py-4 bg-violet-50/50 dark:bg-violet-900/10">
-                            {item && (() => {
+                            {(item && (() => {
                               const editable = canEditOffer(item);
                               const edited = pendingEdits[item.offerId]?.terms;
                               const value = edited !== undefined ? edited : (item.terms ?? '');
@@ -1062,7 +1062,7 @@ const BenefitsPartnerships = () => {
                               ) : (
                                 <p className="text-xs text-slate-600 dark:text-slate-400 max-w-xs truncate">{value || '-'}</p>
                               );
-                            })() ?? <p className="text-xs text-slate-400">-</p>}
+                            })()) ?? <p className="text-xs text-slate-400">-</p>}
                           </td>
                           <td className="px-4 py-4 bg-green-50/50 dark:bg-green-900/10">
                             {item && (() => {
