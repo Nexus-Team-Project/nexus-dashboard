@@ -9,6 +9,7 @@
  * role="dialog", aria-modal, scroll-lock on body while open.
  */
 import { useEffect, useRef, useState } from 'react';
+import { EXECUTION_TYPE_LABELS } from '../../lib/api';
 import type { CatalogItem } from '../../lib/api';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -195,6 +196,16 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
               {CATEGORY_LABELS[offer.category] ?? offer.category}
             </span>
           </div>
+
+          {/* Execution type badge - bottom-right of hero */}
+          {offer.executionType && EXECUTION_TYPE_LABELS[offer.executionType] && (
+            <div className="absolute bottom-3 right-4">
+              <span className="rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-xs text-white/80 backdrop-blur-sm">
+                {EXECUTION_TYPE_LABELS[offer.executionType].icon}{' '}
+                {EXECUTION_TYPE_LABELS[offer.executionType].label}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* ── Text body ─────────────────────────────────────────────── */}
@@ -213,6 +224,17 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
               </span>
             )}
           </div>
+
+          {/* Stock availability indicator - only shown when stock tracking is active */}
+          {offer.stockLimit !== null && (
+            <p className={`mt-2 text-sm font-medium ${(offer.stockAvailable ?? 0) <= 5 ? 'text-red-400' : 'text-white/50'}`}>
+              {offer.isSoldOut
+                ? '🔴 Sold out'
+                : offer.stockAvailable !== null && offer.stockAvailable <= 5
+                  ? `⚠️ Only ${offer.stockAvailable} left`
+                  : `${offer.stockAvailable} available`}
+            </p>
+          )}
         </div>
 
         {/* ── Perforated coupon tear-line (visible only when user can redeem) ── */}
@@ -235,16 +257,16 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
             </p>
 
             {isLive ? (
-              // Live catalog: active redeem button wired to mock handler
+              // Live catalog: active redeem button wired to mock handler; disabled when sold out
               <button
                 onClick={handleMockRedeem}
-                disabled={mockingRedeem}
+                disabled={mockingRedeem || offer.isSoldOut}
                 className="w-full rounded-2xl py-4 text-base font-bold text-white shadow-lg transition-all active:scale-95 disabled:opacity-60"
                 style={{
                   background: 'linear-gradient(135deg, #7c3aed 0%, #2563eb 100%)',
                 }}
               >
-                {mockingRedeem ? 'Processing...' : 'Redeem Now'}
+                {offer.isSoldOut ? 'Sold Out' : mockingRedeem ? 'Processing...' : 'Redeem Now'}
               </button>
             ) : (
               // Sandbox or inactive: show disabled "Coming Soon" state

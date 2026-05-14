@@ -14,6 +14,7 @@ import {
   excludeOffer,
   type CatalogItem,
   OFFER_CATEGORIES,
+  EXECUTION_TYPE_LABELS,
 } from '../lib/api';
 
 // ----------------------------------------------------------------
@@ -213,9 +214,24 @@ const ProductCatalog = () => {
             <h3 className="font-semibold text-sm text-slate-900 line-clamp-2 flex-1">
               {item.title}
             </h3>
-            <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500 capitalize whitespace-nowrap">
-              {item.category.replace(/_/g, ' ')}
-            </span>
+            <div className="flex flex-col items-end gap-1 shrink-0">
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500 capitalize whitespace-nowrap">
+                {item.category.replace(/_/g, ' ')}
+              </span>
+              {/* Execution type badge - shown when a delivery mechanism is set */}
+              {item.executionType && EXECUTION_TYPE_LABELS[item.executionType] && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-100 px-2 py-0.5 text-xs text-indigo-700 whitespace-nowrap">
+                  {EXECUTION_TYPE_LABELS[item.executionType].icon}{' '}
+                  {EXECUTION_TYPE_LABELS[item.executionType].label}
+                </span>
+              )}
+              {/* Stock indicator - shown only when a stock limit is configured */}
+              {item.stockLimit !== null && (
+                <span className={`text-xs font-medium whitespace-nowrap ${(item.stockAvailable ?? 0) <= 5 ? 'text-red-600' : 'text-slate-500'}`}>
+                  {item.stockAvailable === 0 ? '🔴 Sold out' : `${item.stockAvailable} left`}
+                </span>
+              )}
+            </div>
           </div>
 
           <p className="text-xs text-slate-500 line-clamp-2 flex-1">

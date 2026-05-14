@@ -12,7 +12,7 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { createOfferApi, OFFER_CATEGORIES } from '../lib/api';
+import { createOfferApi, OFFER_CATEGORIES, EXECUTION_TYPE_LABELS } from '../lib/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -50,6 +50,10 @@ const CreateOffer = () => {
   const [visibility, setVisibility] = useState<OfferVisibility>('ecosystem');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  /** Selected execution type - how the offer is delivered to the member. */
+  const [executionType, setExecutionType] = useState('voucher');
+  /** Optional stock limit; empty string means unlimited. */
+  const [stockLimit, setStockLimit] = useState('');
 
   // ─── UI state ────────────────────────────────────────────────────────────────
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -130,6 +134,8 @@ const CreateOffer = () => {
       }
       // Platform admins are always ecosystem; tenant supply managers can toggle.
       fd.append('visibility', isPlatformAdmin ? 'ecosystem' : visibility);
+      fd.append('executionType', executionType);
+      if (stockLimit && Number(stockLimit) > 0) fd.append('stockLimit', stockLimit);
       if (imageFile) fd.append('image', imageFile);
 
       await createOfferApi(fd);
@@ -204,7 +210,7 @@ const CreateOffer = () => {
               </div>
 
               {/* Category */}
-              <div>
+              <div className="mb-4">
                 <label
                   htmlFor="offer-category"
                   className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
@@ -224,6 +230,32 @@ const CreateOffer = () => {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              {/* Execution type - how the offer is delivered to the member */}
+              <div>
+                <label
+                  htmlFor="offer-execution-type"
+                  className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
+                >
+                  Offer Type <span className="text-red-500" aria-hidden="true">*</span>
+                </label>
+                <select
+                  id="offer-execution-type"
+                  value={executionType}
+                  onChange={(e) => setExecutionType(e.target.value)}
+                  disabled={isSubmitting}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-colors focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {Object.entries(EXECUTION_TYPE_LABELS).map(([value, { label, icon }]) => (
+                    <option key={value} value={value}>
+                      {icon} {label}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                  Choose how members receive and use this offer.
+                </p>
               </div>
             </section>
 
@@ -284,6 +316,30 @@ const CreateOffer = () => {
                     Shown to members as a reference price.
                   </p>
                 </div>
+              </div>
+
+              {/* Stock limit - optional cap on total redemptions */}
+              <div className="mt-4">
+                <label
+                  htmlFor="offer-stock-limit"
+                  className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
+                >
+                  Stock Limit{' '}
+                  <span className="font-normal text-xs text-slate-400">
+                    optional - leave blank for unlimited
+                  </span>
+                </label>
+                <input
+                  id="offer-stock-limit"
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={stockLimit}
+                  onChange={(e) => setStockLimit(e.target.value)}
+                  placeholder="e.g. 50 (leave blank = unlimited)"
+                  disabled={isSubmitting}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-colors focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                />
               </div>
             </section>
 

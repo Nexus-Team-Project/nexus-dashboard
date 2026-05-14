@@ -728,6 +728,14 @@ export interface CatalogItem {
   isAdopted: boolean;
   adoptedAt?: string;
   createdByTenantId: string;
+  /** Delivery mechanism for this offer (voucher, coupon, gift_card, product, service). */
+  executionType: string;
+  /** Maximum number of units that can be redeemed. Null means unlimited. */
+  stockLimit: number | null;
+  /** Units remaining after redemptions. Null when stock tracking is disabled. */
+  stockAvailable: number | null;
+  /** True when stockLimit is set and stockAvailable has reached 0. */
+  isSoldOut: boolean;
 }
 
 /**
@@ -748,7 +756,26 @@ export interface NexusOffer {
   createdByTenantId: string;
   createdAt: string;
   updatedAt: string;
+  /** Delivery mechanism for this offer (voucher, coupon, gift_card, product, service). */
+  executionType: string;
+  /** Maximum number of units that can be redeemed. Null means unlimited. */
+  stockLimit: number | null;
+  /** Number of units already consumed by redemptions. */
+  stockUsed: number;
 }
+
+/**
+ * Maps each offer execution type value to a human-readable label and icon.
+ * Used across CreateOffer, BenefitsPartnerships, ProductCatalog, and OfferModal
+ * to display consistent badges for each delivery mechanism.
+ */
+export const EXECUTION_TYPE_LABELS: Record<string, { label: string; icon: string }> = {
+  voucher:   { label: 'Voucher',   icon: '🎟' },
+  coupon:    { label: 'Coupon',    icon: '%'  },
+  gift_card: { label: 'Gift Card', icon: '🎁' },
+  product:   { label: 'Product',   icon: '📦' },
+  service:   { label: 'Service',   icon: '⚡' },
+};
 
 /**
  * Static list of offer category options shared across supply/catalog UI.

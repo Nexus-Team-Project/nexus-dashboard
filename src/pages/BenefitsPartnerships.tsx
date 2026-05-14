@@ -10,6 +10,7 @@ import {
   adoptOffer,
   excludeOffer,
   goLiveCatalog,
+  EXECUTION_TYPE_LABELS,
   type CatalogItem,
 } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -1167,78 +1168,114 @@ const BenefitsPartnerships = () => {
             {/* Featured Benefits */}
             {!isLoadingCatalog && featuredBenefits.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {featuredBenefits.map((benefit) => (
-                  <div
-                    key={benefit.id}
-                    className="group bg-white dark:bg-slate-900 rounded-[24px] border border-slate-100 dark:border-slate-800 overflow-hidden hover:shadow-2xl transition-all duration-500 flex flex-col cursor-pointer"
-                    onClick={() => handleBenefitClick(benefit)}
-                  >
-                    {/* Image */}
-                    <div className="h-64 bg-slate-200 dark:bg-slate-800 relative overflow-hidden">
-                      {benefit.backgroundImage ? (
-                        <>
-                          <img
-                            src={benefit.backgroundImage}
-                            alt={benefit.title}
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
-                        </>
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-6xl">
-                          {benefit.businessLogo}
-                        </div>
-                      )}
-                    </div>
+                {featuredBenefits.map((benefit) => {
+                  // Look up the original CatalogItem to access execution type and stock fields.
+                  const catalogItem = catalogItems.find(c => c.offerId === benefit.id);
+                  return (
+                    <div
+                      key={benefit.id}
+                      className="group bg-white dark:bg-slate-900 rounded-[24px] border border-slate-100 dark:border-slate-800 overflow-hidden hover:shadow-2xl transition-all duration-500 flex flex-col cursor-pointer"
+                      onClick={() => handleBenefitClick(benefit)}
+                    >
+                      {/* Image */}
+                      <div className="h-64 bg-slate-200 dark:bg-slate-800 relative overflow-hidden">
+                        {benefit.backgroundImage ? (
+                          <>
+                            <img
+                              src={benefit.backgroundImage}
+                              alt={benefit.title}
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+                          </>
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-6xl">
+                            {benefit.businessLogo}
+                          </div>
+                        )}
+                      </div>
 
-                    {/* Content */}
-                    <div className="p-8 flex-1">
-                      <div className="flex items-center gap-4 mb-4">
-                        <div className="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-800 p-2 flex items-center justify-center border border-slate-100 dark:border-slate-700 text-2xl">
-                          {benefit.businessLogo}
+                      {/* Content */}
+                      <div className="p-8 flex-1">
+                        <div className="flex items-center gap-4 mb-4">
+                          <div className="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-800 p-2 flex items-center justify-center border border-slate-100 dark:border-slate-700 text-2xl">
+                            {benefit.businessLogo}
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-lg">{benefit.businessName}</h3>
+                            <p className="text-sm text-slate-500">{benefit.title}</p>
+                          </div>
                         </div>
-                        <div>
-                          <h3 className="font-bold text-lg">{benefit.businessName}</h3>
-                          <p className="text-sm text-slate-500">{benefit.title}</p>
+                        <div className="mb-4">
+                          <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mb-2">
+                            {benefit.discount}
+                          </div>
+                          {/* Execution type badge */}
+                          {catalogItem?.executionType && EXECUTION_TYPE_LABELS[catalogItem.executionType] && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-100 px-2 py-0.5 text-xs text-indigo-700 mt-1">
+                              {EXECUTION_TYPE_LABELS[catalogItem.executionType].icon}{' '}
+                              {EXECUTION_TYPE_LABELS[catalogItem.executionType].label}
+                            </span>
+                          )}
+                          {/* Stock indicator */}
+                          {catalogItem && catalogItem.stockLimit !== null && (
+                            <span className={`block text-xs font-medium mt-1 ${(catalogItem.stockAvailable ?? 0) <= 5 ? 'text-red-600' : 'text-slate-500'}`}>
+                              {catalogItem.stockAvailable === 0 ? '🔴 Sold out' : `${catalogItem.stockAvailable} left`}
+                            </span>
+                          )}
                         </div>
-                      </div>
-                      <div className="mb-4">
-                        <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mb-2">
-                          {benefit.discount}
+                        <div className="pt-6 border-t border-slate-100 dark:border-slate-800">
+                          <p className="text-sm font-medium text-slate-400">{benefit.description}</p>
                         </div>
-                      </div>
-                      <div className="pt-6 border-t border-slate-100 dark:border-slate-800">
-                        <p className="text-sm font-medium text-slate-400">{benefit.description}</p>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
             {/* Regular Benefits */}
             {!isLoadingCatalog && regularBenefits.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {regularBenefits.map((benefit) => (
-                  <div
-                    key={benefit.id}
-                    className="p-6 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition-colors cursor-pointer"
-                    onClick={() => handleBenefitClick(benefit)}
-                  >
-                    <div className="flex items-center gap-4 mb-6">
-                      <div className="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-800 p-2.5 flex items-center justify-center border border-slate-100 dark:border-slate-700 text-2xl">
-                        {benefit.businessLogo}
+                {regularBenefits.map((benefit) => {
+                  // Look up the original CatalogItem to access execution type and stock fields.
+                  const catalogItem = catalogItems.find(c => c.offerId === benefit.id);
+                  return (
+                    <div
+                      key={benefit.id}
+                      className="p-6 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition-colors cursor-pointer"
+                      onClick={() => handleBenefitClick(benefit)}
+                    >
+                      <div className="flex items-center gap-4 mb-6">
+                        <div className="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-800 p-2.5 flex items-center justify-center border border-slate-100 dark:border-slate-700 text-2xl">
+                          {benefit.businessLogo}
+                        </div>
+                        <div>
+                          <h3 className="font-bold">{benefit.businessName}</h3>
+                          <p className="text-xs text-slate-500">{benefit.title}</p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-bold">{benefit.businessName}</h3>
-                        <p className="text-xs text-slate-500">{benefit.title}</p>
+                      <div className="pt-4 border-t border-slate-50 dark:border-slate-800">
+                        <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                          {benefit.discount}
+                        </p>
+                        {/* Execution type badge */}
+                        {catalogItem?.executionType && EXECUTION_TYPE_LABELS[catalogItem.executionType] && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-100 px-2 py-0.5 text-xs text-indigo-700 mt-1">
+                            {EXECUTION_TYPE_LABELS[catalogItem.executionType].icon}{' '}
+                            {EXECUTION_TYPE_LABELS[catalogItem.executionType].label}
+                          </span>
+                        )}
+                        {/* Stock indicator */}
+                        {catalogItem && catalogItem.stockLimit !== null && (
+                          <span className={`block text-xs font-medium mt-1 ${(catalogItem.stockAvailable ?? 0) <= 5 ? 'text-red-600' : 'text-slate-500'}`}>
+                            {catalogItem.stockAvailable === 0 ? '🔴 Sold out' : `${catalogItem.stockAvailable} left`}
+                          </span>
+                        )}
                       </div>
                     </div>
-                    <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 pt-4 border-t border-slate-50 dark:border-slate-800">
-                      {benefit.discount}
-                    </p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </section>
