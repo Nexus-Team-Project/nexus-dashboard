@@ -585,6 +585,7 @@ const BenefitsPartnerships = () => {
           onActivate={handleActivateCatalog}
           onGoLive={handleGoLiveCatalog}
           onDisable={handleDeactivateCatalog}
+          goLiveDisabled={me?.authorization.businessSetupComplete !== true}
         />
 
         {/* Hero Section */}

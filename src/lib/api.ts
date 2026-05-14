@@ -297,6 +297,8 @@ export interface DashboardMe {
     canPurchaseCatalog?: boolean;
     /** Services this member was granted at invite time (e.g. ['benefits_catalog']). */
     memberServices?: string[];
+    /** True when business setup is complete and Go Live is allowed. */
+    businessSetupComplete?: boolean;
   };
   onboarding: {
     required: boolean;

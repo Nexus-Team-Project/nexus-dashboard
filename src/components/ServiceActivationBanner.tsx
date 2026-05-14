@@ -42,14 +42,35 @@ export interface ServiceActivationBannerProps {
   onGoLive?: () => Promise<void>;
   /** Called when the admin confirms service deactivation. Should await the API call + reloadMe(). */
   onDisable: () => Promise<void>;
+  /**
+   * When true, the Go Live button is disabled with a tooltip explaining why.
+   * Used when business setup is not yet complete.
+   */
+  goLiveDisabled?: boolean;
 }
 
 /**
- * Decorative ON toggle indicator - RTL-safe via dir="ltr".
- * Input: color - Tailwind background color class for the track.
- * Output: non-interactive toggle thumb positioned to the right.
+ * Decorative or interactive ON toggle switch - RTL-safe via dir="ltr".
+ * When onClick is provided, renders as a focusable button to start disable flow.
+ * Input: color class, optional click handler.
+ * Output: toggle element with correct thumb position in both LTR and RTL layouts.
  */
-function OnToggle({ color }: { color: string }) {
+function OnToggle({ color, onClick }: { color: string; onClick?: () => void }) {
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        dir="ltr"
+        className={`relative inline-flex h-7 w-14 shrink-0 cursor-pointer items-center rounded-full ${color} border-2 border-transparent transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary`}
+        role="switch"
+        aria-checked={true}
+        aria-label="כבה שירות"
+      >
+        <span className="inline-block h-5 w-5 rounded-full bg-white shadow translate-x-7" />
+      </button>
+    );
+  }
   return (
     <div
       dir="ltr"
@@ -95,6 +116,7 @@ export default function ServiceActivationBanner({
   onActivate,
   onGoLive,
   onDisable,
+  goLiveDisabled,
 }: ServiceActivationBannerProps) {
   const [isActivating, setIsActivating] = useState(false);
   const [isGoingLive, setIsGoingLive] = useState(false);
@@ -232,8 +254,8 @@ export default function ServiceActivationBanner({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="text-sm font-semibold text-amber-900">{config.name} - מצב sandbox</p>
-            {/* Decorative ON toggle - dir="ltr" ensures correct thumb position in RTL pages */}
-            <OnToggle color="bg-primary" />
+            {/* Interactive ON toggle - clicking starts the disable confirmation flow */}
+            <OnToggle color="bg-primary" onClick={() => setIsConfirming(true)} />
           </div>
           <p className="mt-0.5 text-xs text-amber-700">{config.sandboxNote}</p>
         </div>
@@ -242,20 +264,28 @@ export default function ServiceActivationBanner({
         ) : (
           <div className="flex items-center gap-2 shrink-0">
             {onGoLive && (
-              <button
-                onClick={() => void handleGoLive()}
-                disabled={isGoingLive}
-                className="bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
-              >
-                {isGoingLive ? (
-                  <>
-                    <Spinner />
-                    <span>מעדכן...</span>
-                  </>
-                ) : (
-                  'Go Live'
+              <div className="relative group">
+                <button
+                  onClick={() => void handleGoLive()}
+                  disabled={isGoingLive || goLiveDisabled}
+                  className="bg-amber-600 hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  {isGoingLive ? (
+                    <>
+                      <Spinner />
+                      <span>מעדכן...</span>
+                    </>
+                  ) : (
+                    'Go Live'
+                  )}
+                </button>
+                {goLiveDisabled && (
+                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-max max-w-[200px] rounded-lg bg-slate-900 text-white text-xs px-3 py-2 text-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                    יש להשלים את הגדרת העסק לפני המעבר ל-live
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900" />
+                  </div>
                 )}
-              </button>
+              </div>
             )}
             <button
               onClick={() => setIsConfirming(true)}
@@ -273,8 +303,8 @@ export default function ServiceActivationBanner({
   return (
     <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 flex items-center justify-between gap-4">
       <div className="flex items-center gap-3">
-        {/* Decorative ON toggle - dir="ltr" ensures correct thumb position in RTL pages */}
-        <OnToggle color="bg-emerald-500" />
+        {/* Interactive ON toggle - clicking starts the disable confirmation flow */}
+        <OnToggle color="bg-emerald-500" onClick={() => setIsConfirming(true)} />
         <p className="text-sm font-medium text-emerald-700">{config.name} פעיל</p>
       </div>
       {disableSection}
