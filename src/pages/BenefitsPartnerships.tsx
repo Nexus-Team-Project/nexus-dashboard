@@ -578,6 +578,7 @@ const BenefitsPartnerships = () => {
     stockLimit: item.stockLimit,
     stockAvailable: item.stockAvailable,
     isSoldOut: item.isSoldOut,
+    tags: item.tags ?? [],
   }));
 
   // When service is inactive, show empty state (not mock data).
@@ -1717,6 +1718,17 @@ const BenefitsPartnerships = () => {
                             );
                           })()}
 
+                          {/* Tags */}
+                          {benefit.tags && benefit.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {benefit.tags.map((tag) => (
+                                <span key={tag} className="text-xs px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-full border border-slate-200 dark:border-slate-700">
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
                           {/* Edit and Delete buttons - only for editable offers */}
                           {catalogItem && canEditOffer(catalogItem) && (
                             <div className="flex gap-2 pt-1">
@@ -1848,6 +1860,23 @@ const BenefitsPartnerships = () => {
                   </div>
                 ) : null}
               </div>
+
+              {/* Tags */}
+              {selectedBenefit.tags && selectedBenefit.tags.length > 0 && (
+                <div className="flex items-start gap-3">
+                  <span className="material-icons text-slate-400">sell</span>
+                  <div>
+                    <div className="text-sm text-slate-500 dark:text-slate-400 mb-2">תגיות</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedBenefit.tags.map((tag) => (
+                        <span key={tag} className="text-xs px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full border border-slate-200 dark:border-slate-700">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* How to Use */}
               <div className="bg-violet-50 dark:bg-violet-900/20 border border-violet-100 dark:border-violet-900/30 rounded-xl p-4">
