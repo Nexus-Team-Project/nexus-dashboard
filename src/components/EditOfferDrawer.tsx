@@ -214,14 +214,14 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
 
       {/* Centered modal */}
       <div
-        className="fixed inset-0 z-[200] flex items-end justify-center pb-4 pt-20 sm:items-center sm:pt-4"
-        dir="rtl"
+        className="fixed inset-0 z-[200] flex items-start justify-center px-4 pt-16 pb-4"
       >
       <div
-        className="w-full max-w-2xl max-h-[90vh] flex flex-col bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden"
+        className="w-full max-w-2xl max-h-[80vh] flex flex-col bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden"
         role="dialog"
         aria-modal="true"
         aria-label="עריכת הצעה"
+        dir="rtl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -242,8 +242,8 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
           </button>
         </div>
 
-        {/* Scrollable form body */}
-        <div className="flex-1 overflow-y-auto">
+        {/* Scrollable form body — dir="ltr" keeps scrollbar on the right in RTL layout */}
+        <div className="flex-1 overflow-y-auto" dir="ltr"><div dir="rtl">
 
           {/* ── Image ──────────────────────────────────────────── */}
           <div className="px-6 pt-5 pb-4">
@@ -385,7 +385,7 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-4">תגיות</p>
             <TagsInput tags={tags} onChange={setTags} />
           </div>
-        </div>
+        </div></div>
 
         {/* Footer */}
         <div className="flex items-center gap-3 px-6 py-4 border-t border-slate-100 dark:border-slate-800 shrink-0 bg-white dark:bg-slate-900">
