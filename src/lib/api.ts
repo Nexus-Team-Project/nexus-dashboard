@@ -945,7 +945,11 @@ export async function updateOfferApi(
     const fd = new FormData();
     fd.append('image', imageFile);
     Object.entries(rest).forEach(([k, v]) => {
-      if (v !== undefined && v !== null) fd.append(k, String(v));
+      if (v === null && k === 'stockLimit') {
+        fd.append(k, ''); // empty string signals "remove stock limit" to backend
+      } else if (v !== undefined && v !== null) {
+        fd.append(k, String(v));
+      }
     });
     if (tags !== undefined) fd.append('tags', JSON.stringify(tags));
     const res = await request<{ offer: NexusOffer }>('PATCH', `/api/v1/offers/${offerId}`, fd);

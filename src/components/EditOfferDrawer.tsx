@@ -12,7 +12,7 @@
  * Sub-components (ImageSection, TagsInput) live in EditOfferDrawerHelpers.tsx
  * to keep this file within the 350-line limit.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 import { updateOfferApi, type CatalogItem } from '../lib/api';
@@ -62,6 +62,10 @@ interface EditOfferDrawerProps {
   onSaved: () => Promise<void>;
 }
 
+// visibility is intentionally excluded from the edit drawer.
+// Changing an offer's visibility (ecosystem vs tenant_only) after creation
+// requires a deliberate decision and is handled separately.
+
 // ─── Main drawer component ───────────────────────────────────────────────────
 
 /**
@@ -90,6 +94,7 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
   const [implementationInstructions, setInstructions] = useState(offer.implementationInstructions ?? '');
   const [terms, setTerms]                             = useState(offer.terms ?? '');
   const [tags, setTags]                               = useState<string[]>(offer.tags ?? []);
+  const [validUntil, setValidUntil]                   = useState(offer.validUntil ? offer.validUntil.slice(0, 10) : '');
 
   // ─── Image state ───────────────────────────────────────────────────────────
 
@@ -101,6 +106,18 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
   const [imageFile, setImageFile]   = useState<File | null>(null);
 
   const [isSaving, setIsSaving] = useState(false);
+
+  // ─── Escape key handler ─────────────────────────────────────────────────────
+
+  /**
+   * Closes the drawer when the Escape key is pressed.
+   * Registered on mount and removed on unmount to avoid leaking the listener.
+   */
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onClose]);
 
   // ─── Image selection handler ────────────────────────────────────────────────
 
@@ -154,6 +171,7 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
         ...(rawCost !== '' && { raw_cost: Number(rawCost) }),
         ...(marketPrice !== '' && { market_price: Number(marketPrice) }),
         stockLimit: stockLimit !== '' ? Number(stockLimit) : null,
+        validUntil: validUntil || null,
         executionType: executionType || undefined,
         implementationLink: implementationLink.trim() || null,
         implementationInstructions: implementationInstructions.trim(),
@@ -308,6 +326,19 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
               className={inputCls}
               placeholder="כמות יחידות"
             />
+          </div>
+
+          {/* Valid until */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">תוקף ההצעה</label>
+            <input
+              type="date"
+              value={validUntil}
+              onChange={(e) => setValidUntil(e.target.value)}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              dir="ltr"
+            />
+            <p className="mt-0.5 text-xs text-slate-400">ריק = ללא תאריך תפוגה</p>
           </div>
 
           {/* Implementation link */}
