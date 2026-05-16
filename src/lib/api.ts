@@ -945,8 +945,8 @@ export async function updateOfferApi(
     const fd = new FormData();
     fd.append('image', imageFile);
     Object.entries(rest).forEach(([k, v]) => {
-      if (v === null && k === 'stockLimit') {
-        fd.append(k, ''); // empty string signals "remove stock limit" to backend
+      if (v === null && (k === 'stockLimit' || k === 'validUntil')) {
+        fd.append(k, ''); // empty string signals null to backend (coerced by Zod)
       } else if (v !== undefined && v !== null) {
         fd.append(k, String(v));
       }
