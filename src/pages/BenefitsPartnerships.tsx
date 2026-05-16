@@ -1555,14 +1555,13 @@ const BenefitsPartnerships = () => {
 
                       {/* Content */}
                       <div className="p-8 flex-1">
-                        <div className="flex items-center gap-4 mb-4">
-                          <div className="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-800 p-2 flex items-center justify-center border border-slate-100 dark:border-slate-700 text-2xl">
-                            {benefit.businessLogo}
-                          </div>
-                          <div>
-                            <h3 className="font-bold text-lg">{benefit.businessName}</h3>
-                            <p className="text-sm text-slate-500">{benefit.title}</p>
-                          </div>
+                        <div className="flex items-center gap-3 mb-4">
+                          {benefit.businessLogo ? (
+                            <div className="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center border border-slate-100 dark:border-slate-700 text-xl shrink-0">
+                              {benefit.businessLogo}
+                            </div>
+                          ) : null}
+                          <h3 className="font-semibold text-lg text-slate-900 dark:text-white leading-snug">{benefit.businessName}</h3>
                         </div>
                         <div className="mb-4">
                           <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mb-2">
@@ -1600,7 +1599,7 @@ const BenefitsPartnerships = () => {
                                 className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline"
                                 dir="ltr"
                               >
-                                <span className="material-symbols-outlined text-sm" aria-hidden="true">open_in_new</span>
+                                <svg className="w-3 h-3 shrink-0" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 1.5H1.5v9h9V7M7 1.5h3.5m0 0v3.5M7 5l3.5-3.5"/></svg>
                                 {displayUrl.length > 40 ? `${displayUrl.slice(0, 40)}…` : displayUrl}
                               </a>
                             );
@@ -1667,14 +1666,13 @@ const BenefitsPartnerships = () => {
                       </div>
 
                       <div className="p-6 flex flex-col flex-1">
-                        <div className="flex items-center gap-4 mb-6">
-                          <div className="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-800 p-2.5 flex items-center justify-center border border-slate-100 dark:border-slate-700 text-2xl">
-                            {benefit.businessLogo}
-                          </div>
-                          <div>
-                            <h3 className="font-bold">{benefit.businessName}</h3>
-                            <p className="text-xs text-slate-500">{benefit.title}</p>
-                          </div>
+                        <div className="flex items-center gap-3 mb-6">
+                          {benefit.businessLogo ? (
+                            <div className="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center border border-slate-100 dark:border-slate-700 text-xl shrink-0">
+                              {benefit.businessLogo}
+                            </div>
+                          ) : null}
+                          <h3 className="font-semibold text-slate-900 dark:text-white leading-snug">{benefit.businessName}</h3>
                         </div>
                         <div className="pt-4 border-t border-slate-50 dark:border-slate-800">
                           <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
@@ -1709,7 +1707,7 @@ const BenefitsPartnerships = () => {
                                 className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline"
                                 dir="ltr"
                               >
-                                <span className="material-symbols-outlined text-sm" aria-hidden="true">open_in_new</span>
+                                <svg className="w-3 h-3 shrink-0" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 1.5H1.5v9h9V7M7 1.5h3.5m0 0v3.5M7 5l3.5-3.5"/></svg>
                                 {displayUrl.length > 40 ? `${displayUrl.slice(0, 40)}…` : displayUrl}
                               </a>
                             );
