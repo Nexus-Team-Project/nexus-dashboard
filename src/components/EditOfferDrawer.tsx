@@ -201,18 +201,22 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 animate-in fade-in duration-200"
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
         onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* Drawer panel — slides in from the right (natural for RTL) */}
+      {/* Centered modal */}
       <div
-        className="fixed inset-y-0 right-0 z-50 w-full max-w-xl flex flex-col bg-white dark:bg-slate-900 shadow-[−8px_0_40px_rgba(0,0,0,0.15)] animate-in slide-in-from-right duration-300 ease-out"
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
         dir="rtl"
+      >
+      <div
+        className="w-full max-w-2xl max-h-[90vh] flex flex-col bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden"
         role="dialog"
         aria-modal="true"
         aria-label="עריכת הצעה"
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 dark:border-slate-800 shrink-0 bg-white dark:bg-slate-900">
@@ -402,6 +406,8 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
             {isSaving ? 'שומר...' : 'שמור שינויים'}
           </button>
         </div>
+      </div>
+
       </div>
 
       {/* Crop modal - rendered on top of the drawer when a new image is picked */}
