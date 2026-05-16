@@ -230,44 +230,44 @@ export default function RichTextEditor({
           <div className="w-px h-5 bg-slate-200 dark:bg-slate-600 mx-0.5" />
 
           {/* --- Lists --- */}
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleBulletList().run()}
-            active={editor.isActive('bulletList')}
-            title="רשימה"
-          >
-            <span className="material-symbols-outlined text-base leading-none">format_list_bulleted</span>
+          <ToolbarButton onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive('bulletList')} title="רשימה">
+            <svg viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4" aria-hidden="true">
+              <circle cx="2" cy="4" r="1.4"/><rect x="5" y="3" width="9" height="2" rx="1"/>
+              <circle cx="2" cy="8" r="1.4"/><rect x="5" y="7" width="9" height="2" rx="1"/>
+              <circle cx="2" cy="12" r="1.4"/><rect x="5" y="11" width="9" height="2" rx="1"/>
+            </svg>
           </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleOrderedList().run()}
-            active={editor.isActive('orderedList')}
-            title="רשימה ממוספרת"
-          >
-            <span className="material-symbols-outlined text-base leading-none">format_list_numbered</span>
+          <ToolbarButton onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive('orderedList')} title="רשימה ממוספרת">
+            <svg viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4" aria-hidden="true">
+              <text x="0.5" y="5.5" fontSize="5.5" fontFamily="sans-serif">1.</text>
+              <rect x="5" y="3" width="9" height="2" rx="1"/>
+              <text x="0.5" y="9.5" fontSize="5.5" fontFamily="sans-serif">2.</text>
+              <rect x="5" y="7" width="9" height="2" rx="1"/>
+              <text x="0.5" y="13.5" fontSize="5.5" fontFamily="sans-serif">3.</text>
+              <rect x="5" y="11" width="9" height="2" rx="1"/>
+            </svg>
           </ToolbarButton>
 
           <div className="w-px h-5 bg-slate-200 dark:bg-slate-600 mx-0.5" />
 
           {/* --- Text alignment --- */}
-          <ToolbarButton
-            onClick={() => editor.chain().focus().setTextAlign('left').run()}
-            active={editor.isActive({ textAlign: 'left' })}
-            title="יישור שמאל"
-          >
-            <span className="material-symbols-outlined text-base leading-none">format_align_left</span>
+          <ToolbarButton onClick={() => editor.chain().focus().setTextAlign('left').run()} active={editor.isActive({ textAlign: 'left' })} title="יישור שמאל">
+            <svg viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4" aria-hidden="true">
+              <rect x="1" y="2" width="14" height="2" rx="1"/><rect x="1" y="6" width="10" height="2" rx="1"/>
+              <rect x="1" y="10" width="14" height="2" rx="1"/><rect x="1" y="14" width="8" height="2" rx="1"/>
+            </svg>
           </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().setTextAlign('center').run()}
-            active={editor.isActive({ textAlign: 'center' })}
-            title="מרכז"
-          >
-            <span className="material-symbols-outlined text-base leading-none">format_align_center</span>
+          <ToolbarButton onClick={() => editor.chain().focus().setTextAlign('center').run()} active={editor.isActive({ textAlign: 'center' })} title="מרכז">
+            <svg viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4" aria-hidden="true">
+              <rect x="1" y="2" width="14" height="2" rx="1"/><rect x="3" y="6" width="10" height="2" rx="1"/>
+              <rect x="1" y="10" width="14" height="2" rx="1"/><rect x="4" y="14" width="8" height="2" rx="1"/>
+            </svg>
           </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().setTextAlign('right').run()}
-            active={editor.isActive({ textAlign: 'right' })}
-            title="יישור ימין"
-          >
-            <span className="material-symbols-outlined text-base leading-none">format_align_right</span>
+          <ToolbarButton onClick={() => editor.chain().focus().setTextAlign('right').run()} active={editor.isActive({ textAlign: 'right' })} title="יישור ימין">
+            <svg viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4" aria-hidden="true">
+              <rect x="1" y="2" width="14" height="2" rx="1"/><rect x="5" y="6" width="10" height="2" rx="1"/>
+              <rect x="1" y="10" width="14" height="2" rx="1"/><rect x="7" y="14" width="8" height="2" rx="1"/>
+            </svg>
           </ToolbarButton>
 
           <div className="w-px h-5 bg-slate-200 dark:bg-slate-600 mx-0.5" />
