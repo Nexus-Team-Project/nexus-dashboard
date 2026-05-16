@@ -19,6 +19,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import { toast } from 'sonner';
+import { cn } from '../lib/utils';
 import ServiceActivationBanner from '../components/ServiceActivationBanner';
 
 interface Business {
@@ -1525,12 +1526,12 @@ const BenefitsPartnerships = () => {
                       className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition-colors cursor-pointer overflow-hidden"
                       onClick={() => handleBenefitClick(benefit)}
                     >
-                      {/* Card image - shown when imageUrl exists, falls back to placeholder */}
+                      {/* Card image - shown when backgroundImage exists, falls back to placeholder */}
                       {benefit.backgroundImage ? (
                         <img
                           src={benefit.backgroundImage}
                           alt={benefit.title}
-                          className="w-full h-32 object-cover rounded-t-2xl"
+                          className="w-full h-32 object-cover"
                           onError={(e) => {
                             // Hide broken image and reveal the placeholder sibling
                             (e.currentTarget as HTMLImageElement).style.display = 'none';
@@ -1539,11 +1540,11 @@ const BenefitsPartnerships = () => {
                           }}
                         />
                       ) : null}
-                      {/* Placeholder shown when no imageUrl or when the img fails to load */}
+                      {/* Placeholder shown when no backgroundImage or when the img fails to load */}
                       <div
-                        className={`w-full h-32 rounded-t-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center ${benefit.backgroundImage ? 'hidden' : ''}`}
+                        className={cn('w-full h-32 bg-slate-100 dark:bg-slate-800 flex items-center justify-center', benefit.backgroundImage && 'hidden')}
                       >
-                        <span className="material-icons text-4xl text-slate-300 dark:text-slate-600">image</span>
+                        <span className="material-icons text-4xl text-slate-300 dark:text-slate-600" aria-hidden="true">image</span>
                       </div>
 
                       <div className="p-6 flex flex-col flex-1">
