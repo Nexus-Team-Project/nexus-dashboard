@@ -69,6 +69,10 @@ interface Benefit {
   image?: string;
   title: string;
   discount: string;
+  // Stock tracking
+  stockLimit: number | null;
+  stockAvailable: number | null;
+  isSoldOut: boolean;
 }
 
 type ViewMode = 'benefits' | 'businesses';
@@ -528,6 +532,9 @@ const BenefitsPartnerships = () => {
     image: item.imageUrl,
     title: item.title,
     discount: `₪${item.member_price}`,
+    stockLimit: item.stockLimit,
+    stockAvailable: item.stockAvailable,
+    isSoldOut: item.isSoldOut,
   }));
 
   // When service is inactive, show empty state (not mock data).
@@ -1498,9 +1505,11 @@ const BenefitsPartnerships = () => {
                             </span>
                           )}
                           {/* Stock indicator */}
-                          {catalogItem && catalogItem.stockLimit !== null && (
-                            <span className={`block text-xs font-medium mt-1 ${(catalogItem.stockAvailable ?? 0) <= 5 ? 'text-red-600' : 'text-slate-500'}`}>
-                              {catalogItem.stockAvailable === 0 ? '🔴 Sold out' : `${catalogItem.stockAvailable} left`}
+                          {benefit.stockLimit !== null && benefit.stockLimit !== undefined && (
+                            <span className="text-xs text-slate-500">
+                              {benefit.isSoldOut
+                                ? 'נגמר המלאי'
+                                : `נותרו ${benefit.stockAvailable ?? benefit.stockLimit}`}
                             </span>
                           )}
                         </div>
@@ -1588,9 +1597,11 @@ const BenefitsPartnerships = () => {
                             </span>
                           )}
                           {/* Stock indicator */}
-                          {catalogItem && catalogItem.stockLimit !== null && (
-                            <span className={`block text-xs font-medium mt-1 ${(catalogItem.stockAvailable ?? 0) <= 5 ? 'text-red-600' : 'text-slate-500'}`}>
-                              {catalogItem.stockAvailable === 0 ? '🔴 Sold out' : `${catalogItem.stockAvailable} left`}
+                          {benefit.stockLimit !== null && benefit.stockLimit !== undefined && (
+                            <span className="text-xs text-slate-500">
+                              {benefit.isSoldOut
+                                ? 'נגמר המלאי'
+                                : `נותרו ${benefit.stockAvailable ?? benefit.stockLimit}`}
                             </span>
                           )}
                           {/* Implementation link */}
