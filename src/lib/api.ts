@@ -801,16 +801,16 @@ export const EXECUTION_TYPE_LABELS: Record<string, { label: string; icon: string
  * Values match the backend enum; labels are display strings.
  */
 export const OFFER_CATEGORIES = [
-  { value: 'food_beverage',  label: 'Food & Beverage' },
-  { value: 'fashion',        label: 'Fashion' },
-  { value: 'health_wellness',label: 'Health & Wellness' },
-  { value: 'entertainment',  label: 'Entertainment' },
-  { value: 'travel',         label: 'Travel' },
-  { value: 'technology',     label: 'Technology' },
-  { value: 'education',      label: 'Education' },
-  { value: 'financial',      label: 'Financial' },
-  { value: 'home_living',    label: 'Home & Living' },
-  { value: 'other',          label: 'Other' },
+  { value: 'food_beverage',   label: 'Food & Beverage',   labelHe: 'אוכל ומשקאות' },
+  { value: 'fashion',         label: 'Fashion',            labelHe: 'אופנה' },
+  { value: 'health_wellness', label: 'Health & Wellness',  labelHe: 'בריאות ורווחה' },
+  { value: 'entertainment',   label: 'Entertainment',      labelHe: 'בידור' },
+  { value: 'travel',          label: 'Travel',             labelHe: 'טיסות ונופש' },
+  { value: 'technology',      label: 'Technology',         labelHe: 'טכנולוגיה' },
+  { value: 'education',       label: 'Education',          labelHe: 'חינוך' },
+  { value: 'financial',       label: 'Financial',          labelHe: 'פיננסי' },
+  { value: 'home_living',     label: 'Home & Living',      labelHe: 'בית ומגורים' },
+  { value: 'other',           label: 'Other',              labelHe: 'אחר' },
 ] as const;
 
 /**

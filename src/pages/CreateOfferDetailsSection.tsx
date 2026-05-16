@@ -9,6 +9,14 @@
 import { useLanguage } from '../i18n/LanguageContext';
 import { OFFER_CATEGORIES, EXECUTION_TYPE_LABELS } from '../lib/api';
 
+// ─── Type Helper ──────────────────────────────────────────────────────────────
+/** Type guard to check if a category has labelHe property. */
+interface CategoryWithHebrew {
+  value: string;
+  label: string;
+  labelHe: string;
+}
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 /**
@@ -74,7 +82,7 @@ const CreateOfferDetailsSection = ({
   setStockLimit,
   isSubmitting,
 }: DetailsSectionProps) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   return (
     <>
@@ -140,7 +148,7 @@ const CreateOfferDetailsSection = ({
           >
             {OFFER_CATEGORIES.map((cat) => (
               <option key={cat.value} value={cat.value}>
-                {cat.label}
+                {language === 'he' ? (cat as CategoryWithHebrew).labelHe : cat.label}
               </option>
             ))}
           </select>
