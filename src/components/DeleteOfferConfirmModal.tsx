@@ -25,6 +25,7 @@ export default function DeleteOfferConfirmModal({
   onCancel,
 }: DeleteOfferConfirmModalProps) {
   const confirmRef = useRef<HTMLButtonElement>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
 
   // Focus confirm button on open; restore previous focus on close.
   useEffect(() => {
@@ -39,6 +40,24 @@ export default function DeleteOfferConfirmModal({
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, [isDeleting, onCancel]);
+
+  // Trap Tab/Shift+Tab inside the modal — cycles between cancel and confirm buttons.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      const focusable = [cancelRef.current, confirmRef.current].filter(Boolean) as HTMLElement[];
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, []);
 
   // Lock background scroll.
   useEffect(() => {
@@ -70,20 +89,13 @@ export default function DeleteOfferConfirmModal({
           <p className="text-sm text-slate-500 dark:text-slate-400">
             האם למחוק את <span className="font-medium text-slate-700 dark:text-slate-200">"{offerTitle}"</span>?
           </p>
-          <p className="text-xs text-red-600 mt-1">
+          <p className="text-xs text-red-600 dark:text-red-400 mt-1">
             פעולה זו תמחק את ההצעה ואת התמונה שלה לצמיתות. לא ניתן לבטל.
           </p>
         </div>
 
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={isDeleting}
-            className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-          >
-            ביטול
-          </button>
+        <div className="flex justify-start gap-2">
+          {/* In RTL: first in DOM = visually rightmost */}
           <button
             ref={confirmRef}
             type="button"
@@ -102,6 +114,15 @@ export default function DeleteOfferConfirmModal({
             ) : (
               'מחק לצמיתות'
             )}
+          </button>
+          <button
+            ref={cancelRef}
+            type="button"
+            onClick={onCancel}
+            disabled={isDeleting}
+            className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+          >
+            ביטול
           </button>
         </div>
       </div>
