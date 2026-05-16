@@ -199,196 +199,191 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
 
   return (
     <>
-      {/* Backdrop - clicking it closes the drawer */}
+      {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 animate-in fade-in duration-200"
         onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* Drawer panel - RTL, slides in from the left */}
+      {/* Drawer panel — slides in from the right (natural for RTL) */}
       <div
-        className="fixed inset-y-0 left-0 z-50 w-full max-w-lg flex flex-col bg-white dark:bg-slate-900 shadow-2xl"
+        className="fixed inset-y-0 right-0 z-50 w-full max-w-xl flex flex-col bg-white dark:bg-slate-900 shadow-[−8px_0_40px_rgba(0,0,0,0.15)] animate-in slide-in-from-right duration-300 ease-out"
         dir="rtl"
         role="dialog"
         aria-modal="true"
         aria-label="עריכת הצעה"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700 shrink-0">
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white">עריכת הצעה</h2>
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 dark:border-slate-800 shrink-0 bg-white dark:bg-slate-900">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">עריכת הצעה</h2>
+            <p className="text-xs text-slate-400 mt-0.5 truncate max-w-[280px]">{offer.title}</p>
+          </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="סגור"
-            className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 transition-colors"
           >
-            <span className="material-icons text-slate-500 dark:text-slate-400">close</span>
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-4 h-4" aria-hidden="true">
+              <path d="M2 2l12 12M14 2L2 14"/>
+            </svg>
           </button>
         </div>
 
         {/* Scrollable form body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-          {/* Image upload / replace */}
-          <ImageSection previewUrl={previewUrl} onSelect={handleImageSelect} />
+        <div className="flex-1 overflow-y-auto">
 
-          {/* Title */}
-          <div className="space-y-1">
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-              כותרת <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className={inputCls}
-              placeholder="כותרת ההצעה"
-            />
+          {/* ── Image ──────────────────────────────────────────── */}
+          <div className="px-6 pt-5 pb-4">
+            <ImageSection previewUrl={previewUrl} onSelect={handleImageSelect} />
           </div>
 
-          {/* Description */}
-          <div className="space-y-1">
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">תיאור</label>
-            <RichTextEditor
-              value={description}
-              onChange={setDescription}
-              placeholder="תיאור קצר של ההצעה"
-            />
-          </div>
+          <div className="h-px bg-slate-100 dark:bg-slate-800 mx-6" />
 
-          {/* Category */}
-          <div className="space-y-1">
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">קטגוריה</label>
-            <select value={category} onChange={(e) => setCategory(e.target.value)} className={inputCls}>
-              {CATEGORY_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
+          {/* ── Basic info ─────────────────────────────────────── */}
+          <div className="px-6 py-4 space-y-4">
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">פרטי ההצעה</p>
 
-          {/* Execution type */}
-          <div className="space-y-1">
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">אופן מימוש</label>
-            <select
-              value={executionType}
-              onChange={(e) => setExecutionType(e.target.value)}
-              className={inputCls}
-            >
-              <option value="">בחר אופן מימוש</option>
-              {EXECUTION_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Pricing row */}
-          <div className="grid grid-cols-2 gap-4">
-            {/* raw_cost intentionally blank to avoid unintended server overwrites */}
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">עלות חדשה</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                כותרת <span className="text-red-500">*</span>
+              </label>
               <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={rawCost}
-                onChange={(e) => setRawCost(e.target.value)}
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
                 className={inputCls}
-                placeholder="ריק = ללא שינוי"
+                placeholder="כותרת ההצעה"
               />
             </div>
+
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">מחיר שוק</label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={marketPrice}
-                onChange={(e) => setMarketPrice(e.target.value)}
-                className={inputCls}
-                placeholder="מחיר מקורי"
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">תיאור</label>
+              <RichTextEditor
+                value={description}
+                onChange={setDescription}
+                placeholder="תיאור קצר של ההצעה"
               />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">קטגוריה</label>
+                <select value={category} onChange={(e) => setCategory(e.target.value)} className={inputCls}>
+                  {CATEGORY_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">אופן מימוש</label>
+                <select value={executionType} onChange={(e) => setExecutionType(e.target.value)} className={inputCls}>
+                  <option value="">בחר...</option>
+                  {EXECUTION_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
 
-          {/* Stock limit */}
-          <div className="space-y-1">
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-              מלאי מקסימלי
-              <span className="text-slate-400 font-normal mr-1">(ריק = ללא הגבלה)</span>
-            </label>
-            <input
-              type="number"
-              min="0"
-              step="1"
-              value={stockLimit}
-              onChange={(e) => setStockLimit(e.target.value)}
-              onWheel={(e) => e.currentTarget.blur()}
-              className={inputCls}
-              placeholder="כמות יחידות"
-            />
+          <div className="h-px bg-slate-100 dark:bg-slate-800 mx-6" />
+
+          {/* ── Pricing & stock ───────────────────────────────── */}
+          <div className="px-6 py-4 space-y-4">
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">תמחור ומלאי</p>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  עלות חדשה
+                  <span className="text-slate-400 font-normal text-xs mr-1">(ריק = ללא שינוי)</span>
+                </label>
+                <input type="number" min="0" step="0.01" value={rawCost} onChange={(e) => setRawCost(e.target.value)} className={inputCls} placeholder="₪" dir="ltr" />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">מחיר שוק</label>
+                <input type="number" min="0" step="0.01" value={marketPrice} onChange={(e) => setMarketPrice(e.target.value)} className={inputCls} placeholder="₪" dir="ltr" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  מלאי
+                  <span className="text-slate-400 font-normal text-xs mr-1">(ריק = ללא הגבלה)</span>
+                </label>
+                <input type="number" min="0" step="1" value={stockLimit} onChange={(e) => setStockLimit(e.target.value)} onWheel={(e) => e.currentTarget.blur()} className={inputCls} placeholder="∞" dir="ltr" />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  תוקף
+                  <span className="text-slate-400 font-normal text-xs mr-1">(ריק = ללא)</span>
+                </label>
+                <input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} className={inputCls} dir="ltr" />
+              </div>
+            </div>
           </div>
 
-          {/* Valid until */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">תוקף ההצעה</label>
-            <input
-              type="date"
-              value={validUntil}
-              onChange={(e) => setValidUntil(e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              dir="ltr"
-            />
-            <p className="mt-0.5 text-xs text-slate-400">ריק = ללא תאריך תפוגה</p>
+          <div className="h-px bg-slate-100 dark:bg-slate-800 mx-6" />
+
+          {/* ── Redemption ───────────────────────────────────── */}
+          <div className="px-6 py-4 space-y-4">
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">מימוש</p>
+
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">קישור מימוש</label>
+              <input
+                type="url"
+                dir="ltr"
+                value={implementationLink}
+                onChange={(e) => setImplementationLink(e.target.value)}
+                className={cn(inputCls, 'text-left placeholder:text-right')}
+                placeholder="https://..."
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">הוראות מימוש</label>
+              <textarea
+                value={implementationInstructions}
+                onChange={(e) => setInstructions(e.target.value)}
+                rows={3}
+                className={cn(inputCls, 'resize-none')}
+                placeholder="שלבים לקבלת ההטבה"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">תנאים</label>
+              <textarea
+                value={terms}
+                onChange={(e) => setTerms(e.target.value)}
+                rows={2}
+                className={cn(inputCls, 'resize-none')}
+                placeholder="תנאים והגבלות"
+              />
+            </div>
           </div>
 
-          {/* Implementation link */}
-          <div className="space-y-1">
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">קישור מימוש</label>
-            <input
-              type="url"
-              dir="ltr"
-              value={implementationLink}
-              onChange={(e) => setImplementationLink(e.target.value)}
-              className={cn(inputCls, 'text-left placeholder:text-right')}
-              placeholder="https://..."
-            />
-          </div>
+          <div className="h-px bg-slate-100 dark:bg-slate-800 mx-6" />
 
-          {/* Implementation instructions */}
-          <div className="space-y-1">
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">הוראות מימוש</label>
-            <textarea
-              value={implementationInstructions}
-              onChange={(e) => setInstructions(e.target.value)}
-              rows={3}
-              className={cn(inputCls, 'resize-none')}
-              placeholder="שלבים לקבלת ההטבה"
-            />
+          {/* ── Tags ─────────────────────────────────────────── */}
+          <div className="px-6 py-4 pb-8">
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-4">תגיות</p>
+            <TagsInput tags={tags} onChange={setTags} />
           </div>
-
-          {/* Terms */}
-          <div className="space-y-1">
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">תנאים</label>
-            <textarea
-              value={terms}
-              onChange={(e) => setTerms(e.target.value)}
-              rows={3}
-              className={cn(inputCls, 'resize-none')}
-              placeholder="תנאים והגבלות"
-            />
-          </div>
-
-          {/* Tags chip input */}
-          <TagsInput tags={tags} onChange={setTags} />
         </div>
 
-        {/* Footer - cancel + save */}
-        <div className="flex items-center gap-3 px-6 py-4 border-t border-slate-200 dark:border-slate-700 shrink-0">
+        {/* Footer */}
+        <div className="flex items-center gap-3 px-6 py-4 border-t border-slate-100 dark:border-slate-800 shrink-0 bg-white dark:bg-slate-900">
           <button
             type="button"
             onClick={onClose}
             disabled={isSaving}
-            className="flex-1 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+            className="flex-1 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
           >
             ביטול
           </button>
@@ -396,10 +391,13 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
             type="button"
             onClick={() => void handleSave()}
             disabled={isSaving}
-            className="flex-1 bg-primary shadow-sm hover:opacity-90 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+            className="flex-1 bg-primary shadow-sm hover:opacity-90 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {isSaving && (
-              <span className="material-icons text-base animate-spin">refresh</span>
+              <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+              </svg>
             )}
             {isSaving ? 'שומר...' : 'שמור שינויים'}
           </button>
