@@ -13,6 +13,7 @@ import {
   activateBenefitsCatalog,
   deactivateBenefitsCatalog,
   updateOfferApi,
+  deleteOffer,
   EXECUTION_TYPE_LABELS,
   type CatalogItem,
 } from '../lib/api';
@@ -23,6 +24,7 @@ import { cn } from '../lib/utils';
 import ServiceActivationBanner from '../components/ServiceActivationBanner';
 import ImageLightbox from '../components/ImageLightbox';
 import EditOfferDrawer from '../components/EditOfferDrawer';
+import DeleteOfferConfirmModal from '../components/DeleteOfferConfirmModal';
 
 interface Business {
   id: string;
@@ -162,6 +164,11 @@ const BenefitsPartnerships = () => {
 
   /** CatalogItem currently open in the EditOfferDrawer, or null when the drawer is closed. */
   const [editingOffer, setEditingOffer] = useState<CatalogItem | null>(null);
+
+  /** CatalogItem pending deletion confirmation, or null when no deletion is in progress. */
+  const [deletingOffer, setDeletingOffer] = useState<CatalogItem | null>(null);
+  /** True while the delete API call is in-flight. Prevents double-submit and closes the modal. */
+  const [isDeleting, setIsDeleting] = useState(false);
 
   /** Buffered inline edits keyed by offerId. Cleared after a successful PATCH. */
   const [pendingEdits, setPendingEdits] = useState<Record<string, PendingOffer>>({});
@@ -316,6 +323,27 @@ const BenefitsPartnerships = () => {
       toast.error(language === 'he' ? 'שמירה נכשלה. נסה שוב.' : 'Failed to save. Please try again.');
     } finally {
       setSavingId(null);
+    }
+  };
+
+  /**
+   * Permanently deletes an offer and its Cloudinary image.
+   * Uses the deletingOffer state for the target offer.
+   * Input: none (reads deletingOffer state).
+   * Output: closes modal and refreshes the catalog on success; shows toast on failure.
+   */
+  const handleDeleteOffer = async () => {
+    if (!deletingOffer) return;
+    setIsDeleting(true);
+    try {
+      await deleteOffer(deletingOffer.offerId);
+      setDeletingOffer(null);
+      await loadCatalog();
+      toast.success('ההצעה נמחקה בהצלחה');
+    } catch {
+      toast.error('מחיקה נכשלה. נסה שוב.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -1221,6 +1249,15 @@ const BenefitsPartnerships = () => {
                                       עריכה
                                     </button>
                                   )}
+                                  {item && canEditOffer(item) && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); setDeletingOffer(item); }}
+                                      className="border border-red-200 bg-white hover:bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                                    >
+                                      מחק
+                                    </button>
+                                  )}
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -1568,15 +1605,22 @@ const BenefitsPartnerships = () => {
                             );
                           })()}
                         </div>
-                        {/* Edit button - only for editable offers */}
+                        {/* Edit and Delete buttons - only for editable offers */}
                         {catalogItem && canEditOffer(catalogItem) && (
-                          <div className="px-8 pb-4">
+                          <div className="px-8 pb-4 flex gap-2">
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); setEditingOffer(catalogItem); }}
-                              className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors w-full"
+                              className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex-1"
                             >
                               עריכה
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setDeletingOffer(catalogItem); }}
+                              className="border border-red-200 bg-white hover:bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex-1"
+                            >
+                              מחק
                             </button>
                           </div>
                         )}
@@ -1669,15 +1713,24 @@ const BenefitsPartnerships = () => {
                               </a>
                             );
                           })()}
-                          {/* Edit button - only for editable offers */}
+                          {/* Edit and Delete buttons - only for editable offers */}
                           {catalogItem && canEditOffer(catalogItem) && (
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); setEditingOffer(catalogItem); }}
-                              className="mt-3 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors w-full"
-                            >
-                              עריכה
-                            </button>
+                            <div className="mt-3 flex gap-2">
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setEditingOffer(catalogItem); }}
+                                className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex-1"
+                              >
+                                עריכה
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setDeletingOffer(catalogItem); }}
+                                className="border border-red-200 bg-white hover:bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex-1"
+                              >
+                                מחק
+                              </button>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -1835,6 +1888,16 @@ const BenefitsPartnerships = () => {
           offer={editingOffer}
           onClose={() => setEditingOffer(null)}
           onSaved={loadCatalog}
+        />
+      )}
+
+      {/* Delete offer confirmation modal - shown when user clicks the Delete button on an editable offer */}
+      {deletingOffer && (
+        <DeleteOfferConfirmModal
+          offerTitle={deletingOffer.title}
+          isDeleting={isDeleting}
+          onConfirm={() => void handleDeleteOffer()}
+          onCancel={() => { if (!isDeleting) setDeletingOffer(null); }}
         />
       )}
     </div>
