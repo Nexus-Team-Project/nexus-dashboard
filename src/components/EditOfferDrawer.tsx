@@ -18,6 +18,7 @@ import { cn } from '../lib/utils';
 import { updateOfferApi, type CatalogItem } from '../lib/api';
 import ImageCropModal from './ImageCropModal';
 import { ImageSection, TagsInput } from './EditOfferDrawerHelpers';
+import RichTextEditor from './RichTextEditor';
 
 // ─── Category options ────────────────────────────────────────────────────────
 
@@ -248,11 +249,9 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
           {/* Description */}
           <div className="space-y-1">
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">תיאור</label>
-            <textarea
+            <RichTextEditor
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              className={cn(inputCls, 'resize-none')}
+              onChange={setDescription}
               placeholder="תיאור קצר של ההצעה"
             />
           </div>
