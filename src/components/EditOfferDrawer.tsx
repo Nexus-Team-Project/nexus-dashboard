@@ -322,6 +322,7 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
               step="1"
               value={stockLimit}
               onChange={(e) => setStockLimit(e.target.value)}
+              onWheel={(e) => e.currentTarget.blur()}
               className={inputCls}
               placeholder="כמות יחידות"
             />

@@ -247,6 +247,7 @@ const CreateOfferDetailsSection = ({
             step="1"
             value={stockLimit}
             onChange={(e) => setStockLimit(e.target.value)}
+            onWheel={(e) => e.currentTarget.blur()}
             placeholder={t('co_stockLimitPlaceholder')}
             disabled={isSubmitting}
             className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-colors focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white disabled:cursor-not-allowed disabled:opacity-60"
