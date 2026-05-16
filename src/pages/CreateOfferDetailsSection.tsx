@@ -8,6 +8,7 @@
  */
 import { useLanguage } from '../i18n/LanguageContext';
 import { OFFER_CATEGORIES, EXECUTION_TYPE_LABELS } from '../lib/api';
+import RichTextEditor from '../components/RichTextEditor';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -112,14 +113,11 @@ const CreateOfferDetailsSection = ({
           >
             {t('co_fieldDescription')}
           </label>
-          <textarea
-            id="offer-description"
+          <RichTextEditor
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={setDescription}
             placeholder={t('co_descriptionPlaceholder')}
-            rows={4}
             disabled={isSubmitting}
-            className="w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-colors focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white disabled:cursor-not-allowed disabled:opacity-60"
           />
         </div>
 
