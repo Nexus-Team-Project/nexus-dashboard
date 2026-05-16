@@ -564,10 +564,10 @@ const BenefitsPartnerships = () => {
     usageTerms: item.stockLimit !== null
       ? [item.isSoldOut ? 'מכירה נגמרה' : `${item.stockAvailable ?? item.stockLimit} נותרו`]
       : [],
-    endDate: '',
+    endDate: item.validUntil ? new Date(item.validUntil).toLocaleDateString('he-IL') : '',
     implementationLink: item.implementationLink ?? '',
-    implementationInstructions: '',
-    terms: '',
+    implementationInstructions: item.implementationInstructions ?? '',
+    terms: item.terms ?? '',
     description: item.description,
     category: item.category,
     categories: [item.category],
@@ -1777,15 +1777,12 @@ const BenefitsPartnerships = () => {
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-4">
-                <div className="text-5xl">{selectedBenefit.businessLogo}</div>
-                <div>
-                  <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
-                    {selectedBenefit.businessName}
-                  </h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                    {selectedBenefit.title}
-                  </p>
-                </div>
+                {selectedBenefit.businessLogo ? (
+                  <div className="text-4xl">{selectedBenefit.businessLogo}</div>
+                ) : null}
+                <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                  {selectedBenefit.businessName}
+                </h2>
               </div>
               <button
                 onClick={() => setShowBenefitModal(false)}
@@ -1821,29 +1818,35 @@ const BenefitsPartnerships = () => {
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3">
-                  <span className="material-icons text-slate-400">schedule</span>
-                  <div>
-                    <div className="text-sm text-slate-500 dark:text-slate-400 mb-1">תוקף</div>
-                    <div className="font-semibold text-slate-900 dark:text-white">עד {selectedBenefit.endDate}</div>
+                {selectedBenefit.endDate ? (
+                  <div className="flex items-start gap-3">
+                    <span className="material-icons text-slate-400">schedule</span>
+                    <div>
+                      <div className="text-sm text-slate-500 dark:text-slate-400 mb-1">תוקף</div>
+                      <div className="font-semibold text-slate-900 dark:text-white">עד {selectedBenefit.endDate}</div>
+                    </div>
                   </div>
-                </div>
+                ) : null}
 
-                <div className="flex items-start gap-3">
-                  <span className="material-icons text-slate-400">description</span>
-                  <div>
-                    <div className="text-sm text-slate-500 dark:text-slate-400 mb-1">תנאים</div>
-                    <div className="text-slate-700 dark:text-slate-300">{selectedBenefit.terms}</div>
+                {selectedBenefit.terms ? (
+                  <div className="flex items-start gap-3">
+                    <span className="material-icons text-slate-400">description</span>
+                    <div>
+                      <div className="text-sm text-slate-500 dark:text-slate-400 mb-1">תנאים</div>
+                      <div className="text-slate-700 dark:text-slate-300">{selectedBenefit.terms}</div>
+                    </div>
                   </div>
-                </div>
+                ) : null}
 
-                <div className="flex items-start gap-3">
-                  <span className="material-icons text-slate-400">link</span>
-                  <div>
-                    <div className="text-sm text-slate-500 dark:text-slate-400 mb-1">אופן מימוש</div>
-                    <div className="text-slate-700 dark:text-slate-300">{selectedBenefit.implementationInstructions}</div>
+                {selectedBenefit.implementationInstructions ? (
+                  <div className="flex items-start gap-3">
+                    <span className="material-icons text-slate-400">link</span>
+                    <div>
+                      <div className="text-sm text-slate-500 dark:text-slate-400 mb-1">אופן מימוש</div>
+                      <div className="text-slate-700 dark:text-slate-300">{selectedBenefit.implementationInstructions}</div>
+                    </div>
                   </div>
-                </div>
+                ) : null}
               </div>
 
               {/* How to Use */}
@@ -1868,10 +1871,25 @@ const BenefitsPartnerships = () => {
               >
                 סגור
               </button>
-              <button className="flex-1 px-6 py-3 bg-black dark:bg-white text-white dark:text-black font-bold rounded-full hover:opacity-90 transition-all flex items-center justify-center gap-2">
-                <span className="material-icons">open_in_new</span>
-                עבור לאתר
-              </button>
+              {selectedBenefit.implementationLink ? (
+                <a
+                  href={selectedBenefit.implementationLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 px-6 py-3 bg-black dark:bg-white text-white dark:text-black font-bold rounded-full hover:opacity-90 transition-all flex items-center justify-center gap-2"
+                >
+                  <span className="material-icons text-base">open_in_new</span>
+                  עבור לאתר
+                </a>
+              ) : (
+                <button
+                  disabled
+                  className="flex-1 px-6 py-3 bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 font-bold rounded-full cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  <span className="material-icons text-base">open_in_new</span>
+                  עבור לאתר
+                </button>
+              )}
             </div>
           </div>
         </div>
