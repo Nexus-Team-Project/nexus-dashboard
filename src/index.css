@@ -382,3 +382,13 @@ body {
 .border-highlight-top:hover::before {
   opacity: 1;
 }
+
+/* TipTap placeholder text - renders the placeholder attribute as pseudo-content
+   on the first empty paragraph so it disappears as soon as the user starts typing. */
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #94a3b8;
+  pointer-events: none;
+  height: 0;
+}
