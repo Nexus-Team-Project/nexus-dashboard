@@ -1674,25 +1674,29 @@ const BenefitsPartnerships = () => {
                           ) : null}
                           <h3 className="font-semibold text-slate-900 dark:text-white leading-snug">{benefit.businessName}</h3>
                         </div>
-                        <div className="pt-4 border-t border-slate-50 dark:border-slate-800">
-                          <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                        <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-2">
+                          {/* Price */}
+                          <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
                             {benefit.discount}
                           </p>
+
                           {/* Execution type badge */}
                           {catalogItem?.executionType && EXECUTION_TYPE_LABELS[catalogItem.executionType] && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-100 px-2 py-0.5 text-xs text-indigo-700 mt-1">
-                              {EXECUTION_TYPE_LABELS[catalogItem.executionType].icon}{' '}
-                              {EXECUTION_TYPE_LABELS[catalogItem.executionType].label}
-                            </span>
+                            <div>
+                              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-100 px-2.5 py-1 text-xs text-indigo-700">
+                                {EXECUTION_TYPE_LABELS[catalogItem.executionType].icon}{' '}
+                                {EXECUTION_TYPE_LABELS[catalogItem.executionType].label}
+                              </span>
+                            </div>
                           )}
+
                           {/* Stock indicator */}
                           {benefit.stockLimit !== null && benefit.stockLimit !== undefined && (
-                            <span className={cn('text-xs', benefit.isSoldOut ? 'text-red-600 font-medium' : 'text-slate-500')}>
-                              {benefit.isSoldOut
-                                ? 'נגמר המלאי'
-                                : `נותרו ${benefit.stockAvailable ?? 0}`}
-                            </span>
+                            <p className={cn('text-xs', benefit.isSoldOut ? 'text-red-600 font-medium' : 'text-slate-500')}>
+                              {benefit.isSoldOut ? 'נגמר המלאי' : `נותרו ${benefit.stockAvailable ?? 0}`}
+                            </p>
                           )}
+
                           {/* Implementation link */}
                           {benefit.implementationLink && (() => {
                             const displayUrl = benefit.implementationLink.replace(/^https?:\/\//, '');
@@ -1702,19 +1706,20 @@ const BenefitsPartnerships = () => {
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
-                                aria-label={`פתח קישור מימוש בחלון חדש`}
+                                aria-label="פתח קישור מימוש בחלון חדש"
                                 title={benefit.implementationLink}
-                                className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                                className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline w-fit"
                                 dir="ltr"
                               >
                                 <svg className="w-3 h-3 shrink-0" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 1.5H1.5v9h9V7M7 1.5h3.5m0 0v3.5M7 5l3.5-3.5"/></svg>
-                                {displayUrl.length > 40 ? `${displayUrl.slice(0, 40)}…` : displayUrl}
+                                {displayUrl.length > 35 ? `${displayUrl.slice(0, 35)}…` : displayUrl}
                               </a>
                             );
                           })()}
+
                           {/* Edit and Delete buttons - only for editable offers */}
                           {catalogItem && canEditOffer(catalogItem) && (
-                            <div className="mt-3 flex gap-2">
+                            <div className="flex gap-2 pt-1">
                               <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); setEditingOffer(catalogItem); }}
