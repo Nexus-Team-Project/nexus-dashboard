@@ -16,6 +16,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import { getMemberCatalog, type CatalogItem, OFFER_CATEGORIES } from '../lib/api';
 import OfferModal from '../components/catalog/OfferModal';
+import ImageLightbox from '../components/ImageLightbox';
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -41,7 +42,10 @@ function SkeletonCard() {
 
 interface OfferCardProps {
   item: CatalogItem;
+  /** Opens the offer detail modal. */
   onClick: () => void;
+  /** Opens the full-screen image lightbox for the offer image. */
+  onImageClick: (url: string) => void;
 }
 
 /**
@@ -50,7 +54,7 @@ interface OfferCardProps {
  * Input: CatalogItem and a click/enter handler.
  * Output: styled card with image, title, category, price, and discount indicator.
  */
-function OfferCard({ item, onClick }: OfferCardProps) {
+function OfferCard({ item, onClick, onImageClick }: OfferCardProps) {
   const { t } = useLanguage();
   const hasDiscount = item.market_price !== undefined && item.market_price > item.member_price;
 
@@ -63,12 +67,13 @@ function OfferCard({ item, onClick }: OfferCardProps) {
       onKeyDown={(e) => { if (e.key === 'Enter') onClick(); }}
       aria-label={`View offer: ${item.title}`}
     >
-      {/* Offer image or placeholder */}
+      {/* Offer image or placeholder - clicking the image opens the full-screen lightbox */}
       {item.imageUrl ? (
         <img
           src={item.imageUrl}
           alt={item.title}
-          className="w-full h-40 object-cover"
+          className="w-full h-40 object-cover cursor-zoom-in"
+          onClick={(e) => { e.stopPropagation(); onImageClick(item.imageUrl!); }}
         />
       ) : (
         <div className="w-full h-40 bg-slate-100 flex items-center justify-center text-slate-300 text-3xl">
@@ -147,6 +152,8 @@ const MemberCatalog = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedOffer, setSelectedOffer] = useState<CatalogItem | null>(null);
+  /** URL of the image currently shown in the full-screen lightbox, or null when closed. */
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   // ── Load catalog on mount ─────────────────────────────────────────
   useEffect(() => {
@@ -280,6 +287,7 @@ const MemberCatalog = () => {
               key={item.offerId}
               item={item}
               onClick={() => setSelectedOffer(item)}
+              onImageClick={(url) => setLightboxUrl(url)}
             />
           ))}
         </div>
@@ -292,6 +300,15 @@ const MemberCatalog = () => {
           catalogMode={catalogMode}
           canPurchase={canPurchase}
           onClose={() => setSelectedOffer(null)}
+        />
+      )}
+
+      {/* Full-screen image lightbox - rendered as a portal over the entire viewport */}
+      {lightboxUrl && (
+        <ImageLightbox
+          src={lightboxUrl}
+          alt="תצוגת הצעה"
+          onClose={() => setLightboxUrl(null)}
         />
       )}
     </div>

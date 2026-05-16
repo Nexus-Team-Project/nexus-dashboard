@@ -21,6 +21,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 import ServiceActivationBanner from '../components/ServiceActivationBanner';
+import ImageLightbox from '../components/ImageLightbox';
 
 interface Business {
   id: string;
@@ -154,6 +155,9 @@ const BenefitsPartnerships = () => {
 
   /** True while /api/me is being re-fetched after a service state change. Shows loading skeleton. */
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  /** URL of the image currently shown in the full-screen lightbox, or null when closed. */
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   /** Buffered inline edits keyed by offerId. Cleared after a successful PATCH. */
   const [pendingEdits, setPendingEdits] = useState<Record<string, PendingOffer>>({});
@@ -873,8 +877,12 @@ const BenefitsPartnerships = () => {
                           </td>
                           <td className="px-4 py-4">
                             {item?.imageUrl ? (
-                              <img src={item.imageUrl} alt={item.title}
-                                className="w-12 h-12 rounded-lg object-cover border border-slate-200 dark:border-slate-700" />
+                              <img
+                                src={item.imageUrl}
+                                alt={item.title}
+                                className="w-12 h-12 rounded-lg object-cover border border-slate-200 dark:border-slate-700 cursor-zoom-in"
+                                onClick={() => item.imageUrl && setLightboxUrl(item.imageUrl)}
+                              />
                             ) : (
                               <div className="w-12 h-12 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center border border-slate-200 dark:border-slate-700">
                                 <span className="material-icons text-base text-slate-400">image</span>
@@ -883,7 +891,12 @@ const BenefitsPartnerships = () => {
                           </td>
                           <td className="px-4 py-4">
                             {benefit.backgroundImage ? (
-                              <img src={benefit.backgroundImage} alt="" className="w-20 h-12 object-cover rounded-lg border border-slate-200 dark:border-slate-700" />
+                              <img
+                                src={benefit.backgroundImage}
+                                alt={benefit.title}
+                                className="w-20 h-12 object-cover rounded-lg border border-slate-200 dark:border-slate-700 cursor-zoom-in"
+                                onClick={() => benefit.backgroundImage && setLightboxUrl(benefit.backgroundImage)}
+                              />
                             ) : (
                               <div className="w-20 h-12 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"></div>
                             )}
@@ -1477,7 +1490,8 @@ const BenefitsPartnerships = () => {
                             <img
                               src={benefit.backgroundImage}
                               alt={benefit.title}
-                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 cursor-zoom-in"
+                              onClick={(e) => { e.stopPropagation(); setLightboxUrl(benefit.backgroundImage!); }}
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
                           </>
@@ -1565,7 +1579,8 @@ const BenefitsPartnerships = () => {
                         <img
                           src={benefit.backgroundImage}
                           alt={benefit.title}
-                          className="w-full h-32 object-cover"
+                          className="w-full h-32 object-cover cursor-zoom-in"
+                          onClick={(e) => { e.stopPropagation(); setLightboxUrl(benefit.backgroundImage!); }}
                           onError={(e) => {
                             // Hide broken image and reveal the placeholder sibling
                             (e.currentTarget as HTMLImageElement).style.display = 'none';
@@ -1768,6 +1783,15 @@ const BenefitsPartnerships = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Full-screen image lightbox - rendered as a portal over the entire viewport */}
+      {lightboxUrl && (
+        <ImageLightbox
+          src={lightboxUrl}
+          alt="תצוגת הצעה"
+          onClose={() => setLightboxUrl(null)}
+        />
       )}
     </div>
   );
