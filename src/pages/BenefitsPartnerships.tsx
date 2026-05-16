@@ -54,6 +54,7 @@ interface Benefit {
   implementationInstructions: string;
   terms: string;
   description: string;
+  category: string;
   categories: string[];
   ribbon?: string;
   // Voucher specific
@@ -390,12 +391,16 @@ const BenefitsPartnerships = () => {
 
   const categories = [
     { id: 'all', label: 'כל הקטגוריות', icon: 'apps' },
-    { id: 'food', label: 'אוכל ומסעדות', icon: 'restaurant' },
-    { id: 'shopping', label: 'קניות', icon: 'shopping_bag' },
-    { id: 'entertainment', label: 'בילויים', icon: 'theater_comedy' },
+    { id: 'food_beverage', label: 'אוכל ומשקאות', icon: 'restaurant' },
+    { id: 'fashion', label: 'אופנה', icon: 'checkroom' },
+    { id: 'health_wellness', label: 'בריאות ורווחה', icon: 'spa' },
+    { id: 'entertainment', label: 'בידור', icon: 'theater_comedy' },
     { id: 'travel', label: 'טיסות ונופש', icon: 'flight' },
-    { id: 'wellness', label: 'בריאות ורווחה', icon: 'spa' },
-    { id: 'tech', label: 'טכנולוגיה', icon: 'devices' },
+    { id: 'technology', label: 'טכנולוגיה', icon: 'devices' },
+    { id: 'education', label: 'חינוך', icon: 'school' },
+    { id: 'financial', label: 'פיננסי', icon: 'account_balance' },
+    { id: 'home_living', label: 'בית ומגורים', icon: 'home' },
+    { id: 'other', label: 'אחר', icon: 'category' },
   ];
 
   // Mock businesses data
@@ -527,6 +532,7 @@ const BenefitsPartnerships = () => {
     implementationInstructions: '',
     terms: '',
     description: item.description,
+    category: item.category,
     categories: [item.category],
     featured: false,
     image: item.imageUrl,
@@ -546,7 +552,7 @@ const BenefitsPartnerships = () => {
       benefit.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       benefit.businessName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       benefit.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || benefit.categories.includes(selectedCategory);
+    const matchesCategory = selectedCategory === 'all' || benefit.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
