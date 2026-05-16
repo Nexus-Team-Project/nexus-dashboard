@@ -1507,20 +1507,24 @@ const BenefitsPartnerships = () => {
                         <div className="pt-6 border-t border-slate-100 dark:border-slate-800">
                           <p className="text-sm font-medium text-slate-400">{benefit.description}</p>
                           {/* Implementation link */}
-                          {benefit.implementationLink && (
-                            <a
-                              href={benefit.implementationLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                              dir="ltr"
-                            >
-                              <span className="material-symbols-outlined text-sm" aria-hidden="true">open_in_new</span>
-                              {benefit.implementationLink.replace(/^https?:\/\//, '').slice(0, 40)}
-                              {benefit.implementationLink.replace(/^https?:\/\//, '').length > 40 ? '…' : ''}
-                            </a>
-                          )}
+                          {benefit.implementationLink && (() => {
+                            const displayUrl = benefit.implementationLink.replace(/^https?:\/\//, '');
+                            return (
+                              <a
+                                href={benefit.implementationLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                aria-label={`פתח קישור מימוש בחלון חדש`}
+                                title={benefit.implementationLink}
+                                className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                                dir="ltr"
+                              >
+                                <span className="material-symbols-outlined text-sm" aria-hidden="true">open_in_new</span>
+                                {displayUrl.length > 40 ? `${displayUrl.slice(0, 40)}…` : displayUrl}
+                              </a>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>
@@ -1590,20 +1594,24 @@ const BenefitsPartnerships = () => {
                             </span>
                           )}
                           {/* Implementation link */}
-                          {benefit.implementationLink && (
-                            <a
-                              href={benefit.implementationLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                              dir="ltr"
-                            >
-                              <span className="material-symbols-outlined text-sm" aria-hidden="true">open_in_new</span>
-                              {benefit.implementationLink.replace(/^https?:\/\//, '').slice(0, 40)}
-                              {benefit.implementationLink.replace(/^https?:\/\//, '').length > 40 ? '…' : ''}
-                            </a>
-                          )}
+                          {benefit.implementationLink && (() => {
+                            const displayUrl = benefit.implementationLink.replace(/^https?:\/\//, '');
+                            return (
+                              <a
+                                href={benefit.implementationLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                aria-label={`פתח קישור מימוש בחלון חדש`}
+                                title={benefit.implementationLink}
+                                className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                                dir="ltr"
+                              >
+                                <span className="material-symbols-outlined text-sm" aria-hidden="true">open_in_new</span>
+                                {displayUrl.length > 40 ? `${displayUrl.slice(0, 40)}…` : displayUrl}
+                              </a>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>
