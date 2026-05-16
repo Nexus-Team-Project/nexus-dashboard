@@ -1506,10 +1506,10 @@ const BenefitsPartnerships = () => {
                           )}
                           {/* Stock indicator */}
                           {benefit.stockLimit !== null && benefit.stockLimit !== undefined && (
-                            <span className="text-xs text-slate-500">
+                            <span className={cn('text-xs', benefit.isSoldOut ? 'text-red-600 font-medium' : 'text-slate-500')}>
                               {benefit.isSoldOut
                                 ? 'נגמר המלאי'
-                                : `נותרו ${benefit.stockAvailable ?? benefit.stockLimit}`}
+                                : `נותרו ${benefit.stockAvailable ?? 0}`}
                             </span>
                           )}
                         </div>
@@ -1598,10 +1598,10 @@ const BenefitsPartnerships = () => {
                           )}
                           {/* Stock indicator */}
                           {benefit.stockLimit !== null && benefit.stockLimit !== undefined && (
-                            <span className="text-xs text-slate-500">
+                            <span className={cn('text-xs', benefit.isSoldOut ? 'text-red-600 font-medium' : 'text-slate-500')}>
                               {benefit.isSoldOut
                                 ? 'נגמר המלאי'
-                                : `נותרו ${benefit.stockAvailable ?? benefit.stockLimit}`}
+                                : `נותרו ${benefit.stockAvailable ?? 0}`}
                             </span>
                           )}
                           {/* Implementation link */}
