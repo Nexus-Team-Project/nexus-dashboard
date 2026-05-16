@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 import ServiceActivationBanner from '../components/ServiceActivationBanner';
 import ImageLightbox from '../components/ImageLightbox';
+import EditOfferDrawer from '../components/EditOfferDrawer';
 
 interface Business {
   id: string;
@@ -158,6 +159,9 @@ const BenefitsPartnerships = () => {
 
   /** URL of the image currently shown in the full-screen lightbox, or null when closed. */
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+
+  /** CatalogItem currently open in the EditOfferDrawer, or null when the drawer is closed. */
+  const [editingOffer, setEditingOffer] = useState<CatalogItem | null>(null);
 
   /** Buffered inline edits keyed by offerId. Cleared after a successful PATCH. */
   const [pendingEdits, setPendingEdits] = useState<Record<string, PendingOffer>>({});
@@ -1208,6 +1212,15 @@ const BenefitsPartnerships = () => {
                                       {savingId === item.offerId ? '...' : 'שמור'}
                                     </button>
                                   )}
+                                  {item && canEditOffer(item) && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); setEditingOffer(item); }}
+                                      className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                                    >
+                                      עריכה
+                                    </button>
+                                  )}
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -1555,6 +1568,18 @@ const BenefitsPartnerships = () => {
                             );
                           })()}
                         </div>
+                        {/* Edit button - only for editable offers */}
+                        {catalogItem && canEditOffer(catalogItem) && (
+                          <div className="px-8 pb-4">
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setEditingOffer(catalogItem); }}
+                              className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors w-full"
+                            >
+                              עריכה
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -1644,6 +1669,16 @@ const BenefitsPartnerships = () => {
                               </a>
                             );
                           })()}
+                          {/* Edit button - only for editable offers */}
+                          {catalogItem && canEditOffer(catalogItem) && (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setEditingOffer(catalogItem); }}
+                              className="mt-3 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors w-full"
+                            >
+                              עריכה
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1791,6 +1826,15 @@ const BenefitsPartnerships = () => {
           src={lightboxUrl}
           alt="תצוגת הצעה"
           onClose={() => setLightboxUrl(null)}
+        />
+      )}
+
+      {/* Edit offer drawer - slides in from the left when an editable offer is selected */}
+      {editingOffer && (
+        <EditOfferDrawer
+          offer={editingOffer}
+          onClose={() => setEditingOffer(null)}
+          onSaved={loadCatalog}
         />
       )}
     </div>

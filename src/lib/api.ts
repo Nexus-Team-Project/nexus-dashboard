@@ -910,25 +910,53 @@ export async function createOfferApi(formData: FormData): Promise<NexusOffer> {
 }
 
 /**
- * PATCHes mutable fields on an existing offer.
- * Only the offer creator or platform admin can call this — the backend
+ * PATCHes an existing offer. Sends multipart/form-data when imageFile is provided
+ * (required by the backend multer handler). Sends JSON otherwise.
+ * Only the offer creator or platform admin can call this - the backend
  * enforces ownership before applying the update.
- * Input: offerId - the offer to update; data - partial offer fields.
- * Output: the updated NexusOffer (raw_cost excluded by the backend).
+ *
+ * Input: offerId - the offer to update; data - all editable offer fields plus
+ *        optional imageFile for image replacement.
+ * Output: Updated NexusOffer (raw_cost stripped by backend).
  */
 export async function updateOfferApi(
   offerId: string,
   data: {
     title?: string;
     description?: string;
+    category?: string;
+    raw_cost?: number;
+    market_price?: number;
+    stockLimit?: number | null;
+    executionType?: string;
+    visibility?: string;
     implementationLink?: string | null;
     implementationInstructions?: string;
     validUntil?: string | null;
     terms?: string;
     tags?: string[];
+    imageFile?: File;
   },
 ): Promise<NexusOffer> {
-  const res = await request<{ offer: NexusOffer }>('PATCH', `/api/v1/offers/${offerId}`, data);
+  const { imageFile, tags, ...rest } = data;
+
+  if (imageFile) {
+    // Use FormData so the browser sets the correct multipart boundary automatically.
+    const fd = new FormData();
+    fd.append('image', imageFile);
+    Object.entries(rest).forEach(([k, v]) => {
+      if (v !== undefined && v !== null) fd.append(k, String(v));
+    });
+    if (tags !== undefined) fd.append('tags', JSON.stringify(tags));
+    const res = await request<{ offer: NexusOffer }>('PATCH', `/api/v1/offers/${offerId}`, fd);
+    return res.offer;
+  }
+
+  // JSON path - no image replacement.
+  const res = await request<{ offer: NexusOffer }>('PATCH', `/api/v1/offers/${offerId}`, {
+    ...rest,
+    ...(tags !== undefined && { tags }),
+  });
   return res.offer;
 }
 
