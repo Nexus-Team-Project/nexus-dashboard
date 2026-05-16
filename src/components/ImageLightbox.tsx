@@ -10,7 +10,7 @@
  *   alt     - alt text for accessibility.
  *   onClose - called when user dismisses.
  */
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
 interface ImageLightboxProps {
@@ -20,15 +20,22 @@ interface ImageLightboxProps {
   alt: string;
   /** Callback invoked when the user closes the lightbox. */
   onClose: () => void;
+  /** Optional close button label. Defaults to 'סגור / Close'. */
+  closeLabel?: string;
 }
 
 /**
  * Renders a full-viewport lightbox as a portal directly into document.body.
  *
- * Input: src URL, alt text, onClose handler.
+ * Input: src URL, alt text, onClose handler, optional closeLabel.
  * Output: portal overlay with backdrop, close button, and max-size image.
+ *
+ * Manages focus trap: focuses close button on mount, restores previous focus on unmount.
+ * Restores body overflow state on unmount.
  */
-export default function ImageLightbox({ src, alt, onClose }: ImageLightboxProps) {
+export default function ImageLightbox({ src, alt, onClose, closeLabel }: ImageLightboxProps) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+
   // Close on Escape key press
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -38,28 +45,39 @@ export default function ImageLightbox({ src, alt, onClose }: ImageLightboxProps)
     return () => document.removeEventListener('keydown', handler);
   }, [onClose]);
 
-  // Prevent body scroll while lightbox is open
+  // Prevent body scroll while lightbox is open; restore previous overflow state on unmount
   useEffect(() => {
+    const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
-      document.body.style.overflow = '';
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
+  // Focus trap: focus close button on mount, restore previous focus on unmount
+  useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null;
+    closeRef.current?.focus();
+    return () => {
+      prev?.focus();
     };
   }, []);
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+      className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label={alt}
     >
-      {/* Close button - positioned top-right over the backdrop */}
+      {/* Close button - positioned top-right over the backdrop; receives focus on mount */}
       <button
+        ref={closeRef}
         type="button"
         onClick={onClose}
         className="absolute top-4 right-4 text-white bg-black/40 hover:bg-black/60 rounded-full p-2 transition-colors"
-        aria-label="סגור"
+        aria-label={closeLabel ?? 'סגור / Close'}
       >
         <span className="material-symbols-outlined text-2xl" aria-hidden="true">close</span>
       </button>
@@ -69,8 +87,7 @@ export default function ImageLightbox({ src, alt, onClose }: ImageLightboxProps)
         src={src}
         alt={alt}
         onClick={(e) => e.stopPropagation()}
-        className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
-        style={{ maxHeight: '90vh', maxWidth: '90vw' }}
+        className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
       />
     </div>,
     document.body,
