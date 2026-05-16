@@ -25,6 +25,7 @@ import ServiceActivationBanner from '../components/ServiceActivationBanner';
 import ImageLightbox from '../components/ImageLightbox';
 import EditOfferDrawer from '../components/EditOfferDrawer';
 import DeleteOfferConfirmModal from '../components/DeleteOfferConfirmModal';
+import RichTextDisplay from '../components/RichTextDisplay';
 
 interface Business {
   id: string;
@@ -1584,7 +1585,7 @@ const BenefitsPartnerships = () => {
                           )}
                         </div>
                         <div className="pt-6 border-t border-slate-100 dark:border-slate-800">
-                          <p className="text-sm font-medium text-slate-400">{benefit.description}</p>
+                          <RichTextDisplay html={benefit.description} compact className="text-sm text-slate-400" />
                           {/* Implementation link */}
                           {benefit.implementationLink && (() => {
                             const displayUrl = benefit.implementationLink.replace(/^https?:\/\//, '');
@@ -1798,7 +1799,7 @@ const BenefitsPartnerships = () => {
                 <div className="text-4xl font-bold text-emerald-600 dark:text-emerald-400 mb-2">
                   {selectedBenefit.discount}
                 </div>
-                <p className="text-lg text-slate-700 dark:text-slate-300">{selectedBenefit.description}</p>
+                <RichTextDisplay html={selectedBenefit.description} className="text-slate-700 dark:text-slate-300" />
               </div>
 
               {/* Details */}
