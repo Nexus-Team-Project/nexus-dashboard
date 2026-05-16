@@ -214,7 +214,7 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
 
       {/* Centered modal */}
       <div
-        className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+        className="fixed inset-0 z-[200] flex items-end justify-center pb-4 pt-20 sm:items-center sm:pt-4"
         dir="rtl"
       >
       <div
