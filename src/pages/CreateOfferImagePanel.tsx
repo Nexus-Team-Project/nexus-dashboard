@@ -5,11 +5,20 @@
  *
  * The parent (CreateOffer) owns all state and passes it via props, remaining
  * the single source of truth for the form payload.
+ *
+ * Image upload flow:
+ *   1. User clicks the upload area - a hidden <input type="file"> opens.
+ *   2. handleImagePick validates type/size, then opens ImageCropModal with an
+ *      object URL for the raw file.
+ *   3. When the user confirms the crop, handleCropConfirm converts the Blob to a
+ *      File and updates the parent's imageFile + imagePreview state.
+ *   4. On cancel or after confirm, the temporary object URL is revoked.
  */
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../i18n/LanguageContext';
+import ImageCropModal from '../components/ImageCropModal';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -58,11 +67,21 @@ const CreateOfferImagePanel = ({
   const fileRef = useRef<HTMLInputElement>(null);
 
   /**
-   * Validates the selected image file (type + size) and creates a local preview.
-   * Input: change event from the hidden file input.
-   * Output: updates imageFile and imagePreview, or sets an error message.
+   * Object URL of the raw picked file, used as the source for ImageCropModal.
+   * Null when the modal is closed. Revoked after the crop is confirmed or cancelled
+   * to avoid memory leaks.
    */
-  const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+
+  /**
+   * Validates the selected image file (type + size), then opens the crop modal.
+   * The parent's imageFile/imagePreview are NOT updated here - they are updated
+   * only after the user confirms the crop in handleCropConfirm.
+   *
+   * Input:  change event from the hidden file input.
+   * Output: sets cropSrc to open the crop modal, or sets error if invalid.
+   */
+  const handleImagePick = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
@@ -73,9 +92,38 @@ const CreateOfferImagePanel = ({
       setError(t('co_errImageSize'));
       return;
     }
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
     setError(null);
+    setCropSrc(URL.createObjectURL(file));
+    // Reset the input so the same file can be re-selected after cancel.
+    e.target.value = '';
+  };
+
+  /**
+   * Called when the user confirms a crop selection in ImageCropModal.
+   * Converts the Blob to a named File, updates parent state, and revokes
+   * the temporary object URL created during pick.
+   *
+   * Input:  blob - the cropped image as a JPEG Blob from ImageCropModal.
+   * Output: updates imageFile + imagePreview; closes the modal.
+   */
+  const handleCropConfirm = (blob: Blob) => {
+    const croppedFile = new File([blob], 'offer-image.jpg', { type: 'image/jpeg' });
+    setImageFile(croppedFile);
+    setImagePreview(URL.createObjectURL(blob));
+    if (cropSrc) URL.revokeObjectURL(cropSrc);
+    setCropSrc(null);
+  };
+
+  /**
+   * Called when the user dismisses ImageCropModal without confirming.
+   * Revokes the temporary object URL and closes the modal without changing state.
+   *
+   * Input:  none.
+   * Output: revokes cropSrc object URL; closes the modal.
+   */
+  const handleCropCancel = () => {
+    if (cropSrc) URL.revokeObjectURL(cropSrc);
+    setCropSrc(null);
   };
 
   /**
@@ -101,14 +149,14 @@ const CreateOfferImagePanel = ({
           {t('co_imageHint')}
         </p>
 
-        {/* Hidden file input triggered by click */}
+        {/* Hidden file input triggered by click - onChange opens the crop modal. */}
         <input
           ref={fileRef}
           type="file"
           accept="image/*"
           className="sr-only"
           aria-label={t('co_sectionImage')}
-          onChange={handleImageChange}
+          onChange={handleImagePick}
           disabled={isSubmitting}
         />
 
@@ -193,6 +241,14 @@ const CreateOfferImagePanel = ({
           {t('co_btnCancel')}
         </button>
       </div>
+      {/* Crop modal - rendered outside the card so it can be full-screen */}
+      {cropSrc && (
+        <ImageCropModal
+          src={cropSrc}
+          onCrop={handleCropConfirm}
+          onCancel={handleCropCancel}
+        />
+      )}
     </div>
   );
 };
