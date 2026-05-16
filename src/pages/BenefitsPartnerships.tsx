@@ -519,7 +519,7 @@ const BenefitsPartnerships = () => {
       ? [item.isSoldOut ? 'מכירה נגמרה' : `${item.stockAvailable ?? item.stockLimit} נותרו`]
       : [],
     endDate: '',
-    implementationLink: '',
+    implementationLink: item.implementationLink ?? '',
     implementationInstructions: '',
     terms: '',
     description: item.description,
@@ -1506,6 +1506,21 @@ const BenefitsPartnerships = () => {
                         </div>
                         <div className="pt-6 border-t border-slate-100 dark:border-slate-800">
                           <p className="text-sm font-medium text-slate-400">{benefit.description}</p>
+                          {/* Implementation link */}
+                          {benefit.implementationLink && (
+                            <a
+                              href={benefit.implementationLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                              dir="ltr"
+                            >
+                              <span className="material-symbols-outlined text-sm" aria-hidden="true">open_in_new</span>
+                              {benefit.implementationLink.replace(/^https?:\/\//, '').slice(0, 40)}
+                              {benefit.implementationLink.replace(/^https?:\/\//, '').length > 40 ? '…' : ''}
+                            </a>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1573,6 +1588,21 @@ const BenefitsPartnerships = () => {
                             <span className={`block text-xs font-medium mt-1 ${(catalogItem.stockAvailable ?? 0) <= 5 ? 'text-red-600' : 'text-slate-500'}`}>
                               {catalogItem.stockAvailable === 0 ? '🔴 Sold out' : `${catalogItem.stockAvailable} left`}
                             </span>
+                          )}
+                          {/* Implementation link */}
+                          {benefit.implementationLink && (
+                            <a
+                              href={benefit.implementationLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                              dir="ltr"
+                            >
+                              <span className="material-symbols-outlined text-sm" aria-hidden="true">open_in_new</span>
+                              {benefit.implementationLink.replace(/^https?:\/\//, '').slice(0, 40)}
+                              {benefit.implementationLink.replace(/^https?:\/\//, '').length > 40 ? '…' : ''}
+                            </a>
                           )}
                         </div>
                       </div>
