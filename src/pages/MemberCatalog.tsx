@@ -17,6 +17,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { getMemberCatalog, type CatalogItem, OFFER_CATEGORIES } from '../lib/api';
 import OfferModal from '../components/catalog/OfferModal';
 import ImageLightbox from '../components/ImageLightbox';
+import RichTextDisplay from '../components/RichTextDisplay';
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -93,9 +94,7 @@ function OfferCard({ item, onClick, onImageClick }: OfferCardProps) {
         </div>
 
         {/* Description */}
-        <p className="mt-1.5 text-xs text-slate-500 line-clamp-3 flex-1">
-          {item.description}
-        </p>
+        <RichTextDisplay html={item.description} compact className="mt-1.5 text-xs text-slate-500 flex-1" />
 
         {/* Price row */}
         <div className="mt-4 flex items-center justify-between">
