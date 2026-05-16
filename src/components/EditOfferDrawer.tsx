@@ -117,7 +117,13 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
+    // Lock body scroll while modal is open.
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', handler);
+      document.body.style.overflow = prev;
+    };
   }, [onClose]);
 
   // ─── Image selection handler ────────────────────────────────────────────────
@@ -201,14 +207,14 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200]"
         onClick={onClose}
         aria-hidden="true"
       />
 
       {/* Centered modal */}
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 z-[200] flex items-center justify-center p-4"
         dir="rtl"
       >
       <div
