@@ -1522,35 +1522,58 @@ const BenefitsPartnerships = () => {
                   return (
                     <div
                       key={benefit.id}
-                      className="p-6 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition-colors cursor-pointer"
+                      className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition-colors cursor-pointer overflow-hidden"
                       onClick={() => handleBenefitClick(benefit)}
                     >
-                      <div className="flex items-center gap-4 mb-6">
-                        <div className="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-800 p-2.5 flex items-center justify-center border border-slate-100 dark:border-slate-700 text-2xl">
-                          {benefit.businessLogo}
-                        </div>
-                        <div>
-                          <h3 className="font-bold">{benefit.businessName}</h3>
-                          <p className="text-xs text-slate-500">{benefit.title}</p>
-                        </div>
+                      {/* Card image - shown when imageUrl exists, falls back to placeholder */}
+                      {benefit.backgroundImage ? (
+                        <img
+                          src={benefit.backgroundImage}
+                          alt={benefit.title}
+                          className="w-full h-32 object-cover rounded-t-2xl"
+                          onError={(e) => {
+                            // Hide broken image and reveal the placeholder sibling
+                            (e.currentTarget as HTMLImageElement).style.display = 'none';
+                            const placeholder = e.currentTarget.nextElementSibling as HTMLElement | null;
+                            if (placeholder) placeholder.classList.remove('hidden');
+                          }}
+                        />
+                      ) : null}
+                      {/* Placeholder shown when no imageUrl or when the img fails to load */}
+                      <div
+                        className={`w-full h-32 rounded-t-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center ${benefit.backgroundImage ? 'hidden' : ''}`}
+                      >
+                        <span className="material-icons text-4xl text-slate-300 dark:text-slate-600">image</span>
                       </div>
-                      <div className="pt-4 border-t border-slate-50 dark:border-slate-800">
-                        <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                          {benefit.discount}
-                        </p>
-                        {/* Execution type badge */}
-                        {catalogItem?.executionType && EXECUTION_TYPE_LABELS[catalogItem.executionType] && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-100 px-2 py-0.5 text-xs text-indigo-700 mt-1">
-                            {EXECUTION_TYPE_LABELS[catalogItem.executionType].icon}{' '}
-                            {EXECUTION_TYPE_LABELS[catalogItem.executionType].label}
-                          </span>
-                        )}
-                        {/* Stock indicator */}
-                        {catalogItem && catalogItem.stockLimit !== null && (
-                          <span className={`block text-xs font-medium mt-1 ${(catalogItem.stockAvailable ?? 0) <= 5 ? 'text-red-600' : 'text-slate-500'}`}>
-                            {catalogItem.stockAvailable === 0 ? '🔴 Sold out' : `${catalogItem.stockAvailable} left`}
-                          </span>
-                        )}
+
+                      <div className="p-6 flex flex-col flex-1">
+                        <div className="flex items-center gap-4 mb-6">
+                          <div className="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-800 p-2.5 flex items-center justify-center border border-slate-100 dark:border-slate-700 text-2xl">
+                            {benefit.businessLogo}
+                          </div>
+                          <div>
+                            <h3 className="font-bold">{benefit.businessName}</h3>
+                            <p className="text-xs text-slate-500">{benefit.title}</p>
+                          </div>
+                        </div>
+                        <div className="pt-4 border-t border-slate-50 dark:border-slate-800">
+                          <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                            {benefit.discount}
+                          </p>
+                          {/* Execution type badge */}
+                          {catalogItem?.executionType && EXECUTION_TYPE_LABELS[catalogItem.executionType] && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-100 px-2 py-0.5 text-xs text-indigo-700 mt-1">
+                              {EXECUTION_TYPE_LABELS[catalogItem.executionType].icon}{' '}
+                              {EXECUTION_TYPE_LABELS[catalogItem.executionType].label}
+                            </span>
+                          )}
+                          {/* Stock indicator */}
+                          {catalogItem && catalogItem.stockLimit !== null && (
+                            <span className={`block text-xs font-medium mt-1 ${(catalogItem.stockAvailable ?? 0) <= 5 ? 'text-red-600' : 'text-slate-500'}`}>
+                              {catalogItem.stockAvailable === 0 ? '🔴 Sold out' : `${catalogItem.stockAvailable} left`}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
