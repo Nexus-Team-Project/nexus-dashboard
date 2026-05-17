@@ -862,8 +862,22 @@ const BenefitsPartnerships = () => {
               </div>
             </div>
           </div>
-          <div className="text-sm text-slate-500 font-medium">
-            {viewMode === 'benefits' ? `מציג ${filteredBenefits.length}+ הטבות` : `מציג ${businesses.length}+ בתי עסק`}
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-slate-500 font-medium">
+              {viewMode === 'benefits' ? `מציג ${filteredBenefits.length}+ הטבות` : `מציג ${businesses.length}+ בתי עסק`}
+            </span>
+            {/* Create offer button — shown to platform admins and tenants with an active catalog */}
+            {(isPlatformAdmin || catalogMode !== 'inactive') && (
+              <a
+                href="/supply/create"
+                className="inline-flex items-center gap-1 whitespace-nowrap px-4 py-2 rounded-full border border-primary text-primary text-sm font-medium hover:bg-primary hover:text-white transition-colors"
+              >
+                <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
+                </svg>
+                {language === 'he' ? 'צור הצעה' : 'Create offer'}
+              </a>
+            )}
           </div>
         </section>
 
@@ -1623,11 +1637,6 @@ const BenefitsPartnerships = () => {
                     ? 'הפעל את שירות קטלוג ההטבות כדי לצפות בהצעות'
                     : 'אין הצעות זמינות עדיין. צור הצעה ראשונה.'}
                 </p>
-                {catalogMode !== 'inactive' && (
-                  <a href="/supply/create" className="mt-3 text-sm text-primary hover:underline">
-                    + צור הצעה
-                  </a>
-                )}
               </div>
             )}
 
