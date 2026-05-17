@@ -145,7 +145,7 @@ const BenefitsPartnerships = () => {
   /** Auth context provides catalogMode (inactive|sandbox|live) for the tenant and reloadMe for in-place refresh. */
   const { me, reloadMe } = useAuth();
   /** Language for localized toast messages. */
-  const { language } = useLanguage();
+  const { t, language } = useLanguage();
   const catalogMode = me?.authorization.catalogMode ?? 'inactive';
 
   /** Live catalog items fetched from the platform offer API. */
@@ -630,8 +630,8 @@ const BenefitsPartnerships = () => {
         <ServiceActivationBanner
           config={{
             name: 'שירות קטלוג ההטבות',
-            inactiveNote: 'הפעל כדי לאפשר לחברים לצפות ולרכוש הטבות. ניתן לבטל בכל עת.',
-            sandboxNote: 'חברים יכולים לצפות בהצעות אך לא לרכוש עדיין. השלם הגדרת עסק ולחץ "Go Live" להפעלה מלאה.',
+            inactiveNote: language === 'he' ? 'הפעל כדי לאפשר לחברים לצפות ולרכוש הטבות. ניתן לבטל בכל עת.' : 'Activate to let members browse and redeem benefits. You can disable at any time.',
+            sandboxNote: t('bp_catalogSandboxNote'),
           }}
           mode={isRefreshing ? 'loading' : catalogMode}
           onActivate={handleActivateCatalog}

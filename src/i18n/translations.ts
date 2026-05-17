@@ -889,6 +889,9 @@ export const translations = {
     om_stockLeft: 'left',
     om_soldOutIndicator: '🔴 Sold out',
 
+    // BenefitsPartnerships banner
+    bp_catalogSandboxNote: 'To upload offers for all NEXUS platform tenants, complete your business setup first. You can still upload offers visible to your own organization members.',
+
     // FieldTooltip / FieldInfoModal shared strings
     fi_learnMore: 'Learn more',
     fi_close: 'Close',
@@ -1856,6 +1859,9 @@ export const translations = {
     om_stockOnly: '',
     om_stockLeft: 'נותרו',
     om_soldOutIndicator: '🔴 אזל המלאי',
+
+    // BenefitsPartnerships banner
+    bp_catalogSandboxNote: 'כדי להעלות הצעות לכל דיירי פלטפורמת NEXUS - השלם את הגדרת העסק תחילה. ניתן עדיין להעלות הצעות הגלויות לחברי הארגון שלך.',
 
     // FieldTooltip / FieldInfoModal shared strings
     fi_learnMore: 'למד עוד',

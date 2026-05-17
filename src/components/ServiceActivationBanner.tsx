@@ -333,13 +333,13 @@ export default function ServiceActivationBanner({
     </div>
   );
 
-  // Sandbox banner - service is on but not yet live; admin can go live or disable.
+  // Sandbox banner - service is on but workspace not live yet.
   if (mode === 'sandbox') {
     return (
       <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-5 flex items-center justify-between gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-semibold text-amber-900">{config.name} - מצב sandbox</p>
+            <p className="text-sm font-semibold text-amber-900">{config.name}</p>
             {/* Toggle shows ON normally, flips to OFF when confirming disable */}
             <ToggleSwitch
               isOn={!isConfirming}
@@ -348,19 +348,12 @@ export default function ServiceActivationBanner({
               onCancel={() => setIsConfirming(false)}
             />
           </div>
-          <p className="mt-0.5 text-xs text-amber-700">{config.sandboxNote}</p>
+          <p className="mt-1 text-xs text-amber-700 leading-relaxed">{config.sandboxNote}</p>
         </div>
         {isConfirming ? (
           disableSection
         ) : (
           <div className="flex items-center gap-2 shrink-0">
-            {onGoLive && (
-              <GoLiveButton
-                onGoLive={handleGoLive}
-                isGoingLive={isGoingLive}
-                disabled={goLiveDisabled}
-              />
-            )}
             <button
               onClick={() => setIsConfirming(true)}
               className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
