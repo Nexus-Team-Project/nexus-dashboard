@@ -22,6 +22,7 @@ import { createOfferApi, OFFER_CATEGORIES } from '../lib/api';
 import CreateOfferDetailsSection from './CreateOfferDetailsSection';
 import CreateOfferRedemptionSection from './CreateOfferRedemptionSection';
 import CreateOfferImagePanel from './CreateOfferImagePanel';
+import FieldTooltip from '../components/FieldTooltip';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -218,18 +219,16 @@ const CreateOffer = () => {
             {/* Visibility card - hidden for platform admins */}
             {!isPlatformAdmin && (
               <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-card-dark">
-                <h2 className="mb-1 text-base font-semibold text-slate-800 dark:text-white">
+                <h2 className="mb-4 flex items-center text-base font-semibold text-slate-800 dark:text-white">
                   {t('co_sectionVisibility')}
+                  <FieldTooltip fieldKey="visibility" />
                 </h2>
-                <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">
-                  {t('co_visibilityHint')}
-                </p>
 
                 <fieldset>
                   <legend className="sr-only">{t('co_visibilityLegend')}</legend>
                   <div className="space-y-3">
                     {/* Ecosystem - visible to all tenants in the platform */}
-                    <label className="flex cursor-pointer items-start gap-3">
+                    <label className="flex cursor-pointer items-center gap-3">
                       <input
                         type="radio"
                         name="visibility"
@@ -239,18 +238,13 @@ const CreateOffer = () => {
                         disabled={isSubmitting}
                         className="mt-0.5 accent-primary"
                       />
-                      <span>
-                        <span className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                          {t('co_visAllTenants')}
-                        </span>
-                        <span className="text-xs text-slate-500 dark:text-slate-400">
-                          {t('co_visAllTenantsHint')}
-                        </span>
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                        {t('co_visAllTenants')}
                       </span>
                     </label>
 
                     {/* Tenant-only - scoped to the publishing tenant */}
-                    <label className="flex cursor-pointer items-start gap-3">
+                    <label className="flex cursor-pointer items-center gap-3">
                       <input
                         type="radio"
                         name="visibility"
@@ -260,13 +254,8 @@ const CreateOffer = () => {
                         disabled={isSubmitting}
                         className="mt-0.5 accent-primary"
                       />
-                      <span>
-                        <span className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                          {t('co_visMyTenantOnly')}
-                        </span>
-                        <span className="text-xs text-slate-500 dark:text-slate-400">
-                          {t('co_visMyTenantOnlyHint')}
-                        </span>
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                        {t('co_visMyTenantOnly')}
                       </span>
                     </label>
                   </div>

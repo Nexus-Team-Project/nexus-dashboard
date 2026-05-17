@@ -7,6 +7,7 @@
  */
 import type { Dispatch, SetStateAction } from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
+import FieldTooltip from '../components/FieldTooltip';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -87,21 +88,19 @@ const CreateOfferRedemptionSection = ({
 
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-card-dark">
-      <h2 className="mb-1 text-base font-semibold text-slate-800 dark:text-white">
+      <h2 className="mb-4 text-base font-semibold text-slate-800 dark:text-white">
         {t('co_sectionRedemption')}
       </h2>
-      <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">
-        {t('co_redemptionHint')}
-      </p>
 
       {/* Implementation link - URL where members redeem the offer */}
       <div className="mb-4">
         <label
           htmlFor="offer-impl-link"
-          className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
+          className="mb-1.5 flex items-center text-sm font-medium text-slate-700 dark:text-slate-300"
         >
           {t('co_fieldImplLink')}
-          <span className="ml-1 font-normal text-xs text-slate-400">{t('co_optional')}</span>
+          <span className="font-normal text-slate-400 ms-1 me-0.5">{t('co_optional')}</span>
+          <FieldTooltip fieldKey="implementationLink" />
         </label>
         <input
           id="offer-impl-link"
@@ -118,10 +117,11 @@ const CreateOfferRedemptionSection = ({
       <div className="mb-4">
         <label
           htmlFor="offer-impl-instructions"
-          className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
+          className="mb-1.5 flex items-center text-sm font-medium text-slate-700 dark:text-slate-300"
         >
           {t('co_fieldImplInstructions')}
-          <span className="ml-1 font-normal text-xs text-slate-400">{t('co_optional')}</span>
+          <span className="font-normal text-slate-400 ms-1 me-0.5">{t('co_optional')}</span>
+          <FieldTooltip fieldKey="implementationInstructions" />
         </label>
         <textarea
           id="offer-impl-instructions"
@@ -138,10 +138,11 @@ const CreateOfferRedemptionSection = ({
       <div className="mb-4">
         <label
           htmlFor="offer-valid-until"
-          className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
+          className="mb-1.5 flex items-center text-sm font-medium text-slate-700 dark:text-slate-300"
         >
           {t('co_fieldValidUntil')}
-          <span className="ml-1 font-normal text-xs text-slate-400">{t('co_optional')}</span>
+          <span className="font-normal text-slate-400 ms-1 me-0.5">{t('co_optional')}</span>
+          <FieldTooltip fieldKey="validUntil" />
         </label>
         <input
           id="offer-valid-until"
@@ -158,10 +159,11 @@ const CreateOfferRedemptionSection = ({
       <div className="mb-4">
         <label
           htmlFor="offer-terms"
-          className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
+          className="mb-1.5 flex items-center text-sm font-medium text-slate-700 dark:text-slate-300"
         >
           {t('co_fieldTerms')}
-          <span className="ml-1 font-normal text-xs text-slate-400">{t('co_optional')}</span>
+          <span className="font-normal text-slate-400 ms-1 me-0.5">{t('co_optional')}</span>
+          <FieldTooltip fieldKey="terms" />
         </label>
         <textarea
           id="offer-terms"
@@ -176,9 +178,10 @@ const CreateOfferRedemptionSection = ({
 
       {/* Tags - up to 10 searchable labels; press Enter or comma to add */}
       <div>
-        <label htmlFor="offer-tag-input" className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
+        <label htmlFor="offer-tag-input" className="mb-1.5 flex items-center text-sm font-medium text-slate-700 dark:text-slate-300">
           {t('co_fieldTags')}
-          <span className="ml-1 font-normal text-xs text-slate-400">{t('co_optional')}</span>
+          <span className="font-normal text-slate-400 ms-1 me-0.5">{t('co_optional')}</span>
+          <FieldTooltip fieldKey="tags" />
         </label>
         <div className="flex gap-2 mb-2">
           <input

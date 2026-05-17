@@ -886,6 +886,84 @@ export const translations = {
     om_stockOnly: 'Only',
     om_stockLeft: 'left',
     om_soldOutIndicator: '🔴 Sold out',
+
+    // FieldTooltip / FieldInfoModal shared strings
+    fi_learnMore: 'Learn more',
+    fi_close: 'Close',
+    fi_gotIt: 'Got it',
+    fi_exampleLabel: 'Example',
+
+    // ── title ──
+    fi_title_label: 'Offer Title',
+    fi_title_short: 'The name members see on the offer card.',
+    fi_title_detail: 'Choose a clear, concise name that immediately conveys the benefit. It appears as the main heading on the offer card and detail page. Aim for under 60 characters for the best display across all screen sizes.',
+    fi_title_example: '"20% off at Coffee Time" or "Free gym day pass"',
+
+    // ── description ──
+    fi_description_label: 'Description',
+    fi_description_short: 'Rich text visible to members on the offer page.',
+    fi_description_detail: 'Describe what the offer includes, how to use it, and any key details. Supports bold text, bullet lists, and headings. Members read this on the offer detail page before deciding to redeem.',
+    fi_description_example: '"Get 20% off your next purchase at any Coffee Time branch. Show your digital voucher at the checkout counter to redeem."',
+
+    // ── category ──
+    fi_category_label: 'Category',
+    fi_category_short: 'Groups your offer so members can filter the catalog.',
+    fi_category_detail: 'The category places your offer alongside similar benefits. Members can filter by category to find what they need, so choosing the most accurate option improves discoverability.',
+    fi_category_example: 'Gym membership → Health & Wellness. Cinema voucher → Entertainment. Online course → Education.',
+
+    // ── executionType ──
+    fi_executionType_label: 'Offer Type',
+    fi_executionType_short: 'How the benefit is delivered to the member.',
+    fi_executionType_detail: 'Voucher: a unique single-use code. Coupon: a reusable discount code applied at checkout. Gift Card: a prepaid balance to spend. Product: a physical or digital item shipped or downloaded. Service: an appointment or session booking.',
+    fi_executionType_example: 'Coffee discount → Coupon. Spa treatment → Service. ₪50 store credit → Gift Card. Branded merchandise → Product.',
+
+    // ── marketPrice ──
+    fi_marketPrice_label: 'Market Price',
+    fi_marketPrice_short: 'The standard retail price, shown as a reference.',
+    fi_marketPrice_detail: 'The full price a customer would normally pay. Displaying it helps members understand the value of the benefit. It appears as a strikethrough price next to the offer. Leave blank if there is no standard retail price to compare against.',
+    fi_marketPrice_example: 'If a massage normally costs ₪350, enter 350 so members can see the saving.',
+
+    // ── stockLimit ──
+    fi_stockLimit_label: 'Stock Limit',
+    fi_stockLimit_short: 'Maximum total redemptions across all members.',
+    fi_stockLimit_detail: 'Once this redemption count is reached, the offer is automatically marked as sold out. Leave blank for unlimited availability. Use this for limited promotions, physical inventory, or exclusive voucher pools.',
+    fi_stockLimit_example: 'If you have 100 voucher codes prepared, set the limit to 100. Remaining stock is shown on the offer card.',
+
+    // ── visibility ──
+    fi_visibility_label: 'Visibility',
+    fi_visibility_short: 'Controls which organizations can see and adopt this offer.',
+    fi_visibility_detail: 'Ecosystem: visible to all tenant organizations on NEXUS — any of them can add it to their member catalog. My Tenant Only: visible and adoptable exclusively by your own organization; it will not appear for other tenants.',
+    fi_visibility_example: 'A national coffee chain deal → Ecosystem. An internal company perk → My Tenant Only.',
+
+    // ── implementationLink ──
+    fi_implementationLink_label: 'Redemption Link',
+    fi_implementationLink_short: 'URL where members go to redeem the offer.',
+    fi_implementationLink_detail: 'The direct URL a member visits to use or activate the offer. Displayed as a button on the offer detail page. Must be a valid https:// URL. Leave blank if redemption happens in-person or via a code only.',
+    fi_implementationLink_example: 'https://coffetime.co.il/nexus-redeem',
+
+    // ── implementationInstructions ──
+    fi_implementationInstructions_label: 'Redemption Instructions',
+    fi_implementationInstructions_short: 'Step-by-step guide shown to members on the offer page.',
+    fi_implementationInstructions_detail: 'Plain text steps explaining exactly how a member uses the offer. Shown below the redemption button on the offer detail page. Numbered steps work best. Include any in-store, online, or app-specific requirements.',
+    fi_implementationInstructions_example: '1. Open the offer page and copy your code. 2. Go to the checkout at any branch. 3. Show your screen or enter the code at the register.',
+
+    // ── validUntil ──
+    fi_validUntil_label: 'Expiry Date',
+    fi_validUntil_short: 'Date after which the offer is no longer available.',
+    fi_validUntil_detail: 'After this date the offer is automatically hidden from all member catalogs. Useful for seasonal promotions or time-limited deals. Leave blank for an offer with no expiry. Members can see the expiry date on the offer card.',
+    fi_validUntil_example: 'A summer promotion running until August 31. A holiday special ending December 26.',
+
+    // ── terms ──
+    fi_terms_label: 'Terms & Conditions',
+    fi_terms_short: 'Legal restrictions and usage rules shown to members.',
+    fi_terms_detail: 'Any restrictions, limitations, or disclaimers a member must be aware of before redeeming. Displayed on the offer detail page. Keep it concise and easy to read.',
+    fi_terms_example: '"Valid for one use per member. Cannot be combined with other promotions. Valid at participating branches only. No cash value."',
+
+    // ── tags ──
+    fi_tags_label: 'Tags',
+    fi_tags_short: 'Keywords that help members discover this offer.',
+    fi_tags_detail: 'Add up to 10 short descriptive tags. Tags appear on the offer card and can be used for filtering and search. Press Enter or comma to confirm each tag.',
+    fi_tags_example: 'coffee, discount, food, downtown, weekday, student, health',
   },
   he: {
     // App
@@ -1774,6 +1852,84 @@ export const translations = {
     om_stockOnly: '',
     om_stockLeft: 'נותרו',
     om_soldOutIndicator: '🔴 אזל המלאי',
+
+    // FieldTooltip / FieldInfoModal shared strings
+    fi_learnMore: 'למד עוד',
+    fi_close: 'סגור',
+    fi_gotIt: 'הבנתי',
+    fi_exampleLabel: 'דוגמה',
+
+    // ── title ──
+    fi_title_label: 'כותרת ההצעה',
+    fi_title_short: 'השם שחברים רואים בכרטיס ההצעה.',
+    fi_title_detail: 'בחר שם ברור ותמציתי שמיד מסביר לחבר מה ההטבה. הוא מופיע ככותרת הראשית בכרטיס ההצעה ובדף הפרטים. עדיף עד 60 תווים להצגה אופטימלית בכל גדלי המסך.',
+    fi_title_example: '"20% הנחה בקפה טיים" או "יום כניסה חינם לחדר הכושר"',
+
+    // ── description ──
+    fi_description_label: 'תיאור',
+    fi_description_short: 'טקסט עשיר גלוי לחברים בדף ההצעה.',
+    fi_description_detail: 'תאר מה ההצעה כוללת, כיצד להשתמש בה ופרטים מרכזיים. תומך בטקסט מודגש, רשימות וכותרות. חברים קוראים זאת בדף פרטי ההצעה לפני שהם מחליטים לממש.',
+    fi_description_example: '"קבל 20% הנחה ברכישה הבאה בכל סניף קפה טיים. הצג את השובר הדיגיטלי בקופה לקבלת ההנחה."',
+
+    // ── category ──
+    fi_category_label: 'קטגוריה',
+    fi_category_short: 'מקבצת את ההצעה שלך כדי שחברים יוכלו לסנן את הקטלוג.',
+    fi_category_detail: 'הקטגוריה ממקמת את ההצעה שלך לצד הטבות דומות. חברים יכולים לסנן לפי קטגוריה כדי למצוא מה שהם מחפשים, לכן בחירה מדויקת משפרת את הנראות.',
+    fi_category_example: 'מנוי לחדר כושר ← בריאות ורווחה. כרטיס קולנוע ← בידור. קורס מקוון ← חינוך.',
+
+    // ── executionType ──
+    fi_executionType_label: 'סוג ההצעה',
+    fi_executionType_short: 'כיצד ההטבה מועברת לחבר.',
+    fi_executionType_detail: 'שובר: קוד ייחודי לשימוש חד-פעמי. קופון: קוד הנחה לשימוש חוזר המוזן בקופה. כרטיס מתנה: יתרה טעונה מראש. מוצר: פריט פיזי או דיגיטלי. שירות: הזמנת תור או מפגש.',
+    fi_executionType_example: 'הנחה בקפה ← קופון. טיפול ספא ← שירות. קרדיט ₪50 ← כרטיס מתנה. מוצר ממותג ← מוצר.',
+
+    // ── marketPrice ──
+    fi_marketPrice_label: 'מחיר שוק',
+    fi_marketPrice_short: 'המחיר הרגיל בשוק, מוצג כייחוס לחברים.',
+    fi_marketPrice_detail: 'המחיר המלא שלקוח רגיל היה משלם. הצגתו עוזרת לחברים להבין את ערך ההטבה שהם מקבלים. הוא מופיע כמחיר מחוק לצד ההצעה. השאר ריק אם אין מחיר שוק רגיל להשוואה.',
+    fi_marketPrice_example: 'אם עיסוי רגיל עולה ₪350, הזן 350 כדי שחברים יראו את החיסכון.',
+
+    // ── stockLimit ──
+    fi_stockLimit_label: 'מגבלת מלאי',
+    fi_stockLimit_short: 'מקסימום מימושים כולל בין כל החברים.',
+    fi_stockLimit_detail: 'ברגע שמספר המימושים הזה מושג, ההצעה מסומנת אוטומטית כאזלה מהמלאי. השאר ריק לזמינות בלתי מוגבלת. שימושי לקידומים מוגבלים, מלאי פיזי או מאגרי שוברים בלעדיים.',
+    fi_stockLimit_example: 'אם יש לך 100 קודי שובר מוכנים, הגדר מגבלה ל-100. המלאי הנותר מוצג בכרטיס ההצעה.',
+
+    // ── visibility ──
+    fi_visibility_label: 'נראות',
+    fi_visibility_short: 'שולטת אילו ארגונים יכולים לראות ולאמץ הצעה זו.',
+    fi_visibility_detail: 'מערכת כולל: גלוי לכל ארגוני הדיירים ב-NEXUS - כל אחד יכול להוסיפה לקטלוג החברים שלו. הארגון שלי בלבד: גלוי ואימוצה אפשרי רק על ידי הארגון שלך בלבד.',
+    fi_visibility_example: 'עסקת רשת קפה ארצית ← מערכת כולל. הטבה פנימית לעובדים ← הארגון שלי בלבד.',
+
+    // ── implementationLink ──
+    fi_implementationLink_label: 'קישור מימוש',
+    fi_implementationLink_short: 'כתובת URL שבה חברים ממשים את ההצעה.',
+    fi_implementationLink_detail: 'כתובת URL ישירה שחבר מבקר בה לשימוש בהצעה. מוצגת ככפתור בדף פרטי ההצעה. חייבת להיות כתובת https:// תקינה. השאר ריק אם המימוש מתרחש פנים בפנים או באמצעות קוד בלבד.',
+    fi_implementationLink_example: 'https://coffetime.co.il/nexus-redeem',
+
+    // ── implementationInstructions ──
+    fi_implementationInstructions_label: 'הוראות מימוש',
+    fi_implementationInstructions_short: 'מדריך שלב-אחר-שלב המוצג לחברים בדף ההצעה.',
+    fi_implementationInstructions_detail: 'הוראות טקסט פשוט המסבירות בדיוק כיצד חבר משתמש בהצעה. מוצגות מתחת לכפתור המימוש. שלבים ממוספרים עובדים הכי טוב. כלול כל דרישה בחנות, באינטרנט או באפליקציה.',
+    fi_implementationInstructions_example: '1. פתח את דף ההצעה והעתק את הקוד. 2. גש לקופה בכל סניף. 3. הצג את המסך או הזן את הקוד בקופה.',
+
+    // ── validUntil ──
+    fi_validUntil_label: 'תאריך תפוגה',
+    fi_validUntil_short: 'תאריך שאחריו ההצעה אינה זמינה עוד.',
+    fi_validUntil_detail: 'לאחר תאריך זה ההצעה מוסתרת אוטומטית מכל קטלוגי החברים. שימושי לקידומים עונתיים או עסקאות מוגבלות בזמן. השאר ריק להצעה ללא תאריך תפוגה.',
+    fi_validUntil_example: 'קידום קיץ הנגמר ב-31 באוגוסט. מבצע חגים המסתיים ב-26 בדצמבר.',
+
+    // ── terms ──
+    fi_terms_label: 'תנאים והגבלות',
+    fi_terms_short: 'הגבלות משפטיות וכללי שימוש המוצגים לחברים.',
+    fi_terms_detail: 'כל הגבלות, מגבלות או כתבי ויתור שחבר חייב להיות מודע להם לפני מימוש. מוצגים בדף פרטי ההצעה. שמור על תמציתיות וקריאות.',
+    fi_terms_example: '"תקף לשימוש אחד לחבר. לא ניתן לשלב עם מבצעים אחרים. תקף בסניפים משתתפים בלבד. אין ערך מזומן."',
+
+    // ── tags ──
+    fi_tags_label: 'תגיות',
+    fi_tags_short: 'מילות מפתח שעוזרות לחברים לגלות הצעה זו.',
+    fi_tags_detail: 'הוסף עד 10 תגיות תיאוריות קצרות. תגיות מופיעות בכרטיס ההצעה וניתן להשתמש בהן לסינון וחיפוש. לחץ Enter או פסיק לאישור כל תגית.',
+    fi_tags_example: 'קפה, הנחה, אוכל, מרכז עיר, ימי חול, סטודנט, בריאות',
   }
 };
 

@@ -9,6 +9,7 @@
 import { useLanguage } from '../i18n/LanguageContext';
 import { OFFER_CATEGORIES, EXECUTION_TYPE_LABELS } from '../lib/api';
 import RichTextEditor from '../components/RichTextEditor';
+import FieldTooltip from '../components/FieldTooltip';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -83,9 +84,10 @@ const CreateOfferDetailsSection = ({
         <div className="mb-4">
           <label
             htmlFor="offer-title"
-            className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
+            className="mb-1.5 flex items-center text-sm font-medium text-slate-700 dark:text-slate-300"
           >
-            {t('co_fieldTitle')} <span className="text-red-500" aria-hidden="true">*</span>
+            {t('co_fieldTitle')} <span className="text-red-500 ms-0.5" aria-hidden="true">*</span>
+            <FieldTooltip fieldKey="title" />
           </label>
           <input
             id="offer-title"
@@ -103,9 +105,10 @@ const CreateOfferDetailsSection = ({
         <div className="mb-4">
           <label
             htmlFor="offer-description"
-            className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
+            className="mb-1.5 flex items-center text-sm font-medium text-slate-700 dark:text-slate-300"
           >
             {t('co_fieldDescription')}
+            <FieldTooltip fieldKey="description" />
           </label>
           <RichTextEditor
             value={description}
@@ -119,9 +122,10 @@ const CreateOfferDetailsSection = ({
         <div className="mb-4">
           <label
             htmlFor="offer-category"
-            className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
+            className="mb-1.5 flex items-center text-sm font-medium text-slate-700 dark:text-slate-300"
           >
             {t('co_fieldCategory')}
+            <FieldTooltip fieldKey="category" />
           </label>
           <select
             id="offer-category"
@@ -142,9 +146,10 @@ const CreateOfferDetailsSection = ({
         <div>
           <label
             htmlFor="offer-execution-type"
-            className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
+            className="mb-1.5 flex items-center text-sm font-medium text-slate-700 dark:text-slate-300"
           >
-            {t('co_fieldOfferType')} <span className="text-red-500" aria-hidden="true">*</span>
+            {t('co_fieldOfferType')} <span className="text-red-500 ms-0.5" aria-hidden="true">*</span>
+            <FieldTooltip fieldKey="executionType" />
           </label>
           <select
             id="offer-execution-type"
@@ -159,9 +164,6 @@ const CreateOfferDetailsSection = ({
               </option>
             ))}
           </select>
-          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
-            {t('co_offerTypeHint')}
-          </p>
         </div>
       </section>
 
@@ -175,10 +177,11 @@ const CreateOfferDetailsSection = ({
         <div>
           <label
             htmlFor="offer-market-price"
-            className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
+            className="mb-1.5 flex items-center text-sm font-medium text-slate-700 dark:text-slate-300"
           >
             {t('co_fieldMarketPrice')}{' '}
-            <span className="font-normal text-slate-400">{t('co_optional')}</span>
+            <span className="font-normal text-slate-400 me-0.5">{t('co_optional')}</span>
+            <FieldTooltip fieldKey="marketPrice" />
           </label>
           <input
             id="offer-market-price"
@@ -187,25 +190,22 @@ const CreateOfferDetailsSection = ({
             step="0.01"
             value={marketPrice}
             onChange={(e) => setMarketPrice(e.target.value)}
+            onWheel={(e) => e.currentTarget.blur()}
             placeholder="0.00"
             disabled={isSubmitting}
             className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-colors focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white disabled:cursor-not-allowed disabled:opacity-60"
           />
-          <p className="mt-1 text-xs text-slate-400">
-            {t('co_marketPriceHint')}
-          </p>
         </div>
 
         {/* Stock limit - optional cap on total redemptions */}
         <div className="mt-4">
           <label
             htmlFor="offer-stock-limit"
-            className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
+            className="mb-1.5 flex items-center text-sm font-medium text-slate-700 dark:text-slate-300"
           >
             {t('co_fieldStockLimit')}{' '}
-            <span className="font-normal text-xs text-slate-400">
-              {t('co_stockLimitHint')}
-            </span>
+            <span className="font-normal text-slate-400 me-0.5">{t('co_optional')}</span>
+            <FieldTooltip fieldKey="stockLimit" />
           </label>
           <input
             id="offer-stock-limit"

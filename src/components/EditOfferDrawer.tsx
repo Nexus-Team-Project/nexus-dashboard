@@ -19,6 +19,7 @@ import { updateOfferApi, type CatalogItem } from '../lib/api';
 import ImageCropModal from './ImageCropModal';
 import { ImageSection, TagsInput } from './EditOfferDrawerHelpers';
 import RichTextEditor from './RichTextEditor';
+import FieldTooltip from './FieldTooltip';
 
 // ─── Category options ────────────────────────────────────────────────────────
 
@@ -251,8 +252,9 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">פרטי ההצעה</p>
 
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                כותרת <span className="text-red-500">*</span>
+              <label className="flex items-center text-sm font-medium text-slate-700 dark:text-slate-300">
+                כותרת <span className="text-red-500 ms-0.5">*</span>
+                <FieldTooltip fieldKey="title" />
               </label>
               <input
                 type="text"
@@ -264,7 +266,9 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
             </div>
 
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">תיאור</label>
+              <label className="flex items-center text-sm font-medium text-slate-700 dark:text-slate-300">
+                תיאור <FieldTooltip fieldKey="description" />
+              </label>
               <RichTextEditor
                 value={description}
                 onChange={setDescription}
@@ -274,7 +278,9 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">קטגוריה</label>
+                <label className="flex items-center text-sm font-medium text-slate-700 dark:text-slate-300">
+                  קטגוריה <FieldTooltip fieldKey="category" />
+                </label>
                 <select value={category} onChange={(e) => setCategory(e.target.value)} className={inputCls}>
                   {CATEGORY_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -282,7 +288,9 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
                 </select>
               </div>
               <div className="space-y-1">
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">אופן מימוש</label>
+                <label className="flex items-center text-sm font-medium text-slate-700 dark:text-slate-300">
+                  אופן מימוש <FieldTooltip fieldKey="executionType" />
+                </label>
                 <select value={executionType} onChange={(e) => setExecutionType(e.target.value)} className={inputCls}>
                   <option value="">בחר...</option>
                   {EXECUTION_OPTIONS.map((opt) => (
@@ -300,25 +308,22 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">תמחור ומלאי</p>
 
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                מחיר שוק
-                <span className="text-slate-400 font-normal text-xs mr-1">(אופציונלי)</span>
+              <label className="flex items-center text-sm font-medium text-slate-700 dark:text-slate-300">
+                מחיר שוק <FieldTooltip fieldKey="marketPrice" />
               </label>
-              <input type="number" min="0" step="0.01" value={marketPrice} onChange={(e) => setMarketPrice(e.target.value)} className={inputCls} placeholder="₪" dir="ltr" />
+              <input type="number" min="0" step="0.01" value={marketPrice} onChange={(e) => setMarketPrice(e.target.value)} onWheel={(e) => e.currentTarget.blur()} className={inputCls} placeholder="₪" dir="ltr" />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                  מלאי
-                  <span className="text-slate-400 font-normal text-xs mr-1">(ריק = ללא הגבלה)</span>
+                <label className="flex items-center text-sm font-medium text-slate-700 dark:text-slate-300">
+                  מלאי <FieldTooltip fieldKey="stockLimit" />
                 </label>
                 <input type="number" min="0" step="1" value={stockLimit} onChange={(e) => setStockLimit(e.target.value)} onWheel={(e) => e.currentTarget.blur()} className={inputCls} placeholder="∞" dir="ltr" />
               </div>
               <div className="space-y-1">
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                  תוקף
-                  <span className="text-slate-400 font-normal text-xs mr-1">(ריק = ללא)</span>
+                <label className="flex items-center text-sm font-medium text-slate-700 dark:text-slate-300">
+                  תוקף <FieldTooltip fieldKey="validUntil" />
                 </label>
                 <input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} className={inputCls} dir="ltr" />
               </div>
@@ -332,7 +337,9 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">מימוש</p>
 
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">קישור מימוש</label>
+              <label className="flex items-center text-sm font-medium text-slate-700 dark:text-slate-300">
+                קישור מימוש <FieldTooltip fieldKey="implementationLink" />
+              </label>
               <input
                 type="url"
                 dir="ltr"
@@ -344,7 +351,9 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
             </div>
 
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">הוראות מימוש</label>
+              <label className="flex items-center text-sm font-medium text-slate-700 dark:text-slate-300">
+                הוראות מימוש <FieldTooltip fieldKey="implementationInstructions" />
+              </label>
               <textarea
                 value={implementationInstructions}
                 onChange={(e) => setInstructions(e.target.value)}
@@ -355,7 +364,9 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
             </div>
 
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">תנאים</label>
+              <label className="flex items-center text-sm font-medium text-slate-700 dark:text-slate-300">
+                תנאים <FieldTooltip fieldKey="terms" />
+              </label>
               <textarea
                 value={terms}
                 onChange={(e) => setTerms(e.target.value)}
@@ -370,7 +381,9 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
 
           {/* ── Tags ─────────────────────────────────────────── */}
           <div className="px-6 py-4 pb-8">
-            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-4">תגיות</p>
+            <p className="flex items-center text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-4">
+              תגיות <FieldTooltip fieldKey="tags" />
+            </p>
             <TagsInput tags={tags} onChange={setTags} />
           </div>
         </div></div>
