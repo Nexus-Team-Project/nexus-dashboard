@@ -14,7 +14,7 @@
  *   - CreateOfferRedemptionSection - Redemption Details card
  *   - CreateOfferImagePanel      - Image upload + error alert + action buttons
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -50,6 +50,8 @@ const CreateOffer = () => {
   const isPlatformAdmin = me?.isPlatformAdmin === true || me?.authorization?.isPlatformAdmin === true;
   /** True when the tenant has activated the Benefits Catalog service. */
   const catalogServiceActive = me?.authorization?.catalogServiceActive === true;
+  /** True when the tenant has submitted their business setup. Ecosystem visibility requires this. */
+  const businessSetupComplete = me?.authorization?.businessSetupComplete === true;
 
   // ─── Offer details state ─────────────────────────────────────────────────────
   const [title, setTitle] = useState('');
@@ -73,6 +75,14 @@ const CreateOffer = () => {
 
   // ─── Visibility state ────────────────────────────────────────────────────────
   const [visibility, setVisibility] = useState<OfferVisibility>('ecosystem');
+
+  // Once auth context loads, ensure ecosystem is not pre-selected when business setup is incomplete.
+  useEffect(() => {
+    if (me && !businessSetupComplete && !isPlatformAdmin) {
+      setVisibility('tenant_only');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me]);
 
   // ─── Image state ─────────────────────────────────────────────────────────────
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -267,28 +277,36 @@ const CreateOffer = () => {
                 <fieldset>
                   <legend className="sr-only">{t('co_visibilityLegend')}</legend>
                   <div className="space-y-4">
-                    {/* Ecosystem - requires NEXUS platform admin approval */}
-                    <label className="flex cursor-pointer items-start gap-3">
+                    {/* Ecosystem - requires business setup + NEXUS platform admin approval */}
+                    <label className={`flex items-start gap-3 ${!businessSetupComplete ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
                       <input
                         type="radio"
                         name="visibility"
                         value="ecosystem"
                         checked={visibility === 'ecosystem'}
-                        onChange={() => setVisibility('ecosystem')}
-                        disabled={isSubmitting}
-                        className="mt-0.5 accent-primary"
+                        onChange={() => businessSetupComplete && setVisibility('ecosystem')}
+                        disabled={isSubmitting || !businessSetupComplete}
+                        className="mt-0.5 accent-primary disabled:cursor-not-allowed"
                       />
                       <span>
                         <span className="block text-sm font-medium text-slate-700 dark:text-slate-300">
                           {t('co_visAllTenants')}
                         </span>
-                        <span className="mt-0.5 flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
-                          {/* Clock / pending icon */}
-                          <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3 shrink-0" aria-hidden="true">
-                            <path fillRule="evenodd" d="M1 8a7 7 0 1 1 14 0A7 7 0 0 1 1 8Zm7.75-4.25a.75.75 0 0 0-1.5 0V8c0 .414.336.75.75.75h3.25a.75.75 0 0 0 0-1.5h-2.5V3.75Z" clipRule="evenodd"/>
-                          </svg>
-                          {t('co_visEcosystemApproval')}
-                        </span>
+                        {businessSetupComplete ? (
+                          <span className="mt-0.5 flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+                            <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3 shrink-0" aria-hidden="true">
+                              <path fillRule="evenodd" d="M1 8a7 7 0 1 1 14 0A7 7 0 0 1 1 8Zm7.75-4.25a.75.75 0 0 0-1.5 0V8c0 .414.336.75.75.75h3.25a.75.75 0 0 0 0-1.5h-2.5V3.75Z" clipRule="evenodd"/>
+                            </svg>
+                            {t('co_visEcosystemApproval')}
+                          </span>
+                        ) : (
+                          <span className="mt-0.5 flex items-center gap-1 text-xs text-slate-400">
+                            <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3 shrink-0" aria-hidden="true">
+                              <path fillRule="evenodd" d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1ZM6.75 5.25a.75.75 0 0 1 1.5 0v3.5a.75.75 0 0 1-1.5 0v-3.5Zm.75 7a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z" clipRule="evenodd"/>
+                            </svg>
+                            {language === 'he' ? 'יש להשלים הגדרת עסק כדי לפרסם לכל הפלטפורמה' : 'Complete business setup to publish to the full platform'}
+                          </span>
+                        )}
                       </span>
                     </label>
 
