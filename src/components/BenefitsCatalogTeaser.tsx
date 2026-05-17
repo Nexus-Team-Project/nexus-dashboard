@@ -50,7 +50,7 @@ const CardFace = ({ card, isHe, shadow }: {
 
   return (
     <div style={{
-      width: 204, height: 128, borderRadius: 14,
+      width: 204, height: 140, borderRadius: 14,
       background: card.bg,
       boxShadow: shadow ?? '0 10px 28px rgba(0,0,0,0.2), 0 3px 8px rgba(0,0,0,0.1)',
       position: 'relative', overflow: 'hidden',
@@ -82,18 +82,24 @@ const CardFace = ({ card, isHe, shadow }: {
         }}>
           {card.name}
         </span>
-        {/* Logo image — height:40px, width unconstrained, no objectFit needed */}
+        {/* Logo image — larger for clarity; crisp rendering hints + 2x DPR-safe scale */}
         <img
           src={card.logo}
           alt=""
           aria-hidden="true"
+          decoding="async"
+          loading="eager"
           style={{
-            height: 28,
+            height: 40,
             width: 'auto',
-            maxWidth: 130,
+            maxWidth: 150,
             display: 'block',
+            objectFit: 'contain',
             filter: logoF,
-            opacity: 0.85,
+            opacity: 0.92,
+            imageRendering: 'auto',
+            transform: 'translateZ(0)',
+            backfaceVisibility: 'hidden',
           }}
           onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
         />
@@ -251,7 +257,7 @@ const BenefitsCatalogTeaser = ({ onActivate, isActivating = false }: Props) => {
           aria-label={isHe ? 'הטבות לדוגמה' : 'Sample offers'}
           style={{
             width: '100vw',
-            height: 152,
+            height: 164,
             overflow: 'hidden',
             position: 'relative',
             marginBottom: 28,
