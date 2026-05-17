@@ -226,9 +226,9 @@ const CreateOffer = () => {
 
                 <fieldset>
                   <legend className="sr-only">{t('co_visibilityLegend')}</legend>
-                  <div className="space-y-3">
-                    {/* Ecosystem - visible to all tenants in the platform */}
-                    <label className="flex cursor-pointer items-center gap-3">
+                  <div className="space-y-4">
+                    {/* Ecosystem - requires NEXUS platform admin approval */}
+                    <label className="flex cursor-pointer items-start gap-3">
                       <input
                         type="radio"
                         name="visibility"
@@ -238,13 +238,22 @@ const CreateOffer = () => {
                         disabled={isSubmitting}
                         className="mt-0.5 accent-primary"
                       />
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                        {t('co_visAllTenants')}
+                      <span>
+                        <span className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                          {t('co_visAllTenants')}
+                        </span>
+                        <span className="mt-0.5 flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+                          {/* Clock / pending icon */}
+                          <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3 shrink-0" aria-hidden="true">
+                            <path fillRule="evenodd" d="M1 8a7 7 0 1 1 14 0A7 7 0 0 1 1 8Zm7.75-4.25a.75.75 0 0 0-1.5 0V8c0 .414.336.75.75.75h3.25a.75.75 0 0 0 0-1.5h-2.5V3.75Z" clipRule="evenodd"/>
+                          </svg>
+                          {t('co_visEcosystemApproval')}
+                        </span>
                       </span>
                     </label>
 
-                    {/* Tenant-only - scoped to the publishing tenant */}
-                    <label className="flex cursor-pointer items-center gap-3">
+                    {/* Tenant-only - published immediately, no approval needed */}
+                    <label className="flex cursor-pointer items-start gap-3">
                       <input
                         type="radio"
                         name="visibility"
@@ -254,8 +263,17 @@ const CreateOffer = () => {
                         disabled={isSubmitting}
                         className="mt-0.5 accent-primary"
                       />
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                        {t('co_visMyTenantOnly')}
+                      <span>
+                        <span className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                          {t('co_visMyTenantOnly')}
+                        </span>
+                        <span className="mt-0.5 flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                          {/* Checkmark icon */}
+                          <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3 shrink-0" aria-hidden="true">
+                            <path fillRule="evenodd" d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1Zm3.844 4.574a.75.75 0 0 0-1.188-.918L7.227 9.073 5.28 7.127a.75.75 0 0 0-1.06 1.06l2.5 2.5a.75.75 0 0 0 1.124-.06l4-5.053Z" clipRule="evenodd"/>
+                          </svg>
+                          {t('co_visMyTenantNoApproval')}
+                        </span>
                       </span>
                     </label>
                   </div>

@@ -146,17 +146,15 @@ export default function FieldTooltip({ fieldKey, placement = 'top' }: FieldToolt
         type="button"
         aria-label={fi('label')}
         aria-expanded={open}
-        className="ms-1.5 inline-flex items-center justify-center w-[15px] h-[15px] shrink-0 rounded-full border border-slate-300 text-slate-400 hover:border-indigo-400 hover:text-indigo-500 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1 cursor-help"
+        className="ms-1.5 inline-flex items-center justify-center w-4 h-4 shrink-0 text-slate-400 hover:text-indigo-500 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1 cursor-help rounded-full"
         onMouseEnter={scheduleOpen}
         onMouseLeave={scheduleClose}
         onClick={handleToggle}
         onTouchStart={(e) => { e.preventDefault(); handleToggle(); }}
       >
-        {/* SVG "i" — dot above a vertical bar inside a circle outline */}
-        <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="w-2.5 h-2.5" aria-hidden="true">
-          <circle cx="6" cy="6" r="5.25" />
-          <circle cx="6" cy="4" r="0.5" fill="currentColor" stroke="none" />
-          <line x1="6" y1="6" x2="6" y2="9" />
+        {/* Heroicons information-circle (solid) — crisp at all small sizes */}
+        <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4" aria-hidden="true">
+          <path fillRule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-7-4a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM9 9a.75.75 0 0 0 0 1.5h.253a.25.25 0 0 1 .244.304l-.459 2.066A1.75 1.75 0 0 0 10.747 15H11a.75.75 0 0 0 0-1.5h-.253a.25.25 0 0 1-.244-.304l.459-2.066A1.75 1.75 0 0 0 9.253 9H9Z" clipRule="evenodd" />
         </svg>
       </button>
 

@@ -801,10 +801,12 @@ export const translations = {
     co_sectionVisibility: 'Visibility',
     co_visibilityHint: 'Choose who can see and adopt this offer.',
     co_visibilityLegend: 'Offer visibility',
-    co_visAllTenants: 'All tenants',
+    co_visAllTenants: 'All organizations',
     co_visAllTenantsHint: 'Any tenant in the NEXUS ecosystem can adopt this offer.',
-    co_visMyTenantOnly: 'My tenant only',
+    co_visMyTenantOnly: 'My organization only',
     co_visMyTenantOnlyHint: 'Only your own organization can see and use this offer.',
+    co_visEcosystemApproval: 'Requires NEXUS platform admin approval before publishing to all catalogs',
+    co_visMyTenantNoApproval: 'Published immediately — no approval needed',
     co_platformNote: 'Platform offers are visible to all tenants in the ecosystem.',
     co_sectionImage: 'Offer Image',
     co_imageHint: 'A square or landscape image works best. Max 5 MB.',
@@ -931,9 +933,9 @@ export const translations = {
 
     // ── visibility ──
     fi_visibility_label: 'Visibility',
-    fi_visibility_short: 'Controls which organizations can see and adopt this offer.',
-    fi_visibility_detail: 'Ecosystem: visible to all tenant organizations on NEXUS — any of them can add it to their member catalog. My Tenant Only: visible and adoptable exclusively by your own organization; it will not appear for other tenants.',
-    fi_visibility_example: 'A national coffee chain deal → Ecosystem. An internal company perk → My Tenant Only.',
+    fi_visibility_short: 'Controls who can see this offer. Ecosystem requires NEXUS admin approval.',
+    fi_visibility_detail: 'Ecosystem: submitted for review by a NEXUS platform admin. Once approved, the offer appears in all tenant catalogs across the platform. My Organization Only: published immediately to your own catalog with no approval step — other organizations cannot see it.',
+    fi_visibility_example: 'A national coffee chain deal → Ecosystem (pending approval). An internal employee perk → My Organization Only (instant).',
 
     // ── implementationLink ──
     fi_implementationLink_label: 'Redemption Link',
@@ -1771,6 +1773,8 @@ export const translations = {
     co_visAllTenantsHint: 'כל ארגון במערכת NEXUS יכול לאמץ הצעה זו.',
     co_visMyTenantOnly: 'הארגון שלי בלבד',
     co_visMyTenantOnlyHint: 'רק הארגון שלך יכול לראות ולהשתמש בהצעה זו.',
+    co_visEcosystemApproval: 'דורש אישור מנהל פלטפורמת NEXUS לפני פרסום לכל הקטלוגים',
+    co_visMyTenantNoApproval: 'מתפרסם מיד - אין צורך באישור',
     co_platformNote: 'הצעות פלטפורמה גלויות לכל הארגונים במערכת.',
     co_sectionImage: 'תמונת ההצעה',
     co_imageHint: 'תמונה מרובעת או לרוחב תעבוד הכי טוב. עד 5 MB.',
@@ -1897,9 +1901,9 @@ export const translations = {
 
     // ── visibility ──
     fi_visibility_label: 'נראות',
-    fi_visibility_short: 'שולטת אילו ארגונים יכולים לראות ולאמץ הצעה זו.',
-    fi_visibility_detail: 'מערכת כולל: גלוי לכל ארגוני הדיירים ב-NEXUS - כל אחד יכול להוסיפה לקטלוג החברים שלו. הארגון שלי בלבד: גלוי ואימוצה אפשרי רק על ידי הארגון שלך בלבד.',
-    fi_visibility_example: 'עסקת רשת קפה ארצית ← מערכת כולל. הטבה פנימית לעובדים ← הארגון שלי בלבד.',
+    fi_visibility_short: 'שולטת מי רואה הצעה זו. מערכת כולל דורשת אישור מנהל NEXUS.',
+    fi_visibility_detail: 'מערכת כולל: ההצעה נשלחת לבדיקת מנהל פלטפורמת NEXUS. לאחר אישור, היא מופיעה בקטלוגי כל הדיירים בפלטפורמה. הארגון שלי בלבד: מתפרסמת מיד לקטלוג הארגון שלך ללא שלב אישור - ארגונים אחרים אינם יכולים לראותה.',
+    fi_visibility_example: 'עסקת רשת קפה ארצית ← מערכת כולל (ממתין לאישור). הטבה פנימית לעובדים ← הארגון שלי בלבד (מיידי).',
 
     // ── implementationLink ──
     fi_implementationLink_label: 'קישור מימוש',
