@@ -219,14 +219,25 @@ const BenefitsPartnerships = () => {
    * Output: void; reverts on failure to keep UI consistent with server state.
    */
   const handleToggleAdopt = async (offerId: string, currentlyAdopted: boolean) => {
-    // Block adoption of offers that have not yet been approved by the platform.
     if (!currentlyAdopted) {
       const target = catalogItems.find(i => i.offerId === offerId);
+
+      // Block adoption of offers pending platform review.
       if (target?.approval_status === 'pending_approval') {
         toast.error(
           language === 'he'
             ? 'לא ניתן לאמץ הצעה זו – היא ממתינה לאישור מנהל NEXUS'
             : 'Cannot adopt this offer – it is pending NEXUS admin approval'
+        );
+        return;
+      }
+
+      // Block adoption until the tenant has completed business setup.
+      if (!me?.authorization.businessSetupComplete) {
+        toast.error(
+          language === 'he'
+            ? 'יש להשלים את הגדרת העסק לפני אימוץ הצעות'
+            : 'Complete your business setup before adopting offers'
         );
         return;
       }
@@ -951,13 +962,13 @@ const BenefitsPartnerships = () => {
                                   'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold',
                                   item?.approval_status === 'denied'
                                     ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                                    : item?.status === 'active'
+                                    : item?.approval_status === 'active'
                                       ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
                                       : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
                                 )}>
                                   {item?.approval_status === 'denied'
                                     ? t('co_denied')
-                                    : item?.status === 'active'
+                                    : item?.approval_status === 'active'
                                       ? (language === 'he' ? 'פעיל' : 'Active')
                                       : (language === 'he' ? 'לא פעיל' : 'Inactive')}
                                 </span>
