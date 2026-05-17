@@ -242,9 +242,12 @@ const BenefitsCatalogTeaser = ({ onActivate, isActivating = false }: Props) => {
           ))}
         </div>
       ) : (
-        /* Infinite auto-scroll carousel — mobile */
+        /* Infinite auto-scroll carousel — mobile.
+           dir="ltr" is critical: without it, RTL page direction causes flex
+           to lay cards right-to-left, making translateX(0) show empty space. */
         <div
           role="region"
+          dir="ltr"
           aria-label={isHe ? 'הטבות לדוגמה' : 'Sample offers'}
           style={{
             width: '100vw',
@@ -261,7 +264,7 @@ const BenefitsCatalogTeaser = ({ onActivate, isActivating = false }: Props) => {
             pointerEvents: 'none', zIndex: 2,
             background: `linear-gradient(to right, ${BG} 0%, transparent 12%, transparent 88%, ${BG} 100%)`,
           }} aria-hidden="true"/>
-          {/* Scrolling track — all inline, fixed pixel translation for seamless loop */}
+          {/* Scrolling track — 7 cards × (204+16)px = 1540px per set; animation shifts exactly -1540px */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -271,7 +274,7 @@ const BenefitsCatalogTeaser = ({ onActivate, isActivating = false }: Props) => {
             willChange: 'transform',
           }}>
             {[...CARDS, ...CARDS].map((card, i) => (
-              <div key={i} style={{ marginInlineEnd: 16, flexShrink: 0 }}>
+              <div key={i} style={{ marginRight: 16, flexShrink: 0 }}>
                 <CardFace card={card} isHe={isHe}/>
               </div>
             ))}
