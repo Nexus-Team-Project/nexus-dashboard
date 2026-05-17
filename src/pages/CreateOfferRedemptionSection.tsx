@@ -96,7 +96,7 @@ const CreateOfferRedemptionSection = ({
       <div className="mb-4">
         <label
           htmlFor="offer-impl-link"
-          className="mb-1.5 flex items-center text-sm font-medium text-slate-700 dark:text-slate-300"
+          className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300"
         >
           {t('co_fieldImplLink')}
           <span className="font-normal text-slate-400 ms-1 me-0.5">{t('co_optional')}</span>
@@ -117,7 +117,7 @@ const CreateOfferRedemptionSection = ({
       <div className="mb-4">
         <label
           htmlFor="offer-impl-instructions"
-          className="mb-1.5 flex items-center text-sm font-medium text-slate-700 dark:text-slate-300"
+          className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300"
         >
           {t('co_fieldImplInstructions')}
           <span className="font-normal text-slate-400 ms-1 me-0.5">{t('co_optional')}</span>
@@ -138,7 +138,7 @@ const CreateOfferRedemptionSection = ({
       <div className="mb-4">
         <label
           htmlFor="offer-valid-until"
-          className="mb-1.5 flex items-center text-sm font-medium text-slate-700 dark:text-slate-300"
+          className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300"
         >
           {t('co_fieldValidUntil')}
           <span className="font-normal text-slate-400 ms-1 me-0.5">{t('co_optional')}</span>
@@ -159,7 +159,7 @@ const CreateOfferRedemptionSection = ({
       <div className="mb-4">
         <label
           htmlFor="offer-terms"
-          className="mb-1.5 flex items-center text-sm font-medium text-slate-700 dark:text-slate-300"
+          className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300"
         >
           {t('co_fieldTerms')}
           <span className="font-normal text-slate-400 ms-1 me-0.5">{t('co_optional')}</span>
@@ -178,7 +178,7 @@ const CreateOfferRedemptionSection = ({
 
       {/* Tags - up to 10 searchable labels; press Enter or comma to add */}
       <div>
-        <label htmlFor="offer-tag-input" className="mb-1.5 flex items-center text-sm font-medium text-slate-700 dark:text-slate-300">
+        <label htmlFor="offer-tag-input" className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
           {t('co_fieldTags')}
           <span className="font-normal text-slate-400 ms-1 me-0.5">{t('co_optional')}</span>
           <FieldTooltip fieldKey="tags" />

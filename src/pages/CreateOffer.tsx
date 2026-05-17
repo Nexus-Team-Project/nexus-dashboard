@@ -43,7 +43,7 @@ type OfferVisibility = 'ecosystem' | 'tenant_only';
 const CreateOffer = () => {
   const navigate = useNavigate();
   const { me } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   /** Platform admins always publish to the full ecosystem; the visibility
    *  toggle is hidden for them to prevent accidental scoping. */
@@ -62,6 +62,14 @@ const CreateOffer = () => {
   const [marketPrice, setMarketPrice] = useState('');
   /** Optional stock limit; empty string means unlimited. */
   const [stockLimit, setStockLimit] = useState('');
+
+  // ─── Voucher-specific pricing state (only used when executionType === 'voucher') ─
+  /** Voucher face value: the nominal amount printed on the voucher. */
+  const [faceValue, setFaceValue]     = useState('');
+  /** Nexus cost: wholesale price NEXUS pays the supplier per voucher. */
+  const [nexusCost, setNexusCost]     = useState('');
+  /** Member price: what end customers pay; set via slider between nexusCost and faceValue. */
+  const [memberPrice, setMemberPrice] = useState<number | null>(null);
 
   // ─── Visibility state ────────────────────────────────────────────────────────
   const [visibility, setVisibility] = useState<OfferVisibility>('ecosystem');
@@ -109,6 +117,24 @@ const CreateOffer = () => {
       return;
     }
 
+    // Voucher-specific validation
+    if (executionType === 'voucher') {
+      const fv = Number(faceValue);
+      const nc = Number(nexusCost);
+      if (!faceValue || isNaN(fv) || fv <= 0) {
+        setError(language === 'he' ? 'יש להזין שווי שובר תקין וחיובי' : 'Face value must be a positive number');
+        return;
+      }
+      if (!nexusCost || isNaN(nc) || nc <= 0 || nc >= fv) {
+        setError(language === 'he' ? 'מחיר NEXUS חייב להיות חיובי ופחות מהשווי' : 'Nexus price must be positive and less than face value');
+        return;
+      }
+      if (memberPrice === null || memberPrice < nc || memberPrice > fv) {
+        setError(language === 'he' ? 'מחיר החבר חייב להיות בין מחיר NEXUS לשווי' : 'Member price must be between Nexus price and face value');
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     setError(null);
 
@@ -122,6 +148,14 @@ const CreateOffer = () => {
       fd.append('visibility', isPlatformAdmin ? 'ecosystem' : visibility);
       fd.append('executionType', executionType);
       if (stockLimit && Number(stockLimit) > 0) fd.append('stockLimit', stockLimit);
+
+      // Append voucher pricing fields when creating a voucher offer.
+      if (executionType === 'voucher') {
+        fd.append('face_value', faceValue);
+        fd.append('nexus_cost', nexusCost);
+        if (memberPrice !== null) fd.append('member_price', String(memberPrice));
+      }
+
       if (imageFile) fd.append('image', imageFile);
 
       // Append optional redemption detail fields when provided.
@@ -196,6 +230,12 @@ const CreateOffer = () => {
               setMarketPrice={setMarketPrice}
               stockLimit={stockLimit}
               setStockLimit={setStockLimit}
+              faceValue={faceValue}
+              setFaceValue={setFaceValue}
+              nexusCost={nexusCost}
+              setNexusCost={setNexusCost}
+              memberPrice={memberPrice}
+              setMemberPrice={setMemberPrice}
               isSubmitting={isSubmitting}
             />
 

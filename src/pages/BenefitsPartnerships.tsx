@@ -14,9 +14,12 @@ import {
   deactivateBenefitsCatalog,
   updateOfferApi,
   deleteOffer,
+  approveOfferApi,
+  denyOfferApi,
   EXECUTION_TYPE_LABELS,
   type CatalogItem,
 } from '../lib/api';
+import DenyOfferModal from '../components/DenyOfferModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import { toast } from 'sonner';
@@ -168,6 +171,12 @@ const BenefitsPartnerships = () => {
 
   /** CatalogItem pending deletion confirmation, or null when no deletion is in progress. */
   const [deletingOffer, setDeletingOffer] = useState<CatalogItem | null>(null);
+
+  /** CatalogItem pending denial in DenyOfferModal, or null when the modal is closed. */
+  const [denyTarget, setDenyTarget] = useState<CatalogItem | null>(null);
+
+  /** True when the authenticated user is a NEXUS platform admin. */
+  const isPlatformAdmin = me?.authorization?.isPlatformAdmin === true;
   /** True while the delete API call is in-flight. Prevents double-submit and closes the modal. */
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -345,6 +354,22 @@ const BenefitsPartnerships = () => {
       toast.error('מחיקה נכשלה. נסה שוב.');
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  /**
+   * Approves a pending ecosystem voucher offer (platform admin only).
+   * Transitions the offer from 'pending_approval' to 'active' status.
+   * Input: offerId - the offer to approve.
+   * Output: void; reloads catalog on success; shows toast on failure.
+   */
+  const handleApproveOffer = async (offerId: string) => {
+    try {
+      await approveOfferApi(offerId);
+      toast.success(language === 'he' ? 'ההצעה אושרה בהצלחה' : 'Offer approved successfully');
+      await loadCatalog();
+    } catch {
+      toast.error(language === 'he' ? 'שגיאה באישור ההצעה' : 'Failed to approve offer');
     }
   };
 
@@ -939,6 +964,23 @@ const BenefitsPartnerships = () => {
                             <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
                               {benefit.title}
                             </span>
+                            {/* Approval status badge — visible to platform admin and offer creator */}
+                            {item?.approval_status === 'pending_approval' && (
+                              <span className="mt-1 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 ms-1">
+                                {t('co_pendingApproval')}
+                              </span>
+                            )}
+                            {item?.approval_status === 'denied' && (
+                              <span className="mt-1 inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700 dark:bg-red-900/30 dark:text-red-400 ms-1">
+                                {t('co_denied')}
+                              </span>
+                            )}
+                            {/* Denial reason — shown only to offer creator */}
+                            {item?.denial_reason && (
+                              <p className="mt-1 text-[11px] text-red-600 dark:text-red-400 max-w-[200px] truncate" title={item.denial_reason}>
+                                {item.denial_reason}
+                              </p>
+                            )}
                           </td>
                           <td className="px-4 py-4 bg-violet-50/50 dark:bg-violet-900/10">
                             <span className="text-sm text-slate-700 dark:text-slate-300 font-medium">
@@ -1259,6 +1301,25 @@ const BenefitsPartnerships = () => {
                                     >
                                       מחק
                                     </button>
+                                  )}
+                                  {/* Platform admin: approve / deny pending ecosystem vouchers */}
+                                  {isPlatformAdmin && item?.approval_status === 'pending_approval' && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); void handleApproveOffer(item.offerId); }}
+                                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+                                      >
+                                        {t('co_allowOffer')}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); setDenyTarget(item); }}
+                                        className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+                                      >
+                                        {t('co_denyOffer')}
+                                      </button>
+                                    </>
                                   )}
                                   <button
                                     onClick={(e) => {
@@ -1942,13 +2003,25 @@ const BenefitsPartnerships = () => {
         />
       )}
 
-      {/* Delete offer confirmation modal - shown when user clicks the Delete button on an editable offer */}
+      {/* Delete offer confirmation modal */}
       {deletingOffer && (
         <DeleteOfferConfirmModal
           offerTitle={deletingOffer.title}
           isDeleting={isDeleting}
           onConfirm={() => void handleDeleteOffer()}
           onCancel={() => { if (!isDeleting) setDeletingOffer(null); }}
+        />
+      )}
+
+      {/* Deny offer modal — platform admin only, shown for pending_approval ecosystem vouchers */}
+      {denyTarget && (
+        <DenyOfferModal
+          offer={denyTarget}
+          onClose={() => setDenyTarget(null)}
+          onDenied={async () => {
+            await loadCatalog();
+            setDenyTarget(null);
+          }}
         />
       )}
     </div>

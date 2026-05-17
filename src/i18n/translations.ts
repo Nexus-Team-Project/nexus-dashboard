@@ -969,6 +969,36 @@ export const translations = {
     fi_tags_short: 'Keywords that help members discover this offer.',
     fi_tags_detail: 'Add up to 10 short descriptive tags. Tags appear on the offer card and can be used for filtering and search. Press Enter or comma to confirm each tag.',
     fi_tags_example: 'coffee, discount, food, downtown, weekday, student, health',
+
+    // ── Voucher pricing fields ──
+    fi_faceValue_label: 'Face Value',
+    fi_faceValue_short: "The voucher's face value - what it is worth to the member.",
+    fi_faceValue_detail: "This is the nominal value printed on the voucher. For example, a ₪100 gift card has a face value of ₪100. This is what members see as the voucher's worth.",
+    fi_faceValue_example: 'A ₪100 Coffee Time gift card has face value ₪100.',
+
+    fi_nexusCost_label: 'Nexus Price',
+    fi_nexusCost_short: 'The price you charge NEXUS for this voucher.',
+    fi_nexusCost_detail: "This is the wholesale price NEXUS pays you for each voucher. It stays between you and NEXUS - members and other organizations never see this figure. Must be lower than the face value.",
+    fi_nexusCost_example: 'You sell ₪100 vouchers to NEXUS at ₪80 each.',
+
+    fi_memberPrice_label: 'Member Price',
+    fi_memberPrice_short: 'What end customers (members) will pay. Drag the slider to set it.',
+    fi_memberPrice_detail: "Set the price members pay using the slider. The minimum is the NEXUS price (your cost to NEXUS) and the maximum is the face value. The difference between the member price and the NEXUS price is your organization's profit margin.",
+    fi_memberPrice_example: 'NEXUS price ₪80, face value ₪100 - set member price to ₪90 - your profit is ₪10 per voucher.',
+
+    // ── Approval status UI strings ──
+    co_pendingApproval: 'Pending NEXUS approval',
+    co_denied: 'Denied',
+    co_allowOffer: 'Allow',
+    co_denyOffer: 'Deny',
+    co_denialReason: 'Denial reason',
+    co_editResubmit: 'Edit & Resubmit',
+    co_resubmitInfo: 'This offer was denied. Edit the details below and save to resubmit for approval.',
+    co_denyModalTitle: 'Deny Offer',
+    co_denyModalBody: 'Explain why this offer is being denied. The supplier will receive your reason by email and can edit and resubmit.',
+    co_denyModalPlaceholder: 'Enter reason for denial (minimum 10 characters)...',
+    co_denyModalSubmit: 'Send Denial',
+    co_denyModalCancel: 'Cancel',
   },
   he: {
     // App
@@ -1940,6 +1970,36 @@ export const translations = {
     fi_tags_short: 'מילות מפתח שעוזרות לחברים לגלות הצעה זו.',
     fi_tags_detail: 'הוסף עד 10 תגיות תיאוריות קצרות. תגיות מופיעות בכרטיס ההצעה וניתן להשתמש בהן לסינון וחיפוש. לחץ Enter או פסיק לאישור כל תגית.',
     fi_tags_example: 'קפה, הנחה, אוכל, מרכז עיר, ימי חול, סטודנט, בריאות',
+
+    // ── Voucher pricing fields ──
+    fi_faceValue_label: 'שווי',
+    fi_faceValue_short: 'הערך הנקוב של השובר - מה שהחבר מקבל.',
+    fi_faceValue_detail: 'זהו הערך הנקוב של השובר. לדוגמה, כרטיס מתנה של ₪100 שווה ₪100. זה מה שחברים רואים כערך השובר.',
+    fi_faceValue_example: 'כרטיס מתנה לקפה טיים בשווי ₪100 יש לו ערך נקוב של ₪100.',
+
+    fi_nexusCost_label: 'מחיר מכירה לנקסוס',
+    fi_nexusCost_short: 'המחיר שאתה גובה מ-NEXUS עבור שובר זה.',
+    fi_nexusCost_detail: 'זהו המחיר הסיטונאי ש-NEXUS משלם לך עבור כל שובר. זה נשאר בינך לבין NEXUS - חברים וארגונים אחרים לא רואים נתון זה. חייב להיות נמוך מהערך הנקוב.',
+    fi_nexusCost_example: 'אתה מוכר שוברים של ₪100 ל-NEXUS במחיר ₪80 לכל אחד.',
+
+    fi_memberPrice_label: 'מחיר לחבר',
+    fi_memberPrice_short: 'מה לקוחות הקצה (חברים) ישלמו. גרור את המחוון לקביעת המחיר.',
+    fi_memberPrice_detail: 'קבע את המחיר שחברים משלמים באמצעות המחוון. המינימום הוא מחיר ה-NEXUS והמקסימום הוא הערך הנקוב. ההפרש בין מחיר החבר למחיר ה-NEXUS הוא רווח הארגון שלך.',
+    fi_memberPrice_example: 'מחיר NEXUS ₪80, ערך נקוב ₪100 - קבע מחיר חבר ל-₪90 - הרווח שלך הוא ₪10 לשובר.',
+
+    // ── Approval status UI strings ──
+    co_pendingApproval: 'ממתין לאישור NEXUS',
+    co_denied: 'נדחה',
+    co_allowOffer: 'אישור',
+    co_denyOffer: 'דחייה',
+    co_denialReason: 'סיבת הדחייה',
+    co_editResubmit: 'ערוך ושלח מחדש',
+    co_resubmitInfo: 'הצעה זו נדחתה. ערוך את הפרטים למטה ושמור לשליחה חוזרת לאישור.',
+    co_denyModalTitle: 'דחיית הצעה',
+    co_denyModalBody: 'הסבר מדוע הצעה זו נדחית. הספק יקבל את הסיבה שלך במייל ויוכל לערוך ולשלוח מחדש.',
+    co_denyModalPlaceholder: 'הזן סיבה לדחייה (מינימום 10 תווים)...',
+    co_denyModalSubmit: 'שלח דחייה',
+    co_denyModalCancel: 'ביטול',
   }
 };
 

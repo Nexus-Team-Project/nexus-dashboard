@@ -21,6 +21,7 @@ import ImageCropModal from './ImageCropModal';
 import { ImageSection, TagsInput } from './EditOfferDrawerHelpers';
 import RichTextEditor from './RichTextEditor';
 import FieldTooltip from './FieldTooltip';
+import DrawerVoucherPricing from './EditOfferDrawerVoucherPricing';
 
 // ─── Category options ────────────────────────────────────────────────────────
 
@@ -69,7 +70,7 @@ interface EditOfferDrawerProps {
  * Output: renders a fixed backdrop + drawer panel + optional crop modal.
  */
 export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDrawerProps) {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
 
   // ─── Field state ───────────────────────────────────────────────────────────
   const [title, setTitle]                             = useState(offer.title);
@@ -87,6 +88,14 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
   const [terms, setTerms]                             = useState(offer.terms ?? '');
   const [tags, setTags]                               = useState<string[]>(offer.tags ?? []);
   const [validUntil, setValidUntil]                   = useState(offer.validUntil ? offer.validUntil.slice(0, 10) : '');
+
+  // ─── Voucher-specific pricing state ────────────────────────────────────────
+  /** Voucher face value - pre-filled from offer when available. */
+  const [faceValue, setFaceValue]     = useState(offer.face_value !== undefined ? String(offer.face_value) : '');
+  /** Nexus cost - pre-filled; only visible when creating tenant or platform admin returns it. */
+  const [nexusCost, setNexusCost]     = useState(offer.nexus_cost !== undefined ? String(offer.nexus_cost) : '');
+  /** Member price - pre-filled from offer when available. */
+  const [memberPrice, setMemberPrice] = useState<number | null>(offer.member_price ?? null);
 
   // ─── Image state ───────────────────────────────────────────────────────────
 
@@ -174,6 +183,10 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
         terms: terms.trim(),
         tags,
         ...(imageFile && { imageFile }),
+        // Voucher-specific pricing fields - only included when this is a voucher offer.
+        ...(offer.executionType === 'voucher' && faceValue !== '' && { face_value: Number(faceValue) }),
+        ...(offer.executionType === 'voucher' && nexusCost !== '' && { nexus_cost: Number(nexusCost) }),
+        ...(offer.executionType === 'voucher' && memberPrice !== null && { member_price: memberPrice }),
       });
       await onSaved();
       onClose();
@@ -234,6 +247,17 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
         {/* Scrollable form body — dir="ltr" keeps scrollbar on the right in RTL layout */}
         <div className="flex-1 overflow-y-auto" dir="ltr"><div dir="rtl">
 
+          {/* ── Denial reason banner (shown when offer was denied by platform admin) ─── */}
+          {offer.denial_reason && (
+            <div className="px-6 pt-4">
+              <div className="rounded-xl bg-red-50 border border-red-200 dark:bg-red-900/20 dark:border-red-800 px-4 py-3">
+                <p className="text-xs font-semibold text-red-700 dark:text-red-400 mb-1">{t('co_denialReason')}</p>
+                <p className="text-sm text-red-600 dark:text-red-300">{offer.denial_reason}</p>
+                <p className="mt-2 text-xs text-red-500">{t('co_resubmitInfo')}</p>
+              </div>
+            </div>
+          )}
+
           {/* ── Image ──────────────────────────────────────────── */}
           <div className="px-6 pt-5 pb-4">
             <ImageSection previewUrl={previewUrl} onSelect={handleImageSelect} />
@@ -246,7 +270,7 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">פרטי ההצעה</p>
 
             <div className="space-y-1">
-              <label className="flex items-center text-sm font-medium text-slate-700 dark:text-slate-300">
+              <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
                 כותרת <span className="text-red-500 ms-0.5">*</span>
                 <FieldTooltip fieldKey="title" />
               </label>
@@ -260,7 +284,7 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
             </div>
 
             <div className="space-y-1">
-              <label className="flex items-center text-sm font-medium text-slate-700 dark:text-slate-300">
+              <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
                 תיאור <FieldTooltip fieldKey="description" />
               </label>
               <RichTextEditor
@@ -272,7 +296,7 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="flex items-center text-sm font-medium text-slate-700 dark:text-slate-300">
+                <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
                   קטגוריה <FieldTooltip fieldKey="category" />
                 </label>
                 <select value={category} onChange={(e) => setCategory(e.target.value)} className={inputCls}>
@@ -282,7 +306,7 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
                 </select>
               </div>
               <div className="space-y-1">
-                <label className="flex items-center text-sm font-medium text-slate-700 dark:text-slate-300">
+                <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
                   אופן מימוש <FieldTooltip fieldKey="executionType" />
                 </label>
                 <select value={executionType} onChange={(e) => setExecutionType(e.target.value)} className={inputCls}>
@@ -303,27 +327,47 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
           <div className="px-6 py-4 space-y-4">
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">תמחור ומלאי</p>
 
-            <div className="space-y-1">
-              <label className="flex items-center text-sm font-medium text-slate-700 dark:text-slate-300">
-                מחיר שוק <FieldTooltip fieldKey="marketPrice" />
-              </label>
-              <input type="number" min="0" step="0.01" value={marketPrice} onChange={(e) => setMarketPrice(e.target.value)} onWheel={(e) => e.currentTarget.blur()} className={inputCls} placeholder="₪" dir="ltr" />
-            </div>
+            {offer.executionType === 'voucher' ? (
+              /* Voucher-specific pricing inputs: face value, nexus cost, member slider, stock limit */
+              <DrawerVoucherPricing
+                faceValue={faceValue}
+                setFaceValue={setFaceValue}
+                nexusCost={nexusCost}
+                setNexusCost={setNexusCost}
+                showNexusCost={offer.nexus_cost !== undefined}
+                memberPrice={memberPrice}
+                setMemberPrice={setMemberPrice}
+                stockLimit={stockLimit}
+                setStockLimit={setStockLimit}
+                validUntil={validUntil}
+                setValidUntil={setValidUntil}
+                inputCls={inputCls}
+              />
+            ) : (
+              <>
+                <div className="space-y-1">
+                  <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
+                    מחיר שוק <FieldTooltip fieldKey="marketPrice" />
+                  </label>
+                  <input type="number" min="0" step="0.01" value={marketPrice} onChange={(e) => setMarketPrice(e.target.value)} onWheel={(e) => e.currentTarget.blur()} className={inputCls} placeholder="₪" dir="ltr" />
+                </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="flex items-center text-sm font-medium text-slate-700 dark:text-slate-300">
-                  מלאי <FieldTooltip fieldKey="stockLimit" />
-                </label>
-                <input type="number" min="0" step="1" value={stockLimit} onChange={(e) => setStockLimit(e.target.value)} onWheel={(e) => e.currentTarget.blur()} className={inputCls} placeholder="∞" dir="ltr" />
-              </div>
-              <div className="space-y-1">
-                <label className="flex items-center text-sm font-medium text-slate-700 dark:text-slate-300">
-                  תוקף <FieldTooltip fieldKey="validUntil" />
-                </label>
-                <input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} className={inputCls} dir="ltr" />
-              </div>
-            </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
+                      מלאי <FieldTooltip fieldKey="stockLimit" />
+                    </label>
+                    <input type="number" min="0" step="1" value={stockLimit} onChange={(e) => setStockLimit(e.target.value)} onWheel={(e) => e.currentTarget.blur()} className={inputCls} placeholder="∞" dir="ltr" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
+                      תוקף <FieldTooltip fieldKey="validUntil" />
+                    </label>
+                    <input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} className={inputCls} dir="ltr" />
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="h-px bg-slate-100 dark:bg-slate-800 mx-6" />
@@ -333,7 +377,7 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">מימוש</p>
 
             <div className="space-y-1">
-              <label className="flex items-center text-sm font-medium text-slate-700 dark:text-slate-300">
+              <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
                 קישור מימוש <FieldTooltip fieldKey="implementationLink" />
               </label>
               <input
@@ -347,7 +391,7 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
             </div>
 
             <div className="space-y-1">
-              <label className="flex items-center text-sm font-medium text-slate-700 dark:text-slate-300">
+              <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
                 הוראות מימוש <FieldTooltip fieldKey="implementationInstructions" />
               </label>
               <textarea
@@ -360,7 +404,7 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
             </div>
 
             <div className="space-y-1">
-              <label className="flex items-center text-sm font-medium text-slate-700 dark:text-slate-300">
+              <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
                 תנאים <FieldTooltip fieldKey="terms" />
               </label>
               <textarea
@@ -406,7 +450,7 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
               </svg>
             )}
-            {isSaving ? 'שומר...' : 'שמור שינויים'}
+            {isSaving ? 'שומר...' : offer.approval_status === 'denied' ? t('co_editResubmit') : 'שמור שינויים'}
           </button>
         </div>
       </div>

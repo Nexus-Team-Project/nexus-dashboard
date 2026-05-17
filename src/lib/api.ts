@@ -748,6 +748,19 @@ export interface CatalogItem {
   terms?: string;
   /** Display tags set by the offer creator. */
   tags: string[];
+  /** Voucher face value - nominal value printed on the voucher (voucher executionType only). */
+  face_value?: number;
+  /** What members pay for this voucher; between nexus_cost and face_value (voucher only). */
+  member_price?: number;
+  /**
+   * Wholesale price NEXUS pays the supplier per voucher.
+   * Only returned to the creating tenant and platform admins.
+   */
+  nexus_cost?: number;
+  /** Offer's current approval status: 'active' | 'pending_approval' | 'denied'. */
+  approval_status?: string;
+  /** Denial reason - only returned to the creating tenant when status is 'denied'. */
+  denial_reason?: string;
 }
 
 /**
@@ -761,7 +774,8 @@ export interface NexusOffer {
   imageUrl?: string;
   category: string;
   market_price?: number;
-  status: string;
+  /** Offer lifecycle status. */
+  status: 'draft' | 'active' | 'inactive' | 'pending_approval' | 'denied';
   visibility: string;
   createdByTenantId: string;
   createdAt: string;
@@ -777,6 +791,17 @@ export interface NexusOffer {
   validUntil?: string | null;
   terms?: string;
   tags?: string[];
+  /** Voucher face value - nominal value printed on the voucher (voucher executionType only). */
+  face_value?: number;
+  /**
+   * Wholesale price NEXUS pays the supplier per voucher.
+   * Only returned to the creating tenant and platform admins.
+   */
+  nexus_cost?: number;
+  /** What members pay for this voucher; between nexus_cost and face_value (voucher only). */
+  member_price?: number;
+  /** Denial reason - only set when status is 'denied'. */
+  denial_reason?: string;
 }
 
 /**
@@ -930,6 +955,12 @@ export async function updateOfferApi(
     terms?: string;
     tags?: string[];
     imageFile?: File;
+    /** Voucher face value (voucher executionType only). */
+    face_value?: number;
+    /** Wholesale price NEXUS pays per voucher (voucher executionType only). */
+    nexus_cost?: number;
+    /** Price members pay; between nexus_cost and face_value (voucher executionType only). */
+    member_price?: number;
   },
 ): Promise<NexusOffer> {
   const { imageFile, tags, ...rest } = data;
@@ -979,6 +1010,26 @@ export async function activateBenefitsCatalog(): Promise<void> {
   await request<void>('POST', '/api/v1/tenant/services/benefits-catalog/activate', {
     startingMode: 'plug_and_play',
   });
+}
+
+/**
+ * Approves a pending ecosystem voucher offer. Platform admins only.
+ * Transitions the offer from 'pending_approval' to 'active' status.
+ * Input: offerId - the offer to approve.
+ * Output: void on success; throws on failure.
+ */
+export async function approveOfferApi(offerId: string): Promise<void> {
+  await request<void>('POST', `/api/v1/offers/${encodeURIComponent(offerId)}/approve`);
+}
+
+/**
+ * Denies a pending ecosystem voucher offer with a mandatory reason.
+ * Platform admins only. The backend emails the reason to the creating tenant.
+ * Input: offerId - the offer to deny; reason - explanation sent to supplier.
+ * Output: void on success; throws on failure.
+ */
+export async function denyOfferApi(offerId: string, reason: string): Promise<void> {
+  await request<void>('POST', `/api/v1/offers/${encodeURIComponent(offerId)}/deny`, { reason });
 }
 
 /**

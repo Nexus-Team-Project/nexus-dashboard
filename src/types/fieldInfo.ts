@@ -18,4 +18,7 @@ export type FieldInfoKey =
   | 'implementationInstructions'
   | 'validUntil'
   | 'terms'
-  | 'tags';
+  | 'tags'
+  | 'faceValue'
+  | 'nexusCost'
+  | 'memberPrice';

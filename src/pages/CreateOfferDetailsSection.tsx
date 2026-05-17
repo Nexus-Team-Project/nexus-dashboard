@@ -10,6 +10,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { OFFER_CATEGORIES, EXECUTION_TYPE_LABELS } from '../lib/api';
 import RichTextEditor from '../components/RichTextEditor';
 import FieldTooltip from '../components/FieldTooltip';
+import VoucherPricingSection from './CreateOfferVoucherPricing';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -42,6 +43,18 @@ interface DetailsSectionProps {
   stockLimit: string;
   /** Setter for stockLimit. */
   setStockLimit: (v: string) => void;
+  /** Voucher face value (required when executionType === 'voucher'). */
+  faceValue: string;
+  /** Setter for faceValue. */
+  setFaceValue: (v: string) => void;
+  /** Nexus wholesale cost (required when executionType === 'voucher'). */
+  nexusCost: string;
+  /** Setter for nexusCost. */
+  setNexusCost: (v: string) => void;
+  /** Member price set via slider (required when executionType === 'voucher'). */
+  memberPrice: number | null;
+  /** Setter for memberPrice. */
+  setMemberPrice: (v: number | null) => void;
   /** Whether the parent form is submitting - disables all inputs. */
   isSubmitting: boolean;
 }
@@ -68,6 +81,12 @@ const CreateOfferDetailsSection = ({
   setMarketPrice,
   stockLimit,
   setStockLimit,
+  faceValue,
+  setFaceValue,
+  nexusCost,
+  setNexusCost,
+  memberPrice,
+  setMemberPrice,
   isSubmitting,
 }: DetailsSectionProps) => {
   const { t, language } = useLanguage();
@@ -84,7 +103,7 @@ const CreateOfferDetailsSection = ({
         <div className="mb-4">
           <label
             htmlFor="offer-title"
-            className="mb-1.5 flex items-center text-sm font-medium text-slate-700 dark:text-slate-300"
+            className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300"
           >
             {t('co_fieldTitle')} <span className="text-red-500 ms-0.5" aria-hidden="true">*</span>
             <FieldTooltip fieldKey="title" />
@@ -105,7 +124,7 @@ const CreateOfferDetailsSection = ({
         <div className="mb-4">
           <label
             htmlFor="offer-description"
-            className="mb-1.5 flex items-center text-sm font-medium text-slate-700 dark:text-slate-300"
+            className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300"
           >
             {t('co_fieldDescription')}
             <FieldTooltip fieldKey="description" />
@@ -122,7 +141,7 @@ const CreateOfferDetailsSection = ({
         <div className="mb-4">
           <label
             htmlFor="offer-category"
-            className="mb-1.5 flex items-center text-sm font-medium text-slate-700 dark:text-slate-300"
+            className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300"
           >
             {t('co_fieldCategory')}
             <FieldTooltip fieldKey="category" />
@@ -146,7 +165,7 @@ const CreateOfferDetailsSection = ({
         <div>
           <label
             htmlFor="offer-execution-type"
-            className="mb-1.5 flex items-center text-sm font-medium text-slate-700 dark:text-slate-300"
+            className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300"
           >
             {t('co_fieldOfferType')} <span className="text-red-500 ms-0.5" aria-hidden="true">*</span>
             <FieldTooltip fieldKey="executionType" />
@@ -173,53 +192,70 @@ const CreateOfferDetailsSection = ({
           {t('co_sectionPricing')}
         </h2>
 
-        {/* Market price - optional, shown to members as reference */}
-        <div>
-          <label
-            htmlFor="offer-market-price"
-            className="mb-1.5 flex items-center text-sm font-medium text-slate-700 dark:text-slate-300"
-          >
-            {t('co_fieldMarketPrice')}{' '}
-            <span className="font-normal text-slate-400 me-0.5">{t('co_optional')}</span>
-            <FieldTooltip fieldKey="marketPrice" />
-          </label>
-          <input
-            id="offer-market-price"
-            type="number"
-            min="0.01"
-            step="0.01"
-            value={marketPrice}
-            onChange={(e) => setMarketPrice(e.target.value)}
-            onWheel={(e) => e.currentTarget.blur()}
-            placeholder="0.00"
-            disabled={isSubmitting}
-            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-colors focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white disabled:cursor-not-allowed disabled:opacity-60"
+        {executionType === 'voucher' ? (
+          /* Voucher-specific pricing: face value, nexus cost, member price slider, stock limit */
+          <VoucherPricingSection
+            faceValue={faceValue}
+            setFaceValue={setFaceValue}
+            nexusCost={nexusCost}
+            setNexusCost={setNexusCost}
+            memberPrice={memberPrice}
+            setMemberPrice={setMemberPrice}
+            stockLimit={stockLimit}
+            setStockLimit={setStockLimit}
+            isSubmitting={isSubmitting}
           />
-        </div>
+        ) : (
+          <>
+            {/* Market price - optional, shown to members as reference */}
+            <div>
+              <label
+                htmlFor="offer-market-price"
+                className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300"
+              >
+                {t('co_fieldMarketPrice')}{' '}
+                <span className="font-normal text-slate-400 me-0.5">{t('co_optional')}</span>
+                <FieldTooltip fieldKey="marketPrice" />
+              </label>
+              <input
+                id="offer-market-price"
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={marketPrice}
+                onChange={(e) => setMarketPrice(e.target.value)}
+                onWheel={(e) => e.currentTarget.blur()}
+                placeholder="0.00"
+                disabled={isSubmitting}
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-colors focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white disabled:cursor-not-allowed disabled:opacity-60"
+              />
+            </div>
 
-        {/* Stock limit - optional cap on total redemptions */}
-        <div className="mt-4">
-          <label
-            htmlFor="offer-stock-limit"
-            className="mb-1.5 flex items-center text-sm font-medium text-slate-700 dark:text-slate-300"
-          >
-            {t('co_fieldStockLimit')}{' '}
-            <span className="font-normal text-slate-400 me-0.5">{t('co_optional')}</span>
-            <FieldTooltip fieldKey="stockLimit" />
-          </label>
-          <input
-            id="offer-stock-limit"
-            type="number"
-            min="1"
-            step="1"
-            value={stockLimit}
-            onChange={(e) => setStockLimit(e.target.value)}
-            onWheel={(e) => e.currentTarget.blur()}
-            placeholder={t('co_stockLimitPlaceholder')}
-            disabled={isSubmitting}
-            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-colors focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white disabled:cursor-not-allowed disabled:opacity-60"
-          />
-        </div>
+            {/* Stock limit - optional cap on total redemptions */}
+            <div className="mt-4">
+              <label
+                htmlFor="offer-stock-limit"
+                className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300"
+              >
+                {t('co_fieldStockLimit')}
+                <span className="font-normal text-slate-400 ms-1.5">{t('co_optional')}</span>
+                <FieldTooltip fieldKey="stockLimit" />
+              </label>
+              <input
+                id="offer-stock-limit"
+                type="number"
+                min="1"
+                step="1"
+                value={stockLimit}
+                onChange={(e) => setStockLimit(e.target.value)}
+                onWheel={(e) => e.currentTarget.blur()}
+                placeholder={t('co_stockLimitPlaceholder')}
+                disabled={isSubmitting}
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-colors focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white disabled:cursor-not-allowed disabled:opacity-60"
+              />
+            </div>
+          </>
+        )}
       </section>
     </>
   );
