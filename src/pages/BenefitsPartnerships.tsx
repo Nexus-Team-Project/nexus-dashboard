@@ -25,6 +25,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 import ServiceActivationBanner from '../components/ServiceActivationBanner';
+import BenefitsCatalogTeaser from '../components/BenefitsCatalogTeaser';
 import ImageLightbox from '../components/ImageLightbox';
 import EditOfferDrawer from '../components/EditOfferDrawer';
 import DeleteOfferConfirmModal from '../components/DeleteOfferConfirmModal';
@@ -162,6 +163,8 @@ const BenefitsPartnerships = () => {
 
   /** True while /api/me is being re-fetched after a service state change. Shows loading skeleton. */
   const [isRefreshing, setIsRefreshing] = useState(false);
+  /** True while the activation API call is in-flight (drives teaser button spinner). */
+  const [isActivating, setIsActivating] = useState(false);
 
   /** URL of the image currently shown in the full-screen lightbox, or null when closed. */
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
@@ -276,6 +279,7 @@ const BenefitsPartnerships = () => {
    * Shows loading skeleton during the refresh; no page reload needed.
    */
   const handleActivateCatalog = async () => {
+    setIsActivating(true);
     try {
       await activateBenefitsCatalog();
       setIsRefreshing(true);
@@ -284,6 +288,7 @@ const BenefitsPartnerships = () => {
       console.error('[handleActivateCatalog] Failed to activate catalog:', err);
       toast.error('שגיאה בהפעלת השירות. נסה שוב.');
     } finally {
+      setIsActivating(false);
       setIsRefreshing(false);
     }
   };
@@ -674,6 +679,19 @@ const BenefitsPartnerships = () => {
     setSelectedBenefit(benefit);
     setShowBenefitModal(true);
   };
+
+  // When the catalog service is inactive, show the teaser page instead of the full catalog UI.
+  // Platform admins always see the full catalog regardless of activation state.
+  if (catalogMode === 'inactive' && !isPlatformAdmin) {
+    return (
+      <>
+        <BenefitsCatalogTeaser
+          onActivate={handleActivateCatalog}
+          isActivating={isActivating}
+        />
+      </>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white dark:bg-background-dark">
