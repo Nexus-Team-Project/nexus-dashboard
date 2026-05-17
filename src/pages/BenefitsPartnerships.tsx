@@ -1572,7 +1572,7 @@ const BenefitsPartnerships = () => {
                           {catalogItem?.executionType && EXECUTION_TYPE_LABELS[catalogItem.executionType] && (
                             <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-100 px-2 py-0.5 text-xs text-indigo-700 mt-1">
                               {EXECUTION_TYPE_LABELS[catalogItem.executionType].icon}{' '}
-                              {EXECUTION_TYPE_LABELS[catalogItem.executionType].label}
+                              {language === 'he' ? EXECUTION_TYPE_LABELS[catalogItem.executionType].labelHe : EXECUTION_TYPE_LABELS[catalogItem.executionType].label}
                             </span>
                           )}
                           {/* Stock indicator */}

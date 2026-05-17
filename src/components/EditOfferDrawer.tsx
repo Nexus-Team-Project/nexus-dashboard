@@ -13,9 +13,10 @@
  * to keep this file within the 350-line limit.
  */
 import { useState, useCallback, useEffect } from 'react';
+import { useLanguage } from '../i18n/LanguageContext';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
-import { updateOfferApi, type CatalogItem } from '../lib/api';
+import { updateOfferApi, EXECUTION_TYPE_LABELS, type CatalogItem } from '../lib/api';
 import ImageCropModal from './ImageCropModal';
 import { ImageSection, TagsInput } from './EditOfferDrawerHelpers';
 import RichTextEditor from './RichTextEditor';
@@ -40,15 +41,6 @@ const CATEGORY_OPTIONS = [
   { value: 'other',           label: 'אחר' },
 ];
 
-// ─── Execution type options ──────────────────────────────────────────────────
-
-const EXECUTION_OPTIONS = [
-  { value: 'voucher',   label: 'שובר' },
-  { value: 'coupon',    label: 'קוד קופון' },
-  { value: 'gift_card', label: 'כרטיס מתנה' },
-  { value: 'product',   label: 'מוצר' },
-  { value: 'service',   label: 'שירות' },
-];
 
 // ─── Props ──────────────────────────────────────────────────────────────────
 
@@ -77,6 +69,8 @@ interface EditOfferDrawerProps {
  * Output: renders a fixed backdrop + drawer panel + optional crop modal.
  */
 export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDrawerProps) {
+  const { language } = useLanguage();
+
   // ─── Field state ───────────────────────────────────────────────────────────
   const [title, setTitle]                             = useState(offer.title);
   const [description, setDescription]                 = useState(offer.description);
@@ -292,9 +286,11 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
                   אופן מימוש <FieldTooltip fieldKey="executionType" />
                 </label>
                 <select value={executionType} onChange={(e) => setExecutionType(e.target.value)} className={inputCls}>
-                  <option value="">בחר...</option>
-                  {EXECUTION_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  <option value="">{language === 'he' ? 'בחר...' : 'Select...'}</option>
+                  {Object.entries(EXECUTION_TYPE_LABELS).map(([value, { label, labelHe, icon }]) => (
+                    <option key={value} value={value}>
+                      {icon} {language === 'he' ? labelHe : label}
+                    </option>
                   ))}
                 </select>
               </div>

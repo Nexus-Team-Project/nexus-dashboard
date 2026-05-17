@@ -780,16 +780,16 @@ export interface NexusOffer {
 }
 
 /**
- * Maps each offer execution type value to a human-readable label and icon.
- * Used across CreateOffer, BenefitsPartnerships, ProductCatalog, and OfferModal
- * to display consistent badges for each delivery mechanism.
+ * Maps each offer execution type value to a bilingual label and icon.
+ * Consumers should read `label` (EN) or `labelHe` (HE) based on current language.
+ * Used across CreateOffer, EditOfferDrawer, BenefitsPartnerships, ProductCatalog, and OfferModal.
  */
-export const EXECUTION_TYPE_LABELS: Record<string, { label: string; icon: string }> = {
-  voucher:   { label: 'Voucher',   icon: '🎟' },
-  coupon:    { label: 'Coupon',    icon: '%'  },
-  gift_card: { label: 'Gift Card', icon: '🎁' },
-  product:   { label: 'Product',   icon: '📦' },
-  service:   { label: 'Service',   icon: '⚡' },
+export const EXECUTION_TYPE_LABELS: Record<string, { label: string; labelHe: string; icon: string }> = {
+  voucher:   { label: 'Voucher',   labelHe: 'שובר',       icon: '🎟' },
+  coupon:    { label: 'Coupon',    labelHe: 'קוד קופון',   icon: '%'  },
+  gift_card: { label: 'Gift Card', labelHe: 'כרטיס מתנה', icon: '🎁' },
+  product:   { label: 'Product',   labelHe: 'מוצר',       icon: '📦' },
+  service:   { label: 'Service',   labelHe: 'שירות',      icon: '⚡' },
 };
 
 /**

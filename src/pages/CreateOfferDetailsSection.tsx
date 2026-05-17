@@ -158,9 +158,9 @@ const CreateOfferDetailsSection = ({
             disabled={isSubmitting}
             className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-colors focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {Object.entries(EXECUTION_TYPE_LABELS).map(([value, { label, icon }]) => (
+            {Object.entries(EXECUTION_TYPE_LABELS).map(([value, { label, labelHe, icon }]) => (
               <option key={value} value={value}>
-                {icon} {label}
+                {icon} {language === 'he' ? labelHe : label}
               </option>
             ))}
           </select>

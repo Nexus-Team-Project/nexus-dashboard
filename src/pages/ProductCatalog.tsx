@@ -72,7 +72,7 @@ function SkeletonCard() {
  */
 const ProductCatalog = () => {
   const navigate = useNavigate();
-  const { t, isRTL } = useLanguage();
+  const { t, language, isRTL } = useLanguage();
 
   // All adopted offers fetched from the backend
   const [items, setItems] = useState<CatalogItem[]>([]);
@@ -222,7 +222,7 @@ const ProductCatalog = () => {
               {item.executionType && EXECUTION_TYPE_LABELS[item.executionType] && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-100 px-2 py-0.5 text-xs text-indigo-700 whitespace-nowrap">
                   {EXECUTION_TYPE_LABELS[item.executionType].icon}{' '}
-                  {EXECUTION_TYPE_LABELS[item.executionType].label}
+                  {language === 'he' ? EXECUTION_TYPE_LABELS[item.executionType].labelHe : EXECUTION_TYPE_LABELS[item.executionType].label}
                 </span>
               )}
               {/* Stock indicator - shown only when a stock limit is configured */}

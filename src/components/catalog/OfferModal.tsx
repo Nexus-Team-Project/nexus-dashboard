@@ -80,7 +80,7 @@ function AmbientOrbs() {
  * Output: portal-style fixed overlay with the offer card.
  */
 const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProps) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const isLive = catalogMode === 'live';
   /** Only show the coupon tear-line and redemption section to eligible users. */
   const showRedeemSection = canPurchase;
@@ -187,7 +187,7 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
             <div className="absolute bottom-3 right-4">
               <span className="rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-xs text-white/80 backdrop-blur-sm">
                 {EXECUTION_TYPE_LABELS[offer.executionType].icon}{' '}
-                {EXECUTION_TYPE_LABELS[offer.executionType].label}
+                {language === 'he' ? EXECUTION_TYPE_LABELS[offer.executionType].labelHe : EXECUTION_TYPE_LABELS[offer.executionType].label}
               </span>
             </div>
           )}
