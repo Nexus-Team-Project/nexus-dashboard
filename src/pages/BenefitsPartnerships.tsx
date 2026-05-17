@@ -219,6 +219,18 @@ const BenefitsPartnerships = () => {
    * Output: void; reverts on failure to keep UI consistent with server state.
    */
   const handleToggleAdopt = async (offerId: string, currentlyAdopted: boolean) => {
+    // Block adoption of offers that have not yet been approved by the platform.
+    if (!currentlyAdopted) {
+      const target = catalogItems.find(i => i.offerId === offerId);
+      if (target?.approval_status === 'pending_approval') {
+        toast.error(
+          language === 'he'
+            ? 'לא ניתן לאמץ הצעה זו – היא ממתינה לאישור מנהל NEXUS'
+            : 'Cannot adopt this offer – it is pending NEXUS admin approval'
+        );
+        return;
+      }
+    }
     // Flip UI immediately - do not wait for the server round-trip.
     setBenefitActiveStates(prev => ({ ...prev, [offerId]: !currentlyAdopted }));
     setCatalogItems(prev =>
@@ -599,7 +611,11 @@ const BenefitsPartnerships = () => {
     featured: false,
     image: item.imageUrl,
     title: item.title,
-    discount: item.market_price !== undefined ? `₪${item.market_price}` : '',
+    discount: item.member_price != null
+      ? `₪${item.member_price}`
+      : item.market_price != null
+        ? `₪${item.market_price}`
+        : '',
     stockLimit: item.stockLimit,
     stockAvailable: item.stockAvailable,
     isSoldOut: item.isSoldOut,
@@ -1613,6 +1629,15 @@ const BenefitsPartnerships = () => {
                             {benefit.businessLogo}
                           </div>
                         )}
+                        {/* Pending-approval overlay */}
+                        {catalogItem?.approval_status === 'pending_approval' && (
+                          <div className="absolute inset-0 bg-slate-900/60 flex items-center justify-center">
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/95 px-3 py-1 text-xs font-semibold text-amber-900 shadow">
+                              <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h3.25a.75.75 0 000-1.5h-2.5V5z" clipRule="evenodd" /></svg>
+                              {language === 'he' ? 'ממתין לאישור' : 'Pending Approval'}
+                            </span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Content */}
@@ -1705,26 +1730,37 @@ const BenefitsPartnerships = () => {
                       className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition-colors cursor-pointer overflow-hidden"
                       onClick={() => handleBenefitClick(benefit)}
                     >
-                      {/* Card image - shown when backgroundImage exists, falls back to placeholder */}
-                      {benefit.backgroundImage ? (
-                        <img
-                          src={benefit.backgroundImage}
-                          alt={benefit.title}
-                          className="w-full h-32 object-cover cursor-zoom-in"
-                          onClick={(e) => { e.stopPropagation(); setLightboxUrl(benefit.backgroundImage!); }}
-                          onError={(e) => {
-                            // Hide broken image and reveal the placeholder sibling
-                            (e.currentTarget as HTMLImageElement).style.display = 'none';
-                            const placeholder = e.currentTarget.nextElementSibling as HTMLElement | null;
-                            if (placeholder) placeholder.classList.remove('hidden');
-                          }}
-                        />
-                      ) : null}
-                      {/* Placeholder shown when no backgroundImage or when the img fails to load */}
-                      <div
-                        className={cn('w-full h-32 bg-slate-100 dark:bg-slate-800 flex items-center justify-center', benefit.backgroundImage && 'hidden')}
-                      >
-                        <span className="material-icons text-4xl text-slate-300 dark:text-slate-600" aria-hidden="true">image</span>
+                      {/* Card image with optional pending-approval overlay */}
+                      <div className="relative">
+                        {benefit.backgroundImage ? (
+                          <img
+                            src={benefit.backgroundImage}
+                            alt={benefit.title}
+                            className="w-full h-32 object-cover cursor-zoom-in"
+                            onClick={(e) => { e.stopPropagation(); setLightboxUrl(benefit.backgroundImage!); }}
+                            onError={(e) => {
+                              // Hide broken image and reveal the placeholder sibling
+                              (e.currentTarget as HTMLImageElement).style.display = 'none';
+                              const placeholder = e.currentTarget.nextElementSibling as HTMLElement | null;
+                              if (placeholder) placeholder.classList.remove('hidden');
+                            }}
+                          />
+                        ) : null}
+                        {/* Placeholder shown when no backgroundImage or when the img fails to load */}
+                        <div
+                          className={cn('w-full h-32 bg-slate-100 dark:bg-slate-800 flex items-center justify-center', benefit.backgroundImage && 'hidden')}
+                        >
+                          <span className="material-icons text-4xl text-slate-300 dark:text-slate-600" aria-hidden="true">image</span>
+                        </div>
+                        {/* Pending-approval overlay */}
+                        {catalogItem?.approval_status === 'pending_approval' && (
+                          <div className="absolute inset-0 bg-slate-900/60 flex items-center justify-center">
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/95 px-3 py-1 text-xs font-semibold text-amber-900 shadow">
+                              <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h3.25a.75.75 0 000-1.5h-2.5V5z" clipRule="evenodd" /></svg>
+                              {language === 'he' ? 'ממתין לאישור' : 'Pending Approval'}
+                            </span>
+                          </div>
+                        )}
                       </div>
 
                       <div className="p-6 flex flex-col flex-1">
