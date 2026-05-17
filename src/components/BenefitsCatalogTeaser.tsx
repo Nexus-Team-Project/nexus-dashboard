@@ -156,15 +156,16 @@ const BenefitsCatalogTeaser = ({ onActivate, isActivating = false }: Props) => {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
   return (
-    /* position:fixed covers the entire viewport — sidebar, header, everything */
+    /* position:fixed z-49 sits below the sticky navbar (z-50) but covers the sidebar */
     <div
       dir={isHe ? 'rtl' : 'ltr'}
       style={{
-        position: 'fixed', inset: 0, zIndex: 100, overflowY: 'auto',
+        position: 'fixed', inset: 0, zIndex: 49, overflowY: 'auto',
         background: `radial-gradient(ellipse 160% 50% at 50% 0%, ${BG_TOP} 0%, ${BG} 60%)`,
         display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center',
-        padding: '28px 24px 48px',
+        /* paddingTop accounts for the sticky navbar height (~48px) */
+        padding: '72px 24px 48px',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
         textAlign: 'center', boxSizing: 'border-box',
       }}
