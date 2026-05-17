@@ -181,10 +181,12 @@ const BenefitsCatalogTeaser = ({ onActivate, isActivating = false }: Props) => {
           .nxs-mob { display:block; }
         }
         .nxs-track {
-          display:flex; gap:14px; width:max-content;
+          display:flex; width:max-content;
           animation:nxs-carousel 26s linear infinite;
         }
         .nxs-track:hover { animation-play-state:paused; }
+        /* Each card carries its own trailing margin so -50% is a perfect loop */
+        .nxs-card-wrap { margin-inline-end:16px; flex-shrink:0; }
       `}</style>
 
       {/* ── Headline ───────────────────────────────────────────────────── */}
@@ -252,7 +254,9 @@ const BenefitsCatalogTeaser = ({ onActivate, isActivating = false }: Props) => {
         }} aria-hidden="true"/>
         <div className="nxs-track" style={{ padding: '12px 0' }}>
           {[...CARDS, ...CARDS].map((card, i) => (
-            <CardFace key={i} card={card} isHe={isHe}/>
+            <div key={i} className="nxs-card-wrap">
+              <CardFace card={card} isHe={isHe}/>
+            </div>
           ))}
         </div>
       </div>
