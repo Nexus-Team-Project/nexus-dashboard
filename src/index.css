@@ -382,3 +382,29 @@ body {
 .border-highlight-top:hover::before {
   opacity: 1;
 }
+
+/* Drawer slide-in animation — used by EditOfferDrawer */
+@keyframes slideInFromRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.animate-in { animation-fill-mode: both; }
+.slide-in-from-right { animation: slideInFromRight 0.28s cubic-bezier(0.22, 1, 0.36, 1); }
+.fade-in { animation: fadeIn 0.2s ease-out; }
+.duration-200 { animation-duration: 200ms; }
+.duration-300 { animation-duration: 300ms; }
+.ease-out { animation-timing-function: ease-out; }
+
+/* TipTap placeholder text - renders the placeholder attribute as pseudo-content
+   on the first empty paragraph so it disappears as soon as the user starts typing. */
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: inline-start;
+  color: #94a3b8;
+  pointer-events: none;
+  height: 0;
+}

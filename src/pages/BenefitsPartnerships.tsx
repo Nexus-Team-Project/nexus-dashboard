@@ -1,5 +1,35 @@
+/**
+ * BenefitsPartnerships page - displays the platform catalog of offers/benefits.
+ * Wires to real backend data via getPlatformOffers while preserving the existing
+ * card/table UI structure. Adoption state is driven by the live API.
+ */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  getPlatformOffers,
+  adoptOffer,
+  excludeOffer,
+  goLiveCatalog,
+  activateBenefitsCatalog,
+  deactivateBenefitsCatalog,
+  updateOfferApi,
+  deleteOffer,
+  approveOfferApi,
+  denyOfferApi,
+  EXECUTION_TYPE_LABELS,
+  type CatalogItem,
+} from '../lib/api';
+import DenyOfferModal from '../components/DenyOfferModal';
+import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../i18n/LanguageContext';
+import { toast } from 'sonner';
+import { cn } from '../lib/utils';
+import ServiceActivationBanner from '../components/ServiceActivationBanner';
+import BenefitsCatalogTeaser from '../components/BenefitsCatalogTeaser';
+import ImageLightbox from '../components/ImageLightbox';
+import EditOfferDrawer from '../components/EditOfferDrawer';
+import DeleteOfferConfirmModal from '../components/DeleteOfferConfirmModal';
+import RichTextDisplay from '../components/RichTextDisplay';
 
 interface Business {
   id: string;
@@ -33,6 +63,7 @@ interface Benefit {
   implementationInstructions: string;
   terms: string;
   description: string;
+  category: string;
   categories: string[];
   ribbon?: string;
   // Voucher specific
@@ -48,10 +79,57 @@ interface Benefit {
   image?: string;
   title: string;
   discount: string;
+  // Stock tracking
+  stockLimit: number | null;
+  stockAvailable: number | null;
+  isSoldOut: boolean;
 }
 
 type ViewMode = 'benefits' | 'businesses';
 type DisplayMode = 'cards' | 'table';
+
+// ─── Catalog item mapping helpers ────────────────────────────────────────────
+
+/**
+ * Maps an API executionType string to the local Benefit implementationMethod.
+ * Falls back to 'nexus' for unknown or undefined values.
+ * Input: executionType string from the catalog API.
+ * Output: one of the Benefit['implementationMethod'] union members.
+ */
+function toImplementationMethod(executionType?: string): Benefit['implementationMethod'] {
+  const map: Record<string, Benefit['implementationMethod']> = {
+    voucher: 'voucher',
+    coupon: 'coupon',
+    gift_card: 'card',
+    product: 'product',
+    service: 'service',
+  };
+  return map[executionType ?? ''] ?? 'nexus';
+}
+
+/**
+ * Maps an API executionType string to the local Benefit benefitType.
+ * Coupons are percentage-based; gift cards are gift type; everything else is amount.
+ * Input: executionType string from the catalog API.
+ * Output: one of the Benefit['benefitType'] union members.
+ */
+function toBenefitType(executionType?: string): Benefit['benefitType'] {
+  if (executionType === 'coupon') return 'percentage';
+  if (executionType === 'gift_card') return 'gift';
+  return 'amount';
+}
+
+/**
+ * Partial offer fields that can be edited inline in the benefits table.
+ * Matches the data parameter type of updateOfferApi.
+ */
+type PendingOffer = {
+  description?: string;
+  implementationLink?: string | null;
+  implementationInstructions?: string;
+  terms?: string;
+  tags?: string[];
+};
 
 const BenefitsPartnerships = () => {
   const navigate = useNavigate();
@@ -65,6 +143,265 @@ const BenefitsPartnerships = () => {
   const [openUsageTermsDropdown, setOpenUsageTermsDropdown] = useState<string | null>(null);
   const [benefitActiveStates, setBenefitActiveStates] = useState<Record<string, boolean>>({});
   const [businessActiveStates, setBusinessActiveStates] = useState<Record<string, boolean>>({});
+
+  // ─── Real catalog API state ───────────────────────────────────────────────
+
+  /** Auth context provides catalogMode (inactive|sandbox|live) for the tenant and reloadMe for in-place refresh. */
+  const { me, reloadMe } = useAuth();
+  /** Language for localized toast messages. */
+  const { t, language } = useLanguage();
+  const catalogMode = me?.authorization.catalogMode ?? 'inactive';
+
+  /** Live catalog items fetched from the platform offer API. */
+  const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([]);
+
+  /** True while the initial catalog load is in-flight. */
+  const [isLoadingCatalog, setIsLoadingCatalog] = useState(true);
+
+  /** offerId of a benefit whose adoption toggle is currently being saved. */
+  const [adoptingId, setAdoptingId] = useState<string | null>(null);
+
+  /** True while /api/me is being re-fetched after a service state change. Shows loading skeleton. */
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  /** True while the activation API call is in-flight (drives teaser button spinner). */
+  const [isActivating, setIsActivating] = useState(false);
+
+  /** URL of the image currently shown in the full-screen lightbox, or null when closed. */
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+
+  /** CatalogItem currently open in the EditOfferDrawer, or null when the drawer is closed. */
+  const [editingOffer, setEditingOffer] = useState<CatalogItem | null>(null);
+
+  /** CatalogItem pending deletion confirmation, or null when no deletion is in progress. */
+  const [deletingOffer, setDeletingOffer] = useState<CatalogItem | null>(null);
+
+  /** CatalogItem pending denial in DenyOfferModal, or null when the modal is closed. */
+  const [denyTarget, setDenyTarget] = useState<CatalogItem | null>(null);
+
+  /** True when the authenticated user is a NEXUS platform admin. */
+  const isPlatformAdmin = me?.authorization?.isPlatformAdmin === true;
+  /** True while the delete API call is in-flight. Prevents double-submit and closes the modal. */
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  /** Buffered inline edits keyed by offerId. Cleared after a successful PATCH. */
+  const [pendingEdits, setPendingEdits] = useState<Record<string, PendingOffer>>({});
+  /** offerId currently being saved to the backend. */
+  const [savingId, setSavingId] = useState<string | null>(null);
+
+  /**
+   * Fetches platform offers and syncs adoption states into benefitActiveStates.
+   * Falls back silently so the existing mock UI remains visible on errors.
+   */
+  const loadCatalog = async () => {
+    setIsLoadingCatalog(true);
+    try {
+      const items = await getPlatformOffers();
+      setCatalogItems(items);
+      // Mirror server adoption state into the toggle state map.
+      const adoptedStates: Record<string, boolean> = {};
+      items.forEach(item => {
+        adoptedStates[item.offerId] = item.isAdopted;
+      });
+      setBenefitActiveStates(adoptedStates);
+    } catch {
+      // Silent fallback - mock data still populates filteredBenefits below.
+    } finally {
+      setIsLoadingCatalog(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadCatalog();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /**
+   * Toggles adopt/unadopt for a catalog offer via the backend API.
+   * Uses optimistic updates: flips UI immediately and reverts on error.
+   * Input: offerId - the offer to toggle; currentlyAdopted - its current server state.
+   * Output: void; reverts on failure to keep UI consistent with server state.
+   */
+  const handleToggleAdopt = async (offerId: string, currentlyAdopted: boolean) => {
+    if (!currentlyAdopted) {
+      const target = catalogItems.find(i => i.offerId === offerId);
+
+      // Block adoption of offers pending platform review.
+      if (target?.approval_status === 'pending_approval') {
+        toast.error(
+          language === 'he'
+            ? 'לא ניתן לאמץ הצעה זו – היא ממתינה לאישור מנהל NEXUS'
+            : 'Cannot adopt this offer – it is pending NEXUS admin approval'
+        );
+        return;
+      }
+
+      // Block adoption until the tenant has completed business setup.
+      if (!me?.authorization.businessSetupComplete) {
+        toast.error(
+          language === 'he'
+            ? 'יש להשלים את הגדרת העסק לפני אימוץ הצעות'
+            : 'Complete your business setup before adopting offers'
+        );
+        return;
+      }
+    }
+    // Flip UI immediately - do not wait for the server round-trip.
+    setBenefitActiveStates(prev => ({ ...prev, [offerId]: !currentlyAdopted }));
+    setCatalogItems(prev =>
+      prev.map(item => item.offerId === offerId
+        ? { ...item, isAdopted: !currentlyAdopted }
+        : item
+      )
+    );
+    setAdoptingId(offerId);
+    try {
+      if (currentlyAdopted) {
+        await excludeOffer(offerId);
+      } else {
+        await adoptOffer(offerId);
+      }
+    } catch {
+      // Revert on error to keep UI consistent with server state.
+      setBenefitActiveStates(prev => ({ ...prev, [offerId]: currentlyAdopted }));
+      setCatalogItems(prev =>
+        prev.map(item => item.offerId === offerId
+          ? { ...item, isAdopted: currentlyAdopted }
+          : item
+        )
+      );
+    } finally {
+      setAdoptingId(null);
+    }
+  };
+
+  /**
+   * Activates the Benefits Catalog service and refreshes /api/me in-place.
+   * Shows loading skeleton during the refresh; no page reload needed.
+   */
+  const handleActivateCatalog = async () => {
+    setIsActivating(true);
+    try {
+      await activateBenefitsCatalog();
+      setIsRefreshing(true);
+      await reloadMe();
+    } catch (err) {
+      console.error('[handleActivateCatalog] Failed to activate catalog:', err);
+      toast.error('שגיאה בהפעלת השירות. נסה שוב.');
+    } finally {
+      setIsActivating(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  /**
+   * Transitions the tenant catalog from sandbox to live and refreshes /api/me.
+   * No page reload needed.
+   */
+  const handleGoLiveCatalog = async () => {
+    try {
+      await goLiveCatalog();
+      setIsRefreshing(true);
+      await reloadMe();
+    } catch (err) {
+      console.error('[handleGoLiveCatalog] Failed to go live:', err);
+      toast.error('שגיאה במעבר ל-live. נסה שוב.');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  /**
+   * Deactivates the Benefits Catalog service and refreshes /api/me in-place.
+   * No page reload needed.
+   */
+  const handleDeactivateCatalog = async () => {
+    try {
+      const result = await deactivateBenefitsCatalog();
+      toast.success(`שירות הושבת. ${result.offersDeactivated} הצעות הושהו.`);
+      setIsRefreshing(true);
+      await reloadMe();
+    } catch (err) {
+      console.error('[handleDeactivateCatalog] Failed to deactivate catalog:', err);
+      toast.error('שגיאה בהשבתת השירות. נסה שוב.');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  /**
+   * Returns true when the current user may edit offer fields.
+   * Platform admins can edit any offer; supply managers only edit their own.
+   * Input: CatalogItem to check ownership of.
+   * Output: boolean.
+   */
+  const canEditOffer = (item: CatalogItem): boolean => {
+    if (me?.authorization.isPlatformAdmin === true) return true;
+    const myTenantId = me?.context?.tenantId;
+    return !!myTenantId && item.createdByTenantId === myTenantId;
+  };
+
+  /**
+   * PATCHes pending edits for a single offer and clears them on success.
+   * Input: offerId - the offer to save edits for.
+   * Output: void; reloads catalog on success to reflect changes everywhere.
+   */
+  const saveOfferEdit = async (offerId: string) => {
+    const edits = pendingEdits[offerId];
+    if (!edits || Object.keys(edits).length === 0) return;
+    setSavingId(offerId);
+    try {
+      await updateOfferApi(offerId, edits);
+      setPendingEdits(prev => {
+        const next = { ...prev };
+        delete next[offerId];
+        return next;
+      });
+      await loadCatalog();
+    } catch {
+      toast.error(language === 'he' ? 'שמירה נכשלה. נסה שוב.' : 'Failed to save. Please try again.');
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  /**
+   * Permanently deletes an offer and its Cloudinary image.
+   * Uses the deletingOffer state for the target offer.
+   * Input: none (reads deletingOffer state).
+   * Output: closes modal and refreshes the catalog on success; shows toast on failure.
+   */
+  const handleDeleteOffer = async () => {
+    if (!deletingOffer) return;
+    setIsDeleting(true);
+    try {
+      await deleteOffer(deletingOffer.offerId);
+      setDeletingOffer(null);
+      await loadCatalog();
+      toast.success('ההצעה נמחקה בהצלחה');
+    } catch {
+      toast.error('מחיקה נכשלה. נסה שוב.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  /**
+   * Approves a pending ecosystem voucher offer (platform admin only).
+   * Transitions the offer from 'pending_approval' to 'active' status.
+   * Input: offerId - the offer to approve.
+   * Output: void; reloads catalog on success; shows toast on failure.
+   */
+  const handleApproveOffer = async (offerId: string) => {
+    try {
+      await approveOfferApi(offerId);
+      toast.success(language === 'he' ? 'ההצעה אושרה בהצלחה' : 'Offer approved successfully');
+      await loadCatalog();
+    } catch {
+      toast.error(language === 'he' ? 'שגיאה באישור ההצעה' : 'Failed to approve offer');
+    }
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────
 
   // Predefined tags that can be added
   const availableTags = [
@@ -144,12 +481,16 @@ const BenefitsPartnerships = () => {
 
   const categories = [
     { id: 'all', label: 'כל הקטגוריות', icon: 'apps' },
-    { id: 'food', label: 'אוכל ומסעדות', icon: 'restaurant' },
-    { id: 'shopping', label: 'קניות', icon: 'shopping_bag' },
-    { id: 'entertainment', label: 'בילויים', icon: 'theater_comedy' },
+    { id: 'food_beverage', label: 'אוכל ומשקאות', icon: 'restaurant' },
+    { id: 'fashion', label: 'אופנה', icon: 'checkroom' },
+    { id: 'health_wellness', label: 'בריאות ורווחה', icon: 'spa' },
+    { id: 'entertainment', label: 'בידור', icon: 'theater_comedy' },
     { id: 'travel', label: 'טיסות ונופש', icon: 'flight' },
-    { id: 'wellness', label: 'בריאות ורווחה', icon: 'spa' },
-    { id: 'tech', label: 'טכנולוגיה', icon: 'devices' },
+    { id: 'technology', label: 'טכנולוגיה', icon: 'devices' },
+    { id: 'education', label: 'חינוך', icon: 'school' },
+    { id: 'financial', label: 'פיננסי', icon: 'account_balance' },
+    { id: 'home_living', label: 'בית ומגורים', icon: 'home' },
+    { id: 'other', label: 'אחר', icon: 'category' },
   ];
 
   // Mock businesses data
@@ -258,12 +599,55 @@ const BenefitsPartnerships = () => {
     },
   ];
 
-  const filteredBenefits = benefits.filter((benefit) => {
+  /**
+   * Maps a CatalogItem from the backend API into the local Benefit shape so it
+   * can populate the existing card and table JSX without structural changes.
+   * market_price is used as the display price when available; executionType drives
+   * the implementationMethod and benefitType fields; stockLimit provides usageTerms hints.
+   */
+  const catalogAsBenefits: Benefit[] = catalogItems.map(item => ({
+    id: item.offerId,
+    isActive: item.isAdopted,
+    businessId: item.createdByTenantId,
+    businessName: item.title,
+    businessLogo: '',
+    backgroundImage: item.imageUrl,
+    implementationMethod: toImplementationMethod(item.executionType),
+    benefitType: toBenefitType(item.executionType),
+    usageTerms: item.stockLimit !== null
+      ? [item.isSoldOut ? 'מכירה נגמרה' : `${item.stockAvailable ?? item.stockLimit} נותרו`]
+      : [],
+    endDate: item.validUntil ? new Date(item.validUntil).toLocaleDateString('he-IL') : '',
+    implementationLink: item.implementationLink ?? '',
+    implementationInstructions: item.implementationInstructions ?? '',
+    terms: item.terms ?? '',
+    description: item.description,
+    category: item.category,
+    categories: [item.category],
+    featured: false,
+    image: item.imageUrl,
+    title: item.title,
+    discount: item.member_price != null
+      ? `₪${item.member_price}`
+      : item.market_price != null
+        ? `₪${item.market_price}`
+        : '',
+    stockLimit: item.stockLimit,
+    stockAvailable: item.stockAvailable,
+    isSoldOut: item.isSoldOut,
+    tags: item.tags ?? [],
+  }));
+
+  // When service is inactive, show empty state (not mock data).
+  // When service is active but no offers exist yet, also show empty state.
+  const activeBenefits = catalogItems.length > 0 ? catalogAsBenefits : [];
+
+  const filteredBenefits = activeBenefits.filter((benefit) => {
     const matchesSearch =
       benefit.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       benefit.businessName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       benefit.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || benefit.categories.includes(selectedCategory);
+    const matchesCategory = selectedCategory === 'all' || benefit.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
@@ -272,14 +656,23 @@ const BenefitsPartnerships = () => {
 
   const getCategoryColor = (category: string) => {
     const colors: Record<string, string> = {
-      food: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400',
-      shopping: 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400',
-      entertainment: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400',
-      travel: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
-      wellness: 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400',
-      tech: 'bg-slate-100 dark:bg-slate-900/30 text-slate-700 dark:text-slate-400',
+      food_beverage:   'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400',
+      fashion:         'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400',
+      health_wellness: 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400',
+      entertainment:   'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400',
+      travel:          'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
+      technology:      'bg-slate-100 dark:bg-slate-900/30 text-slate-700 dark:text-slate-400',
+      education:       'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
+      financial:       'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400',
+      home_living:     'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400',
+      other:           'bg-slate-100 dark:bg-slate-900/30 text-slate-700 dark:text-slate-400',
+      // Legacy IDs for mock businesses table
+      food:            'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400',
+      shopping:        'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400',
+      wellness:        'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400',
+      tech:            'bg-slate-100 dark:bg-slate-900/30 text-slate-700 dark:text-slate-400',
     };
-    return colors[category] || 'bg-slate-100 dark:bg-slate-900/30 text-slate-700 dark:text-slate-400';
+    return colors[category] ?? 'bg-slate-100 dark:bg-slate-900/30 text-slate-700 dark:text-slate-400';
   };
 
   const handleBenefitClick = (benefit: Benefit) => {
@@ -287,9 +680,38 @@ const BenefitsPartnerships = () => {
     setShowBenefitModal(true);
   };
 
+  // When the catalog service is inactive, show the teaser page instead of the full catalog UI.
+  // Platform admins always see the full catalog regardless of activation state.
+  if (catalogMode === 'inactive' && !isPlatformAdmin) {
+    return (
+      <>
+        <BenefitsCatalogTeaser
+          onActivate={handleActivateCatalog}
+          isActivating={isActivating}
+        />
+      </>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white dark:bg-background-dark">
       <main className="max-w-7xl mx-auto px-6 pb-12">
+        {/* Service activation lifecycle banner — tenant admins only; platform admins manage the platform, not tenant services */}
+        {!isPlatformAdmin && (
+          <ServiceActivationBanner
+            config={{
+              name: 'שירות קטלוג ההטבות',
+              inactiveNote: language === 'he' ? 'הפעל כדי לאפשר לחברים לצפות ולרכוש הטבות. ניתן לבטל בכל עת.' : 'Activate to let members browse and redeem benefits. You can disable at any time.',
+              sandboxNote: t('bp_catalogSandboxNote'),
+            }}
+            mode={isRefreshing ? 'loading' : catalogMode}
+            onActivate={handleActivateCatalog}
+            onGoLive={handleGoLiveCatalog}
+            onDisable={handleDeactivateCatalog}
+            goLiveDisabled={me?.authorization.businessSetupComplete !== true}
+          />
+        )}
+
         {/* Hero Section */}
         <section className="relative py-20 md:py-28 flex flex-col items-center text-center overflow-hidden">
           {/* Floating Logos */}
@@ -458,8 +880,22 @@ const BenefitsPartnerships = () => {
               </div>
             </div>
           </div>
-          <div className="text-sm text-slate-500 font-medium">
-            {viewMode === 'benefits' ? `מציג ${filteredBenefits.length}+ הטבות` : `מציג ${businesses.length}+ בתי עסק`}
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-slate-500 font-medium">
+              {viewMode === 'benefits' ? `מציג ${filteredBenefits.length}+ הטבות` : `מציג ${businesses.length}+ בתי עסק`}
+            </span>
+            {/* Create offer button — shown to platform admins and tenants with an active catalog */}
+            {(isPlatformAdmin || catalogMode !== 'inactive') && (
+              <a
+                href="/supply/create"
+                className="inline-flex items-center gap-1 whitespace-nowrap px-4 py-2 rounded-full border border-primary text-primary text-sm font-medium hover:bg-primary hover:text-white transition-colors"
+              >
+                <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
+                </svg>
+                {language === 'he' ? 'צור הצעה' : 'Create offer'}
+              </a>
+            )}
           </div>
         </section>
 
@@ -526,43 +962,123 @@ const BenefitsPartnerships = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {filteredBenefits.map((benefit) => (
+                      {(() => {
+                        /* Pre-compute a Map from offerId to CatalogItem for O(1) lookups per row. */
+                        const itemMap = new Map(catalogItems.map(c => [c.offerId, c]));
+                        return filteredBenefits.map((benefit) => {
+                          const item = itemMap.get(benefit.id);
+                          return (
                         <tr key={benefit.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                           <td className="px-4 py-4 sticky right-0 bg-white dark:bg-slate-900 z-10">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleBenefitActive(benefit.id);
-                              }}
-                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all hover:ring-2 hover:ring-cyan-400 hover:ring-offset-1 ${
-                                benefitActiveStates[benefit.id]
-                                  ? 'bg-emerald-500'
-                                  : 'bg-slate-300 dark:bg-slate-600'
-                              }`}
-                            >
-                              <span
-                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                  benefitActiveStates[benefit.id] ? '-translate-x-1' : '-translate-x-5'
+                            {isPlatformAdmin ? (
+                              /* Platform admins see approve/deny for pending offers; status badge otherwise. */
+                              item?.approval_status === 'pending_approval' ? (
+                                <div className="flex flex-col gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); void handleApproveOffer(item.offerId); }}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap"
+                                  >
+                                    {t('co_allowOffer')}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); setDenyTarget(item); }}
+                                    className="bg-red-600 hover:bg-red-700 text-white px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap"
+                                  >
+                                    {t('co_denyOffer')}
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className={cn(
+                                  'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold',
+                                  item?.approval_status === 'denied'
+                                    ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                    : item?.approval_status === 'active'
+                                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                                      : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                                )}>
+                                  {item?.approval_status === 'denied'
+                                    ? t('co_denied')
+                                    : item?.approval_status === 'active'
+                                      ? (language === 'he' ? 'פעיל' : 'Active')
+                                      : (language === 'he' ? 'לא פעיל' : 'Inactive')}
+                                </span>
+                              )
+                            ) : (
+                              /* Tenant admins see the adopt/unadopt toggle. */
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (catalogItems.length > 0) {
+                                    void handleToggleAdopt(benefit.id, benefitActiveStates[benefit.id] ?? false);
+                                  } else {
+                                    toggleBenefitActive(benefit.id);
+                                  }
+                                }}
+                                disabled={adoptingId === benefit.id}
+                                aria-label={benefitActiveStates[benefit.id] ? 'Unadopt offer' : 'Adopt offer'}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all hover:ring-2 hover:ring-cyan-400 hover:ring-offset-1 disabled:opacity-60 disabled:cursor-not-allowed ${
+                                  benefitActiveStates[benefit.id]
+                                    ? 'bg-emerald-500'
+                                    : 'bg-slate-300 dark:bg-slate-600'
                                 }`}
-                              />
-                            </button>
+                              >
+                                <span
+                                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                    benefitActiveStates[benefit.id] ? '-translate-x-1' : '-translate-x-5'
+                                  }`}
+                                />
+                              </button>
+                            )}
                           </td>
                           <td className="px-4 py-4">
-                            <div className="w-12 h-12 rounded-lg bg-slate-100 dark:bg-slate-800 p-2 flex items-center justify-center border border-slate-200 dark:border-slate-700 text-2xl">
-                              {benefit.businessLogo}
-                            </div>
+                            {item?.imageUrl ? (
+                              <img
+                                src={item.imageUrl}
+                                alt={item.title}
+                                className="w-12 h-12 rounded-lg object-cover border border-slate-200 dark:border-slate-700 cursor-zoom-in"
+                                onClick={() => item.imageUrl && setLightboxUrl(item.imageUrl)}
+                              />
+                            ) : (
+                              <div className="w-12 h-12 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center border border-slate-200 dark:border-slate-700">
+                                <span className="material-icons text-base text-slate-400">image</span>
+                              </div>
+                            )}
                           </td>
                           <td className="px-4 py-4">
                             {benefit.backgroundImage ? (
-                              <img src={benefit.backgroundImage} alt="" className="w-20 h-12 object-cover rounded-lg border border-slate-200 dark:border-slate-700" />
+                              <img
+                                src={benefit.backgroundImage}
+                                alt={benefit.title}
+                                className="w-20 h-12 object-cover rounded-lg border border-slate-200 dark:border-slate-700 cursor-zoom-in"
+                                onClick={() => benefit.backgroundImage && setLightboxUrl(benefit.backgroundImage)}
+                              />
                             ) : (
                               <div className="w-20 h-12 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"></div>
                             )}
                           </td>
                           <td className="px-4 py-4 bg-violet-50/50 dark:bg-violet-900/10">
-                            <button className="text-sm font-semibold text-violet-600 dark:text-violet-400 hover:underline">
-                              {benefit.businessName}
-                            </button>
+                            <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                              {benefit.title}
+                            </span>
+                            {/* Approval status badge — visible to platform admin and offer creator */}
+                            {item?.approval_status === 'pending_approval' && (
+                              <span className="mt-1 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 ms-1">
+                                {t('co_pendingApproval')}
+                              </span>
+                            )}
+                            {item?.approval_status === 'denied' && (
+                              <span className="mt-1 inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700 dark:bg-red-900/30 dark:text-red-400 ms-1">
+                                {t('co_denied')}
+                              </span>
+                            )}
+                            {/* Denial reason — shown only to offer creator */}
+                            {item?.denial_reason && (
+                              <p className="mt-1 text-[11px] text-red-600 dark:text-red-400 max-w-[200px] truncate" title={item.denial_reason}>
+                                {item.denial_reason}
+                              </p>
+                            )}
                           </td>
                           <td className="px-4 py-4 bg-violet-50/50 dark:bg-violet-900/10">
                             <span className="text-sm text-slate-700 dark:text-slate-300 font-medium">
@@ -669,118 +1185,238 @@ const BenefitsPartnerships = () => {
                             </div>
                           </td>
                           <td className="px-4 py-4">
-                            <span className="text-sm text-slate-600 dark:text-slate-400">{benefit.endDate}</span>
+                            <span className="text-sm text-slate-600 dark:text-slate-400">
+                              {item?.validUntil ? new Date(item.validUntil).toLocaleDateString('he-IL') : '-'}
+                            </span>
                           </td>
                           <td className="px-4 py-4">
-                            <a href={benefit.implementationLink} target="_blank" rel="noopener noreferrer" className="text-sm text-violet-600 dark:text-violet-400 hover:underline truncate block max-w-xs">
-                              {benefit.implementationLink}
-                            </a>
+                            {(item && (() => {
+                              const editable = canEditOffer(item);
+                              const edited = pendingEdits[item.offerId]?.implementationLink;
+                              const value = edited !== undefined ? edited : (item.implementationLink ?? '');
+                              return editable ? (
+                                <input
+                                  type="url"
+                                  value={value ?? ''}
+                                  onChange={(e) => setPendingEdits(prev => ({
+                                    ...prev,
+                                    [item.offerId]: { ...prev[item.offerId], implementationLink: e.target.value || null },
+                                  }))}
+                                  placeholder="https://..."
+                                  className="text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 focus:ring-2 focus:ring-emerald-500 focus:border-transparent w-36"
+                                />
+                              ) : (
+                                value ? (
+                                  <a href={value} target="_blank" rel="noopener noreferrer"
+                                    className="text-sm text-violet-600 dark:text-violet-400 hover:underline truncate block max-w-xs">
+                                    {value}
+                                  </a>
+                                ) : <span className="text-xs text-slate-400">-</span>
+                              );
+                            })()) ?? <span className="text-xs text-slate-400">-</span>}
                           </td>
                           <td className="px-4 py-4 bg-violet-50/50 dark:bg-violet-900/10">
-                            <p className="text-xs text-slate-600 dark:text-slate-400 max-w-xs truncate">{benefit.implementationInstructions}</p>
+                            {(item && (() => {
+                              const editable = canEditOffer(item);
+                              const edited = pendingEdits[item.offerId]?.implementationInstructions;
+                              const value = edited !== undefined ? edited : (item.implementationInstructions ?? '');
+                              return editable ? (
+                                <input
+                                  type="text"
+                                  value={value}
+                                  onChange={(e) => setPendingEdits(prev => ({
+                                    ...prev,
+                                    [item.offerId]: { ...prev[item.offerId], implementationInstructions: e.target.value },
+                                  }))}
+                                  className="text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 focus:ring-2 focus:ring-emerald-500 focus:border-transparent max-w-xs"
+                                />
+                              ) : (
+                                <p className="text-xs text-slate-600 dark:text-slate-400 max-w-xs truncate">{value || '-'}</p>
+                              );
+                            })()) ?? <p className="text-xs text-slate-400">-</p>}
                           </td>
                           <td className="px-4 py-4 bg-violet-50/50 dark:bg-violet-900/10">
-                            <p className="text-xs text-slate-600 dark:text-slate-400 max-w-xs truncate">{benefit.terms}</p>
+                            {(item && (() => {
+                              const editable = canEditOffer(item);
+                              const edited = pendingEdits[item.offerId]?.terms;
+                              const value = edited !== undefined ? edited : (item.terms ?? '');
+                              return editable ? (
+                                <input
+                                  type="text"
+                                  value={value}
+                                  onChange={(e) => setPendingEdits(prev => ({
+                                    ...prev,
+                                    [item.offerId]: { ...prev[item.offerId], terms: e.target.value },
+                                  }))}
+                                  className="text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 focus:ring-2 focus:ring-emerald-500 focus:border-transparent max-w-xs"
+                                />
+                              ) : (
+                                <p className="text-xs text-slate-600 dark:text-slate-400 max-w-xs truncate">{value || '-'}</p>
+                              );
+                            })()) ?? <p className="text-xs text-slate-400">-</p>}
                           </td>
                           <td className="px-4 py-4 bg-green-50/50 dark:bg-green-900/10">
-                            <input
-                              type="text"
-                              defaultValue={benefit.description}
-                              className="text-sm px-2 py-1 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 focus:ring-2 focus:ring-emerald-500 focus:border-transparent max-w-xs"
-                            />
+                            {item && (() => {
+                              const editable = canEditOffer(item);
+                              const edited = pendingEdits[item.offerId]?.description;
+                              const value = edited !== undefined ? edited : (item.description ?? '');
+                              const hasPending = !!(pendingEdits[item.offerId] && Object.keys(pendingEdits[item.offerId]).length > 0);
+                              return editable ? (
+                                <div className="flex items-center gap-1.5">
+                                  <input
+                                    type="text"
+                                    value={value}
+                                    onChange={(e) => setPendingEdits(prev => ({
+                                      ...prev,
+                                      [item.offerId]: { ...prev[item.offerId], description: e.target.value },
+                                    }))}
+                                    className="text-sm px-2 py-1 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 focus:ring-2 focus:ring-emerald-500 focus:border-transparent max-w-[160px]"
+                                  />
+                                  {hasPending && (
+                                    <button
+                                      onClick={() => void saveOfferEdit(item.offerId)}
+                                      disabled={savingId === item.offerId}
+                                      className="text-xs text-emerald-600 hover:text-emerald-700 font-semibold disabled:opacity-50 whitespace-nowrap"
+                                    >
+                                      {savingId === item.offerId ? '...' : 'שמור'}
+                                    </button>
+                                  )}
+                                </div>
+                              ) : (
+                                <p className="text-xs text-slate-600 dark:text-slate-400 max-w-xs truncate">{value || '-'}</p>
+                              );
+                            })()}
                           </td>
                           <td className="px-4 py-4">
                             <div className="flex flex-wrap gap-1 max-w-xs">
                               {benefit.categories.map((cat, idx) => (
                                 <span key={idx} className={`text-xs px-2 py-1 rounded-full ${getCategoryColor(cat)}`}>
-                                  {categories.find(c => c.id === cat)?.label}
+                                  {categories.find(c => c.id === cat)?.label ?? cat.replace(/_/g, ' ')}
                                 </span>
                               ))}
                             </div>
                           </td>
                           <td className="px-4 py-4">
-                            <div className="flex flex-wrap gap-1 max-w-xs relative">
-                              {/* User-defined tags - can be removed */}
-                              {benefit.ribbon && (
-                                <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full border border-slate-200 dark:border-slate-700">
-                                  {benefit.ribbon}
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                    }}
-                                    className="hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors -mr-1.5 flex items-center justify-center w-2.5 h-2.5"
-                                  >
-                                    <span className="material-icons text-[6px] leading-none">close</span>
-                                  </button>
-                                </span>
-                              )}
-
-                              {/* Add tag button with dropdown */}
-                              <div className="relative">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setOpenTagDropdown(openTagDropdown === benefit.id ? null : benefit.id);
-                                  }}
-                                  className="inline-flex items-center gap-1 text-xs px-2.5 py-1 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 rounded-full border border-dashed border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                                >
-                                  <span className="material-icons text-xs">add</span>
-                                  הוסף תג
-                                </button>
-
-                                {/* Dropdown menu */}
-                                {openTagDropdown === benefit.id && (
-                                  <div className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-50">
-                                    <div className="py-1 max-h-60 overflow-y-auto">
-                                      {/* Predefined tags */}
-                                      {availableTags.map((tag, idx) => (
+                            {item && (() => {
+                              const editable = canEditOffer(item);
+                              const editedTags = pendingEdits[item.offerId]?.tags;
+                              const currentTags = editedTags !== undefined ? editedTags : (item.tags ?? []);
+                              const hasPending = !!(pendingEdits[item.offerId] && Object.keys(pendingEdits[item.offerId]).length > 0);
+                              return (
+                                <div className="flex flex-wrap gap-1 max-w-xs relative">
+                                  {currentTags.map((tag) => (
+                                    <span key={tag} className="inline-flex items-center gap-0.5 text-xs px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full border border-slate-200 dark:border-slate-700">
+                                      {tag}
+                                      {editable && (
                                         <button
-                                          key={idx}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setOpenTagDropdown(null);
+                                          onClick={() => {
+                                            const next = currentTags.filter((t) => t !== tag);
+                                            setPendingEdits(prev => ({ ...prev, [item.offerId]: { ...prev[item.offerId], tags: next } }));
                                           }}
-                                          className="w-full text-right px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                                          className="hover:text-red-500 transition-colors ml-0.5"
+                                          aria-label={`Remove tag ${tag}`}
                                         >
-                                          {tag}
+                                          <span className="material-icons text-[10px]">close</span>
                                         </button>
-                                      ))}
-
-                                      {/* Divider */}
-                                      <div className="border-t border-slate-200 dark:border-slate-700 my-1"></div>
-
-                                      {/* Define new tag option */}
+                                      )}
+                                    </span>
+                                  ))}
+                                  {editable && (
+                                    <div className="relative">
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          setOpenTagDropdown(null);
+                                          setOpenTagDropdown(openTagDropdown === benefit.id ? null : benefit.id);
                                         }}
-                                        className="w-full text-right px-4 py-2 text-sm text-primary font-medium hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-2"
+                                        className="inline-flex items-center gap-1 text-xs px-2.5 py-1 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 rounded-full border border-dashed border-slate-300 dark:border-slate-600 hover:border-slate-400 hover:bg-slate-50 transition-colors"
                                       >
-                                        <span className="material-icons text-sm">edit</span>
-                                        הגדר תג חדש
+                                        <span className="material-icons text-xs">add</span>
+                                        הוסף תג
                                       </button>
+                                      {openTagDropdown === benefit.id && (
+                                        <div className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-50">
+                                          <div className="py-1 max-h-48 overflow-y-auto">
+                                            {availableTags.filter(t => !currentTags.includes(t)).map((tag, idx) => (
+                                              <button
+                                                key={idx}
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  const next = [...currentTags, tag];
+                                                  setPendingEdits(prev => ({ ...prev, [item.offerId]: { ...prev[item.offerId], tags: next } }));
+                                                  setOpenTagDropdown(null);
+                                                }}
+                                                className="w-full text-right px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                                              >
+                                                {tag}
+                                              </button>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
                                     </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
+                                  )}
+                                  {editable && hasPending && (
+                                    <button
+                                      onClick={() => void saveOfferEdit(item.offerId)}
+                                      disabled={savingId === item.offerId}
+                                      className="text-xs text-emerald-600 hover:text-emerald-700 font-semibold disabled:opacity-50"
+                                    >
+                                      {savingId === item.offerId ? '...' : 'שמור'}
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </td>
                           <td className="px-4 py-4 text-center">
-                            <div className="relative">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(`/benefits-partnerships/edit-benefit/${benefit.id}`);
-                                }}
-                                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                              >
-                                <span className="material-icons text-lg text-slate-600 dark:text-slate-400">more_vert</span>
-                              </button>
-                            </div>
+                            {(() => {
+                              const hasPending = !!(item && pendingEdits[item.offerId] && Object.keys(pendingEdits[item.offerId]).length > 0);
+                              return (
+                                <div className="flex items-center justify-center gap-1">
+                                  {hasPending && item && (
+                                    <button
+                                      onClick={() => void saveOfferEdit(item.offerId)}
+                                      disabled={savingId === item.offerId}
+                                      className="rounded-lg bg-emerald-500 text-white px-2.5 py-1 text-xs font-semibold hover:bg-emerald-600 disabled:opacity-50 transition-colors"
+                                    >
+                                      {savingId === item.offerId ? '...' : 'שמור'}
+                                    </button>
+                                  )}
+                                  {item && canEditOffer(item) && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); setEditingOffer(item); }}
+                                      className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                                    >
+                                      עריכה
+                                    </button>
+                                  )}
+                                  {item && canEditOffer(item) && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); setDeletingOffer(item); }}
+                                      className="border border-red-200 bg-white hover:bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                                    >
+                                      מחק
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigate(`/benefits-partnerships/edit-benefit/${benefit.id}`);
+                                    }}
+                                    className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                                  >
+                                    <span className="material-icons text-lg text-slate-600 dark:text-slate-400">more_vert</span>
+                                  </button>
+                                </div>
+                              );
+                            })()}
                           </td>
                         </tr>
-                      ))}
+                          );
+                        }); // end filteredBenefits.map
+                      })(/* end outer IIFE */)}
                     </tbody>
                   </table>
                 )}
@@ -1002,81 +1638,276 @@ const BenefitsPartnerships = () => {
         {/* Benefits View */}
         {displayMode === 'cards' && viewMode === 'benefits' && (
           <section className="py-12 space-y-8">
-            {/* Featured Benefits */}
-            {featuredBenefits.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {featuredBenefits.map((benefit) => (
-                  <div
-                    key={benefit.id}
-                    className="group bg-white dark:bg-slate-900 rounded-[24px] border border-slate-100 dark:border-slate-800 overflow-hidden hover:shadow-2xl transition-all duration-500 flex flex-col cursor-pointer"
-                    onClick={() => handleBenefitClick(benefit)}
-                  >
-                    {/* Image */}
-                    <div className="h-64 bg-slate-200 dark:bg-slate-800 relative overflow-hidden">
-                      {benefit.backgroundImage ? (
-                        <>
-                          <img
-                            src={benefit.backgroundImage}
-                            alt={benefit.title}
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
-                        </>
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-6xl">
-                          {benefit.businessLogo}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Content */}
-                    <div className="p-8 flex-1">
-                      <div className="flex items-center gap-4 mb-4">
-                        <div className="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-800 p-2 flex items-center justify-center border border-slate-100 dark:border-slate-700 text-2xl">
-                          {benefit.businessLogo}
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-lg">{benefit.businessName}</h3>
-                          <p className="text-sm text-slate-500">{benefit.title}</p>
-                        </div>
-                      </div>
-                      <div className="mb-4">
-                        <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mb-2">
-                          {benefit.discount}
-                        </div>
-                      </div>
-                      <div className="pt-6 border-t border-slate-100 dark:border-slate-800">
-                        <p className="text-sm font-medium text-slate-400">{benefit.description}</p>
-                      </div>
-                    </div>
-                  </div>
+            {/* Skeleton while initial catalog load is in-flight */}
+            {isLoadingCatalog && (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="animate-pulse rounded-2xl border border-slate-200 bg-white h-48" />
                 ))}
               </div>
             )}
 
-            {/* Regular Benefits */}
-            {regularBenefits.length > 0 && (
+            {/* Empty state - shown when loaded but no offers available */}
+            {!isLoadingCatalog && filteredBenefits.length === 0 && viewMode === 'benefits' && (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <p className="text-slate-500 text-sm font-medium">
+                  {catalogMode === 'inactive'
+                    ? 'הפעל את שירות קטלוג ההטבות כדי לצפות בהצעות'
+                    : 'אין הצעות זמינות עדיין. צור הצעה ראשונה.'}
+                </p>
+              </div>
+            )}
+
+            {/* Featured Benefits */}
+            {!isLoadingCatalog && featuredBenefits.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {regularBenefits.map((benefit) => (
-                  <div
-                    key={benefit.id}
-                    className="p-6 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition-colors cursor-pointer"
-                    onClick={() => handleBenefitClick(benefit)}
-                  >
-                    <div className="flex items-center gap-4 mb-6">
-                      <div className="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-800 p-2.5 flex items-center justify-center border border-slate-100 dark:border-slate-700 text-2xl">
-                        {benefit.businessLogo}
+                {featuredBenefits.map((benefit) => {
+                  // Look up the original CatalogItem to access execution type and stock fields.
+                  const catalogItem = catalogItems.find(c => c.offerId === benefit.id);
+                  return (
+                    <div
+                      key={benefit.id}
+                      className="group bg-white dark:bg-slate-900 rounded-[24px] border border-slate-100 dark:border-slate-800 overflow-hidden hover:shadow-2xl transition-all duration-500 flex flex-col cursor-pointer"
+                      onClick={() => handleBenefitClick(benefit)}
+                    >
+                      {/* Image */}
+                      <div className="h-64 bg-slate-200 dark:bg-slate-800 relative overflow-hidden">
+                        {benefit.backgroundImage ? (
+                          <>
+                            <img
+                              src={benefit.backgroundImage}
+                              alt={benefit.title}
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 cursor-zoom-in"
+                              onClick={(e) => { e.stopPropagation(); setLightboxUrl(benefit.backgroundImage!); }}
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+                          </>
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-6xl">
+                            {benefit.businessLogo}
+                          </div>
+                        )}
+                        {/* Pending-approval overlay */}
+                        {catalogItem?.approval_status === 'pending_approval' && (
+                          <div className="absolute inset-0 bg-slate-900/60 flex items-center justify-center">
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/95 px-3 py-1 text-xs font-semibold text-amber-900 shadow">
+                              <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h3.25a.75.75 0 000-1.5h-2.5V5z" clipRule="evenodd" /></svg>
+                              {language === 'he' ? 'ממתין לאישור' : 'Pending Approval'}
+                            </span>
+                          </div>
+                        )}
                       </div>
-                      <div>
-                        <h3 className="font-bold">{benefit.businessName}</h3>
-                        <p className="text-xs text-slate-500">{benefit.title}</p>
+
+                      {/* Content */}
+                      <div className="p-8 flex-1">
+                        <div className="flex items-center gap-3 mb-4">
+                          {benefit.businessLogo ? (
+                            <div className="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center border border-slate-100 dark:border-slate-700 text-xl shrink-0">
+                              {benefit.businessLogo}
+                            </div>
+                          ) : null}
+                          <h3 className="font-semibold text-lg text-slate-900 dark:text-white leading-snug">{benefit.businessName}</h3>
+                        </div>
+                        <div className="mb-4">
+                          <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mb-2">
+                            {benefit.discount}
+                          </div>
+                          {/* Execution type badge */}
+                          {catalogItem?.executionType && EXECUTION_TYPE_LABELS[catalogItem.executionType] && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-100 px-2 py-0.5 text-xs text-indigo-700 mt-1">
+                              {EXECUTION_TYPE_LABELS[catalogItem.executionType].icon}{' '}
+                              {language === 'he' ? EXECUTION_TYPE_LABELS[catalogItem.executionType].labelHe : EXECUTION_TYPE_LABELS[catalogItem.executionType].label}
+                            </span>
+                          )}
+                          {/* Stock indicator */}
+                          {benefit.stockLimit !== null && benefit.stockLimit !== undefined && (
+                            <span className={cn('text-xs', benefit.isSoldOut ? 'text-red-600 font-medium' : 'text-slate-500')}>
+                              {benefit.isSoldOut
+                                ? 'נגמר המלאי'
+                                : `נותרו ${benefit.stockAvailable ?? 0}`}
+                            </span>
+                          )}
+                        </div>
+                        <div className="pt-6 border-t border-slate-100 dark:border-slate-800">
+                          <RichTextDisplay html={benefit.description} compact className="text-sm text-slate-400" />
+                          {/* Implementation link */}
+                          {benefit.implementationLink && (() => {
+                            const displayUrl = benefit.implementationLink.replace(/^https?:\/\//, '');
+                            return (
+                              <a
+                                href={benefit.implementationLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                aria-label={`פתח קישור מימוש בחלון חדש`}
+                                title={benefit.implementationLink}
+                                className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                                dir="ltr"
+                              >
+                                <svg className="w-3 h-3 shrink-0" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 1.5H1.5v9h9V7M7 1.5h3.5m0 0v3.5M7 5l3.5-3.5"/></svg>
+                                {displayUrl.length > 40 ? `${displayUrl.slice(0, 40)}…` : displayUrl}
+                              </a>
+                            );
+                          })()}
+                        </div>
+                        {/* Edit and Delete buttons - only for editable offers */}
+                        {catalogItem && canEditOffer(catalogItem) && (
+                          <div className="px-8 pb-4 flex gap-2">
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setEditingOffer(catalogItem); }}
+                              className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex-1"
+                            >
+                              עריכה
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setDeletingOffer(catalogItem); }}
+                              className="border border-red-200 bg-white hover:bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex-1"
+                            >
+                              מחק
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
-                    <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 pt-4 border-t border-slate-50 dark:border-slate-800">
-                      {benefit.discount}
-                    </p>
-                  </div>
-                ))}
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Regular Benefits */}
+            {!isLoadingCatalog && regularBenefits.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {regularBenefits.map((benefit) => {
+                  // Look up the original CatalogItem to access execution type and stock fields.
+                  const catalogItem = catalogItems.find(c => c.offerId === benefit.id);
+                  return (
+                    <div
+                      key={benefit.id}
+                      className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition-colors cursor-pointer overflow-hidden"
+                      onClick={() => handleBenefitClick(benefit)}
+                    >
+                      {/* Card image with optional pending-approval overlay */}
+                      <div className="relative">
+                        {benefit.backgroundImage ? (
+                          <img
+                            src={benefit.backgroundImage}
+                            alt={benefit.title}
+                            className="w-full h-32 object-cover cursor-zoom-in"
+                            onClick={(e) => { e.stopPropagation(); setLightboxUrl(benefit.backgroundImage!); }}
+                            onError={(e) => {
+                              // Hide broken image and reveal the placeholder sibling
+                              (e.currentTarget as HTMLImageElement).style.display = 'none';
+                              const placeholder = e.currentTarget.nextElementSibling as HTMLElement | null;
+                              if (placeholder) placeholder.classList.remove('hidden');
+                            }}
+                          />
+                        ) : null}
+                        {/* Placeholder shown when no backgroundImage or when the img fails to load */}
+                        <div
+                          className={cn('w-full h-32 bg-slate-100 dark:bg-slate-800 flex items-center justify-center', benefit.backgroundImage && 'hidden')}
+                        >
+                          <span className="material-icons text-4xl text-slate-300 dark:text-slate-600" aria-hidden="true">image</span>
+                        </div>
+                        {/* Pending-approval overlay */}
+                        {catalogItem?.approval_status === 'pending_approval' && (
+                          <div className="absolute inset-0 bg-slate-900/60 flex items-center justify-center">
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/95 px-3 py-1 text-xs font-semibold text-amber-900 shadow">
+                              <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h3.25a.75.75 0 000-1.5h-2.5V5z" clipRule="evenodd" /></svg>
+                              {language === 'he' ? 'ממתין לאישור' : 'Pending Approval'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="p-6 flex flex-col flex-1">
+                        <div className="flex items-center gap-3 mb-6">
+                          {benefit.businessLogo ? (
+                            <div className="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center border border-slate-100 dark:border-slate-700 text-xl shrink-0">
+                              {benefit.businessLogo}
+                            </div>
+                          ) : null}
+                          <h3 className="font-semibold text-slate-900 dark:text-white leading-snug">{benefit.businessName}</h3>
+                        </div>
+                        <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-2">
+                          {/* Price */}
+                          <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+                            {benefit.discount}
+                          </p>
+
+                          {/* Execution type badge */}
+                          {catalogItem?.executionType && EXECUTION_TYPE_LABELS[catalogItem.executionType] && (
+                            <div>
+                              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-100 px-2.5 py-1 text-xs text-indigo-700">
+                                {EXECUTION_TYPE_LABELS[catalogItem.executionType].icon}{' '}
+                                {EXECUTION_TYPE_LABELS[catalogItem.executionType].label}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Stock indicator */}
+                          {benefit.stockLimit !== null && benefit.stockLimit !== undefined && (
+                            <p className={cn('text-xs', benefit.isSoldOut ? 'text-red-600 font-medium' : 'text-slate-500')}>
+                              {benefit.isSoldOut ? 'נגמר המלאי' : `נותרו ${benefit.stockAvailable ?? 0}`}
+                            </p>
+                          )}
+
+                          {/* Implementation link */}
+                          {benefit.implementationLink && (() => {
+                            const displayUrl = benefit.implementationLink.replace(/^https?:\/\//, '');
+                            return (
+                              <a
+                                href={benefit.implementationLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                aria-label="פתח קישור מימוש בחלון חדש"
+                                title={benefit.implementationLink}
+                                className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline w-fit"
+                                dir="ltr"
+                              >
+                                <svg className="w-3 h-3 shrink-0" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 1.5H1.5v9h9V7M7 1.5h3.5m0 0v3.5M7 5l3.5-3.5"/></svg>
+                                {displayUrl.length > 35 ? `${displayUrl.slice(0, 35)}…` : displayUrl}
+                              </a>
+                            );
+                          })()}
+
+                          {/* Tags */}
+                          {benefit.tags && benefit.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {benefit.tags.map((tag) => (
+                                <span key={tag} className="text-xs px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-full border border-slate-200 dark:border-slate-700">
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Edit and Delete buttons - only for editable offers */}
+                          {catalogItem && canEditOffer(catalogItem) && (
+                            <div className="flex gap-2 pt-1">
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setEditingOffer(catalogItem); }}
+                                className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex-1"
+                              >
+                                עריכה
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setDeletingOffer(catalogItem); }}
+                                className="border border-red-200 bg-white hover:bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex-1"
+                              >
+                                מחק
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </section>
@@ -1113,15 +1944,12 @@ const BenefitsPartnerships = () => {
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-4">
-                <div className="text-5xl">{selectedBenefit.businessLogo}</div>
-                <div>
-                  <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
-                    {selectedBenefit.businessName}
-                  </h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                    {selectedBenefit.title}
-                  </p>
-                </div>
+                {selectedBenefit.businessLogo ? (
+                  <div className="text-4xl">{selectedBenefit.businessLogo}</div>
+                ) : null}
+                <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                  {selectedBenefit.businessName}
+                </h2>
               </div>
               <button
                 onClick={() => setShowBenefitModal(false)}
@@ -1138,7 +1966,7 @@ const BenefitsPartnerships = () => {
                 <div className="text-4xl font-bold text-emerald-600 dark:text-emerald-400 mb-2">
                   {selectedBenefit.discount}
                 </div>
-                <p className="text-lg text-slate-700 dark:text-slate-300">{selectedBenefit.description}</p>
+                <RichTextDisplay html={selectedBenefit.description} className="text-slate-700 dark:text-slate-300" />
               </div>
 
               {/* Details */}
@@ -1157,30 +1985,53 @@ const BenefitsPartnerships = () => {
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3">
-                  <span className="material-icons text-slate-400">schedule</span>
-                  <div>
-                    <div className="text-sm text-slate-500 dark:text-slate-400 mb-1">תוקף</div>
-                    <div className="font-semibold text-slate-900 dark:text-white">עד {selectedBenefit.endDate}</div>
+                {selectedBenefit.endDate ? (
+                  <div className="flex items-start gap-3">
+                    <span className="material-icons text-slate-400">schedule</span>
+                    <div>
+                      <div className="text-sm text-slate-500 dark:text-slate-400 mb-1">תוקף</div>
+                      <div className="font-semibold text-slate-900 dark:text-white">עד {selectedBenefit.endDate}</div>
+                    </div>
                   </div>
-                </div>
+                ) : null}
 
-                <div className="flex items-start gap-3">
-                  <span className="material-icons text-slate-400">description</span>
-                  <div>
-                    <div className="text-sm text-slate-500 dark:text-slate-400 mb-1">תנאים</div>
-                    <div className="text-slate-700 dark:text-slate-300">{selectedBenefit.terms}</div>
+                {selectedBenefit.terms ? (
+                  <div className="flex items-start gap-3">
+                    <span className="material-icons text-slate-400">description</span>
+                    <div>
+                      <div className="text-sm text-slate-500 dark:text-slate-400 mb-1">תנאים</div>
+                      <div className="text-slate-700 dark:text-slate-300">{selectedBenefit.terms}</div>
+                    </div>
                   </div>
-                </div>
+                ) : null}
 
-                <div className="flex items-start gap-3">
-                  <span className="material-icons text-slate-400">link</span>
-                  <div>
-                    <div className="text-sm text-slate-500 dark:text-slate-400 mb-1">אופן מימוש</div>
-                    <div className="text-slate-700 dark:text-slate-300">{selectedBenefit.implementationInstructions}</div>
+                {selectedBenefit.implementationInstructions ? (
+                  <div className="flex items-start gap-3">
+                    <span className="material-icons text-slate-400">link</span>
+                    <div>
+                      <div className="text-sm text-slate-500 dark:text-slate-400 mb-1">אופן מימוש</div>
+                      <div className="text-slate-700 dark:text-slate-300">{selectedBenefit.implementationInstructions}</div>
+                    </div>
                   </div>
-                </div>
+                ) : null}
               </div>
+
+              {/* Tags */}
+              {selectedBenefit.tags && selectedBenefit.tags.length > 0 && (
+                <div className="flex items-start gap-3">
+                  <span className="material-icons text-slate-400">sell</span>
+                  <div>
+                    <div className="text-sm text-slate-500 dark:text-slate-400 mb-2">תגיות</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedBenefit.tags.map((tag) => (
+                        <span key={tag} className="text-xs px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full border border-slate-200 dark:border-slate-700">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* How to Use */}
               <div className="bg-violet-50 dark:bg-violet-900/20 border border-violet-100 dark:border-violet-900/30 rounded-xl p-4">
@@ -1204,13 +2055,68 @@ const BenefitsPartnerships = () => {
               >
                 סגור
               </button>
-              <button className="flex-1 px-6 py-3 bg-black dark:bg-white text-white dark:text-black font-bold rounded-full hover:opacity-90 transition-all flex items-center justify-center gap-2">
-                <span className="material-icons">open_in_new</span>
-                עבור לאתר
-              </button>
+              {selectedBenefit.implementationLink ? (
+                <a
+                  href={selectedBenefit.implementationLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 px-6 py-3 bg-black dark:bg-white text-white dark:text-black font-bold rounded-full hover:opacity-90 transition-all flex items-center justify-center gap-2"
+                >
+                  <span className="material-icons text-base">open_in_new</span>
+                  עבור לאתר
+                </a>
+              ) : (
+                <button
+                  disabled
+                  className="flex-1 px-6 py-3 bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 font-bold rounded-full cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  <span className="material-icons text-base">open_in_new</span>
+                  עבור לאתר
+                </button>
+              )}
             </div>
           </div>
         </div>
+      )}
+
+      {/* Full-screen image lightbox - rendered as a portal over the entire viewport */}
+      {lightboxUrl && (
+        <ImageLightbox
+          src={lightboxUrl}
+          alt="תצוגת הצעה"
+          onClose={() => setLightboxUrl(null)}
+        />
+      )}
+
+      {/* Edit offer drawer - slides in from the left when an editable offer is selected */}
+      {editingOffer && (
+        <EditOfferDrawer
+          offer={editingOffer}
+          onClose={() => setEditingOffer(null)}
+          onSaved={loadCatalog}
+        />
+      )}
+
+      {/* Delete offer confirmation modal */}
+      {deletingOffer && (
+        <DeleteOfferConfirmModal
+          offerTitle={deletingOffer.title}
+          isDeleting={isDeleting}
+          onConfirm={() => void handleDeleteOffer()}
+          onCancel={() => { if (!isDeleting) setDeletingOffer(null); }}
+        />
+      )}
+
+      {/* Deny offer modal — platform admin only, shown for pending_approval ecosystem vouchers */}
+      {denyTarget && (
+        <DenyOfferModal
+          offer={denyTarget}
+          onClose={() => setDenyTarget(null)}
+          onDenied={async () => {
+            await loadCatalog();
+            setDenyTarget(null);
+          }}
+        />
       )}
     </div>
   );

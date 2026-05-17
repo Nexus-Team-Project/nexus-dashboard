@@ -60,9 +60,12 @@ async function _doRefresh(): Promise<RefreshResult | null> {
 // ─── Core request helper ──────────────────────────────────────────
 
 /**
- * Sends a typed JSON request to the backend API.
+ * Sends a typed request to the backend API.
+ * Automatically sets Content-Type to application/json unless the body is
+ * FormData, in which case the browser sets the multipart boundary itself.
  * On 401, refreshes the access token once and retries automatically.
- * Input: HTTP method, API path, optional JSON body, and internal retry flag.
+ * Input: HTTP method, API path, optional body (JSON-serializable or FormData),
+ *        and internal retry flag.
  * Output: parsed JSON response or throws with the backend error message.
  */
 async function request<T>(
@@ -71,14 +74,19 @@ async function request<T>(
   body?: unknown,
   retried = false,
 ): Promise<T> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const isFormData = body instanceof FormData;
+  // Only set Content-Type for JSON payloads - FormData needs the browser to
+  // inject the multipart boundary into Content-Type automatically.
+  const headers: Record<string, string> = isFormData
+    ? {}
+    : { 'Content-Type': 'application/json' };
   if (_token) headers['Authorization'] = `Bearer ${_token}`;
 
   const res = await fetch(`${BASE}${path}`, {
     method,
     headers,
     credentials: 'include',
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body: body !== undefined ? (isFormData ? body : JSON.stringify(body)) : undefined,
   });
 
   // Auto-refresh on 401 then retry once — silent recovery without logging out.
@@ -273,10 +281,24 @@ export interface DashboardMe {
   authorization: {
     tenantRole: string | null;
     platformRole: 'nexusAdmin' | null;
+    /** True when the user is a NEXUS platform admin (NEXUS_ADMIN_EMAILS env). */
+    isPlatformAdmin?: boolean;
     canSeeDevMode: boolean;
     canUseDevPlayground: boolean;
     canViewMembers: boolean;
     canManageMembers: boolean;
+    /** True when the user can create or manage supply catalog offers. */
+    canManageSupply?: boolean;
+    /** Catalog activation mode derived from TenantServiceActivation + Tenant.status. */
+    catalogMode?: 'inactive' | 'sandbox' | 'live';
+    /** True when the benefits_catalog service is active for this tenant. */
+    catalogServiceActive?: boolean;
+    /** True when this user holds the 'member' role AND the catalog is not inactive. */
+    canPurchaseCatalog?: boolean;
+    /** Services this member was granted at invite time (e.g. ['benefits_catalog']). */
+    memberServices?: string[];
+    /** True when business setup is complete and Go Live is allowed. */
+    businessSetupComplete?: boolean;
   };
   onboarding: {
     required: boolean;
@@ -427,6 +449,11 @@ export interface TenantMemberInviteInput {
   groupIds?: string[];
   employeeId?: string;
   customFields?: Record<string, unknown>;
+  /**
+   * Services granted to this member at invite time.
+   * Omit or pass undefined to use the backend default (benefits_catalog).
+   */
+  services?: string[];
   language?: 'he' | 'en';
   sendEmail?: boolean;
 }
@@ -686,3 +713,341 @@ export const invitesApi = {
       `/api/invites/${token}/accept`,
     ),
 };
+
+// ─── Supply & Catalog ─────────────────────────────────────────────────────────
+
+/**
+ * A single catalog offer as seen by a tenant admin (platform view) or member.
+ * isAdopted reflects whether this tenant has included the offer in their catalog.
+ */
+export interface CatalogItem {
+  offerId: string;
+  title: string;
+  description: string;
+  imageUrl?: string;
+  category: string;
+  market_price?: number;
+  isAdopted: boolean;
+  adoptedAt?: string;
+  createdByTenantId: string;
+  /** Delivery mechanism for this offer (voucher, coupon, gift_card, product, service). */
+  executionType: string;
+  /** Maximum number of units that can be redeemed. Null means unlimited. */
+  stockLimit: number | null;
+  /** Units remaining after redemptions. Null when stock tracking is disabled. */
+  stockAvailable: number | null;
+  /** True when stockLimit is set and stockAvailable has reached 0. */
+  isSoldOut: boolean;
+  /** Redemption URL set by the offer creator. */
+  implementationLink?: string | null;
+  /** Step-by-step redemption instructions. */
+  implementationInstructions?: string;
+  /** Offer expiry date as ISO string (serialised from backend Date). */
+  validUntil?: string | null;
+  /** Terms and conditions text. */
+  terms?: string;
+  /** Display tags set by the offer creator. */
+  tags: string[];
+  /** Voucher face value - nominal value printed on the voucher (voucher executionType only). */
+  face_value?: number;
+  /** What members pay for this voucher; between nexus_cost and face_value (voucher only). */
+  member_price?: number;
+  /**
+   * Wholesale price NEXUS pays the supplier per voucher.
+   * Only returned to the creating tenant and platform admins.
+   */
+  nexus_cost?: number;
+  /** Offer's current approval status: 'active' | 'pending_approval' | 'denied'. */
+  approval_status?: string;
+  /** Denial reason - only returned to the creating tenant when status is 'denied'. */
+  denial_reason?: string;
+}
+
+/**
+ * A NEXUS platform offer as stored in the supply catalog.
+ * Returned on creation.
+ */
+export interface NexusOffer {
+  offerId: string;
+  title: string;
+  description: string;
+  imageUrl?: string;
+  category: string;
+  market_price?: number;
+  /** Offer lifecycle status. */
+  status: 'draft' | 'active' | 'inactive' | 'pending_approval' | 'denied';
+  visibility: string;
+  createdByTenantId: string;
+  createdAt: string;
+  updatedAt: string;
+  /** Delivery mechanism for this offer (voucher, coupon, gift_card, product, service). */
+  executionType: string;
+  /** Maximum number of units that can be redeemed. Null means unlimited. */
+  stockLimit: number | null;
+  /** Number of units already consumed by redemptions. */
+  stockUsed: number;
+  implementationLink?: string | null;
+  implementationInstructions?: string;
+  validUntil?: string | null;
+  terms?: string;
+  tags?: string[];
+  /** Voucher face value - nominal value printed on the voucher (voucher executionType only). */
+  face_value?: number;
+  /**
+   * Wholesale price NEXUS pays the supplier per voucher.
+   * Only returned to the creating tenant and platform admins.
+   */
+  nexus_cost?: number;
+  /** What members pay for this voucher; between nexus_cost and face_value (voucher only). */
+  member_price?: number;
+  /** Denial reason - only set when status is 'denied'. */
+  denial_reason?: string;
+}
+
+/**
+ * Maps each offer execution type value to a bilingual label and icon.
+ * Consumers should read `label` (EN) or `labelHe` (HE) based on current language.
+ * Used across CreateOffer, EditOfferDrawer, BenefitsPartnerships, ProductCatalog, and OfferModal.
+ */
+export const EXECUTION_TYPE_LABELS: Record<string, { label: string; labelHe: string; icon: string }> = {
+  voucher:   { label: 'Voucher',   labelHe: 'שובר',       icon: '🎟' },
+  coupon:    { label: 'Coupon',    labelHe: 'קוד קופון',   icon: '%'  },
+  gift_card: { label: 'Gift Card', labelHe: 'כרטיס מתנה', icon: '🎁' },
+  product:   { label: 'Product',   labelHe: 'מוצר',       icon: '📦' },
+  service:   { label: 'Service',   labelHe: 'שירות',      icon: '⚡' },
+};
+
+/**
+ * Static list of offer category options shared across supply/catalog UI.
+ * Values match the backend enum; labels are display strings.
+ */
+export const OFFER_CATEGORIES = [
+  { value: 'food_beverage',   label: 'Food & Beverage',   labelHe: 'אוכל ומשקאות' },
+  { value: 'fashion',         label: 'Fashion',            labelHe: 'אופנה' },
+  { value: 'health_wellness', label: 'Health & Wellness',  labelHe: 'בריאות ורווחה' },
+  { value: 'entertainment',   label: 'Entertainment',      labelHe: 'בידור' },
+  { value: 'travel',          label: 'Travel',             labelHe: 'טיסות ונופש' },
+  { value: 'technology',      label: 'Technology',         labelHe: 'טכנולוגיה' },
+  { value: 'education',       label: 'Education',          labelHe: 'חינוך' },
+  { value: 'financial',       label: 'Financial',          labelHe: 'פיננסי' },
+  { value: 'home_living',     label: 'Home & Living',      labelHe: 'בית ומגורים' },
+  { value: 'other',           label: 'Other',              labelHe: 'אחר' },
+] as const;
+
+/**
+ * Fetches all platform offers with per-tenant adoption status (admin view).
+ * Matches GET /api/v1/offers/platform.
+ * Input: optional category filter string; pass 'all' or omit to fetch all.
+ * Output: array of CatalogItem with isAdopted flag set for the calling tenant.
+ */
+export async function getPlatformOffers(category?: string): Promise<CatalogItem[]> {
+  const params = category && category !== 'all'
+    ? `?category=${encodeURIComponent(category)}`
+    : '';
+  const data = await request<{ items: CatalogItem[] }>(
+    'GET',
+    `/api/v1/offers/platform${params}`,
+  );
+  return data.items;
+}
+
+/**
+ * Fetches the adopted offers for a tenant's member-facing catalog.
+ * Matches GET /api/v1/offers/:tenantId.
+ * Input: tenantId - the tenant whose catalog to fetch; optional category filter.
+ * Output: array of CatalogItem adopted by that tenant.
+ */
+export async function getMemberCatalog(
+  tenantId: string,
+  category?: string,
+): Promise<CatalogItem[]> {
+  const params = category && category !== 'all'
+    ? `?category=${encodeURIComponent(category)}`
+    : '';
+  const data = await request<{ offers: CatalogItem[] }>(
+    'GET',
+    `/api/v1/offers/${encodeURIComponent(tenantId)}${params}`,
+  );
+  return data.offers;
+}
+
+/**
+ * Fetches a single offer's full detail record.
+ * Matches GET /api/v1/offers/:offerId/details.
+ * Input: offerId - the platform offer identifier.
+ * Output: CatalogItem detail, or null when the offer is not found.
+ */
+export async function getOfferDetails(offerId: string): Promise<CatalogItem | null> {
+  const data = await request<{ offer: CatalogItem }>(
+    'GET',
+    `/api/v1/offers/${encodeURIComponent(offerId)}/details`,
+  );
+  return data.offer;
+}
+
+/**
+ * Adopts a platform offer into this tenant's catalog.
+ * Matches POST /api/v1/offers/:offerId/adopt.
+ * Input: offerId - the platform offer to adopt.
+ * Output: void on success; throws on error.
+ */
+export async function adoptOffer(offerId: string): Promise<void> {
+  await request<void>('POST', `/api/v1/offers/${encodeURIComponent(offerId)}/adopt`);
+}
+
+/**
+ * Removes (excludes) an adopted offer from this tenant's catalog.
+ * Matches DELETE /api/v1/offers/:offerId/adopt.
+ * Input: offerId - the platform offer to remove from the catalog.
+ * Output: void on success; throws on error.
+ */
+export async function excludeOffer(offerId: string): Promise<void> {
+  await request<void>('DELETE', `/api/v1/offers/${encodeURIComponent(offerId)}/adopt`);
+}
+
+/**
+ * Permanently deletes a platform offer (supply manager / platform admin only).
+ * Matches DELETE /api/v1/offers/:offerId.
+ * Input: offerId - the offer to delete.
+ * Output: void on success; throws on error.
+ */
+export async function deleteOffer(offerId: string): Promise<void> {
+  await request<void>('DELETE', `/api/v1/offers/${encodeURIComponent(offerId)}`);
+}
+
+/**
+ * Creates a new platform offer, uploading the image as multipart/form-data.
+ * Matches POST /api/v1/offers.
+ * Input: FormData with fields: title, description, category, and optionally
+ *        market_price and an image file.
+ * Output: the created NexusOffer record returned by the backend.
+ */
+export async function createOfferApi(formData: FormData): Promise<NexusOffer> {
+  // FormData body triggers the request() helper to omit Content-Type so the
+  // browser can set the correct multipart/form-data boundary automatically.
+  const data = await request<{ offer: NexusOffer }>('POST', '/api/v1/offers', formData);
+  return data.offer;
+}
+
+/**
+ * PATCHes an existing offer. Sends multipart/form-data when imageFile is provided
+ * (required by the backend multer handler). Sends JSON otherwise.
+ * Only the offer creator or platform admin can call this - the backend
+ * enforces ownership before applying the update.
+ *
+ * Input: offerId - the offer to update; data - all editable offer fields plus
+ *        optional imageFile for image replacement.
+ * Output: Updated NexusOffer.
+ */
+export async function updateOfferApi(
+  offerId: string,
+  data: {
+    title?: string;
+    description?: string;
+    category?: string;
+    market_price?: number;
+    stockLimit?: number | null;
+    executionType?: string;
+    visibility?: string;
+    implementationLink?: string | null;
+    implementationInstructions?: string;
+    validUntil?: string | null;
+    terms?: string;
+    tags?: string[];
+    imageFile?: File;
+    /** Voucher face value (voucher executionType only). */
+    face_value?: number;
+    /** Wholesale price NEXUS pays per voucher (voucher executionType only). */
+    nexus_cost?: number;
+    /** Price members pay; between nexus_cost and face_value (voucher executionType only). */
+    member_price?: number;
+  },
+): Promise<NexusOffer> {
+  const { imageFile, tags, ...rest } = data;
+
+  if (imageFile) {
+    // Use FormData so the browser sets the correct multipart boundary automatically.
+    const fd = new FormData();
+    fd.append('image', imageFile);
+    Object.entries(rest).forEach(([k, v]) => {
+      if (v === null && (k === 'stockLimit' || k === 'validUntil')) {
+        fd.append(k, ''); // empty string signals null to backend (coerced by Zod)
+      } else if (v !== undefined && v !== null) {
+        fd.append(k, String(v));
+      }
+    });
+    if (tags !== undefined) fd.append('tags', JSON.stringify(tags));
+    const res = await request<{ offer: NexusOffer }>('PATCH', `/api/v1/offers/${offerId}`, fd);
+    return res.offer;
+  }
+
+  // JSON path - no image replacement.
+  const res = await request<{ offer: NexusOffer }>('PATCH', `/api/v1/offers/${offerId}`, {
+    ...rest,
+    ...(tags !== undefined && { tags }),
+  });
+  return res.offer;
+}
+
+/**
+ * Requests the backend to transition the tenant's catalog from sandbox to live.
+ * Matches POST /api/v1/tenant/go-live.
+ * Input: none - tenant is derived from the authenticated session on the backend.
+ * Output: void on success; throws on failure.
+ */
+export async function goLiveCatalog(): Promise<void> {
+  await request<void>('POST', '/api/v1/tenant/go-live');
+}
+
+/**
+ * Activates the Benefits Catalog service for the current tenant.
+ * Uses plug_and_play mode by default (auto-adopt offers, no manual review).
+ * Matches POST /api/v1/tenant/services/benefits-catalog/activate.
+ * Input: none - tenant is derived from the authenticated session on the backend.
+ * Output: void on success; throws on failure.
+ */
+export async function activateBenefitsCatalog(): Promise<void> {
+  await request<void>('POST', '/api/v1/tenant/services/benefits-catalog/activate', {
+    startingMode: 'plug_and_play',
+  });
+}
+
+/**
+ * Approves a pending ecosystem voucher offer. Platform admins only.
+ * Transitions the offer from 'pending_approval' to 'active' status.
+ * Input: offerId - the offer to approve.
+ * Output: void on success; throws on failure.
+ */
+export async function approveOfferApi(offerId: string): Promise<void> {
+  await request<void>('POST', `/api/v1/offers/${encodeURIComponent(offerId)}/approve`);
+}
+
+/**
+ * Denies a pending ecosystem voucher offer with a mandatory reason.
+ * Platform admins only. The backend emails the reason to the creating tenant.
+ * Input: offerId - the offer to deny; reason - explanation sent to supplier.
+ * Output: void on success; throws on failure.
+ */
+export async function denyOfferApi(offerId: string, reason: string): Promise<void> {
+  await request<void>('POST', `/api/v1/offers/${encodeURIComponent(offerId)}/deny`, { reason });
+}
+
+/**
+ * Deactivates the Benefits Catalog service for the current tenant.
+ * Sets TenantServiceActivation.status to 'suspended' and bulk-marks
+ * all active tenant-created offers as inactive.
+ * Matches POST /api/v1/tenant/services/benefits-catalog/deactivate.
+ * Input: none - tenant is derived from the authenticated session on the backend.
+ * Output: deactivation summary on success; throws on failure.
+ */
+export async function deactivateBenefitsCatalog(): Promise<{
+  tenantId: string;
+  serviceKey: string;
+  status: string;
+  offersDeactivated: number;
+}> {
+  return request<{ tenantId: string; serviceKey: string; status: string; offersDeactivated: number }>(
+    'POST',
+    '/api/v1/tenant/services/benefits-catalog/deactivate',
+  );
+}

@@ -41,6 +41,12 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
   const { me } = useAuth();
   const canSeeDevMode = me?.authorization.canSeeDevMode === true;
   const canViewMembers = me?.authorization.canViewMembers === true || me?.authorization.canManageMembers === true;
+  /** True when the user holds the supply_manager role or is a platform admin. */
+  const canManageSupply = me?.authorization.canManageSupply === true || me?.authorization.isPlatformAdmin === true;
+  /** True once the tenant has activated Benefits Catalog. Platform admins bypass this gate. */
+  const catalogServiceActive = me?.authorization.catalogServiceActive === true;
+  /** Show "Create Offer" link only after catalog service is active, or always for platform admins. */
+  const showCreateOffer = me?.authorization.isPlatformAdmin === true || (canManageSupply && catalogServiceActive);
 
   const DEFAULT_SHORTCUTS_COUNT = 5;
   const permittedRecentPages = recentPages.filter((page) =>
@@ -445,13 +451,6 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
               )
             ))}
 
-            {/* New Product button */}
-            {isOpen && (
-              <button onClick={() => { navigate('/projects'); onNavigate?.(); }} className="w-full flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 text-[13px] text-[#676879] hover:bg-slate-200 mt-0.5">
-                <span className="material-symbols-rounded !text-[16px]">add</span>
-                <span>{t('sb_createProduct')}</span>
-              </button>
-            )}
           </div>
         </div>
 

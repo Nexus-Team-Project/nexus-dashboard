@@ -37,6 +37,8 @@ export default function PendingInvitationsPanel() {
   const copy = COPY[language];
   const [invitations, setInvitations] = useState<TenantMemberInvitationPreview[]>([]);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  /** True while the initial invite list is being fetched. */
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     /**
@@ -45,8 +47,12 @@ export default function PendingInvitationsPanel() {
      * Output: local invitation list or an empty list on failure.
      */
     const loadInvitations = async () => {
-      const result = await tenantMemberInvitationsApi.mine().catch(() => ({ invitations: [] }));
-      setInvitations(result.invitations);
+      try {
+        const result = await tenantMemberInvitationsApi.mine().catch(() => ({ invitations: [] }));
+        setInvitations(result.invitations);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     void loadInvitations();
@@ -70,6 +76,16 @@ export default function PendingInvitationsPanel() {
       setAcceptingId(null);
     }
   };
+
+  // While loading, show a subtle pulse placeholder to avoid a blank flash.
+  if (isLoading) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-4 animate-pulse space-y-2">
+        <div className="h-4 w-40 bg-slate-200 rounded" />
+        <div className="h-3 w-64 bg-slate-100 rounded" />
+      </div>
+    );
+  }
 
   if (invitations.length === 0) return null;
 

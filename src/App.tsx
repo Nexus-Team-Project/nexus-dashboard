@@ -9,6 +9,7 @@ import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
 import { DevModeProvider } from './contexts/DevModeContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import DashboardLayout from './layouts/DashboardLayout';
+import MemberLayout from './layouts/MemberLayout';
 import Home from './pages/Home';
 import Content from './pages/Content';
 import Settings from './pages/Settings';
@@ -36,6 +37,9 @@ import Transactions from './pages/Transactions';
 import DevPlaygroundRoute from './pages/DevPlaygroundRoute';
 import BusinessSetupPage from './pages/BusinessSetupPage';
 import WorkspaceSetupModal from './components/workspace/WorkspaceSetupModal';
+import CreateOffer from './pages/CreateOffer';
+import ProductCatalog from './pages/ProductCatalog';
+import MemberCatalog from './pages/MemberCatalog';
 
 const WEBSITE_URL = import.meta.env.VITE_WEBSITE_URL ?? 'http://localhost:3000';
 
@@ -264,6 +268,15 @@ function AppRoutes() {
   const shouldUseLimitedRoleDashboard = hasTenantWorkspace && me.context.role !== 'admin' && me.context.role !== 'owner';
   const canViewMembers = me.authorization.canViewMembers === true || me.authorization.canManageMembers === true;
   const canManageMembers = me.authorization.canManageMembers === true;
+  /** True when the authenticated user is a NEXUS platform admin.
+   *  Platform admins can access supply creation regardless of tenant context. */
+  const isPlatformAdmin = me.authorization.isPlatformAdmin === true;
+  /** True when the user is allowed to create or manage supply catalog offers.
+   *  Granted to platform admins and tenant supply_manager roles. */
+  const canManageSupply = me.authorization.canManageSupply === true || isPlatformAdmin;
+  /** True when the tenant has activated the Benefits Catalog service.
+   *  Platform admins bypass this gate since they manage the global catalog. */
+  const catalogServiceActive = me.authorization.catalogServiceActive === true;
   const firstName = user?.fullName?.split(/\s+/)[0] ?? me?.user.name?.split(/\s+/)[0];
 
   // Setup states: always show the full tenant admin dashboard behind a wizard overlay.
@@ -288,6 +301,11 @@ function AppRoutes() {
             <Route path="benefits-partnerships" element={<BenefitsPartnerships />} />
             <Route path="benefits-partnerships/edit-benefit/:id" element={<EditBenefit />} />
             <Route path="benefits-partnerships/edit-business/:id" element={<EditBenefit />} />
+            <Route path="product-catalog" element={<ProductCatalog />} />
+            <Route
+              path="supply/create"
+              element={isTenantAdmin || isPlatformAdmin ? <CreateOffer /> : <Navigate to="/" replace />}
+            />
             <Route path="send-gift/event" element={<SendGiftEvent />} />
             <Route path="send-gift/brands" element={<SendGiftBrands />} />
             <Route path="send-gift/greeting" element={<SendGiftGreeting />} />
@@ -344,19 +362,27 @@ function AppRoutes() {
   if (shouldUseLimitedRoleDashboard) {
     return (
       <Routes>
+        {/* Accept invite outside the layout shell - no chrome needed for this flow */}
         <Route path="/member-invite/accept" element={<MemberInviteAccept />} />
-        <Route
-          path="*"
-          element={(
-            <TenantMemberDashboard
-              userName={me.user.name}
-              userEmail={me.user.email}
-              tenantName={me.context.tenantName}
-              role={me.context.role}
-              onLogout={logout}
-            />
-          )}
-        />
+        {/* All member pages inside the layout shell (header + sidebar + outlet) */}
+        <Route element={<MemberLayout onLogout={logout} />}>
+          <Route
+            index
+            element={(
+              <TenantMemberDashboard
+                userName={me.user.name}
+                userEmail={me.user.email}
+                tenantName={me.context.tenantName}
+                role={me.context.role}
+                onLogout={logout}
+                catalogMode={me.authorization.catalogMode}
+                memberServices={me.authorization.memberServices}
+              />
+            )}
+          />
+          <Route path="member-catalog" element={<MemberCatalog />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
       </Routes>
     );
   }
@@ -376,6 +402,11 @@ function AppRoutes() {
         <Route path="benefits-partnerships" element={<BenefitsPartnerships />} />
         <Route path="benefits-partnerships/edit-benefit/:id" element={<EditBenefit />} />
         <Route path="benefits-partnerships/edit-business/:id" element={<EditBenefit />} />
+        <Route path="product-catalog" element={isTenantAdmin ? <ProductCatalog /> : <Navigate to="/" replace />} />
+        <Route
+          path="supply/create"
+          element={isTenantAdmin || isPlatformAdmin ? <CreateOffer /> : <Navigate to="/" replace />}
+        />
         <Route path="send-gift/event" element={<SendGiftEvent />} />
         <Route path="send-gift/brands" element={<SendGiftBrands />} />
         <Route path="send-gift/greeting" element={<SendGiftGreeting />} />
@@ -389,6 +420,8 @@ function AppRoutes() {
         <Route path="settings" element={<Settings />} />
         <Route path="settings/roles-permissions" element={canViewMembers ? <RolesPermissions /> : <Navigate to="/" replace />} />
         <Route path="settings/roles-permissions/invite" element={canManageMembers ? <InviteCollaborators /> : <Navigate to="/" replace />} />
+        {/* Member-facing catalog - accessible to tenant admins as a preview/admin view */}
+        <Route path="member-catalog" element={<MemberCatalog />} />
         <Route path="dev" element={<DevPlaygroundRoute />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

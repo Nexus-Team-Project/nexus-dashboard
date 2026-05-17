@@ -72,6 +72,11 @@ export const translations = {
     transactions: 'Transactions',
     productCatalog: 'Product Catalog',
     balances: 'Balances',
+    // Member service navigation keys
+    ms_benefitsCatalog: 'Benefits Catalog',
+    ms_serviceInactive: 'Not yet active',
+    ms_serviceSandbox: 'Preview',
+    ms_serviceLive: 'Live',
     aiAssistant: 'AI Assistant',
     talkToAgent: 'Talk to a human agent',
     typeMessage: 'Type your message...',
@@ -774,6 +779,226 @@ export const translations = {
     u_option1: 'Option 1',
     u_option2: 'Option 2',
     u_option3: 'Option 3',
+
+    // CreateOffer page
+    co_pageTitle: 'Create Offer',
+    co_pageSubtitle: 'Publish a new offer to the NEXUS benefits catalog.',
+    co_sectionOfferDetails: 'Offer Details',
+    co_fieldTitle: 'Title',
+    co_titlePlaceholder: 'e.g. 20% off at Coffee Chain',
+    co_fieldDescription: 'Description',
+    co_descriptionPlaceholder: 'Describe the offer, terms, or redemption instructions...',
+    co_fieldCategory: 'Category',
+    co_fieldOfferType: 'Offer Type',
+    co_offerTypeHint: 'Choose how members receive and use this offer.',
+    co_sectionPricing: 'Pricing',
+    co_fieldMarketPrice: 'Market price (₪)',
+    co_optional: 'optional',
+    co_marketPriceHint: 'Shown to members as a reference price.',
+    co_fieldStockLimit: 'Stock Limit',
+    co_stockLimitHint: 'optional - leave blank for unlimited',
+    co_stockLimitPlaceholder: 'e.g. 50 (leave blank = unlimited)',
+    co_sectionVisibility: 'Visibility',
+    co_visibilityHint: 'Choose who can see and adopt this offer.',
+    co_visibilityLegend: 'Offer visibility',
+    co_visAllTenants: 'All organizations',
+    co_visAllTenantsHint: 'Any tenant in the NEXUS ecosystem can adopt this offer.',
+    co_visMyTenantOnly: 'My organization only',
+    co_visMyTenantOnlyHint: 'Only your own organization can see and use this offer.',
+    co_visEcosystemApproval: 'Requires NEXUS platform admin approval before publishing to all catalogs',
+    co_visMyTenantNoApproval: 'Published immediately — no approval needed',
+    co_platformNote: 'Platform offers are visible to all tenants in the ecosystem.',
+    co_sectionImage: 'Offer Image',
+    co_imageHint: 'A square or landscape image works best. Max 5 MB.',
+    co_clickToUpload: 'Click to upload',
+    co_imageFormats: 'PNG, JPG, WEBP up to 5 MB',
+    co_errInvalidImage: 'Please select a valid image file.',
+    co_errImageSize: 'Image must be under 5 MB.',
+    co_errTitleRequired: 'Title is required.',
+    co_errMarketPrice: 'Market price must be a positive number if provided.',
+    co_errPublish: 'Failed to publish offer. Please try again.',
+    co_btnReplace: 'Replace',
+    co_btnRemoveImage: 'Remove',
+    co_btnPublishing: 'Publishing...',
+    co_btnPublish: 'Publish Offer',
+    co_btnCancel: 'Cancel',
+    co_serviceInactiveTitle: 'Activate Benefits Catalog First',
+    co_serviceInactiveBody: 'The Benefits Catalog service must be activated before you can create offers. Go to Benefits & Partnerships to turn it on.',
+    co_serviceInactiveBtn: 'Go to Benefits & Partnerships',
+    co_sectionRedemption: 'Redemption Details',
+    co_redemptionHint: 'Optional details shown to members on how to use this offer.',
+    co_fieldImplLink: 'Redemption URL',
+    co_fieldImplInstructions: 'Instructions',
+    co_implInstructionsPlaceholder: 'Step-by-step guide for members...',
+    co_fieldValidUntil: 'Valid Until',
+    co_fieldTerms: 'Terms & Conditions',
+    co_termsPlaceholder: 'e.g. Not combinable with other offers...',
+    co_fieldTags: 'Tags',
+    co_tagsPlaceholder: 'e.g. Featured (press Enter to add)',
+    co_addTag: 'Add',
+
+    // ProductCatalog page
+    pc_pageTitle: 'Product Catalog',
+    pc_subtitleLoading: 'Loading your catalog...',
+    pc_subtitleActive: 'active for your members',
+    pc_btnAddFromCatalog: '+ Add from catalog',
+    pc_searchPlaceholder: 'Search offers...',
+    pc_allCategories: 'All categories',
+    pc_soldOut: '🔴 Sold out',
+    pc_stockLeft: 'left',
+    pc_removeQuestion: 'Remove?',
+    pc_btnYes: 'Yes',
+    pc_btnNo: 'No',
+    pc_removing: 'Removing',
+    pc_btnRemove: 'Remove',
+    pc_btnRetry: 'Retry',
+    pc_emptyTitle: 'No offers adopted yet',
+    pc_emptyHint: 'Browse the platform catalog to add offers for your members.',
+    pc_btnBrowseCatalog: 'Browse platform catalog',
+    pc_noSearchMatch: 'No offers match your search',
+    pc_tryDifferent: 'Try a different search term or category.',
+
+    // MemberCatalog page
+    mc_pageTitle: 'Benefits Catalog',
+    mc_subtitle: 'Exclusive offers available to you',
+    mc_btnBack: 'Back',
+    mc_searchPlaceholder: 'Search offers...',
+    mc_allCategories: 'All categories',
+    mc_tapToView: 'Tap to view →',
+    mc_emptyNoOffers: 'No offers available yet. Check back later.',
+    mc_emptyNoMatch: 'No offers match your search.',
+    mc_errorLoad: 'Could not load catalog. Please try again or contact your admin.',
+    mc_inactiveTitle: 'Service not yet active',
+    mc_inactiveBody: "Your admin hasn't activated the Benefits Catalog service yet. Check back soon - you'll be notified when it's ready.",
+    mc_sandboxTitle: 'Preview mode',
+    mc_sandboxBody: 'You can browse available offers. Purchases will be enabled once the workspace goes live.',
+
+    // OfferModal
+    om_closeLabel: 'Close offer details',
+    om_redeemTitle: 'Redeem your offer',
+    om_soldOut: 'Sold Out',
+    om_processing: 'Processing...',
+    om_redeemNow: 'Redeem Now',
+    om_comingSoon: 'Coming Soon',
+    om_sandboxMode: 'Your workspace is in sandbox mode',
+    om_secureCheckout: 'Secure checkout via PayMe',
+    om_adminView: 'Admin view - members with catalog access can redeem this offer',
+    om_sandboxDisabledLabel: 'Redemption not yet available - workspace is in sandbox mode',
+    om_stockAvailable: 'available',
+    om_stockOnly: 'Only',
+    om_stockLeft: 'left',
+    om_soldOutIndicator: '🔴 Sold out',
+
+    // BenefitsPartnerships banner
+    bp_catalogSandboxNote: 'To upload offers for all NEXUS platform tenants, complete your business setup first. You can still upload offers visible to your own organization members.',
+
+    // FieldTooltip / FieldInfoModal shared strings
+    fi_learnMore: 'Learn more',
+    fi_close: 'Close',
+    fi_gotIt: 'Got it',
+    fi_exampleLabel: 'Example',
+
+    // ── title ──
+    fi_title_label: 'Offer Title',
+    fi_title_short: 'The name members see on the offer card.',
+    fi_title_detail: 'Choose a clear, concise name that immediately conveys the benefit. It appears as the main heading on the offer card and detail page. Aim for under 60 characters for the best display across all screen sizes.',
+    fi_title_example: '"20% off at Coffee Time" or "Free gym day pass"',
+
+    // ── description ──
+    fi_description_label: 'Description',
+    fi_description_short: 'Rich text visible to members on the offer page.',
+    fi_description_detail: 'Describe what the offer includes, how to use it, and any key details. Supports bold text, bullet lists, and headings. Members read this on the offer detail page before deciding to redeem.',
+    fi_description_example: '"Get 20% off your next purchase at any Coffee Time branch. Show your digital voucher at the checkout counter to redeem."',
+
+    // ── category ──
+    fi_category_label: 'Category',
+    fi_category_short: 'Groups your offer so members can filter the catalog.',
+    fi_category_detail: 'The category places your offer alongside similar benefits. Members can filter by category to find what they need, so choosing the most accurate option improves discoverability.',
+    fi_category_example: 'Gym membership → Health & Wellness. Cinema voucher → Entertainment. Online course → Education.',
+
+    // ── executionType ──
+    fi_executionType_label: 'Offer Type',
+    fi_executionType_short: 'How the benefit is delivered to the member.',
+    fi_executionType_detail: 'Voucher: a unique single-use code. Coupon: a reusable discount code applied at checkout. Gift Card: a prepaid balance to spend. Product: a physical or digital item shipped or downloaded. Service: an appointment or session booking.',
+    fi_executionType_example: 'Coffee discount → Coupon. Spa treatment → Service. ₪50 store credit → Gift Card. Branded merchandise → Product.',
+
+    // ── marketPrice ──
+    fi_marketPrice_label: 'Market Price',
+    fi_marketPrice_short: 'The standard retail price, shown as a reference.',
+    fi_marketPrice_detail: 'The full price a customer would normally pay. Displaying it helps members understand the value of the benefit. It appears as a strikethrough price next to the offer. Leave blank if there is no standard retail price to compare against.',
+    fi_marketPrice_example: 'If a massage normally costs ₪350, enter 350 so members can see the saving.',
+
+    // ── stockLimit ──
+    fi_stockLimit_label: 'Stock Limit',
+    fi_stockLimit_short: 'Maximum total redemptions across all members.',
+    fi_stockLimit_detail: 'Once this redemption count is reached, the offer is automatically marked as sold out. Leave blank for unlimited availability. Use this for limited promotions, physical inventory, or exclusive voucher pools.',
+    fi_stockLimit_example: 'If you have 100 voucher codes prepared, set the limit to 100. Remaining stock is shown on the offer card.',
+
+    // ── visibility ──
+    fi_visibility_label: 'Visibility',
+    fi_visibility_short: 'Controls who can see this offer. Ecosystem requires NEXUS admin approval.',
+    fi_visibility_detail: 'Ecosystem: submitted for review by a NEXUS platform admin. Once approved, the offer appears in all tenant catalogs across the platform. My Organization Only: published immediately to your own catalog with no approval step — other organizations cannot see it.',
+    fi_visibility_example: 'A national coffee chain deal → Ecosystem (pending approval). An internal employee perk → My Organization Only (instant).',
+
+    // ── implementationLink ──
+    fi_implementationLink_label: 'Redemption Link',
+    fi_implementationLink_short: 'URL where members go to redeem the offer.',
+    fi_implementationLink_detail: 'The direct URL a member visits to use or activate the offer. Displayed as a button on the offer detail page. Must be a valid https:// URL. Leave blank if redemption happens in-person or via a code only.',
+    fi_implementationLink_example: 'https://coffetime.co.il/nexus-redeem',
+
+    // ── implementationInstructions ──
+    fi_implementationInstructions_label: 'Redemption Instructions',
+    fi_implementationInstructions_short: 'Step-by-step guide shown to members on the offer page.',
+    fi_implementationInstructions_detail: 'Plain text steps explaining exactly how a member uses the offer. Shown below the redemption button on the offer detail page. Numbered steps work best. Include any in-store, online, or app-specific requirements.',
+    fi_implementationInstructions_example: '1. Open the offer page and copy your code. 2. Go to the checkout at any branch. 3. Show your screen or enter the code at the register.',
+
+    // ── validUntil ──
+    fi_validUntil_label: 'Expiry Date',
+    fi_validUntil_short: 'Date after which the offer is no longer available.',
+    fi_validUntil_detail: 'After this date the offer is automatically hidden from all member catalogs. Useful for seasonal promotions or time-limited deals. Leave blank for an offer with no expiry. Members can see the expiry date on the offer card.',
+    fi_validUntil_example: 'A summer promotion running until August 31. A holiday special ending December 26.',
+
+    // ── terms ──
+    fi_terms_label: 'Terms & Conditions',
+    fi_terms_short: 'Legal restrictions and usage rules shown to members.',
+    fi_terms_detail: 'Any restrictions, limitations, or disclaimers a member must be aware of before redeeming. Displayed on the offer detail page. Keep it concise and easy to read.',
+    fi_terms_example: '"Valid for one use per member. Cannot be combined with other promotions. Valid at participating branches only. No cash value."',
+
+    // ── tags ──
+    fi_tags_label: 'Tags',
+    fi_tags_short: 'Keywords that help members discover this offer.',
+    fi_tags_detail: 'Add up to 10 short descriptive tags. Tags appear on the offer card and can be used for filtering and search. Press Enter or comma to confirm each tag.',
+    fi_tags_example: 'coffee, discount, food, downtown, weekday, student, health',
+
+    // ── Voucher pricing fields ──
+    fi_faceValue_label: 'Face Value',
+    fi_faceValue_short: "The voucher's face value - what it is worth to the member.",
+    fi_faceValue_detail: "This is the nominal value printed on the voucher. For example, a ₪100 gift card has a face value of ₪100. This is what members see as the voucher's worth.",
+    fi_faceValue_example: 'A ₪100 Coffee Time gift card has face value ₪100.',
+
+    fi_nexusCost_label: 'Nexus Price',
+    fi_nexusCost_short: 'The price you charge NEXUS for this voucher.',
+    fi_nexusCost_detail: "This is the wholesale price NEXUS pays you for each voucher. It stays between you and NEXUS - members and other organizations never see this figure. Must be lower than the face value.",
+    fi_nexusCost_example: 'You sell ₪100 vouchers to NEXUS at ₪80 each.',
+
+    fi_memberPrice_label: 'Member Price',
+    fi_memberPrice_short: 'What end customers (members) will pay. Drag the slider to set it.',
+    fi_memberPrice_detail: "Set the price members pay using the slider. The minimum is the NEXUS price (your cost to NEXUS) and the maximum is the face value. The difference between the member price and the NEXUS price is your organization's profit margin.",
+    fi_memberPrice_example: 'NEXUS price ₪80, face value ₪100 - set member price to ₪90 - your profit is ₪10 per voucher.',
+
+    // ── Approval status UI strings ──
+    co_pendingApproval: 'Pending NEXUS approval',
+    co_denied: 'Denied',
+    co_allowOffer: 'Allow',
+    co_denyOffer: 'Deny',
+    co_denialReason: 'Denial reason',
+    co_editResubmit: 'Edit & Resubmit',
+    co_resubmitInfo: 'This offer was denied. Edit the details below and save to resubmit for approval.',
+    co_denyModalTitle: 'Deny Offer',
+    co_denyModalBody: 'Explain why this offer is being denied. The supplier will receive your reason by email and can edit and resubmit.',
+    co_denyModalPlaceholder: 'Enter reason for denial (minimum 10 characters)...',
+    co_denyModalSubmit: 'Send Denial',
+    co_denyModalCancel: 'Cancel',
   },
   he: {
     // App
@@ -848,6 +1073,11 @@ export const translations = {
     transactions: 'עסקאות',
     productCatalog: 'קטלוג מוצרים',
     balances: 'יתרות',
+    // Member service navigation keys
+    ms_benefitsCatalog: 'קטלוג הטבות',
+    ms_serviceInactive: 'לא פעיל עדיין',
+    ms_serviceSandbox: 'תצוגה מקדימה',
+    ms_serviceLive: 'פעיל',
     aiAssistant: 'עוזר AI',
     talkToAgent: 'דבר עם נציג אנושי',
     typeMessage: 'כתוב הודעה...',
@@ -1550,6 +1780,226 @@ export const translations = {
     u_option1: 'אופציה 1',
     u_option2: 'אופציה 2',
     u_option3: 'אופציה 3',
+
+    // CreateOffer page
+    co_pageTitle: 'צור הצעה',
+    co_pageSubtitle: 'פרסם הצעה חדשה לקטלוג ההטבות של NEXUS.',
+    co_sectionOfferDetails: 'פרטי ההצעה',
+    co_fieldTitle: 'כותרת',
+    co_titlePlaceholder: 'לדוגמה: 20% הנחה ברשת קפה',
+    co_fieldDescription: 'תיאור',
+    co_descriptionPlaceholder: 'תאר את ההצעה, התנאים, או הוראות המימוש...',
+    co_fieldCategory: 'קטגוריה',
+    co_fieldOfferType: 'סוג ההצעה',
+    co_offerTypeHint: 'בחר כיצד חברים מקבלים ומשתמשים בהצעה זו.',
+    co_sectionPricing: 'תמחור',
+    co_fieldMarketPrice: 'מחיר שוק (₪)',
+    co_optional: 'אופציונלי',
+    co_marketPriceHint: 'מוצג לחברים כמחיר ייחוס.',
+    co_fieldStockLimit: 'מגבלת מלאי',
+    co_stockLimitHint: 'אופציונלי - השאר ריק לכמות בלתי מוגבלת',
+    co_stockLimitPlaceholder: 'לדוגמה: 50 (ריק = ללא הגבלה)',
+    co_sectionVisibility: 'נראות',
+    co_visibilityHint: 'בחר מי יכול לראות ולאמץ הצעה זו.',
+    co_visibilityLegend: 'נראות ההצעה',
+    co_visAllTenants: 'כל הארגונים',
+    co_visAllTenantsHint: 'כל ארגון במערכת NEXUS יכול לאמץ הצעה זו.',
+    co_visMyTenantOnly: 'הארגון שלי בלבד',
+    co_visMyTenantOnlyHint: 'רק הארגון שלך יכול לראות ולהשתמש בהצעה זו.',
+    co_visEcosystemApproval: 'דורש אישור מנהל פלטפורמת NEXUS לפני פרסום לכל הקטלוגים',
+    co_visMyTenantNoApproval: 'מתפרסם מיד - אין צורך באישור',
+    co_platformNote: 'הצעות פלטפורמה גלויות לכל הארגונים במערכת.',
+    co_sectionImage: 'תמונת ההצעה',
+    co_imageHint: 'תמונה מרובעת או לרוחב תעבוד הכי טוב. עד 5 MB.',
+    co_clickToUpload: 'לחץ להעלאה',
+    co_imageFormats: 'PNG, JPG, WEBP עד 5 MB',
+    co_errInvalidImage: 'אנא בחר קובץ תמונה תקין.',
+    co_errImageSize: 'התמונה חייבת להיות קטנה מ-5 MB.',
+    co_errTitleRequired: 'כותרת נדרשת.',
+    co_errMarketPrice: 'מחיר השוק חייב להיות מספר חיובי אם מוזן.',
+    co_errPublish: 'פרסום ההצעה נכשל. אנא נסה שוב.',
+    co_btnReplace: 'החלף',
+    co_btnRemoveImage: 'הסר',
+    co_btnPublishing: 'מפרסם...',
+    co_btnPublish: 'פרסם הצעה',
+    co_btnCancel: 'ביטול',
+    co_serviceInactiveTitle: 'הפעל קטלוג הטבות תחילה',
+    co_serviceInactiveBody: 'יש להפעיל את שירות קטלוג ההטבות לפני שניתן ליצור הצעות. עבור לעמוד הטבות ושיתופי פעולה כדי להפעילו.',
+    co_serviceInactiveBtn: 'עבור להטבות ושיתופי פעולה',
+    co_sectionRedemption: 'פרטי מימוש',
+    co_redemptionHint: 'פרטים אופציונליים שיוצגו לחברים בנוגע לאופן השימוש בהצעה.',
+    co_fieldImplLink: 'קישור למימוש',
+    co_fieldImplInstructions: 'הוראות',
+    co_implInstructionsPlaceholder: 'הדרכה שלב-אחר-שלב לחברים...',
+    co_fieldValidUntil: 'בתוקף עד',
+    co_fieldTerms: 'תנאים והגבלות',
+    co_termsPlaceholder: 'לדוגמה: אינו ניתן לשילוב עם מבצעים אחרים...',
+    co_fieldTags: 'תגיות',
+    co_tagsPlaceholder: 'לדוגמה: מומלץ (הקש Enter להוספה)',
+    co_addTag: 'הוסף',
+
+    // ProductCatalog page
+    pc_pageTitle: 'קטלוג מוצרים',
+    pc_subtitleLoading: 'טוען את הקטלוג שלך...',
+    pc_subtitleActive: 'הצעות פעילות לחברים שלך',
+    pc_btnAddFromCatalog: '+ הוסף מקטלוג',
+    pc_searchPlaceholder: 'חפש הצעות...',
+    pc_allCategories: 'כל הקטגוריות',
+    pc_soldOut: '🔴 אזל המלאי',
+    pc_stockLeft: 'נותרו',
+    pc_removeQuestion: 'להסיר?',
+    pc_btnYes: 'כן',
+    pc_btnNo: 'לא',
+    pc_removing: 'מסיר',
+    pc_btnRemove: 'הסר',
+    pc_btnRetry: 'נסה שוב',
+    pc_emptyTitle: 'עדיין אין הצעות שאומצו',
+    pc_emptyHint: 'עיין בקטלוג הפלטפורמה כדי להוסיף הצעות לחברים שלך.',
+    pc_btnBrowseCatalog: 'עיין בקטלוג הפלטפורמה',
+    pc_noSearchMatch: 'לא נמצאו הצעות התואמות לחיפוש',
+    pc_tryDifferent: 'נסה מונח חיפוש או קטגוריה אחרים.',
+
+    // MemberCatalog page
+    mc_pageTitle: 'קטלוג הטבות',
+    mc_subtitle: 'הצעות בלעדיות הזמינות לך',
+    mc_btnBack: 'חזרה',
+    mc_searchPlaceholder: 'חפש הצעות...',
+    mc_allCategories: 'כל הקטגוריות',
+    mc_tapToView: '← הקש לצפייה',
+    mc_emptyNoOffers: 'עדיין אין הצעות זמינות. בדוק שוב מאוחר יותר.',
+    mc_emptyNoMatch: 'לא נמצאו הצעות התואמות לחיפוש.',
+    mc_errorLoad: 'לא ניתן לטעון את הקטלוג. נסה שוב או פנה למנהל שלך.',
+    mc_inactiveTitle: 'השירות טרם הופעל',
+    mc_inactiveBody: 'מנהל הארגון עדיין לא הפעיל את שירות קטלוג ההטבות. בדוק שוב בקרוב.',
+    mc_sandboxTitle: 'מצב תצוגה מקדימה',
+    mc_sandboxBody: 'ניתן לעיין בהצעות הזמינות. הרכישה תופעל כאשר סביבת העבודה תעבור למצב פעיל.',
+
+    // OfferModal
+    om_closeLabel: 'סגור פרטי הצעה',
+    om_redeemTitle: 'ממש את ההצעה שלך',
+    om_soldOut: 'אזל המלאי',
+    om_processing: 'מעבד...',
+    om_redeemNow: 'ממש עכשיו',
+    om_comingSoon: 'בקרוב',
+    om_sandboxMode: 'סביבת העבודה שלך במצב ניסוי',
+    om_secureCheckout: 'תשלום מאובטח דרך PayMe',
+    om_adminView: 'תצוגת מנהל - חברים עם גישה לקטלוג יכולים לממש הצעה זו',
+    om_sandboxDisabledLabel: 'מימוש אינו זמין עדיין - סביבת עבודה במצב ניסוי',
+    om_stockAvailable: 'זמינים',
+    om_stockOnly: '',
+    om_stockLeft: 'נותרו',
+    om_soldOutIndicator: '🔴 אזל המלאי',
+
+    // BenefitsPartnerships banner
+    bp_catalogSandboxNote: 'כדי להעלות הצעות לכל דיירי פלטפורמת NEXUS - השלם את הגדרת העסק תחילה. ניתן עדיין להעלות הצעות הגלויות לחברי הארגון שלך.',
+
+    // FieldTooltip / FieldInfoModal shared strings
+    fi_learnMore: 'למד עוד',
+    fi_close: 'סגור',
+    fi_gotIt: 'הבנתי',
+    fi_exampleLabel: 'דוגמה',
+
+    // ── title ──
+    fi_title_label: 'כותרת ההצעה',
+    fi_title_short: 'השם שחברים רואים בכרטיס ההצעה.',
+    fi_title_detail: 'בחר שם ברור ותמציתי שמיד מסביר לחבר מה ההטבה. הוא מופיע ככותרת הראשית בכרטיס ההצעה ובדף הפרטים. עדיף עד 60 תווים להצגה אופטימלית בכל גדלי המסך.',
+    fi_title_example: '"20% הנחה בקפה טיים" או "יום כניסה חינם לחדר הכושר"',
+
+    // ── description ──
+    fi_description_label: 'תיאור',
+    fi_description_short: 'טקסט עשיר גלוי לחברים בדף ההצעה.',
+    fi_description_detail: 'תאר מה ההצעה כוללת, כיצד להשתמש בה ופרטים מרכזיים. תומך בטקסט מודגש, רשימות וכותרות. חברים קוראים זאת בדף פרטי ההצעה לפני שהם מחליטים לממש.',
+    fi_description_example: '"קבל 20% הנחה ברכישה הבאה בכל סניף קפה טיים. הצג את השובר הדיגיטלי בקופה לקבלת ההנחה."',
+
+    // ── category ──
+    fi_category_label: 'קטגוריה',
+    fi_category_short: 'מקבצת את ההצעה שלך כדי שחברים יוכלו לסנן את הקטלוג.',
+    fi_category_detail: 'הקטגוריה ממקמת את ההצעה שלך לצד הטבות דומות. חברים יכולים לסנן לפי קטגוריה כדי למצוא מה שהם מחפשים, לכן בחירה מדויקת משפרת את הנראות.',
+    fi_category_example: 'מנוי לחדר כושר ← בריאות ורווחה. כרטיס קולנוע ← בידור. קורס מקוון ← חינוך.',
+
+    // ── executionType ──
+    fi_executionType_label: 'סוג ההצעה',
+    fi_executionType_short: 'כיצד ההטבה מועברת לחבר.',
+    fi_executionType_detail: 'שובר: קוד ייחודי לשימוש חד-פעמי. קופון: קוד הנחה לשימוש חוזר המוזן בקופה. כרטיס מתנה: יתרה טעונה מראש. מוצר: פריט פיזי או דיגיטלי. שירות: הזמנת תור או מפגש.',
+    fi_executionType_example: 'הנחה בקפה ← קופון. טיפול ספא ← שירות. קרדיט ₪50 ← כרטיס מתנה. מוצר ממותג ← מוצר.',
+
+    // ── marketPrice ──
+    fi_marketPrice_label: 'מחיר שוק',
+    fi_marketPrice_short: 'המחיר הרגיל בשוק, מוצג כייחוס לחברים.',
+    fi_marketPrice_detail: 'המחיר המלא שלקוח רגיל היה משלם. הצגתו עוזרת לחברים להבין את ערך ההטבה שהם מקבלים. הוא מופיע כמחיר מחוק לצד ההצעה. השאר ריק אם אין מחיר שוק רגיל להשוואה.',
+    fi_marketPrice_example: 'אם עיסוי רגיל עולה ₪350, הזן 350 כדי שחברים יראו את החיסכון.',
+
+    // ── stockLimit ──
+    fi_stockLimit_label: 'מגבלת מלאי',
+    fi_stockLimit_short: 'מקסימום מימושים כולל בין כל החברים.',
+    fi_stockLimit_detail: 'ברגע שמספר המימושים הזה מושג, ההצעה מסומנת אוטומטית כאזלה מהמלאי. השאר ריק לזמינות בלתי מוגבלת. שימושי לקידומים מוגבלים, מלאי פיזי או מאגרי שוברים בלעדיים.',
+    fi_stockLimit_example: 'אם יש לך 100 קודי שובר מוכנים, הגדר מגבלה ל-100. המלאי הנותר מוצג בכרטיס ההצעה.',
+
+    // ── visibility ──
+    fi_visibility_label: 'נראות',
+    fi_visibility_short: 'שולטת מי רואה הצעה זו. מערכת כולל דורשת אישור מנהל NEXUS.',
+    fi_visibility_detail: 'מערכת כולל: ההצעה נשלחת לבדיקת מנהל פלטפורמת NEXUS. לאחר אישור, היא מופיעה בקטלוגי כל הדיירים בפלטפורמה. הארגון שלי בלבד: מתפרסמת מיד לקטלוג הארגון שלך ללא שלב אישור - ארגונים אחרים אינם יכולים לראותה.',
+    fi_visibility_example: 'עסקת רשת קפה ארצית ← מערכת כולל (ממתין לאישור). הטבה פנימית לעובדים ← הארגון שלי בלבד (מיידי).',
+
+    // ── implementationLink ──
+    fi_implementationLink_label: 'קישור מימוש',
+    fi_implementationLink_short: 'כתובת URL שבה חברים ממשים את ההצעה.',
+    fi_implementationLink_detail: 'כתובת URL ישירה שחבר מבקר בה לשימוש בהצעה. מוצגת ככפתור בדף פרטי ההצעה. חייבת להיות כתובת https:// תקינה. השאר ריק אם המימוש מתרחש פנים בפנים או באמצעות קוד בלבד.',
+    fi_implementationLink_example: 'https://coffetime.co.il/nexus-redeem',
+
+    // ── implementationInstructions ──
+    fi_implementationInstructions_label: 'הוראות מימוש',
+    fi_implementationInstructions_short: 'מדריך שלב-אחר-שלב המוצג לחברים בדף ההצעה.',
+    fi_implementationInstructions_detail: 'הוראות טקסט פשוט המסבירות בדיוק כיצד חבר משתמש בהצעה. מוצגות מתחת לכפתור המימוש. שלבים ממוספרים עובדים הכי טוב. כלול כל דרישה בחנות, באינטרנט או באפליקציה.',
+    fi_implementationInstructions_example: '1. פתח את דף ההצעה והעתק את הקוד. 2. גש לקופה בכל סניף. 3. הצג את המסך או הזן את הקוד בקופה.',
+
+    // ── validUntil ──
+    fi_validUntil_label: 'תאריך תפוגה',
+    fi_validUntil_short: 'תאריך שאחריו ההצעה אינה זמינה עוד.',
+    fi_validUntil_detail: 'לאחר תאריך זה ההצעה מוסתרת אוטומטית מכל קטלוגי החברים. שימושי לקידומים עונתיים או עסקאות מוגבלות בזמן. השאר ריק להצעה ללא תאריך תפוגה.',
+    fi_validUntil_example: 'קידום קיץ הנגמר ב-31 באוגוסט. מבצע חגים המסתיים ב-26 בדצמבר.',
+
+    // ── terms ──
+    fi_terms_label: 'תנאים והגבלות',
+    fi_terms_short: 'הגבלות משפטיות וכללי שימוש המוצגים לחברים.',
+    fi_terms_detail: 'כל הגבלות, מגבלות או כתבי ויתור שחבר חייב להיות מודע להם לפני מימוש. מוצגים בדף פרטי ההצעה. שמור על תמציתיות וקריאות.',
+    fi_terms_example: '"תקף לשימוש אחד לחבר. לא ניתן לשלב עם מבצעים אחרים. תקף בסניפים משתתפים בלבד. אין ערך מזומן."',
+
+    // ── tags ──
+    fi_tags_label: 'תגיות',
+    fi_tags_short: 'מילות מפתח שעוזרות לחברים לגלות הצעה זו.',
+    fi_tags_detail: 'הוסף עד 10 תגיות תיאוריות קצרות. תגיות מופיעות בכרטיס ההצעה וניתן להשתמש בהן לסינון וחיפוש. לחץ Enter או פסיק לאישור כל תגית.',
+    fi_tags_example: 'קפה, הנחה, אוכל, מרכז עיר, ימי חול, סטודנט, בריאות',
+
+    // ── Voucher pricing fields ──
+    fi_faceValue_label: 'שווי',
+    fi_faceValue_short: 'הערך הנקוב של השובר - מה שהחבר מקבל.',
+    fi_faceValue_detail: 'זהו הערך הנקוב של השובר. לדוגמה, כרטיס מתנה של ₪100 שווה ₪100. זה מה שחברים רואים כערך השובר.',
+    fi_faceValue_example: 'כרטיס מתנה לקפה טיים בשווי ₪100 יש לו ערך נקוב של ₪100.',
+
+    fi_nexusCost_label: 'מחיר מכירה לנקסוס',
+    fi_nexusCost_short: 'המחיר שאתה גובה מ-NEXUS עבור שובר זה.',
+    fi_nexusCost_detail: 'זהו המחיר הסיטונאי ש-NEXUS משלם לך עבור כל שובר. זה נשאר בינך לבין NEXUS - חברים וארגונים אחרים לא רואים נתון זה. חייב להיות נמוך מהערך הנקוב.',
+    fi_nexusCost_example: 'אתה מוכר שוברים של ₪100 ל-NEXUS במחיר ₪80 לכל אחד.',
+
+    fi_memberPrice_label: 'מחיר לחבר',
+    fi_memberPrice_short: 'מה לקוחות הקצה (חברים) ישלמו. גרור את המחוון לקביעת המחיר.',
+    fi_memberPrice_detail: 'קבע את המחיר שחברים משלמים באמצעות המחוון. המינימום הוא מחיר ה-NEXUS והמקסימום הוא הערך הנקוב. ההפרש בין מחיר החבר למחיר ה-NEXUS הוא רווח הארגון שלך.',
+    fi_memberPrice_example: 'מחיר NEXUS ₪80, ערך נקוב ₪100 - קבע מחיר חבר ל-₪90 - הרווח שלך הוא ₪10 לשובר.',
+
+    // ── Approval status UI strings ──
+    co_pendingApproval: 'ממתין לאישור NEXUS',
+    co_denied: 'נדחה',
+    co_allowOffer: 'אישור',
+    co_denyOffer: 'דחייה',
+    co_denialReason: 'סיבת הדחייה',
+    co_editResubmit: 'ערוך ושלח מחדש',
+    co_resubmitInfo: 'הצעה זו נדחתה. ערוך את הפרטים למטה ושמור לשליחה חוזרת לאישור.',
+    co_denyModalTitle: 'דחיית הצעה',
+    co_denyModalBody: 'הסבר מדוע הצעה זו נדחית. הספק יקבל את הסיבה שלך במייל ויוכל לערוך ולשלוח מחדש.',
+    co_denyModalPlaceholder: 'הזן סיבה לדחייה (מינימום 10 תווים)...',
+    co_denyModalSubmit: 'שלח דחייה',
+    co_denyModalCancel: 'ביטול',
   }
 };
 
