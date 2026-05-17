@@ -667,19 +667,21 @@ const BenefitsPartnerships = () => {
   return (
     <div className="min-h-screen bg-white dark:bg-background-dark">
       <main className="max-w-7xl mx-auto px-6 pb-12">
-        {/* Service activation lifecycle banner - handles inactive/sandbox/live/loading states */}
-        <ServiceActivationBanner
-          config={{
-            name: 'שירות קטלוג ההטבות',
-            inactiveNote: language === 'he' ? 'הפעל כדי לאפשר לחברים לצפות ולרכוש הטבות. ניתן לבטל בכל עת.' : 'Activate to let members browse and redeem benefits. You can disable at any time.',
-            sandboxNote: t('bp_catalogSandboxNote'),
-          }}
-          mode={isRefreshing ? 'loading' : catalogMode}
-          onActivate={handleActivateCatalog}
-          onGoLive={handleGoLiveCatalog}
-          onDisable={handleDeactivateCatalog}
-          goLiveDisabled={me?.authorization.businessSetupComplete !== true}
-        />
+        {/* Service activation lifecycle banner — tenant admins only; platform admins manage the platform, not tenant services */}
+        {!isPlatformAdmin && (
+          <ServiceActivationBanner
+            config={{
+              name: 'שירות קטלוג ההטבות',
+              inactiveNote: language === 'he' ? 'הפעל כדי לאפשר לחברים לצפות ולרכוש הטבות. ניתן לבטל בכל עת.' : 'Activate to let members browse and redeem benefits. You can disable at any time.',
+              sandboxNote: t('bp_catalogSandboxNote'),
+            }}
+            mode={isRefreshing ? 'loading' : catalogMode}
+            onActivate={handleActivateCatalog}
+            onGoLive={handleGoLiveCatalog}
+            onDisable={handleDeactivateCatalog}
+            goLiveDisabled={me?.authorization.businessSetupComplete !== true}
+          />
+        )}
 
         {/* Hero Section */}
         <section className="relative py-20 md:py-28 flex flex-col items-center text-center overflow-hidden">
@@ -925,30 +927,67 @@ const BenefitsPartnerships = () => {
                           return (
                         <tr key={benefit.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                           <td className="px-4 py-4 sticky right-0 bg-white dark:bg-slate-900 z-10">
-                            {/* Toggle calls real adopt/unadopt API when catalog items are loaded */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (catalogItems.length > 0) {
-                                  void handleToggleAdopt(benefit.id, benefitActiveStates[benefit.id] ?? false);
-                                } else {
-                                  toggleBenefitActive(benefit.id);
-                                }
-                              }}
-                              disabled={adoptingId === benefit.id}
-                              aria-label={benefitActiveStates[benefit.id] ? 'Unadopt offer' : 'Adopt offer'}
-                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all hover:ring-2 hover:ring-cyan-400 hover:ring-offset-1 disabled:opacity-60 disabled:cursor-not-allowed ${
-                                benefitActiveStates[benefit.id]
-                                  ? 'bg-emerald-500'
-                                  : 'bg-slate-300 dark:bg-slate-600'
-                              }`}
-                            >
-                              <span
-                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                  benefitActiveStates[benefit.id] ? '-translate-x-1' : '-translate-x-5'
+                            {isPlatformAdmin ? (
+                              /* Platform admins see approve/deny for pending offers; status badge otherwise. */
+                              item?.approval_status === 'pending_approval' ? (
+                                <div className="flex flex-col gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); void handleApproveOffer(item.offerId); }}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap"
+                                  >
+                                    {t('co_allowOffer')}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); setDenyTarget(item); }}
+                                    className="bg-red-600 hover:bg-red-700 text-white px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap"
+                                  >
+                                    {t('co_denyOffer')}
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className={cn(
+                                  'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold',
+                                  item?.approval_status === 'denied'
+                                    ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                    : item?.status === 'active'
+                                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                                      : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                                )}>
+                                  {item?.approval_status === 'denied'
+                                    ? t('co_denied')
+                                    : item?.status === 'active'
+                                      ? (language === 'he' ? 'פעיל' : 'Active')
+                                      : (language === 'he' ? 'לא פעיל' : 'Inactive')}
+                                </span>
+                              )
+                            ) : (
+                              /* Tenant admins see the adopt/unadopt toggle. */
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (catalogItems.length > 0) {
+                                    void handleToggleAdopt(benefit.id, benefitActiveStates[benefit.id] ?? false);
+                                  } else {
+                                    toggleBenefitActive(benefit.id);
+                                  }
+                                }}
+                                disabled={adoptingId === benefit.id}
+                                aria-label={benefitActiveStates[benefit.id] ? 'Unadopt offer' : 'Adopt offer'}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all hover:ring-2 hover:ring-cyan-400 hover:ring-offset-1 disabled:opacity-60 disabled:cursor-not-allowed ${
+                                  benefitActiveStates[benefit.id]
+                                    ? 'bg-emerald-500'
+                                    : 'bg-slate-300 dark:bg-slate-600'
                                 }`}
-                              />
-                            </button>
+                              >
+                                <span
+                                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                    benefitActiveStates[benefit.id] ? '-translate-x-1' : '-translate-x-5'
+                                  }`}
+                                />
+                              </button>
+                            )}
                           </td>
                           <td className="px-4 py-4">
                             {item?.imageUrl ? (
@@ -1317,25 +1356,6 @@ const BenefitsPartnerships = () => {
                                     >
                                       מחק
                                     </button>
-                                  )}
-                                  {/* Platform admin: approve / deny pending ecosystem vouchers */}
-                                  {isPlatformAdmin && item?.approval_status === 'pending_approval' && (
-                                    <>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => { e.stopPropagation(); void handleApproveOffer(item.offerId); }}
-                                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
-                                      >
-                                        {t('co_allowOffer')}
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => { e.stopPropagation(); setDenyTarget(item); }}
-                                        className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
-                                      >
-                                        {t('co_denyOffer')}
-                                      </button>
-                                    </>
                                   )}
                                   <button
                                     onClick={(e) => {
