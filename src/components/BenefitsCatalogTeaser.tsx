@@ -10,7 +10,7 @@
  * Mobile: CSS-keyframe infinite auto-scroll carousel.
  * Desktop: fan spread with float + tilt-on-hover.
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
 
 interface Props {
@@ -154,6 +154,14 @@ const BenefitsCatalogTeaser = ({ onActivate, isActivating = false }: Props) => {
   const { language } = useLanguage();
   const isHe = language === 'he';
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth <= 700);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   return (
     /* Start at top:48px so the teaser never physically overlaps the sticky navbar */
@@ -172,21 +180,8 @@ const BenefitsCatalogTeaser = ({ onActivate, isActivating = false }: Props) => {
     >
       <style>{`
         @keyframes nxs-float    { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
-        @keyframes nxs-carousel { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+        @keyframes nxs-carousel { from{transform:translateX(0)} to{transform:translateX(-1540px)} }
         @keyframes nxs-spin     { to{transform:rotate(360deg)} }
-        .nxs-fan   { display:flex; }
-        .nxs-mob   { display:none; }
-        @media(max-width:700px){
-          .nxs-fan { display:none; }
-          .nxs-mob { display:block; }
-        }
-        .nxs-track {
-          display:flex; width:max-content;
-          animation:nxs-carousel 26s linear infinite;
-        }
-        .nxs-track:hover { animation-play-state:paused; }
-        /* Each card carries its own trailing margin so -50% is a perfect loop */
-        .nxs-card-wrap { margin-inline-end:16px; flex-shrink:0; }
       `}</style>
 
       {/* ── Headline ───────────────────────────────────────────────────── */}
@@ -231,35 +226,58 @@ const BenefitsCatalogTeaser = ({ onActivate, isActivating = false }: Props) => {
           : "Activate the Benefits Catalog and let employees discover offers they'll actually care about."}
       </p>
 
-      {/* ── Desktop fan ────────────────────────────────────────────────── */}
-      <div className="nxs-fan" role="list" aria-label={isHe ? 'הטבות לדוגמה' : 'Sample offers'}
-        style={{ alignItems: 'flex-end', justifyContent: 'center', marginBottom: 40, paddingBottom: 14 }}>
-        {CARDS.map((card, idx) => (
-          <div key={card.name} role="listitem">
-            <FanCard card={card} idx={idx} isHe={isHe}
-              hovered={hoveredIdx === idx}
-              onEnter={() => setHoveredIdx(idx)}
-              onLeave={() => setHoveredIdx(null)}
-            />
-          </div>
-        ))}
-      </div>
-
-      {/* ── Mobile infinite carousel ────────────────────────────────────── */}
-      <div className="nxs-mob" role="region" aria-label={isHe ? 'הטבות לדוגמה' : 'Sample offers'}
-        style={{ width: '100vw', overflow: 'hidden', marginBottom: 32, position: 'relative' }}>
-        <div style={{
-          position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1,
-          background: `linear-gradient(to right, ${BG} 0%, transparent 14%, transparent 86%, ${BG} 100%)`,
-        }} aria-hidden="true"/>
-        <div className="nxs-track" style={{ padding: '12px 0' }}>
-          {[...CARDS, ...CARDS].map((card, i) => (
-            <div key={i} className="nxs-card-wrap">
-              <CardFace card={card} isHe={isHe}/>
+      {/* ── Desktop fan / Mobile carousel — toggled by isMobile state ── */}
+      {!isMobile ? (
+        /* Fan spread — desktop */
+        <div role="list" aria-label={isHe ? 'הטבות לדוגמה' : 'Sample offers'}
+          style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', marginBottom: 40, paddingBottom: 14 }}>
+          {CARDS.map((card, idx) => (
+            <div key={card.name} role="listitem">
+              <FanCard card={card} idx={idx} isHe={isHe}
+                hovered={hoveredIdx === idx}
+                onEnter={() => setHoveredIdx(idx)}
+                onLeave={() => setHoveredIdx(null)}
+              />
             </div>
           ))}
         </div>
-      </div>
+      ) : (
+        /* Infinite auto-scroll carousel — mobile */
+        <div
+          role="region"
+          aria-label={isHe ? 'הטבות לדוגמה' : 'Sample offers'}
+          style={{
+            width: '100vw',
+            height: 152,
+            overflow: 'hidden',
+            position: 'relative',
+            marginBottom: 28,
+            flexShrink: 0,
+          }}
+        >
+          {/* Edge fades */}
+          <div style={{
+            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+            pointerEvents: 'none', zIndex: 2,
+            background: `linear-gradient(to right, ${BG} 0%, transparent 12%, transparent 88%, ${BG} 100%)`,
+          }} aria-hidden="true"/>
+          {/* Scrolling track — all inline, fixed pixel translation for seamless loop */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            height: '100%',
+            width: 'max-content',
+            animation: 'nxs-carousel 24s linear infinite',
+            willChange: 'transform',
+          }}>
+            {[...CARDS, ...CARDS].map((card, i) => (
+              <div key={i} style={{ marginInlineEnd: 16, flexShrink: 0 }}>
+                <CardFace card={card} isHe={isHe}/>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── CTA ────────────────────────────────────────────────────────── */}
       <button
