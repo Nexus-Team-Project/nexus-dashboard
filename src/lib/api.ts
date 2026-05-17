@@ -726,9 +726,7 @@ export interface CatalogItem {
   description: string;
   imageUrl?: string;
   category: string;
-  nexus_price: number;
   market_price?: number;
-  member_price: number;
   isAdopted: boolean;
   adoptedAt?: string;
   createdByTenantId: string;
@@ -754,8 +752,7 @@ export interface CatalogItem {
 
 /**
  * A NEXUS platform offer as stored in the supply catalog.
- * Returned on creation; nexus_price is the internal cost and must not be
- * surfaced to end members - use member_price for member-facing display.
+ * Returned on creation.
  */
 export interface NexusOffer {
   offerId: string;
@@ -763,7 +760,6 @@ export interface NexusOffer {
   description: string;
   imageUrl?: string;
   category: string;
-  nexus_price: number;
   market_price?: number;
   status: string;
   visibility: string;
@@ -897,9 +893,8 @@ export async function deleteOffer(offerId: string): Promise<void> {
 /**
  * Creates a new platform offer, uploading the image as multipart/form-data.
  * Matches POST /api/v1/offers.
- * Input: FormData with fields: title, description, category, raw_cost, and
- *        optionally an image file. raw_cost is stripped by the backend before
- *        the offer is exposed to members.
+ * Input: FormData with fields: title, description, category, and optionally
+ *        market_price and an image file.
  * Output: the created NexusOffer record returned by the backend.
  */
 export async function createOfferApi(formData: FormData): Promise<NexusOffer> {
@@ -917,7 +912,7 @@ export async function createOfferApi(formData: FormData): Promise<NexusOffer> {
  *
  * Input: offerId - the offer to update; data - all editable offer fields plus
  *        optional imageFile for image replacement.
- * Output: Updated NexusOffer (raw_cost stripped by backend).
+ * Output: Updated NexusOffer.
  */
 export async function updateOfferApi(
   offerId: string,
@@ -925,7 +920,6 @@ export async function updateOfferApi(
     title?: string;
     description?: string;
     category?: string;
-    raw_cost?: number;
     market_price?: number;
     stockLimit?: number | null;
     executionType?: string;

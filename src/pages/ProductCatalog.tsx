@@ -183,8 +183,6 @@ const ProductCatalog = () => {
   const renderOfferCard = (item: CatalogItem) => {
     const isRemoving = removingId === item.offerId;
     const isPendingConfirm = confirmRemove?.offerId === item.offerId;
-    const hasSaving =
-      item.market_price !== undefined && item.market_price > item.member_price;
 
     return (
       <article
@@ -245,11 +243,8 @@ const ProductCatalog = () => {
           {/* Pricing row */}
           <div className="mt-3 flex items-center justify-between">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-base font-bold text-slate-950">
-                &#8362;{item.member_price}
-              </span>
-              {hasSaving && (
-                <span className="text-xs text-slate-400 line-through">
+              {item.market_price !== undefined && (
+                <span className="text-base font-bold text-slate-950">
                   &#8362;{item.market_price}
                 </span>
               )}

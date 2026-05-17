@@ -57,7 +57,6 @@ interface OfferCardProps {
  */
 function OfferCard({ item, onClick, onImageClick }: OfferCardProps) {
   const { t } = useLanguage();
-  const hasDiscount = item.market_price !== undefined && item.market_price > item.member_price;
 
   return (
     <div
@@ -99,11 +98,8 @@ function OfferCard({ item, onClick, onImageClick }: OfferCardProps) {
         {/* Price row */}
         <div className="mt-4 flex items-center justify-between">
           <div className="flex items-baseline gap-2">
-            <span className="text-lg font-bold text-slate-950">
-              &#x20AA;{item.member_price}
-            </span>
-            {hasDiscount && (
-              <span className="text-xs text-slate-400 line-through">
+            {item.market_price !== undefined && (
+              <span className="text-lg font-bold text-slate-950">
                 &#x20AA;{item.market_price}
               </span>
             )}

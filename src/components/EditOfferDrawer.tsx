@@ -72,9 +72,6 @@ interface EditOfferDrawerProps {
 /**
  * Full-screen-overlay drawer that slides in from the left (RTL layout).
  * All fields are pre-filled from the offer prop.
- * raw_cost is intentionally shown empty - leaving it blank keeps the existing
- * server value; entering a new number replaces it.
- *
  * Input: EditOfferDrawerProps (offer, onClose, onSaved).
  * Output: renders a fixed backdrop + drawer panel + optional crop modal.
  */
@@ -83,7 +80,6 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
   const [title, setTitle]                             = useState(offer.title);
   const [description, setDescription]                 = useState(offer.description);
   const [category, setCategory]                       = useState(offer.category);
-  const [rawCost, setRawCost]                         = useState('');            // empty = keep existing
   const [marketPrice, setMarketPrice]                 = useState(
     offer.market_price !== undefined ? String(offer.market_price) : '',
   );
@@ -161,7 +157,6 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
 
   /**
    * Builds the PATCH payload and calls updateOfferApi.
-   * Only sends raw_cost when the user typed a value (blank preserves existing).
    * Calls onSaved then onClose on success; shows error toast on failure.
    */
   const handleSave = async () => {
@@ -175,7 +170,6 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
         title: title.trim(),
         description: description.trim(),
         category,
-        ...(rawCost !== '' && { raw_cost: Number(rawCost) }),
         ...(marketPrice !== '' && { market_price: Number(marketPrice) }),
         stockLimit: stockLimit !== '' ? Number(stockLimit) : null,
         validUntil: validUntil || null,
@@ -305,18 +299,12 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
           <div className="px-6 py-4 space-y-4">
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">תמחור ומלאי</p>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                  עלות חדשה
-                  <span className="text-slate-400 font-normal text-xs mr-1">(ריק = ללא שינוי)</span>
-                </label>
-                <input type="number" min="0" step="0.01" value={rawCost} onChange={(e) => setRawCost(e.target.value)} className={inputCls} placeholder="₪" dir="ltr" />
-              </div>
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">מחיר שוק</label>
-                <input type="number" min="0" step="0.01" value={marketPrice} onChange={(e) => setMarketPrice(e.target.value)} className={inputCls} placeholder="₪" dir="ltr" />
-              </div>
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                מחיר שוק
+                <span className="text-slate-400 font-normal text-xs mr-1">(אופציונלי)</span>
+              </label>
+              <input type="number" min="0" step="0.01" value={marketPrice} onChange={(e) => setMarketPrice(e.target.value)} className={inputCls} placeholder="₪" dir="ltr" />
             </div>
 
             <div className="grid grid-cols-2 gap-3">

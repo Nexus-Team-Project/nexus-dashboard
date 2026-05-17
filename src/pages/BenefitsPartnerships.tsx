@@ -549,8 +549,8 @@ const BenefitsPartnerships = () => {
   /**
    * Maps a CatalogItem from the backend API into the local Benefit shape so it
    * can populate the existing card and table JSX without structural changes.
-   * member_price is used as the discount display; executionType drives the
-   * implementationMethod and benefitType fields; stockLimit provides usageTerms hints.
+   * market_price is used as the display price when available; executionType drives
+   * the implementationMethod and benefitType fields; stockLimit provides usageTerms hints.
    */
   const catalogAsBenefits: Benefit[] = catalogItems.map(item => ({
     id: item.offerId,
@@ -574,7 +574,7 @@ const BenefitsPartnerships = () => {
     featured: false,
     image: item.imageUrl,
     title: item.title,
-    discount: `₪${item.member_price}`,
+    discount: item.market_price !== undefined ? `₪${item.market_price}` : '',
     stockLimit: item.stockLimit,
     stockAvailable: item.stockAvailable,
     isSoldOut: item.isSoldOut,

@@ -116,14 +116,6 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
     setTimeout(() => setMockingRedeem(false), 2000);
   };
 
-  /**
-   * Calculates the percentage discount vs. market price.
-   * Returns null when no market price exists or it is not higher than member price.
-   */
-  const discount =
-    offer.market_price && offer.market_price > offer.member_price
-      ? Math.round((1 - offer.member_price / offer.market_price) * 100)
-      : null;
 
   return (
     <div
@@ -182,15 +174,6 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
             }}
           />
 
-          {/* Discount badge - top-left corner */}
-          {discount !== null && (
-            <div
-              className="absolute top-4 left-4 rounded-full px-3 py-1 text-xs font-bold text-white"
-              style={{ background: 'linear-gradient(135deg, #7c3aed, #2563eb)' }}
-            >
-              -{discount}% OFF
-            </div>
-          )}
 
           {/* Category chip - bottom-left of hero */}
           <div className="absolute bottom-3 left-4">
@@ -215,17 +198,14 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
           <h2 className="text-xl font-bold text-white leading-tight">{offer.title}</h2>
           <p className="mt-2 text-sm text-white/60 leading-relaxed">{offer.description}</p>
 
-          {/* Bold price display with market-price strikethrough */}
-          <div className="mt-5 flex items-end gap-3">
-            <span className="text-4xl font-black text-white tracking-tight">
-              &#x20AA;{offer.member_price}
-            </span>
-            {offer.market_price && offer.market_price > offer.member_price && (
-              <span className="mb-1 text-lg text-white/35 line-through">
+          {/* Market price display - shown only when available */}
+          {offer.market_price !== undefined && (
+            <div className="mt-5">
+              <span className="text-4xl font-black text-white tracking-tight">
                 &#x20AA;{offer.market_price}
               </span>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Stock availability indicator - only shown when stock tracking is active */}
           {offer.stockLimit !== null && (

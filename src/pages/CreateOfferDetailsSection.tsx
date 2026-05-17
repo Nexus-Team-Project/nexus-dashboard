@@ -33,10 +33,6 @@ interface DetailsSectionProps {
   executionType: string;
   /** Setter for executionType. */
   setExecutionType: (v: string) => void;
-  /** Supplier raw cost (string to allow empty state). */
-  rawCost: string;
-  /** Setter for rawCost. */
-  setRawCost: (v: string) => void;
   /** Optional market price for display purposes. */
   marketPrice: string;
   /** Setter for marketPrice. */
@@ -67,8 +63,6 @@ const CreateOfferDetailsSection = ({
   setCategory,
   executionType,
   setExecutionType,
-  rawCost,
-  setRawCost,
   marketPrice,
   setMarketPrice,
   stockLimit,
@@ -173,60 +167,33 @@ const CreateOfferDetailsSection = ({
 
       {/* Pricing card */}
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-card-dark">
-        <h2 className="mb-1 text-base font-semibold text-slate-800 dark:text-white">
+        <h2 className="mb-4 text-base font-semibold text-slate-800 dark:text-white">
           {t('co_sectionPricing')}
         </h2>
-        <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">
-          {t('co_pricingHint')}
-        </p>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {/* Your cost - required */}
-          <div>
-            <label
-              htmlFor="offer-raw-cost"
-              className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
-            >
-              {t('co_fieldYourCost')} <span className="text-red-500" aria-hidden="true">*</span>
-            </label>
-            <input
-              id="offer-raw-cost"
-              type="number"
-              min="0.01"
-              step="0.01"
-              value={rawCost}
-              onChange={(e) => setRawCost(e.target.value)}
-              placeholder="0.00"
-              required
-              disabled={isSubmitting}
-              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-colors focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white disabled:cursor-not-allowed disabled:opacity-60"
-            />
-          </div>
-
-          {/* Market price - optional, shown to members as reference */}
-          <div>
-            <label
-              htmlFor="offer-market-price"
-              className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
-            >
-              {t('co_fieldMarketPrice')}{' '}
-              <span className="font-normal text-slate-400">{t('co_optional')}</span>
-            </label>
-            <input
-              id="offer-market-price"
-              type="number"
-              min="0.01"
-              step="0.01"
-              value={marketPrice}
-              onChange={(e) => setMarketPrice(e.target.value)}
-              placeholder="0.00"
-              disabled={isSubmitting}
-              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-colors focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white disabled:cursor-not-allowed disabled:opacity-60"
-            />
-            <p className="mt-1 text-xs text-slate-400">
-              {t('co_marketPriceHint')}
-            </p>
-          </div>
+        {/* Market price - optional, shown to members as reference */}
+        <div>
+          <label
+            htmlFor="offer-market-price"
+            className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
+          >
+            {t('co_fieldMarketPrice')}{' '}
+            <span className="font-normal text-slate-400">{t('co_optional')}</span>
+          </label>
+          <input
+            id="offer-market-price"
+            type="number"
+            min="0.01"
+            step="0.01"
+            value={marketPrice}
+            onChange={(e) => setMarketPrice(e.target.value)}
+            placeholder="0.00"
+            disabled={isSubmitting}
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-colors focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white disabled:cursor-not-allowed disabled:opacity-60"
+          />
+          <p className="mt-1 text-xs text-slate-400">
+            {t('co_marketPriceHint')}
+          </p>
         </div>
 
         {/* Stock limit - optional cap on total redemptions */}

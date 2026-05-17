@@ -2,9 +2,7 @@
  * CreateOffer page: allows tenant admins, supply managers, and platform admins
  * to publish a new offer to the NEXUS platform catalog.
  *
- * Images are uploaded to Cloudinary via the backend (raw_cost is the supplier
- * cost; nexus_price = raw_cost + 30% margin is computed server-side and must
- * never be surfaced to end members).
+ * Images are uploaded to Cloudinary via the backend.
  *
  * Route: /supply/create
  * Guards: isTenantAdmin || isPlatformAdmin (enforced in App.tsx route).
@@ -60,7 +58,6 @@ const CreateOffer = () => {
   const [executionType, setExecutionType] = useState('voucher');
 
   // ─── Pricing state ───────────────────────────────────────────────────────────
-  const [rawCost, setRawCost] = useState('');
   const [marketPrice, setMarketPrice] = useState('');
   /** Optional stock limit; empty string means unlimited. */
   const [stockLimit, setStockLimit] = useState('');
@@ -105,11 +102,6 @@ const CreateOffer = () => {
       setError(t('co_errTitleRequired'));
       return;
     }
-    const cost = Number(rawCost);
-    if (!rawCost || isNaN(cost) || cost <= 0) {
-      setError(t('co_errCostRequired'));
-      return;
-    }
     const mp = marketPrice ? Number(marketPrice) : null;
     if (marketPrice && (isNaN(mp as number) || (mp as number) <= 0)) {
       setError(t('co_errMarketPrice'));
@@ -124,7 +116,6 @@ const CreateOffer = () => {
       fd.append('title', title.trim());
       fd.append('description', description.trim());
       fd.append('category', category);
-      fd.append('raw_cost', rawCost);
       if (marketPrice && Number(marketPrice) > 0) fd.append('market_price', marketPrice);
       // Platform admins are always ecosystem; tenant supply managers can toggle.
       fd.append('visibility', isPlatformAdmin ? 'ecosystem' : visibility);
@@ -200,8 +191,6 @@ const CreateOffer = () => {
               setCategory={setCategory}
               executionType={executionType}
               setExecutionType={setExecutionType}
-              rawCost={rawCost}
-              setRawCost={setRawCost}
               marketPrice={marketPrice}
               setMarketPrice={setMarketPrice}
               stockLimit={stockLimit}
