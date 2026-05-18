@@ -10,14 +10,16 @@
  *
  * Route: /member-catalog
  */
-import { useState, useEffect } from 'react';
+import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
-import { getMemberCatalog, type CatalogItem, OFFER_CATEGORIES } from '../lib/api';
+import { getMemberCatalog, type CatalogItem, type CatalogPage, type CatalogQuery, OFFER_CATEGORIES } from '../lib/api';
 import OfferModal from '../components/catalog/OfferModal';
 import ImageLightbox from '../components/ImageLightbox';
 import RichTextDisplay from '../components/RichTextDisplay';
+import Pagination from '../components/Pagination';
+import { useCatalogList } from '../hooks/useCatalogList';
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -141,41 +143,45 @@ const MemberCatalog = () => {
   const tenantId = me?.context.tenantId ?? '';
 
   // ── Local state ───────────────────────────────────────────────────
-  const [items, setItems] = useState<CatalogItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedOffer, setSelectedOffer] = useState<CatalogItem | null>(null);
   /** URL of the image currently shown in the full-screen lightbox, or null when closed. */
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
-  // ── Load catalog on mount ─────────────────────────────────────────
-  useEffect(() => {
-    // Do not fetch when catalog is not active - no data will be returned.
-    if (!tenantId || catalogMode === 'inactive') {
-      setIsLoading(false);
-      return;
-    }
+  /**
+   * Bound fetcher for the member catalog API. The hook only refetches when its
+   * dependencies change, so wrapping with useCallback keeps the reference stable
+   * and avoids a noisy effect loop in development.
+   */
+  const fetcher = useCallback(
+    (q: CatalogQuery): Promise<CatalogPage> => getMemberCatalog(tenantId, q),
+    [tenantId],
+  );
 
-    setIsLoading(true);
-    getMemberCatalog(tenantId)
-      .then((data) => {
-        setItems(data);
-        setError(null);
-      })
-      .catch(() => {
-        setError(t('mc_errorLoad'));
-      })
-      .finally(() => setIsLoading(false));
-  }, [tenantId, catalogMode]);
+  /**
+   * Server-paginated catalog state. Search + category filters go to the
+   * backend; approval/adoption fields are ignored for member view.
+   * Disabled-effectively when the catalog is inactive: tenantId stays empty
+   * so the fetcher would return zero items - the inactive gate below shows
+   * the friendly placeholder before we even hit that path.
+   */
+  const {
+    filters,
+    setFilters,
+    page,
+    setPage,
+    items: filtered,
+    pages: catalogPages,
+    isLoading,
+    error,
+  } = useCatalogList({ fetcher });
 
-  // ── Client-side filtering ─────────────────────────────────────────
-  const filtered = items.filter((i) => {
-    const matchCat = selectedCategory === 'all' || i.category === selectedCategory;
-    const matchSearch = i.title.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchCat && matchSearch;
-  });
+  // Search and category use the same shared CatalogFilters. Map them through
+  // small handlers so the inputs feel familiar while the hook owns the state.
+  const searchQuery = filters.search;
+  const selectedCategory = filters.category === '' ? 'all' : filters.category;
+  const setSearchQuery = (v: string) => setFilters({ ...filters, search: v });
+  const setSelectedCategory = (v: string) =>
+    setFilters({ ...filters, category: v === 'all' ? '' : v });
 
   // ── Inactive gate ────────────────────────────────────────────────
   // Show a friendly placeholder when the Benefits Catalog has not yet
@@ -270,22 +276,31 @@ const MemberCatalog = () => {
       ) : filtered.length === 0 ? (
         <div className="rounded-lg border border-slate-200 bg-white p-12 text-center shadow-sm">
           <p className="text-sm text-slate-500 font-medium">
-            {items.length === 0
-              ? t('mc_emptyNoOffers')
-              : t('mc_emptyNoMatch')}
+            {/* When any filter is active the empty state means "no match",
+                otherwise the tenant simply has not adopted any offers yet. */}
+            {searchQuery || filters.category
+              ? t('mc_emptyNoMatch')
+              : t('mc_emptyNoOffers')}
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((item) => (
-            <OfferCard
-              key={item.offerId}
-              item={item}
-              onClick={() => setSelectedOffer(item)}
-              onImageClick={(url) => setLightboxUrl(url)}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filtered.map((item) => (
+              <OfferCard
+                key={item.offerId}
+                item={item}
+                onClick={() => setSelectedOffer(item)}
+                onImageClick={(url) => setLightboxUrl(url)}
+              />
+            ))}
+          </div>
+          {catalogPages > 1 && (
+            <div className="mt-6 flex justify-center">
+              <Pagination page={page} pages={catalogPages} onPageChange={setPage} />
+            </div>
+          )}
+        </>
       )}
 
       {/* Offer detail modal - mounted conditionally */}

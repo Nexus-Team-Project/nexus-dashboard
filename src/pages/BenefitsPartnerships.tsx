@@ -15,10 +15,11 @@ import {
   updateOfferApi,
   deleteOffer,
   approveOfferApi,
-  denyOfferApi,
   EXECUTION_TYPE_LABELS,
   type CatalogItem,
 } from '../lib/api';
+import { useCatalogList } from '../hooks/useCatalogList';
+import Pagination from '../components/Pagination';
 import DenyOfferModal from '../components/DenyOfferModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -30,23 +31,10 @@ import ImageLightbox from '../components/ImageLightbox';
 import EditOfferDrawer from '../components/EditOfferDrawer';
 import DeleteOfferConfirmModal from '../components/DeleteOfferConfirmModal';
 import RichTextDisplay from '../components/RichTextDisplay';
-
-interface Business {
-  id: string;
-  isActive: boolean;
-  logo: string;
-  commercialName: string;
-  officialName: string;
-  businessId: string;
-  locations: { lat: number; lng: number; address: string }[];
-  description: string;
-  openingHours: string;
-  categories: string[];
-  phone: string;
-  socialMedia: { platform: string; url: string }[];
-  rating: number;
-  reviews: { author: string; text: string; rating: number }[];
-}
+import CatalogTopBar from '../components/catalog/CatalogTopBar';
+import CatalogFilterPanel from '../components/catalog/CatalogFilterPanel';
+import FieldTooltip from '../components/FieldTooltip';
+import { countActiveCatalogFilters } from '../components/catalog/catalogFilters';
 
 interface Benefit {
   id: string;
@@ -85,8 +73,12 @@ interface Benefit {
   isSoldOut: boolean;
 }
 
-type ViewMode = 'benefits' | 'businesses';
-type DisplayMode = 'cards' | 'table';
+/**
+ * Active tab in the new Transactions/Users-style top bar.
+ * Replaces the previous `displayMode` state. The benefits/businesses split
+ * (formerly ViewMode) has been removed.
+ */
+type CatalogTab = 'cards' | 'table';
 
 // ─── Catalog item mapping helpers ────────────────────────────────────────────
 
@@ -133,16 +125,14 @@ type PendingOffer = {
 
 const BenefitsPartnerships = () => {
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [showBenefitModal, setShowBenefitModal] = useState(false);
   const [selectedBenefit, setSelectedBenefit] = useState<Benefit | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('benefits');
-  const [displayMode, setDisplayMode] = useState<DisplayMode>('cards');
+  // Cards vs Table tab. Replaces the prior displayMode state.
+  const [activeTab, setActiveTab] = useState<CatalogTab>('cards');
   const [openTagDropdown, setOpenTagDropdown] = useState<string | null>(null);
   const [openUsageTermsDropdown, setOpenUsageTermsDropdown] = useState<string | null>(null);
   const [benefitActiveStates, setBenefitActiveStates] = useState<Record<string, boolean>>({});
-  const [businessActiveStates, setBusinessActiveStates] = useState<Record<string, boolean>>({});
 
   // ─── Real catalog API state ───────────────────────────────────────────────
 
@@ -152,11 +142,32 @@ const BenefitsPartnerships = () => {
   const { t, language } = useLanguage();
   const catalogMode = me?.authorization.catalogMode ?? 'inactive';
 
-  /** Live catalog items fetched from the platform offer API. */
-  const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([]);
+  /**
+   * Owns filters + page + items + total + loading state for the catalog.
+   * Debounces search (250ms), guards against race conditions, resets page
+   * to 1 when any filter changes. See hooks/useCatalogList.ts for the contract.
+   */
+  const {
+    filters,
+    setFilters,
+    resetFilters,
+    page,
+    setPage,
+    items: catalogItems,
+    total: catalogTotal,
+    pages: catalogPages,
+    isLoading: isLoadingCatalog,
+    refresh: loadCatalog,
+  } = useCatalogList({ fetcher: getPlatformOffers });
 
-  /** True while the initial catalog load is in-flight. */
-  const [isLoadingCatalog, setIsLoadingCatalog] = useState(true);
+  // Mirror server adoption state into the toggle state map whenever the
+  // current page changes. (Optimistic toggles in handleToggleAdopt update
+  // this map directly.)
+  useEffect(() => {
+    const next: Record<string, boolean> = {};
+    catalogItems.forEach((item) => { next[item.offerId] = item.isAdopted; });
+    setBenefitActiveStates((prev) => ({ ...prev, ...next }));
+  }, [catalogItems]);
 
   /** offerId of a benefit whose adoption toggle is currently being saved. */
   const [adoptingId, setAdoptingId] = useState<string | null>(null);
@@ -189,33 +200,6 @@ const BenefitsPartnerships = () => {
   const [savingId, setSavingId] = useState<string | null>(null);
 
   /**
-   * Fetches platform offers and syncs adoption states into benefitActiveStates.
-   * Falls back silently so the existing mock UI remains visible on errors.
-   */
-  const loadCatalog = async () => {
-    setIsLoadingCatalog(true);
-    try {
-      const items = await getPlatformOffers();
-      setCatalogItems(items);
-      // Mirror server adoption state into the toggle state map.
-      const adoptedStates: Record<string, boolean> = {};
-      items.forEach(item => {
-        adoptedStates[item.offerId] = item.isAdopted;
-      });
-      setBenefitActiveStates(adoptedStates);
-    } catch {
-      // Silent fallback - mock data still populates filteredBenefits below.
-    } finally {
-      setIsLoadingCatalog(false);
-    }
-  };
-
-  useEffect(() => {
-    void loadCatalog();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  /**
    * Toggles adopt/unadopt for a catalog offer via the backend API.
    * Uses optimistic updates: flips UI immediately and reverts on error.
    * Input: offerId - the offer to toggle; currentlyAdopted - its current server state.
@@ -245,14 +229,11 @@ const BenefitsPartnerships = () => {
         return;
       }
     }
-    // Flip UI immediately - do not wait for the server round-trip.
-    setBenefitActiveStates(prev => ({ ...prev, [offerId]: !currentlyAdopted }));
-    setCatalogItems(prev =>
-      prev.map(item => item.offerId === offerId
-        ? { ...item, isAdopted: !currentlyAdopted }
-        : item
-      )
-    );
+    // Optimistic UI: flip the local toggle map immediately. The cards/table
+    // read from benefitActiveStates so the badge updates without waiting for
+    // the server. On error we revert + force a re-fetch to make sure the
+    // visible state matches the server.
+    setBenefitActiveStates((prev) => ({ ...prev, [offerId]: !currentlyAdopted }));
     setAdoptingId(offerId);
     try {
       if (currentlyAdopted) {
@@ -260,15 +241,12 @@ const BenefitsPartnerships = () => {
       } else {
         await adoptOffer(offerId);
       }
+      // Refresh the current page so isAdopted on the item matches the server.
+      await loadCatalog();
     } catch {
-      // Revert on error to keep UI consistent with server state.
-      setBenefitActiveStates(prev => ({ ...prev, [offerId]: currentlyAdopted }));
-      setCatalogItems(prev =>
-        prev.map(item => item.offerId === offerId
-          ? { ...item, isAdopted: currentlyAdopted }
-          : item
-        )
-      );
+      setBenefitActiveStates((prev) => ({ ...prev, [offerId]: currentlyAdopted }));
+      // Best-effort re-sync.
+      await loadCatalog();
     } finally {
       setAdoptingId(null);
     }
@@ -442,12 +420,6 @@ const BenefitsPartnerships = () => {
       benefitStates[benefit.id] = benefit.isActive;
     });
     setBenefitActiveStates(benefitStates);
-
-    const businessStates: Record<string, boolean> = {};
-    businesses.forEach(business => {
-      businessStates[business.id] = business.isActive;
-    });
-    setBusinessActiveStates(businessStates);
   }, []);
 
   // Toggle handlers
@@ -455,13 +427,6 @@ const BenefitsPartnerships = () => {
     setBenefitActiveStates(prev => ({
       ...prev,
       [benefitId]: !prev[benefitId]
-    }));
-  };
-
-  const toggleBusinessActive = (businessId: string) => {
-    setBusinessActiveStates(prev => ({
-      ...prev,
-      [businessId]: !prev[businessId]
     }));
   };
 
@@ -491,42 +456,6 @@ const BenefitsPartnerships = () => {
     { id: 'financial', label: 'פיננסי', icon: 'account_balance' },
     { id: 'home_living', label: 'בית ומגורים', icon: 'home' },
     { id: 'other', label: 'אחר', icon: 'category' },
-  ];
-
-  // Mock businesses data
-  const businesses: Business[] = [
-    {
-      id: 'b1',
-      isActive: true,
-      logo: '🍔',
-      commercialName: 'Wolt',
-      officialName: 'Wolt Israel Ltd.',
-      businessId: '515123456',
-      locations: [{ lat: 32.0853, lng: 34.7818, address: 'תל אביב, רחוב רוטשילד 1' }],
-      description: 'משלוחי אוכל מהירים',
-      openingHours: '24/7',
-      categories: ['food'],
-      phone: '03-1234567',
-      socialMedia: [{ platform: 'facebook', url: 'https://facebook.com/wolt' }],
-      rating: 4.5,
-      reviews: [{ author: 'יוסי כהן', text: 'שירות מעולה', rating: 5 }],
-    },
-    {
-      id: 'b2',
-      isActive: true,
-      logo: '📦',
-      commercialName: 'Amazon',
-      officialName: 'Amazon Israel',
-      businessId: '520987654',
-      locations: [{ lat: 32.0853, lng: 34.7818, address: 'רעננה, פארק תעשייה' }],
-      description: 'קניות און-ליין',
-      openingHours: 'אתר 24/7',
-      categories: ['shopping'],
-      phone: '1-800-AMAZON',
-      socialMedia: [{ platform: 'facebook', url: 'https://facebook.com/amazon' }],
-      rating: 4.8,
-      reviews: [],
-    },
   ];
 
   // Mock benefits data
@@ -638,18 +567,26 @@ const BenefitsPartnerships = () => {
     tags: item.tags ?? [],
   }));
 
-  // When service is inactive, show empty state (not mock data).
-  // When service is active but no offers exist yet, also show empty state.
-  const activeBenefits = catalogItems.length > 0 ? catalogAsBenefits : [];
+  // Server-side filtering means catalogAsBenefits IS the filtered set. Featured
+  // / regular split is kept for the card layout (mock data is no longer mixed in).
+  const filteredBenefits = catalogAsBenefits;
+  const activeFilterCount = countActiveCatalogFilters(filters);
 
-  const filteredBenefits = activeBenefits.filter((benefit) => {
-    const matchesSearch =
-      benefit.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      benefit.businessName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      benefit.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || benefit.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  /**
+   * Grid breakpoints for the cards view. When the filter aside is open it
+   * eats ~380px of the content column on lg+ screens, so a 3-column grid at
+   * lg becomes too tight (~200px per card). Shift the third-column breakpoint
+   * up to xl whenever the aside is open. Keeps cards readable in both states.
+   */
+  const cardsGridCols = isFilterPanelOpen
+    ? 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3'
+    : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
+
+  // Localized category options for the filter panel (drops the 'all' entry —
+  // CatalogFilterPanel renders its own All chip per field group).
+  const filterCategoryOptions = categories
+    .filter((c) => c.id !== 'all')
+    .map((c) => ({ value: c.id, label: c.label }));
 
   const featuredBenefits = filteredBenefits.filter((b) => b.featured);
   const regularBenefits = filteredBenefits.filter((b) => !b.featured);
@@ -769,195 +706,142 @@ const BenefitsPartnerships = () => {
             <h1 className="text-4xl md:text-6xl font-bold text-slate-900 dark:text-white mb-6 leading-tight tracking-tight">
               הטבות ושיתופי פעולה עם המותגים האהובים עליכם
             </h1>
-            <p className="text-lg text-slate-500 dark:text-slate-400 mb-10 leading-relaxed">
+            <p className="text-lg text-slate-500 dark:text-slate-400 leading-relaxed">
               גלו הנחות בלעדיות, קאשבק ותגמולים מיוחדים כשאתם קונים דרך Nexus
             </p>
-
-            {/* Search Bar */}
-            <div className="relative max-w-2xl mx-auto">
-              <span className="material-icons absolute right-5 top-1/2 -translate-y-1/2 text-slate-400">
-                search
-              </span>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pr-14 pl-6 py-5 rounded-full border-2 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:border-black dark:focus:border-white focus:ring-0 transition-all text-lg outline-none"
-                placeholder="חיפוש עסקים והטבות..."
-              />
-            </div>
+            {/* Search bar removed - search now lives in the top bar / filter panel. */}
           </div>
         </section>
 
-        {/* Filters Section */}
-        <section className="py-8 border-t border-slate-200 dark:border-slate-800 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex flex-wrap items-center gap-3">
-            {categories.map((category) => (
-              <div key={category.id} className="group relative">
-                <button
-                  onClick={() => setSelectedCategory(category.id)}
-                  className={`px-5 py-2.5 rounded-full border transition-all text-sm font-medium flex items-center gap-2 ${
-                    selectedCategory === category.id
-                      ? 'border-black dark:border-white bg-black dark:bg-white text-white dark:text-black'
-                      : 'border-slate-200 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-600'
-                  }`}
-                >
-                  {category.id === 'all' && <span className="material-icons text-sm">{category.icon}</span>}
-                  {category.label}
-                  {category.id === 'all' && selectedCategory === 'all' && (
-                    <span className="material-icons text-sm">expand_more</span>
-                  )}
-                </button>
-                <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-black dark:bg-white text-white dark:text-black text-xs font-medium px-3 py-1.5 rounded-lg whitespace-nowrap shadow-lg pointer-events-none z-50">
-                  סנן לפי {category.label}
-                </div>
-              </div>
-            ))}
+        {/* Layout: content + inline filter aside. Mirrors Transactions/Users
+            but docks the panel on the side opposite the reading direction:
+            English (LTR) -> panel on LEFT, Hebrew (RTL) -> panel on RIGHT.
+            `lg:flex-row-reverse` puts DOM child #2 (the aside) at the visual
+            start of the main axis, which flips automatically with the page
+            direction. The page does not dim; cards/table simply reflow. */}
+        <div className="flex flex-col lg:flex-row-reverse gap-8 pt-6 border-t border-slate-200 dark:border-slate-800">
+          <div className="flex-1 min-w-0">
 
-            {/* View Mode Toggle */}
-            <div className="h-8 w-px bg-slate-200 dark:bg-slate-800 mx-2"></div>
-            <div className="group relative">
-              <button
-                onClick={() => setViewMode('benefits')}
-                className={`px-5 py-2.5 rounded-full border transition-all text-sm font-medium ${
-                  viewMode === 'benefits'
-                    ? 'border-black dark:border-white bg-black dark:bg-white text-white dark:text-black'
-                    : 'border-slate-200 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-600'
-                }`}
-              >
-                טבלת הטבות
-              </button>
-              <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-black dark:bg-white text-white dark:text-black text-xs font-medium px-3 py-1.5 rounded-lg whitespace-nowrap shadow-lg pointer-events-none z-50">
-                נהל הטבות לבתי עסק
-              </div>
-            </div>
-            <div className="group relative">
-              <button
-                onClick={() => setViewMode('businesses')}
-                className={`px-5 py-2.5 rounded-full border transition-all text-sm font-medium ${
-                  viewMode === 'businesses'
-                    ? 'border-black dark:border-white bg-black dark:bg-white text-white dark:text-black'
-                    : 'border-slate-200 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-600'
-                }`}
-              >
-                טבלת בתי עסק
-              </button>
-              <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-black dark:bg-white text-white dark:text-black text-xs font-medium px-3 py-1.5 rounded-lg whitespace-nowrap shadow-lg pointer-events-none z-50">
-                נהל בתי עסק
-              </div>
-            </div>
-
-            {/* Display Mode Toggle */}
-            <div className="h-8 w-px bg-slate-200 dark:bg-slate-800 mx-2"></div>
-            <div className="group relative">
-              <button
-                onClick={() => setDisplayMode('cards')}
-                className={`p-2.5 rounded-full border transition-all ${
-                  displayMode === 'cards'
-                    ? 'border-black dark:border-white bg-black dark:bg-white text-white dark:text-black'
-                    : 'border-slate-200 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-600'
-                }`}
-              >
-                <span className="material-icons text-lg">grid_view</span>
-              </button>
-              <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-black dark:bg-white text-white dark:text-black text-xs font-medium px-3 py-1.5 rounded-lg whitespace-nowrap shadow-lg pointer-events-none z-50">
-                תצוגת כרטיסיות
-              </div>
-            </div>
-            <div className="group relative">
-              <button
-                onClick={() => setDisplayMode('table')}
-                className={`p-2.5 rounded-full border transition-all ${
-                  displayMode === 'table'
-                    ? 'border-black dark:border-white bg-black dark:bg-white text-white dark:text-black'
-                    : 'border-slate-200 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-600'
-                }`}
-              >
-                <span className="material-icons text-lg">view_list</span>
-              </button>
-              <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-black dark:bg-white text-white dark:text-black text-xs font-medium px-3 py-1.5 rounded-lg whitespace-nowrap shadow-lg pointer-events-none z-50">
-                תצוגת טבלה
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-slate-500 font-medium">
-              {viewMode === 'benefits' ? `מציג ${filteredBenefits.length}+ הטבות` : `מציג ${businesses.length}+ בתי עסק`}
-            </span>
-            {/* Create offer button — shown to platform admins and tenants with an active catalog */}
-            {(isPlatformAdmin || catalogMode !== 'inactive') && (
-              <a
-                href="/supply/create"
-                className="inline-flex items-center gap-1 whitespace-nowrap px-4 py-2 rounded-full border border-primary text-primary text-sm font-medium hover:bg-primary hover:text-white transition-colors"
-              >
-                <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                  <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
-                </svg>
-                {language === 'he' ? 'צור הצעה' : 'Create offer'}
-              </a>
-            )}
-          </div>
+        {/* Top bar - Transactions/Users-style tabs + toolbar.
+            Replaces the prior category-button row + benefits/businesses toggle +
+            display-mode icons + results count + Create-Offer block. */}
+        <section className="pb-6">
+          <CatalogTopBar
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            searchValue={filters.search}
+            onSearchChange={(v) => setFilters({ ...filters, search: v })}
+            activeFilterCount={activeFilterCount}
+            onOpenFilters={() => setIsFilterPanelOpen(true)}
+            resultsCount={catalogTotal}
+            showCreateOffer={isPlatformAdmin || catalogMode !== 'inactive'}
+            onCreateOffer={() => navigate('/supply/create')}
+          />
         </section>
 
-        {/* Admin Table View */}
-        {displayMode === 'table' && (
-          <section className="py-12">
-            <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl overflow-hidden">
-              <div className="overflow-x-auto">
-                {/* Benefits Table */}
-                {viewMode === 'benefits' && (
-                  <table className="w-full min-w-max">
-                    <thead className="bg-slate-50 dark:bg-slate-800/50 border-b-2 border-slate-200 dark:border-slate-700">
+        {/* Admin Table View - shown when the Table tab is active. */}
+        {activeTab === 'table' && (
+          <section className="py-8">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden">
+              <div className="overflow-x-auto custom-scrollbar">
+                {/* Benefits table (the businesses table view was removed in the redesign). */}
+                <table className="w-full min-w-max">
+                    <thead className="bg-violet-50 dark:bg-slate-800 border-b-2 border-violet-200/60 dark:border-slate-700">
                       <tr>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider sticky right-0 bg-slate-50 dark:bg-slate-800/50 z-10">
-                          סטטוס
+                        <th className="px-4 py-3 text-right text-xs font-bold text-primary/70 dark:text-slate-400 uppercase tracking-wider sticky right-0 bg-violet-50 dark:bg-slate-800 z-10">
+                          <span className="inline-flex items-center">
+                            סטטוס
+                            <FieldTooltip fieldKey="bpcStatus" placement="bottom" />
+                          </span>
                         </th>
                         <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                          לוגו
+                          <span className="inline-flex items-center">
+                            לוגו
+                            <FieldTooltip fieldKey="bpcLogo" placement="bottom" />
+                          </span>
                         </th>
                         <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                          תמונת רקע
+                          <span className="inline-flex items-center">
+                            תמונת רקע
+                            <FieldTooltip fieldKey="bpcBackgroundImage" placement="bottom" />
+                          </span>
                         </th>
                         <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider bg-violet-50 dark:bg-violet-900/20">
-                          שם בית העסק
+                          <span className="inline-flex items-center">
+                            שם בית העסק
+                            <FieldTooltip fieldKey="bpcBusinessName" placement="bottom" />
+                          </span>
                           <span className="block text-[10px] font-normal text-slate-500 mt-0.5">קריאה בלבד</span>
                         </th>
                         <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider bg-violet-50 dark:bg-violet-900/20">
-                          אופן מימוש
+                          <span className="inline-flex items-center">
+                            אופן מימוש
+                            <FieldTooltip fieldKey="executionType" placement="bottom" />
+                          </span>
                           <span className="block text-[10px] font-normal text-slate-500 mt-0.5">קריאה בלבד</span>
                         </th>
                         <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                          סוג הטבה
+                          <span className="inline-flex items-center">
+                            סוג הטבה
+                            <FieldTooltip fieldKey="bpcBenefitType" placement="bottom" />
+                          </span>
                         </th>
                         <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                          תנאי שימוש
+                          <span className="inline-flex items-center">
+                            תנאי שימוש
+                            <FieldTooltip fieldKey="bpcUsageTerms" placement="bottom" />
+                          </span>
                         </th>
                         <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                          תאריך סיום
+                          <span className="inline-flex items-center">
+                            תאריך סיום
+                            <FieldTooltip fieldKey="validUntil" placement="bottom" />
+                          </span>
                         </th>
                         <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                          לינק למימוש
+                          <span className="inline-flex items-center">
+                            לינק למימוש
+                            <FieldTooltip fieldKey="implementationLink" placement="bottom" />
+                          </span>
                         </th>
                         <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider bg-violet-50 dark:bg-violet-900/20">
-                          הנחיות מימוש
+                          <span className="inline-flex items-center">
+                            הנחיות מימוש
+                            <FieldTooltip fieldKey="implementationInstructions" placement="bottom" />
+                          </span>
                           <span className="block text-[10px] font-normal text-slate-500 mt-0.5">קריאה בלבד</span>
                         </th>
                         <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider bg-violet-50 dark:bg-violet-900/20">
-                          תקנון
+                          <span className="inline-flex items-center">
+                            תקנון
+                            <FieldTooltip fieldKey="terms" placement="bottom" />
+                          </span>
                           <span className="block text-[10px] font-normal text-slate-500 mt-0.5">קריאה בלבד</span>
                         </th>
                         <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider bg-green-50 dark:bg-green-900/20">
-                          תיאור
+                          <span className="inline-flex items-center">
+                            תיאור
+                            <FieldTooltip fieldKey="description" placement="bottom" />
+                          </span>
                           <span className="block text-[10px] font-normal text-emerald-600 dark:text-emerald-400 mt-0.5">ניתן לעריכה</span>
                         </th>
                         <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                          קטגוריות
+                          <span className="inline-flex items-center">
+                            קטגוריות
+                            <FieldTooltip fieldKey="category" placement="bottom" />
+                          </span>
                         </th>
                         <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                          תג
+                          <span className="inline-flex items-center">
+                            תג
+                            <FieldTooltip fieldKey="tags" placement="bottom" />
+                          </span>
                         </th>
                         <th className="px-4 py-3 text-center text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                          פעולות
+                          <span className="inline-flex items-center">
+                            פעולות
+                            <FieldTooltip fieldKey="bpcActions" placement="bottom" />
+                          </span>
                         </th>
                       </tr>
                     </thead>
@@ -1419,168 +1303,18 @@ const BenefitsPartnerships = () => {
                       })(/* end outer IIFE */)}
                     </tbody>
                   </table>
-                )}
 
-                {/* Businesses Table */}
-                {viewMode === 'businesses' && (
-                  <table className="w-full min-w-max">
-                    <thead className="bg-slate-50 dark:bg-slate-800/50 border-b-2 border-slate-200 dark:border-slate-700">
-                      <tr>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider sticky right-0 bg-slate-50 dark:bg-slate-800/50 z-10">
-                          סטטוס
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                          לוגו
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                          שם מסחרי
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                          שם רשמי
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                          ח.פ / עוסק
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                          מיקומים
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                          תיאור
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                          שעות פתיחה
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                          קטגוריות
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                          טלפון
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                          רשתות חברתיות
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                          דירוג
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                          ביקורות
-                        </th>
-                        <th className="px-4 py-3 text-center text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                          פעולות
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {businesses.map((business) => (
-                        <tr key={business.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                          <td className="px-4 py-4 sticky right-0 bg-white dark:bg-slate-900 z-10">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleBusinessActive(business.id);
-                              }}
-                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all hover:ring-2 hover:ring-cyan-400 hover:ring-offset-1 ${
-                                businessActiveStates[business.id]
-                                  ? 'bg-emerald-500'
-                                  : 'bg-slate-300 dark:bg-slate-600'
-                              }`}
-                            >
-                              <span
-                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                  businessActiveStates[business.id] ? '-translate-x-1' : '-translate-x-5'
-                                }`}
-                              />
-                            </button>
-                          </td>
-                          <td className="px-4 py-4">
-                            <div className="w-12 h-12 rounded-lg bg-slate-100 dark:bg-slate-800 p-2 flex items-center justify-center border border-slate-200 dark:border-slate-700 text-2xl">
-                              {business.logo}
-                            </div>
-                          </td>
-                          <td className="px-4 py-4">
-                            <span className="text-sm font-semibold text-slate-900 dark:text-white">{business.commercialName}</span>
-                          </td>
-                          <td className="px-4 py-4">
-                            <span className="text-sm text-slate-600 dark:text-slate-400">{business.officialName}</span>
-                          </td>
-                          <td className="px-4 py-4">
-                            <span className="text-sm text-slate-700 dark:text-slate-300 font-mono">{business.businessId}</span>
-                          </td>
-                          <td className="px-4 py-4">
-                            <button className="flex items-center gap-1 text-sm text-violet-600 dark:text-violet-400 hover:underline">
-                              <span className="material-icons text-sm">location_on</span>
-                              {business.locations.length} סניפים
-                            </button>
-                          </td>
-                          <td className="px-4 py-4">
-                            <p className="text-sm text-slate-700 dark:text-slate-300 max-w-xs truncate">{business.description}</p>
-                          </td>
-                          <td className="px-4 py-4">
-                            <span className="text-sm text-slate-600 dark:text-slate-400">{business.openingHours}</span>
-                          </td>
-                          <td className="px-4 py-4">
-                            <div className="flex flex-wrap gap-1 max-w-xs">
-                              {business.categories.map((cat, idx) => (
-                                <span key={idx} className={`text-xs px-2 py-1 rounded-full ${getCategoryColor(cat)}`}>
-                                  {categories.find(c => c.id === cat)?.label}
-                                </span>
-                              ))}
-                            </div>
-                          </td>
-                          <td className="px-4 py-4">
-                            <a href={`tel:${business.phone}`} className="text-sm text-violet-600 dark:text-violet-400 hover:underline">
-                              {business.phone}
-                            </a>
-                          </td>
-                          <td className="px-4 py-4">
-                            <div className="flex gap-1">
-                              {business.socialMedia.map((social, idx) => (
-                                <a key={idx} href={social.url} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors">
-                                  <span className="material-icons text-sm text-slate-600 dark:text-slate-400">{social.platform}</span>
-                                </a>
-                              ))}
-                            </div>
-                          </td>
-                          <td className="px-4 py-4">
-                            <div className="flex items-center gap-1">
-                              <span className="material-icons text-sm text-yellow-500">star</span>
-                              <span className="text-sm font-semibold text-slate-900 dark:text-white">{business.rating}</span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-4">
-                            <button className="text-sm text-violet-600 dark:text-violet-400 hover:underline">
-                              {business.reviews.length} ביקורות
-                            </button>
-                          </td>
-                          <td className="px-4 py-4 text-center">
-                            <div className="relative">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(`/benefits-partnerships/edit-business/${business.id}`);
-                                }}
-                                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                              >
-                                <span className="material-icons text-lg text-slate-600 dark:text-slate-400">more_vert</span>
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
+                {/* Businesses-table branch removed in the redesign. */}
               </div>
 
-              {/* Empty State */}
-              {((viewMode === 'businesses' && businesses.length === 0) ||
-                (viewMode === 'benefits' && filteredBenefits.length === 0)) && (
+              {/* Empty state - shown when the filtered set is empty in Table view. */}
+              {filteredBenefits.length === 0 && (
                 <div className="py-20 text-center">
                   <span className="material-icons text-slate-300 dark:text-slate-600 text-6xl mb-4">
                     search_off
                   </span>
                   <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
-                    {viewMode === 'businesses' ? 'לא נמצאו בתי עסק' : 'לא נמצאו הטבות'}
+                    {t('bp_emptyFiltered')}
                   </h3>
                   <p className="text-slate-500 dark:text-slate-400">נסה לשנות את החיפוש או הסינון</p>
                 </div>
@@ -1589,66 +1323,20 @@ const BenefitsPartnerships = () => {
           </section>
         )}
 
-        {/* Businesses View */}
-        {displayMode === 'cards' && viewMode === 'businesses' && businesses.length > 0 && (
-          <section className="py-12 space-y-8">
-            {/* All Businesses - Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {businesses.map((business) => (
-                <div
-                  key={business.id}
-                  className="p-6 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition-colors"
-                >
-                  <div className="flex items-center gap-4 mb-6">
-                    <div className="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-800 p-2.5 flex items-center justify-center border border-slate-100 dark:border-slate-700 text-2xl">
-                      {business.logo}
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-bold">{business.commercialName}</h3>
-                      <p className="text-xs text-slate-500">{business.officialName}</p>
-                    </div>
-                  </div>
-                  <div className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
-                    <p className="flex items-center gap-2">
-                      <span className="material-icons text-sm">location_on</span>
-                      {business.locations.length} סניפים
-                    </p>
-                    <p className="flex items-center gap-2">
-                      <span className="material-icons text-sm">phone</span>
-                      {business.phone}
-                    </p>
-                    <p className="flex items-center gap-2">
-                      <span className="material-icons text-sm">schedule</span>
-                      {business.openingHours}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-1 mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
-                    {business.categories.map((cat, idx) => (
-                      <span key={idx} className={`text-xs px-2 py-1 rounded-full ${getCategoryColor(cat)}`}>
-                        {categories.find(c => c.id === cat)?.label}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Benefits View */}
-        {displayMode === 'cards' && viewMode === 'benefits' && (
+        {/* Benefits View - cards grid; shown when the Cards tab is active. */}
+        {activeTab === 'cards' && (
           <section className="py-12 space-y-8">
             {/* Skeleton while initial catalog load is in-flight */}
             {isLoadingCatalog && (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className={cn('grid gap-4', cardsGridCols)}>
                 {Array.from({ length: 6 }).map((_, i) => (
                   <div key={i} className="animate-pulse rounded-2xl border border-slate-200 bg-white h-48" />
                 ))}
               </div>
             )}
 
-            {/* Empty state - shown when loaded but no offers available */}
-            {!isLoadingCatalog && filteredBenefits.length === 0 && viewMode === 'benefits' && (
+            {/* Empty state - shown when loaded but no offers match the current filters. */}
+            {!isLoadingCatalog && filteredBenefits.length === 0 && (
               <div className="flex flex-col items-center justify-center py-20 text-center">
                 <p className="text-slate-500 text-sm font-medium">
                   {catalogMode === 'inactive'
@@ -1660,7 +1348,7 @@ const BenefitsPartnerships = () => {
 
             {/* Featured Benefits */}
             {!isLoadingCatalog && featuredBenefits.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className={cn('grid gap-6', cardsGridCols)}>
                 {featuredBenefits.map((benefit) => {
                   // Look up the original CatalogItem to access execution type and stock fields.
                   const catalogItem = catalogItems.find(c => c.offerId === benefit.id);
@@ -1778,7 +1466,7 @@ const BenefitsPartnerships = () => {
 
             {/* Regular Benefits */}
             {!isLoadingCatalog && regularBenefits.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className={cn('grid gap-6', cardsGridCols)}>
                 {regularBenefits.map((benefit) => {
                   // Look up the original CatalogItem to access execution type and stock fields.
                   const catalogItem = catalogItems.find(c => c.offerId === benefit.id);
@@ -1913,28 +1601,28 @@ const BenefitsPartnerships = () => {
           </section>
         )}
 
-        {/* Empty State for Cards */}
-        {displayMode === 'cards' && ((viewMode === 'benefits' && filteredBenefits.length === 0) ||
-          (viewMode === 'businesses' && businesses.length === 0)) && (
-          <div className="py-20 text-center">
-            <span className="material-icons text-slate-300 dark:text-slate-600 text-6xl mb-4">
-              search_off
-            </span>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
-              {viewMode === 'businesses' ? 'לא נמצאו עסקים' : 'לא נמצאו הטבות'}
-            </h3>
-            <p className="text-slate-500 dark:text-slate-400">נסה לשנות את החיפוש או הסינון</p>
-          </div>
-        )}
-
-        {/* Load More Button */}
-        {displayMode === 'cards' && filteredBenefits.length > 0 && (
-          <section className="py-16 text-center">
-            <button className="px-10 py-4 rounded-full border-2 border-slate-200 dark:border-slate-800 font-semibold hover:border-black dark:hover:border-white transition-all">
-              טען עוד {viewMode === 'businesses' ? 'עסקים' : 'הטבות'}
-            </button>
+        {/* Pagination - rendered below either cards or table when there are
+            multiple pages of results. Hidden when everything fits on page 1. */}
+        {catalogPages > 1 && (
+          <section className="py-6 flex justify-center">
+            <Pagination page={page} pages={catalogPages} onPageChange={setPage} />
           </section>
         )}
+
+          </div>{/* /flex-1 content column */}
+
+          {/* Filter aside - docks beside the content column. Hidden on mobile
+              (lg:) until opened; full-width on small screens when shown. */}
+          <CatalogFilterPanel
+            isOpen={isFilterPanelOpen}
+            onClose={() => setIsFilterPanelOpen(false)}
+            filters={filters}
+            onChange={setFilters}
+            onClear={resetFilters}
+            categoryOptions={filterCategoryOptions}
+            resultsCount={catalogTotal}
+          />
+        </div>{/* /flex container */}
       </main>
 
       {/* Benefit Details Modal */}
@@ -2118,6 +1806,9 @@ const BenefitsPartnerships = () => {
           }}
         />
       )}
+
+      {/* Filter aside is now mounted inline beside the content (see the
+          flex container above). No portal mount here. */}
     </div>
   );
 };

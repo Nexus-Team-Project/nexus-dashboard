@@ -839,40 +839,74 @@ export const OFFER_CATEGORIES = [
 ] as const;
 
 /**
- * Fetches all platform offers with per-tenant adoption status (admin view).
- * Matches GET /api/v1/offers/platform.
- * Input: optional category filter string; pass 'all' or omit to fetch all.
- * Output: array of CatalogItem with isAdopted flag set for the calling tenant.
+ * Server-side catalog query parameters. Mirrors the backend Zod schema in
+ * offers.routes.ts. Empty / undefined fields mean "no constraint".
  */
-export async function getPlatformOffers(category?: string): Promise<CatalogItem[]> {
-  const params = category && category !== 'all'
-    ? `?category=${encodeURIComponent(category)}`
-    : '';
-  const data = await request<{ items: CatalogItem[] }>(
-    'GET',
-    `/api/v1/offers/platform${params}`,
-  );
-  return data.items;
+export interface CatalogQuery {
+  page: number;
+  limit: number;
+  search?: string;
+  category?: string;
+  approvalStatus?: 'active' | 'pending_approval' | 'denied' | 'expired';
+  adoptionStatus?: 'adopted' | 'not_adopted';
+}
+
+/** Paginated response envelope returned by both catalog endpoints. */
+export interface CatalogPage {
+  items: CatalogItem[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
 }
 
 /**
- * Fetches the adopted offers for a tenant's member-facing catalog.
+ * Builds a URL query string from a CatalogQuery, dropping empty / undefined
+ * fields so the server sees only the filters the caller actually set.
+ * Numbers are stringified; enums and the search string are URI-encoded.
+ */
+function catalogQueryToParams(q: CatalogQuery): string {
+  const u = new URLSearchParams();
+  u.set('page', String(q.page));
+  u.set('limit', String(q.limit));
+  if (q.search && q.search.trim()) u.set('search', q.search.trim());
+  if (q.category) u.set('category', q.category);
+  if (q.approvalStatus) u.set('approvalStatus', q.approvalStatus);
+  if (q.adoptionStatus) u.set('adoptionStatus', q.adoptionStatus);
+  return u.toString();
+}
+
+/**
+ * Fetches one page of platform offers with per-tenant adoption status (admin view).
+ * Matches GET /api/v1/offers/platform.
+ * Input: CatalogQuery - page + filters.
+ * Output: CatalogPage with items + pagination metadata.
+ */
+export async function getPlatformOffers(query: CatalogQuery): Promise<CatalogPage> {
+  const data = await request<CatalogPage>(
+    'GET',
+    `/api/v1/offers/platform?${catalogQueryToParams(query)}`,
+  );
+  return data;
+}
+
+/**
+ * Fetches one page of adopted offers for a tenant's member-facing catalog.
  * Matches GET /api/v1/offers/:tenantId.
- * Input: tenantId - the tenant whose catalog to fetch; optional category filter.
- * Output: array of CatalogItem adopted by that tenant.
+ * Input: tenantId + CatalogQuery (member view honours only page/limit/search/category).
+ * Output: CatalogPage with items + pagination metadata.
  */
 export async function getMemberCatalog(
   tenantId: string,
-  category?: string,
-): Promise<CatalogItem[]> {
-  const params = category && category !== 'all'
-    ? `?category=${encodeURIComponent(category)}`
-    : '';
-  const data = await request<{ offers: CatalogItem[] }>(
+  query: CatalogQuery,
+): Promise<CatalogPage> {
+  const data = await request<CatalogPage>(
     'GET',
-    `/api/v1/offers/${encodeURIComponent(tenantId)}${params}`,
+    `/api/v1/offers/${encodeURIComponent(tenantId)}?${catalogQueryToParams(query)}`,
   );
-  return data.offers;
+  return data;
 }
 
 /**

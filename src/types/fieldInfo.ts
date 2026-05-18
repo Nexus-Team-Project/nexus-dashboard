@@ -22,4 +22,17 @@ export type FieldInfoKey =
   | 'tags'
   | 'faceValue'
   | 'nexusCost'
-  | 'memberPrice';
+  | 'memberPrice'
+  // BenefitsPartnerships page - tab tooltips
+  | 'tabCards'
+  | 'tabTable'
+  // BenefitsPartnerships page - table column tooltips (columns that have no
+  // matching CreateOffer field reuse the keys above; only the columns that
+  // are admin-table specific need new keys).
+  | 'bpcStatus'
+  | 'bpcLogo'
+  | 'bpcBackgroundImage'
+  | 'bpcBusinessName'
+  | 'bpcBenefitType'
+  | 'bpcUsageTerms'
+  | 'bpcActions';
