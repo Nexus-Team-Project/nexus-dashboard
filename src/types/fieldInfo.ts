@@ -16,6 +16,7 @@ export type FieldInfoKey =
   | 'visibility'
   | 'implementationLink'
   | 'implementationInstructions'
+  | 'validFrom'
   | 'validUntil'
   | 'terms'
   | 'tags'

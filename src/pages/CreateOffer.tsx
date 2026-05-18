@@ -93,6 +93,8 @@ const CreateOffer = () => {
   const [implementationLink, setImplementationLink] = useState('');
   /** Step-by-step instructions shown to members after redemption (optional). */
   const [implementationInstructions, setImplementationInstructions] = useState('');
+  /** ISO date string for when the offer first becomes visible to members (optional). */
+  const [validFrom, setValidFrom] = useState('');
   /** ISO date string for when the offer expires (optional). */
   const [validUntil, setValidUntil] = useState('');
   /** Terms and conditions text shown to members (optional). */
@@ -124,6 +126,14 @@ const CreateOffer = () => {
     const mp = marketPrice ? Number(marketPrice) : null;
     if (marketPrice && (isNaN(mp as number) || (mp as number) <= 0)) {
       setError(t('co_errMarketPrice'));
+      return;
+    }
+    // Client-side mirror of the backend validFrom < validUntil rule.
+    // Backend still enforces it; this just gives faster feedback to the user.
+    if (validFrom && validUntil && new Date(validFrom) >= new Date(validUntil)) {
+      setError(language === 'he'
+        ? 'תאריך ההשקה חייב להיות לפני תאריך התפוגה'
+        : 'Launch date must be before the expiry date');
       return;
     }
 
@@ -171,6 +181,7 @@ const CreateOffer = () => {
       // Append optional redemption detail fields when provided.
       if (implementationLink.trim()) fd.append('implementationLink', implementationLink.trim());
       if (implementationInstructions.trim()) fd.append('implementationInstructions', implementationInstructions.trim());
+      if (validFrom) fd.append('validFrom', validFrom);
       if (validUntil) fd.append('validUntil', validUntil);
       if (terms.trim()) fd.append('terms', terms.trim());
       if (tags.length > 0) fd.append('tags', JSON.stringify(tags));
@@ -255,6 +266,8 @@ const CreateOffer = () => {
               setImplementationLink={setImplementationLink}
               implementationInstructions={implementationInstructions}
               setImplementationInstructions={setImplementationInstructions}
+              validFrom={validFrom}
+              setValidFrom={setValidFrom}
               validUntil={validUntil}
               setValidUntil={setValidUntil}
               terms={terms}

@@ -87,6 +87,7 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
   const [implementationInstructions, setInstructions] = useState(offer.implementationInstructions ?? '');
   const [terms, setTerms]                             = useState(offer.terms ?? '');
   const [tags, setTags]                               = useState<string[]>(offer.tags ?? []);
+  const [validFrom, setValidFrom]                     = useState(offer.validFrom ? offer.validFrom.slice(0, 10) : '');
   const [validUntil, setValidUntil]                   = useState(offer.validUntil ? offer.validUntil.slice(0, 10) : '');
 
   // ─── Voucher-specific pricing state ────────────────────────────────────────
@@ -168,6 +169,11 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
       toast.error('כותרת ההצעה היא שדה חובה.');
       return;
     }
+    // Client-side mirror of the backend validFrom < validUntil rule.
+    if (validFrom && validUntil && new Date(validFrom) >= new Date(validUntil)) {
+      toast.error('תאריך ההשקה חייב להיות לפני תאריך התפוגה.');
+      return;
+    }
     setIsSaving(true);
     try {
       await updateOfferApi(offer.offerId, {
@@ -176,6 +182,7 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
         category,
         ...(marketPrice !== '' && { market_price: Number(marketPrice) }),
         stockLimit: stockLimit !== '' ? Number(stockLimit) : null,
+        validFrom: validFrom || null,
         validUntil: validUntil || null,
         executionType: executionType || undefined,
         implementationLink: implementationLink.trim() || null,
@@ -352,7 +359,7 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
                   <input type="number" min="0" step="0.01" value={marketPrice} onChange={(e) => setMarketPrice(e.target.value)} onWheel={(e) => e.currentTarget.blur()} className={inputCls} placeholder="₪" dir="ltr" />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <div className="space-y-1">
                     <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
                       מלאי <FieldTooltip fieldKey="stockLimit" />
@@ -361,9 +368,16 @@ export default function EditOfferDrawer({ offer, onClose, onSaved }: EditOfferDr
                   </div>
                   <div className="space-y-1">
                     <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
+                      בתוקף מ- <FieldTooltip fieldKey="validFrom" />
+                    </label>
+                    <input type="date" value={validFrom} onChange={(e) => setValidFrom(e.target.value)} className={inputCls} dir="ltr" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
                       תוקף <FieldTooltip fieldKey="validUntil" />
                     </label>
-                    <input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} className={inputCls} dir="ltr" />
+                    {/* Expiry floor follows the launch date when one is set. */}
+                    <input type="date" min={validFrom || undefined} value={validUntil} onChange={(e) => setValidUntil(e.target.value)} className={inputCls} dir="ltr" />
                   </div>
                 </div>
               </>

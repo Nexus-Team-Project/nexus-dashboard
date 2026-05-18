@@ -742,6 +742,8 @@ export interface CatalogItem {
   implementationLink?: string | null;
   /** Step-by-step redemption instructions. */
   implementationInstructions?: string;
+  /** Date the offer becomes visible to members (ISO string). null = immediately. */
+  validFrom?: string | null;
   /** Offer expiry date as ISO string (serialised from backend Date). */
   validUntil?: string | null;
   /** Terms and conditions text. */
@@ -788,6 +790,8 @@ export interface NexusOffer {
   stockUsed: number;
   implementationLink?: string | null;
   implementationInstructions?: string;
+  /** Date the offer becomes visible to members (ISO string). null = immediately. */
+  validFrom?: string | null;
   validUntil?: string | null;
   terms?: string;
   tags?: string[];
@@ -951,6 +955,7 @@ export async function updateOfferApi(
     visibility?: string;
     implementationLink?: string | null;
     implementationInstructions?: string;
+    validFrom?: string | null;
     validUntil?: string | null;
     terms?: string;
     tags?: string[];
@@ -970,7 +975,7 @@ export async function updateOfferApi(
     const fd = new FormData();
     fd.append('image', imageFile);
     Object.entries(rest).forEach(([k, v]) => {
-      if (v === null && (k === 'stockLimit' || k === 'validUntil')) {
+      if (v === null && (k === 'stockLimit' || k === 'validUntil' || k === 'validFrom')) {
         fd.append(k, ''); // empty string signals null to backend (coerced by Zod)
       } else if (v !== undefined && v !== null) {
         fd.append(k, String(v));

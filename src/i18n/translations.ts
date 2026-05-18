@@ -830,6 +830,7 @@ export const translations = {
     co_fieldImplLink: 'Redemption URL',
     co_fieldImplInstructions: 'Instructions',
     co_implInstructionsPlaceholder: 'Step-by-step guide for members...',
+    co_fieldValidFrom: 'Valid From',
     co_fieldValidUntil: 'Valid Until',
     co_fieldTerms: 'Terms & Conditions',
     co_termsPlaceholder: 'e.g. Not combinable with other offers...',
@@ -951,6 +952,12 @@ export const translations = {
     fi_implementationInstructions_short: 'Step-by-step guide shown to members on the offer page.',
     fi_implementationInstructions_detail: 'Plain text steps explaining exactly how a member uses the offer. Shown below the redemption button on the offer detail page. Numbered steps work best. Include any in-store, online, or app-specific requirements.',
     fi_implementationInstructions_example: '1. Open the offer page and copy your code. 2. Go to the checkout at any branch. 3. Show your screen or enter the code at the register.',
+
+    // ── validFrom ──
+    fi_validFrom_label: 'Launch Date',
+    fi_validFrom_short: 'Date the offer becomes visible in member catalogs.',
+    fi_validFrom_detail: 'Until this date the offer is hidden from all member catalogs even after approval. Use it to schedule a future launch (for example, line up a holiday campaign in advance). Leave blank to publish as soon as approved.',
+    fi_validFrom_example: 'A New Year campaign that should not appear until January 1. A summer sale scheduled to start on June 1.',
 
     // ── validUntil ──
     fi_validUntil_label: 'Expiry Date',
@@ -1831,6 +1838,7 @@ export const translations = {
     co_fieldImplLink: 'קישור למימוש',
     co_fieldImplInstructions: 'הוראות',
     co_implInstructionsPlaceholder: 'הדרכה שלב-אחר-שלב לחברים...',
+    co_fieldValidFrom: 'בתוקף מ-',
     co_fieldValidUntil: 'בתוקף עד',
     co_fieldTerms: 'תנאים והגבלות',
     co_termsPlaceholder: 'לדוגמה: אינו ניתן לשילוב עם מבצעים אחרים...',
@@ -1952,6 +1960,13 @@ export const translations = {
     fi_implementationInstructions_short: 'מדריך שלב-אחר-שלב המוצג לחברים בדף ההצעה.',
     fi_implementationInstructions_detail: 'הוראות טקסט פשוט המסבירות בדיוק כיצד חבר משתמש בהצעה. מוצגות מתחת לכפתור המימוש. שלבים ממוספרים עובדים הכי טוב. כלול כל דרישה בחנות, באינטרנט או באפליקציה.',
     fi_implementationInstructions_example: '1. פתח את דף ההצעה והעתק את הקוד. 2. גש לקופה בכל סניף. 3. הצג את המסך או הזן את הקוד בקופה.',
+
+    // ── validUntil ──
+    // ── validFrom ──
+    fi_validFrom_label: 'תאריך השקה',
+    fi_validFrom_short: 'תאריך שבו ההצעה תופיע בקטלוגי החברים.',
+    fi_validFrom_detail: 'עד לתאריך זה ההצעה מוסתרת מכל קטלוגי החברים גם לאחר אישור. ניתן להגדיר השקה עתידית (למשל לתכנן קמפיין חגים מראש). השאר ריק כדי לפרסם מיד עם האישור.',
+    fi_validFrom_example: 'קמפיין ראש השנה שאמור להופיע רק ב-1 בינואר. מבצע קיץ שמתחיל ב-1 ביוני.',
 
     // ── validUntil ──
     fi_validUntil_label: 'תאריך תפוגה',

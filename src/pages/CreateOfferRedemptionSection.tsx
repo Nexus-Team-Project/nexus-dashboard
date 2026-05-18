@@ -26,6 +26,10 @@ interface RedemptionSectionProps {
   implementationInstructions: string;
   /** Setter for implementationInstructions. */
   setImplementationInstructions: (v: string) => void;
+  /** ISO date string representing when the offer first becomes visible to members. */
+  validFrom: string;
+  /** Setter for validFrom. */
+  setValidFrom: (v: string) => void;
   /** ISO date string representing when the offer expires. */
   validUntil: string;
   /** Setter for validUntil. */
@@ -60,6 +64,8 @@ const CreateOfferRedemptionSection = ({
   setImplementationLink,
   implementationInstructions,
   setImplementationInstructions,
+  validFrom,
+  setValidFrom,
   validUntil,
   setValidUntil,
   terms,
@@ -134,25 +140,48 @@ const CreateOfferRedemptionSection = ({
         />
       </div>
 
-      {/* Valid until - expiry date picker */}
-      <div className="mb-4">
-        <label
-          htmlFor="offer-valid-until"
-          className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300"
-        >
-          {t('co_fieldValidUntil')}
-          <span className="font-normal text-slate-400 ms-1 me-0.5">{t('co_optional')}</span>
-          <FieldTooltip fieldKey="validUntil" />
-        </label>
-        <input
-          id="offer-valid-until"
-          type="date"
-          min={new Date().toISOString().slice(0, 10)}
-          value={validUntil}
-          onChange={(e) => setValidUntil(e.target.value)}
-          disabled={isSubmitting}
-          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-colors focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white disabled:cursor-not-allowed disabled:opacity-60"
-        />
+      {/* Valid from + Valid until - date range picker.
+          Stacks on mobile, two columns on sm+ screens. */}
+      <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <label
+            htmlFor="offer-valid-from"
+            className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300"
+          >
+            {t('co_fieldValidFrom')}
+            <span className="font-normal text-slate-400 ms-1 me-0.5">{t('co_optional')}</span>
+            <FieldTooltip fieldKey="validFrom" />
+          </label>
+          <input
+            id="offer-valid-from"
+            type="date"
+            min={new Date().toISOString().slice(0, 10)}
+            value={validFrom}
+            onChange={(e) => setValidFrom(e.target.value)}
+            disabled={isSubmitting}
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-colors focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white disabled:cursor-not-allowed disabled:opacity-60"
+          />
+        </div>
+        <div>
+          <label
+            htmlFor="offer-valid-until"
+            className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300"
+          >
+            {t('co_fieldValidUntil')}
+            <span className="font-normal text-slate-400 ms-1 me-0.5">{t('co_optional')}</span>
+            <FieldTooltip fieldKey="validUntil" />
+          </label>
+          <input
+            id="offer-valid-until"
+            type="date"
+            // Can't expire before launch: validFrom raises the floor when set.
+            min={validFrom || new Date().toISOString().slice(0, 10)}
+            value={validUntil}
+            onChange={(e) => setValidUntil(e.target.value)}
+            disabled={isSubmitting}
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-colors focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white disabled:cursor-not-allowed disabled:opacity-60"
+          />
+        </div>
       </div>
 
       {/* Terms and conditions text */}
