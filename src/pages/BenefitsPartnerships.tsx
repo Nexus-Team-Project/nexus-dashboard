@@ -536,7 +536,7 @@ const BenefitsPartnerships = () => {
 
   return (
     <div className="min-h-screen bg-white dark:bg-background-dark">
-      <main className="max-w-7xl mx-auto px-6 pb-12">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 pb-12">
         {/* Service activation lifecycle banner — tenant admins only; platform admins manage the platform, not tenant services */}
         {!isPlatformAdmin && (
           <ServiceActivationBanner
@@ -554,9 +554,9 @@ const BenefitsPartnerships = () => {
         )}
 
         {/* Hero Section */}
-        <section className="relative py-20 md:py-28 flex flex-col items-center text-center overflow-hidden">
-          {/* Floating Logos */}
-          <div className="absolute inset-0 pointer-events-auto">
+        <section className="relative py-10 md:py-28 flex flex-col items-center text-center overflow-hidden">
+          {/* Floating Logos - hidden on mobile to avoid overlapping the heading. */}
+          <div className="hidden md:block absolute inset-0 pointer-events-auto">
             {/* Brand 1 - Samsung */}
             <div className="group absolute top-10 left-10 md:left-20 w-16 h-16 md:w-24 md:h-24 rounded-full bg-white dark:bg-slate-800 shadow-xl flex items-center justify-center p-4 animate-[float_6s_ease-in-out_infinite] cursor-pointer hover:scale-110 transition-transform">
               <img src="/brands/samsung.png" alt="Samsung" className="w-full h-full object-contain" />
@@ -607,10 +607,10 @@ const BenefitsPartnerships = () => {
           </div>
 
           <div className="relative z-10 max-w-3xl mx-auto">
-            <h1 className="text-4xl md:text-6xl font-bold text-slate-900 dark:text-white mb-6 leading-tight tracking-tight">
+            <h1 className="text-2xl sm:text-3xl md:text-6xl font-bold text-slate-900 dark:text-white mb-4 md:mb-6 leading-tight tracking-tight px-2">
               הטבות ושיתופי פעולה עם המותגים האהובים עליכם
             </h1>
-            <p className="text-lg text-slate-500 dark:text-slate-400 leading-relaxed">
+            <p className="text-sm sm:text-base md:text-lg text-slate-500 dark:text-slate-400 leading-relaxed px-2">
               גלו הנחות בלעדיות, קאשבק ותגמולים מיוחדים כשאתם קונים דרך Nexus
             </p>
             {/* Search bar removed - search now lives in the top bar / filter panel. */}

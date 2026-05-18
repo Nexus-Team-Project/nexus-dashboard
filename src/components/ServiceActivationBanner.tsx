@@ -274,8 +274,8 @@ export default function ServiceActivationBanner({
   // Inactive banner - shows an interactive OFF toggle to activate the service.
   if (mode === 'inactive') {
     return (
-      <div className="mb-6 rounded-xl border border-slate-200 bg-white shadow-sm p-5 flex items-center justify-between gap-4">
-        <div>
+      <div className="mb-6 rounded-xl border border-slate-200 bg-white shadow-sm p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        <div className="min-w-0">
           <p className="text-sm font-semibold text-slate-900">{config.name}</p>
           <p className="mt-0.5 text-xs text-slate-500">{config.inactiveNote}</p>
         </div>
@@ -303,7 +303,7 @@ export default function ServiceActivationBanner({
 
   // Shared disable confirmation section - reused in both sandbox and live states.
   const disableSection = (
-    <div className="flex items-center gap-2 shrink-0">
+    <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
       {isConfirming ? (
         <>
           <span className="text-xs text-slate-600">בטוח? הכיבוי ישהה את כל ההצעות.</span>
@@ -336,7 +336,7 @@ export default function ServiceActivationBanner({
   // Sandbox banner - service is on but workspace not live yet.
   if (mode === 'sandbox') {
     return (
-      <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-5 flex items-center justify-between gap-4">
+      <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="text-sm font-semibold text-amber-900">{config.name}</p>
@@ -353,7 +353,7 @@ export default function ServiceActivationBanner({
         {isConfirming ? (
           disableSection
         ) : (
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
             <button
               onClick={() => setIsConfirming(true)}
               className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
@@ -368,7 +368,7 @@ export default function ServiceActivationBanner({
 
   // Live banner - service is fully active; admin can disable.
   return (
-    <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 flex items-center justify-between gap-4">
+    <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
       <div className="flex items-center gap-3">
         {/* Toggle shows ON normally, flips to OFF when confirming disable */}
         <ToggleSwitch

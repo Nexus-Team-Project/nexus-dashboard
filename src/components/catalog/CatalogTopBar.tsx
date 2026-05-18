@@ -78,7 +78,7 @@ const CatalogTopBar = ({
     <div className="space-y-3">
       {/* Tabs row. Each tab is a button + FieldTooltip pair grouped in a flex
           wrapper so clicking the tooltip icon does not change tabs. */}
-      <div className="flex gap-6 border-b border-slate-200 dark:border-slate-700">
+      <div className="flex flex-wrap gap-x-4 sm:gap-x-6 gap-y-2 border-b border-slate-200 dark:border-slate-700">
         <div className="flex items-center gap-1">
           <button
             type="button"
