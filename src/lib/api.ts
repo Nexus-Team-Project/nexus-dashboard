@@ -726,6 +726,8 @@ export interface CatalogItem {
   description: string;
   imageUrl?: string;
   category: string;
+  /** 'ecosystem' (visible to every tenant) or 'tenant_only' (visible only to the creating tenant). */
+  visibility: 'ecosystem' | 'tenant_only' | string;
   market_price?: number;
   isAdopted: boolean;
   adoptedAt?: string;

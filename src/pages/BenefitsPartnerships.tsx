@@ -12,7 +12,6 @@ import {
   goLiveCatalog,
   activateBenefitsCatalog,
   deactivateBenefitsCatalog,
-  updateOfferApi,
   deleteOffer,
   approveOfferApi,
   EXECUTION_TYPE_LABELS,
@@ -25,6 +24,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
+import { stripHtml } from '../lib/stripHtml';
 import ServiceActivationBanner from '../components/ServiceActivationBanner';
 import BenefitsCatalogTeaser from '../components/BenefitsCatalogTeaser';
 import ImageLightbox from '../components/ImageLightbox';
@@ -111,18 +111,6 @@ function toBenefitType(executionType?: string): Benefit['benefitType'] {
   return 'amount';
 }
 
-/**
- * Partial offer fields that can be edited inline in the benefits table.
- * Matches the data parameter type of updateOfferApi.
- */
-type PendingOffer = {
-  description?: string;
-  implementationLink?: string | null;
-  implementationInstructions?: string;
-  terms?: string;
-  tags?: string[];
-};
-
 const BenefitsPartnerships = () => {
   const navigate = useNavigate();
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
@@ -130,8 +118,6 @@ const BenefitsPartnerships = () => {
   const [selectedBenefit, setSelectedBenefit] = useState<Benefit | null>(null);
   // Cards vs Table tab. Replaces the prior displayMode state.
   const [activeTab, setActiveTab] = useState<CatalogTab>('cards');
-  const [openTagDropdown, setOpenTagDropdown] = useState<string | null>(null);
-  const [openUsageTermsDropdown, setOpenUsageTermsDropdown] = useState<string | null>(null);
   const [benefitActiveStates, setBenefitActiveStates] = useState<Record<string, boolean>>({});
 
   // ─── Real catalog API state ───────────────────────────────────────────────
@@ -193,11 +179,6 @@ const BenefitsPartnerships = () => {
   const isPlatformAdmin = me?.authorization?.isPlatformAdmin === true;
   /** True while the delete API call is in-flight. Prevents double-submit and closes the modal. */
   const [isDeleting, setIsDeleting] = useState(false);
-
-  /** Buffered inline edits keyed by offerId. Cleared after a successful PATCH. */
-  const [pendingEdits, setPendingEdits] = useState<Record<string, PendingOffer>>({});
-  /** offerId currently being saved to the backend. */
-  const [savingId, setSavingId] = useState<string | null>(null);
 
   /**
    * Toggles adopt/unadopt for a catalog offer via the backend API.
@@ -318,29 +299,6 @@ const BenefitsPartnerships = () => {
     return !!myTenantId && item.createdByTenantId === myTenantId;
   };
 
-  /**
-   * PATCHes pending edits for a single offer and clears them on success.
-   * Input: offerId - the offer to save edits for.
-   * Output: void; reloads catalog on success to reflect changes everywhere.
-   */
-  const saveOfferEdit = async (offerId: string) => {
-    const edits = pendingEdits[offerId];
-    if (!edits || Object.keys(edits).length === 0) return;
-    setSavingId(offerId);
-    try {
-      await updateOfferApi(offerId, edits);
-      setPendingEdits(prev => {
-        const next = { ...prev };
-        delete next[offerId];
-        return next;
-      });
-      await loadCatalog();
-    } catch {
-      toast.error(language === 'he' ? 'שמירה נכשלה. נסה שוב.' : 'Failed to save. Please try again.');
-    } finally {
-      setSavingId(null);
-    }
-  };
 
   /**
    * Permanently deletes an offer and its Cloudinary image.
@@ -381,38 +339,6 @@ const BenefitsPartnerships = () => {
 
   // ─────────────────────────────────────────────────────────────────────────
 
-  // Predefined tags that can be added
-  const availableTags = [
-    'מומלץ',
-    'חדש',
-    'פופולרי',
-    'מבצע מוגבל',
-    'בלעדי',
-    'הכי נמכר',
-  ];
-
-  // Predefined usage terms
-  const availableUsageTerms = [
-    'כולל כפל מבצעים',
-    'לא כולל כפל מבצעים',
-    'חנויות פיזיות',
-    'אתרי סחר',
-    'לא עובד באתרי סחר',
-    'לא עובד בחנויות פיזיות',
-    'הגבלת זמן',
-    'ללא הגבלת זמן',
-  ];
-
-  // System-defined terms that cannot be removed (show lock icon)
-  const systemDefinedTerms = [
-    'כולל כפל מבצעים',
-    'חנויות פיזיות',
-    'אתרי סחר',
-  ];
-
-  // Check if a term/tag is system-defined
-  const isSystemDefined = (term: string) => systemDefinedTerms.includes(term);
-
   // Initialize active states from data
   useEffect(() => {
     const benefitStates: Record<string, boolean> = {};
@@ -421,28 +347,6 @@ const BenefitsPartnerships = () => {
     });
     setBenefitActiveStates(benefitStates);
   }, []);
-
-  // Toggle handlers
-  const toggleBenefitActive = (benefitId: string) => {
-    setBenefitActiveStates(prev => ({
-      ...prev,
-      [benefitId]: !prev[benefitId]
-    }));
-  };
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = () => {
-      if (openTagDropdown) {
-        setOpenTagDropdown(null);
-      }
-      if (openUsageTermsDropdown) {
-        setOpenUsageTermsDropdown(null);
-      }
-    };
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, [openTagDropdown, openUsageTermsDropdown]);
 
   const categories = [
     { id: 'all', label: 'כל הקטגוריות', icon: 'apps' },
@@ -744,102 +648,89 @@ const BenefitsPartnerships = () => {
           <section className="py-8">
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden">
               <div className="overflow-x-auto custom-scrollbar">
-                {/* Benefits table (the businesses table view was removed in the redesign). */}
+                {/* Benefits table — 13 read-only columns mirroring the offer form fields.
+                    Edits happen via the row Edit button (gated by canEditOffer). */}
                 <table className="w-full min-w-max">
+                    {/* 13 read-only columns. Shared header cell class kept inline below
+                        for clarity (every column uses the same look now that there is no
+                        per-column violet/green tint or read-only/editable subtitle). */}
                     <thead className="bg-violet-50 dark:bg-slate-800 border-b-2 border-violet-200/60 dark:border-slate-700">
                       <tr>
                         <th className="px-4 py-3 text-right text-xs font-bold text-primary/70 dark:text-slate-400 uppercase tracking-wider sticky right-0 bg-violet-50 dark:bg-slate-800 z-10">
                           <span className="inline-flex items-center">
-                            סטטוס
+                            {language === 'he' ? 'סטטוס' : 'Status'}
                             <FieldTooltip fieldKey="bpcStatus" placement="bottom" />
                           </span>
                         </th>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                        <th className="px-4 py-3 text-right text-xs font-bold text-primary/70 dark:text-slate-400 uppercase tracking-wider">
                           <span className="inline-flex items-center">
-                            לוגו
-                            <FieldTooltip fieldKey="bpcLogo" placement="bottom" />
+                            {language === 'he' ? 'תמונה' : 'Image'}
+                            <FieldTooltip fieldKey="bpcImage" placement="bottom" />
                           </span>
                         </th>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                        <th className="px-4 py-3 text-right text-xs font-bold text-primary/70 dark:text-slate-400 uppercase tracking-wider">
                           <span className="inline-flex items-center">
-                            תמונת רקע
-                            <FieldTooltip fieldKey="bpcBackgroundImage" placement="bottom" />
+                            {language === 'he' ? 'כותרת' : 'Title'}
+                            <FieldTooltip fieldKey="title" placement="bottom" />
                           </span>
                         </th>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider bg-violet-50 dark:bg-violet-900/20">
+                        <th className="px-4 py-3 text-right text-xs font-bold text-primary/70 dark:text-slate-400 uppercase tracking-wider">
                           <span className="inline-flex items-center">
-                            שם בית העסק
-                            <FieldTooltip fieldKey="bpcBusinessName" placement="bottom" />
-                          </span>
-                          <span className="block text-[10px] font-normal text-slate-500 mt-0.5">קריאה בלבד</span>
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider bg-violet-50 dark:bg-violet-900/20">
-                          <span className="inline-flex items-center">
-                            אופן מימוש
-                            <FieldTooltip fieldKey="executionType" placement="bottom" />
-                          </span>
-                          <span className="block text-[10px] font-normal text-slate-500 mt-0.5">קריאה בלבד</span>
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                          <span className="inline-flex items-center">
-                            סוג הטבה
-                            <FieldTooltip fieldKey="bpcBenefitType" placement="bottom" />
-                          </span>
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                          <span className="inline-flex items-center">
-                            תנאי שימוש
-                            <FieldTooltip fieldKey="bpcUsageTerms" placement="bottom" />
-                          </span>
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                          <span className="inline-flex items-center">
-                            תאריך סיום
-                            <FieldTooltip fieldKey="validUntil" placement="bottom" />
-                          </span>
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                          <span className="inline-flex items-center">
-                            לינק למימוש
-                            <FieldTooltip fieldKey="implementationLink" placement="bottom" />
-                          </span>
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider bg-violet-50 dark:bg-violet-900/20">
-                          <span className="inline-flex items-center">
-                            הנחיות מימוש
-                            <FieldTooltip fieldKey="implementationInstructions" placement="bottom" />
-                          </span>
-                          <span className="block text-[10px] font-normal text-slate-500 mt-0.5">קריאה בלבד</span>
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider bg-violet-50 dark:bg-violet-900/20">
-                          <span className="inline-flex items-center">
-                            תקנון
-                            <FieldTooltip fieldKey="terms" placement="bottom" />
-                          </span>
-                          <span className="block text-[10px] font-normal text-slate-500 mt-0.5">קריאה בלבד</span>
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider bg-green-50 dark:bg-green-900/20">
-                          <span className="inline-flex items-center">
-                            תיאור
+                            {language === 'he' ? 'תיאור' : 'Description'}
                             <FieldTooltip fieldKey="description" placement="bottom" />
                           </span>
-                          <span className="block text-[10px] font-normal text-emerald-600 dark:text-emerald-400 mt-0.5">ניתן לעריכה</span>
                         </th>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                        <th className="px-4 py-3 text-right text-xs font-bold text-primary/70 dark:text-slate-400 uppercase tracking-wider">
                           <span className="inline-flex items-center">
-                            קטגוריות
+                            {language === 'he' ? 'קטגוריה' : 'Category'}
                             <FieldTooltip fieldKey="category" placement="bottom" />
                           </span>
                         </th>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                        <th className="px-4 py-3 text-right text-xs font-bold text-primary/70 dark:text-slate-400 uppercase tracking-wider">
                           <span className="inline-flex items-center">
-                            תג
+                            {language === 'he' ? 'אופן מימוש' : 'Offer Type'}
+                            <FieldTooltip fieldKey="executionType" placement="bottom" />
+                          </span>
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-bold text-primary/70 dark:text-slate-400 uppercase tracking-wider">
+                          <span className="inline-flex items-center">
+                            {language === 'he' ? 'נראות' : 'Visibility'}
+                            <FieldTooltip fieldKey="visibility" placement="bottom" />
+                          </span>
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-bold text-primary/70 dark:text-slate-400 uppercase tracking-wider">
+                          <span className="inline-flex items-center">
+                            {language === 'he' ? 'מחיר' : 'Price'}
+                            <FieldTooltip fieldKey="bpcPrice" placement="bottom" />
+                          </span>
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-bold text-primary/70 dark:text-slate-400 uppercase tracking-wider">
+                          <span className="inline-flex items-center">
+                            {language === 'he' ? 'מלאי' : 'Stock'}
+                            <FieldTooltip fieldKey="stockLimit" placement="bottom" />
+                          </span>
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-bold text-primary/70 dark:text-slate-400 uppercase tracking-wider">
+                          <span className="inline-flex items-center">
+                            {language === 'he' ? 'בתוקף מ-' : 'Valid From'}
+                            <FieldTooltip fieldKey="validFrom" placement="bottom" />
+                          </span>
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-bold text-primary/70 dark:text-slate-400 uppercase tracking-wider">
+                          <span className="inline-flex items-center">
+                            {language === 'he' ? 'בתוקף עד' : 'Valid Until'}
+                            <FieldTooltip fieldKey="validUntil" placement="bottom" />
+                          </span>
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-bold text-primary/70 dark:text-slate-400 uppercase tracking-wider">
+                          <span className="inline-flex items-center">
+                            {language === 'he' ? 'תגיות' : 'Tags'}
                             <FieldTooltip fieldKey="tags" placement="bottom" />
                           </span>
                         </th>
-                        <th className="px-4 py-3 text-center text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                        <th className="px-4 py-3 text-center text-xs font-bold text-primary/70 dark:text-slate-400 uppercase tracking-wider">
                           <span className="inline-flex items-center">
-                            פעולות
+                            {language === 'he' ? 'פעולות' : 'Actions'}
                             <FieldTooltip fieldKey="bpcActions" placement="bottom" />
                           </span>
                         </th>
@@ -847,460 +738,263 @@ const BenefitsPartnerships = () => {
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                       {(() => {
-                        /* Pre-compute a Map from offerId to CatalogItem for O(1) lookups per row. */
+                        /* Cell helpers local to this render. The IIFE keeps them
+                           private to the table without polluting the component scope. */
+                        const np = t('bp_notProvided');
+                        const formatPrice = (n: number | null | undefined): string =>
+                          n == null ? np : `₪${n}`;
+                        const formatDate = (d: Date | string | null | undefined): string => {
+                          if (d == null || d === '') return np;
+                          return new Date(d).toLocaleDateString(language === 'he' ? 'he-IL' : 'en-US');
+                        };
+                        /* O(1) lookup from offerId back to the full CatalogItem, which
+                           carries fields the local Benefit shape does not (visibility,
+                           approval_status, validFrom, member_price, market_price...). */
                         const itemMap = new Map(catalogItems.map(c => [c.offerId, c]));
                         return filteredBenefits.map((benefit) => {
                           const item = itemMap.get(benefit.id);
+                          if (!item) return null;
+                          const editable = canEditOffer(item);
+                          const categoryLabel = categories.find((c) => c.id === item.category)?.label ?? item.category;
+                          const isVoucher = item.executionType === 'voucher';
+                          const executionLabel = EXECUTION_TYPE_LABELS[item.executionType]
+                            ? (language === 'he'
+                                ? EXECUTION_TYPE_LABELS[item.executionType].labelHe
+                                : EXECUTION_TYPE_LABELS[item.executionType].label)
+                            : item.executionType;
+                          const priceValue = isVoucher ? item.member_price : item.market_price;
+                          const descPlain = stripHtml(item.description);
+                          const tagsList = item.tags ?? [];
+                          const visibility = item.visibility;
                           return (
-                        <tr key={benefit.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                          <td className="px-4 py-4 sticky right-0 bg-white dark:bg-slate-900 z-10">
-                            {isPlatformAdmin ? (
-                              /* Platform admins see approve/deny for pending offers; status badge otherwise. */
-                              item?.approval_status === 'pending_approval' ? (
-                                <div className="flex flex-col gap-1.5">
-                                  <button
-                                    type="button"
-                                    onClick={(e) => { e.stopPropagation(); void handleApproveOffer(item.offerId); }}
-                                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap"
-                                  >
-                                    {t('co_allowOffer')}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => { e.stopPropagation(); setDenyTarget(item); }}
-                                    className="bg-red-600 hover:bg-red-700 text-white px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap"
-                                  >
-                                    {t('co_denyOffer')}
-                                  </button>
-                                </div>
-                              ) : (
-                                <span className={cn(
-                                  'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold',
-                                  item?.approval_status === 'denied'
-                                    ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                                    : item?.approval_status === 'active'
-                                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                                      : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-                                )}>
-                                  {item?.approval_status === 'denied'
-                                    ? t('co_denied')
-                                    : item?.approval_status === 'active'
-                                      ? (language === 'he' ? 'פעיל' : 'Active')
-                                      : (language === 'he' ? 'לא פעיל' : 'Inactive')}
-                                </span>
-                              )
-                            ) : (
-                              /* Tenant admins see the adopt/unadopt toggle. */
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (catalogItems.length > 0) {
-                                    void handleToggleAdopt(benefit.id, benefitActiveStates[benefit.id] ?? false);
-                                  } else {
-                                    toggleBenefitActive(benefit.id);
-                                  }
-                                }}
-                                disabled={adoptingId === benefit.id}
-                                aria-label={benefitActiveStates[benefit.id] ? 'Unadopt offer' : 'Adopt offer'}
-                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all hover:ring-2 hover:ring-cyan-400 hover:ring-offset-1 disabled:opacity-60 disabled:cursor-not-allowed ${
-                                  benefitActiveStates[benefit.id]
-                                    ? 'bg-emerald-500'
-                                    : 'bg-slate-300 dark:bg-slate-600'
-                                }`}
-                              >
-                                <span
-                                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                    benefitActiveStates[benefit.id] ? '-translate-x-1' : '-translate-x-5'
-                                  }`}
-                                />
-                              </button>
-                            )}
-                          </td>
-                          <td className="px-4 py-4">
-                            {item?.imageUrl ? (
-                              <img
-                                src={item.imageUrl}
-                                alt={item.title}
-                                className="w-12 h-12 rounded-lg object-cover border border-slate-200 dark:border-slate-700 cursor-zoom-in"
-                                onClick={() => item.imageUrl && setLightboxUrl(item.imageUrl)}
-                              />
-                            ) : (
-                              <div className="w-12 h-12 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center border border-slate-200 dark:border-slate-700">
-                                <span className="material-icons text-base text-slate-400">image</span>
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-4 py-4">
-                            {benefit.backgroundImage ? (
-                              <img
-                                src={benefit.backgroundImage}
-                                alt={benefit.title}
-                                className="w-20 h-12 object-cover rounded-lg border border-slate-200 dark:border-slate-700 cursor-zoom-in"
-                                onClick={() => benefit.backgroundImage && setLightboxUrl(benefit.backgroundImage)}
-                              />
-                            ) : (
-                              <div className="w-20 h-12 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"></div>
-                            )}
-                          </td>
-                          <td className="px-4 py-4 bg-violet-50/50 dark:bg-violet-900/10">
-                            <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-                              {benefit.title}
-                            </span>
-                            {/* Approval status badge — visible to platform admin and offer creator */}
-                            {item?.approval_status === 'pending_approval' && (
-                              <span className="mt-1 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 ms-1">
-                                {t('co_pendingApproval')}
-                              </span>
-                            )}
-                            {item?.approval_status === 'denied' && (
-                              <span className="mt-1 inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700 dark:bg-red-900/30 dark:text-red-400 ms-1">
-                                {t('co_denied')}
-                              </span>
-                            )}
-                            {/* Denial reason — shown only to offer creator */}
-                            {item?.denial_reason && (
-                              <p className="mt-1 text-[11px] text-red-600 dark:text-red-400 max-w-[200px] truncate" title={item.denial_reason}>
-                                {item.denial_reason}
-                              </p>
-                            )}
-                          </td>
-                          <td className="px-4 py-4 bg-violet-50/50 dark:bg-violet-900/10">
-                            <span className="text-sm text-slate-700 dark:text-slate-300 font-medium">
-                              {benefit.implementationMethod === 'voucher' && 'שובר'}
-                              {benefit.implementationMethod === 'coupon' && 'קוד קופון'}
-                              {benefit.implementationMethod === 'product' && 'מוצר'}
-                              {benefit.implementationMethod === 'card' && 'כרטיס'}
-                              {benefit.implementationMethod === 'service' && 'שירות'}
-                              {benefit.implementationMethod === 'registration' && 'טופס הרשמה'}
-                              {benefit.implementationMethod === 'nexus' && 'Nexus'}
-                            </span>
-                          </td>
-                          <td className="px-4 py-4">
-                            <div className="flex flex-wrap gap-1 max-w-xs">
-                              <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full border border-slate-200 dark:border-slate-700">
-                                {benefit.benefitType === 'percentage' && 'אחוז הנחה'}
-                                {benefit.benefitType === 'gift' && 'מתנה'}
-                                {benefit.benefitType === 'amount' && 'סכום קבוע'}
-                              </span>
-                              <button className="inline-flex items-center gap-1 text-xs px-2.5 py-1 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 rounded-full border border-dashed border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                                <span className="material-icons text-xs">add</span>
-                                הוסף סוג
-                              </button>
-                            </div>
-                          </td>
-                          <td className="px-4 py-4">
-                            <div className="flex flex-wrap gap-1 max-w-xs relative">
-                              {/* Usage terms - system-defined (lock) or user-defined (removable) */}
-                              {benefit.usageTerms.map((term, idx) => (
-                                <span
-                                  key={idx}
-                                  className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border ${
-                                    isSystemDefined(term)
-                                      ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 border-violet-200 dark:border-violet-800'
-                                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-                                  }`}
-                                >
-                                  {isSystemDefined(term) && (
-                                    <span className="material-icons text-[10px]">lock</span>
-                                  )}
-                                  {term}
-                                  {!isSystemDefined(term) && (
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                      }}
-                                      className="hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors -mr-1.5 flex items-center justify-center w-2.5 h-2.5"
-                                    >
-                                      <span className="material-icons text-[6px] leading-none">close</span>
-                                    </button>
-                                  )}
-                                </span>
-                              ))}
+                            <tr key={benefit.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
 
-                              {/* Add usage term button with dropdown */}
-                              <div className="relative">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setOpenUsageTermsDropdown(openUsageTermsDropdown === benefit.id ? null : benefit.id);
-                                  }}
-                                  className="inline-flex items-center gap-1 text-xs px-2.5 py-1 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 rounded-full border border-dashed border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                                >
-                                  <span className="material-icons text-xs">add</span>
-                                  הוסף תנאי
-                                </button>
-
-                                {/* Dropdown menu */}
-                                {openUsageTermsDropdown === benefit.id && (
-                                  <div className="absolute top-full left-0 mt-1 w-56 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-50">
-                                    <div className="py-1 max-h-60 overflow-y-auto">
-                                      {/* Predefined usage terms */}
-                                      {availableUsageTerms.map((term, idx) => (
-                                        <button
-                                          key={idx}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setOpenUsageTermsDropdown(null);
-                                          }}
-                                          className="w-full text-right px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                                        >
-                                          {term}
-                                        </button>
-                                      ))}
-
-                                      {/* Divider */}
-                                      <div className="border-t border-slate-200 dark:border-slate-700 my-1"></div>
-
-                                      {/* Define new term option */}
+                              {/* 1. Status — toggle (tenant) or approve/deny (platform admin pending) or badge. */}
+                              <td className="px-4 py-4 sticky right-0 bg-white dark:bg-slate-900 z-10 align-top">
+                                {isPlatformAdmin ? (
+                                  item.approval_status === 'pending_approval' ? (
+                                    <div className="flex flex-col gap-1.5">
                                       <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setOpenUsageTermsDropdown(null);
-                                        }}
-                                        className="w-full text-right px-4 py-2 text-sm text-primary font-medium hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-2"
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); void handleApproveOffer(item.offerId); }}
+                                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap"
                                       >
-                                        <span className="material-icons text-sm">edit</span>
-                                        הגדר תנאי חדש
+                                        {t('co_allowOffer')}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); setDenyTarget(item); }}
+                                        className="bg-red-600 hover:bg-red-700 text-white px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap"
+                                      >
+                                        {t('co_denyOffer')}
                                       </button>
                                     </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-4">
-                            <span className="text-sm text-slate-600 dark:text-slate-400">
-                              {item?.validUntil ? new Date(item.validUntil).toLocaleDateString('he-IL') : '-'}
-                            </span>
-                          </td>
-                          <td className="px-4 py-4">
-                            {(item && (() => {
-                              const editable = canEditOffer(item);
-                              const edited = pendingEdits[item.offerId]?.implementationLink;
-                              const value = edited !== undefined ? edited : (item.implementationLink ?? '');
-                              return editable ? (
-                                <input
-                                  type="url"
-                                  value={value ?? ''}
-                                  onChange={(e) => setPendingEdits(prev => ({
-                                    ...prev,
-                                    [item.offerId]: { ...prev[item.offerId], implementationLink: e.target.value || null },
-                                  }))}
-                                  placeholder="https://..."
-                                  className="text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 focus:ring-2 focus:ring-emerald-500 focus:border-transparent w-36"
-                                />
-                              ) : (
-                                value ? (
-                                  <a href={value} target="_blank" rel="noopener noreferrer"
-                                    className="text-sm text-violet-600 dark:text-violet-400 hover:underline truncate block max-w-xs">
-                                    {value}
-                                  </a>
-                                ) : <span className="text-xs text-slate-400">-</span>
-                              );
-                            })()) ?? <span className="text-xs text-slate-400">-</span>}
-                          </td>
-                          <td className="px-4 py-4 bg-violet-50/50 dark:bg-violet-900/10">
-                            {(item && (() => {
-                              const editable = canEditOffer(item);
-                              const edited = pendingEdits[item.offerId]?.implementationInstructions;
-                              const value = edited !== undefined ? edited : (item.implementationInstructions ?? '');
-                              return editable ? (
-                                <input
-                                  type="text"
-                                  value={value}
-                                  onChange={(e) => setPendingEdits(prev => ({
-                                    ...prev,
-                                    [item.offerId]: { ...prev[item.offerId], implementationInstructions: e.target.value },
-                                  }))}
-                                  className="text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 focus:ring-2 focus:ring-emerald-500 focus:border-transparent max-w-xs"
-                                />
-                              ) : (
-                                <p className="text-xs text-slate-600 dark:text-slate-400 max-w-xs truncate">{value || '-'}</p>
-                              );
-                            })()) ?? <p className="text-xs text-slate-400">-</p>}
-                          </td>
-                          <td className="px-4 py-4 bg-violet-50/50 dark:bg-violet-900/10">
-                            {(item && (() => {
-                              const editable = canEditOffer(item);
-                              const edited = pendingEdits[item.offerId]?.terms;
-                              const value = edited !== undefined ? edited : (item.terms ?? '');
-                              return editable ? (
-                                <input
-                                  type="text"
-                                  value={value}
-                                  onChange={(e) => setPendingEdits(prev => ({
-                                    ...prev,
-                                    [item.offerId]: { ...prev[item.offerId], terms: e.target.value },
-                                  }))}
-                                  className="text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 focus:ring-2 focus:ring-emerald-500 focus:border-transparent max-w-xs"
-                                />
-                              ) : (
-                                <p className="text-xs text-slate-600 dark:text-slate-400 max-w-xs truncate">{value || '-'}</p>
-                              );
-                            })()) ?? <p className="text-xs text-slate-400">-</p>}
-                          </td>
-                          <td className="px-4 py-4 bg-green-50/50 dark:bg-green-900/10">
-                            {item && (() => {
-                              const editable = canEditOffer(item);
-                              const edited = pendingEdits[item.offerId]?.description;
-                              const value = edited !== undefined ? edited : (item.description ?? '');
-                              const hasPending = !!(pendingEdits[item.offerId] && Object.keys(pendingEdits[item.offerId]).length > 0);
-                              return editable ? (
-                                <div className="flex items-center gap-1.5">
-                                  <input
-                                    type="text"
-                                    value={value}
-                                    onChange={(e) => setPendingEdits(prev => ({
-                                      ...prev,
-                                      [item.offerId]: { ...prev[item.offerId], description: e.target.value },
-                                    }))}
-                                    className="text-sm px-2 py-1 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 focus:ring-2 focus:ring-emerald-500 focus:border-transparent max-w-[160px]"
-                                  />
-                                  {hasPending && (
-                                    <button
-                                      onClick={() => void saveOfferEdit(item.offerId)}
-                                      disabled={savingId === item.offerId}
-                                      className="text-xs text-emerald-600 hover:text-emerald-700 font-semibold disabled:opacity-50 whitespace-nowrap"
-                                    >
-                                      {savingId === item.offerId ? '...' : 'שמור'}
-                                    </button>
-                                  )}
-                                </div>
-                              ) : (
-                                <p className="text-xs text-slate-600 dark:text-slate-400 max-w-xs truncate">{value || '-'}</p>
-                              );
-                            })()}
-                          </td>
-                          <td className="px-4 py-4">
-                            <div className="flex flex-wrap gap-1 max-w-xs">
-                              {benefit.categories.map((cat, idx) => (
-                                <span key={idx} className={`text-xs px-2 py-1 rounded-full ${getCategoryColor(cat)}`}>
-                                  {categories.find(c => c.id === cat)?.label ?? cat.replace(/_/g, ' ')}
-                                </span>
-                              ))}
-                            </div>
-                          </td>
-                          <td className="px-4 py-4">
-                            {item && (() => {
-                              const editable = canEditOffer(item);
-                              const editedTags = pendingEdits[item.offerId]?.tags;
-                              const currentTags = editedTags !== undefined ? editedTags : (item.tags ?? []);
-                              const hasPending = !!(pendingEdits[item.offerId] && Object.keys(pendingEdits[item.offerId]).length > 0);
-                              return (
-                                <div className="flex flex-wrap gap-1 max-w-xs relative">
-                                  {currentTags.map((tag) => (
-                                    <span key={tag} className="inline-flex items-center gap-0.5 text-xs px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full border border-slate-200 dark:border-slate-700">
-                                      {tag}
-                                      {editable && (
-                                        <button
-                                          onClick={() => {
-                                            const next = currentTags.filter((t) => t !== tag);
-                                            setPendingEdits(prev => ({ ...prev, [item.offerId]: { ...prev[item.offerId], tags: next } }));
-                                          }}
-                                          className="hover:text-red-500 transition-colors ml-0.5"
-                                          aria-label={`Remove tag ${tag}`}
-                                        >
-                                          <span className="material-icons text-[10px]">close</span>
-                                        </button>
-                                      )}
+                                  ) : (
+                                    <span className={cn(
+                                      'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold',
+                                      item.approval_status === 'denied'
+                                        ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                        : item.approval_status === 'active'
+                                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                                          : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                                    )}>
+                                      {item.approval_status === 'denied'
+                                        ? t('co_denied')
+                                        : item.approval_status === 'active'
+                                          ? (language === 'he' ? 'פעיל' : 'Active')
+                                          : (language === 'he' ? 'לא פעיל' : 'Inactive')}
                                     </span>
-                                  ))}
-                                  {editable && (
-                                    <div className="relative">
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setOpenTagDropdown(openTagDropdown === benefit.id ? null : benefit.id);
-                                        }}
-                                        className="inline-flex items-center gap-1 text-xs px-2.5 py-1 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 rounded-full border border-dashed border-slate-300 dark:border-slate-600 hover:border-slate-400 hover:bg-slate-50 transition-colors"
-                                      >
-                                        <span className="material-icons text-xs">add</span>
-                                        הוסף תג
-                                      </button>
-                                      {openTagDropdown === benefit.id && (
-                                        <div className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-50">
-                                          <div className="py-1 max-h-48 overflow-y-auto">
-                                            {availableTags.filter(t => !currentTags.includes(t)).map((tag, idx) => (
-                                              <button
-                                                key={idx}
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  const next = [...currentTags, tag];
-                                                  setPendingEdits(prev => ({ ...prev, [item.offerId]: { ...prev[item.offerId], tags: next } }));
-                                                  setOpenTagDropdown(null);
-                                                }}
-                                                className="w-full text-right px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                                              >
-                                                {tag}
-                                              </button>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-                                  {editable && hasPending && (
-                                    <button
-                                      onClick={() => void saveOfferEdit(item.offerId)}
-                                      disabled={savingId === item.offerId}
-                                      className="text-xs text-emerald-600 hover:text-emerald-700 font-semibold disabled:opacity-50"
-                                    >
-                                      {savingId === item.offerId ? '...' : 'שמור'}
-                                    </button>
-                                  )}
-                                </div>
-                              );
-                            })()}
-                          </td>
-                          <td className="px-4 py-4 text-center">
-                            {(() => {
-                              const hasPending = !!(item && pendingEdits[item.offerId] && Object.keys(pendingEdits[item.offerId]).length > 0);
-                              return (
-                                <div className="flex items-center justify-center gap-1">
-                                  {hasPending && item && (
-                                    <button
-                                      onClick={() => void saveOfferEdit(item.offerId)}
-                                      disabled={savingId === item.offerId}
-                                      className="rounded-lg bg-emerald-500 text-white px-2.5 py-1 text-xs font-semibold hover:bg-emerald-600 disabled:opacity-50 transition-colors"
-                                    >
-                                      {savingId === item.offerId ? '...' : 'שמור'}
-                                    </button>
-                                  )}
-                                  {item && canEditOffer(item) && (
-                                    <button
-                                      type="button"
-                                      onClick={(e) => { e.stopPropagation(); setEditingOffer(item); }}
-                                      className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-                                    >
-                                      עריכה
-                                    </button>
-                                  )}
-                                  {item && canEditOffer(item) && (
-                                    <button
-                                      type="button"
-                                      onClick={(e) => { e.stopPropagation(); setDeletingOffer(item); }}
-                                      className="border border-red-200 bg-white hover:bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-                                    >
-                                      מחק
-                                    </button>
-                                  )}
+                                  )
+                                ) : (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      navigate(`/benefits-partnerships/edit-benefit/${benefit.id}`);
+                                      void handleToggleAdopt(benefit.id, benefitActiveStates[benefit.id] ?? false);
                                     }}
-                                    className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                                    disabled={adoptingId === benefit.id}
+                                    aria-label={benefitActiveStates[benefit.id] ? 'Unadopt offer' : 'Adopt offer'}
+                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all hover:ring-2 hover:ring-cyan-400 hover:ring-offset-1 disabled:opacity-60 disabled:cursor-not-allowed ${
+                                      benefitActiveStates[benefit.id] ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'
+                                    }`}
                                   >
-                                    <span className="material-icons text-lg text-slate-600 dark:text-slate-400">more_vert</span>
+                                    <span
+                                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                        benefitActiveStates[benefit.id] ? '-translate-x-1' : '-translate-x-5'
+                                      }`}
+                                    />
                                   </button>
-                                </div>
-                              );
-                            })()}
-                          </td>
-                        </tr>
+                                )}
+                              </td>
+
+                              {/* 2. Image — cover thumbnail; click for full-screen lightbox. */}
+                              <td className="px-4 py-4 align-top">
+                                {item.imageUrl ? (
+                                  <img
+                                    src={item.imageUrl}
+                                    alt={item.title}
+                                    className="w-14 h-14 rounded-lg object-cover border border-slate-200 dark:border-slate-700 cursor-zoom-in"
+                                    onClick={() => item.imageUrl && setLightboxUrl(item.imageUrl)}
+                                  />
+                                ) : (
+                                  <div
+                                    aria-label={t('bp_imageMissingAlt')}
+                                    className="w-14 h-14 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center"
+                                  >
+                                    <span className="material-icons text-base text-slate-400">image</span>
+                                  </div>
+                                )}
+                              </td>
+
+                              {/* 3. Title. */}
+                              <td className="px-4 py-4 align-top">
+                                <span className="block text-sm font-semibold text-slate-900 dark:text-slate-100 line-clamp-1 max-w-[200px]">
+                                  {item.title}
+                                </span>
+                              </td>
+
+                              {/* 4. Description — HTML stripped to plain text for table display. */}
+                              <td className="px-4 py-4 align-top">
+                                <span className={cn(
+                                  'block text-sm line-clamp-2 max-w-[300px]',
+                                  descPlain ? 'text-slate-600 dark:text-slate-300' : 'text-slate-400 italic',
+                                )}>
+                                  {descPlain || np}
+                                </span>
+                              </td>
+
+                              {/* 5. Category — colored chip. */}
+                              <td className="px-4 py-4 align-top">
+                                <span className={cn(
+                                  'inline-flex items-center text-xs px-2.5 py-1 rounded-full whitespace-nowrap',
+                                  getCategoryColor(item.category),
+                                )}>
+                                  {categoryLabel}
+                                </span>
+                              </td>
+
+                              {/* 6. Offer Type — localized label from EXECUTION_TYPE_LABELS. */}
+                              <td className="px-4 py-4 align-top">
+                                <span className="text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                                  {executionLabel}
+                                </span>
+                              </td>
+
+                              {/* 7. Visibility — green chip for ecosystem, slate for tenant-only. */}
+                              <td className="px-4 py-4 align-top">
+                                <span className={cn(
+                                  'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap',
+                                  visibility === 'tenant_only'
+                                    ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                                    : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+                                )}>
+                                  {visibility === 'tenant_only'
+                                    ? t('bp_visibilityTenant')
+                                    : t('bp_visibilityEcosystem')}
+                                </span>
+                              </td>
+
+                              {/* 8. Price — member_price for vouchers, market_price otherwise. */}
+                              <td className="px-4 py-4 align-top">
+                                <span className={cn(
+                                  'text-sm font-semibold tabular-nums whitespace-nowrap',
+                                  priceValue == null
+                                    ? 'text-slate-400 italic font-normal'
+                                    : 'text-slate-900 dark:text-slate-100',
+                                )}>
+                                  {formatPrice(priceValue)}
+                                </span>
+                              </td>
+
+                              {/* 9. Stock — Unlimited / available/limit / Sold out. */}
+                              <td className="px-4 py-4 align-top">
+                                {item.stockLimit == null ? (
+                                  <span className="text-sm text-slate-500 italic whitespace-nowrap">
+                                    {t('bp_unlimitedStock')}
+                                  </span>
+                                ) : item.isSoldOut ? (
+                                  <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700 dark:bg-red-900/30 dark:text-red-400 whitespace-nowrap">
+                                    {t('bp_soldOut')}
+                                  </span>
+                                ) : (
+                                  <span className="text-sm text-slate-700 dark:text-slate-300 tabular-nums whitespace-nowrap">
+                                    {item.stockAvailable} / {item.stockLimit}
+                                  </span>
+                                )}
+                              </td>
+
+                              {/* 10. Valid From. */}
+                              <td className="px-4 py-4 align-top">
+                                <span className={cn(
+                                  'text-sm whitespace-nowrap',
+                                  item.validFrom ? 'text-slate-700 dark:text-slate-300' : 'text-slate-400 italic',
+                                )}>
+                                  {formatDate(item.validFrom)}
+                                </span>
+                              </td>
+
+                              {/* 11. Valid Until. */}
+                              <td className="px-4 py-4 align-top">
+                                <span className={cn(
+                                  'text-sm whitespace-nowrap',
+                                  item.validUntil ? 'text-slate-700 dark:text-slate-300' : 'text-slate-400 italic',
+                                )}>
+                                  {formatDate(item.validUntil)}
+                                </span>
+                              </td>
+
+                              {/* 12. Tags — first 3 chips + "+N" overflow badge. */}
+                              <td className="px-4 py-4 align-top">
+                                {tagsList.length === 0 ? (
+                                  <span className="text-sm text-slate-400 italic">{np}</span>
+                                ) : (
+                                  <div className="flex flex-wrap gap-1 max-w-[200px]">
+                                    {tagsList.slice(0, 3).map((tag) => (
+                                      <span
+                                        key={tag}
+                                        className="inline-flex items-center text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 whitespace-nowrap"
+                                      >
+                                        {tag}
+                                      </span>
+                                    ))}
+                                    {tagsList.length > 3 && (
+                                      <span className="inline-flex items-center text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                                        +{tagsList.length - 3}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </td>
+
+                              {/* 13. Actions — Edit + Delete, gated by canEditOffer. */}
+                              <td className="px-4 py-4 align-top text-center">
+                                {editable ? (
+                                  <div className="inline-flex items-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); setEditingOffer(item); }}
+                                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 px-2.5 py-1 text-xs font-semibold transition-colors dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                                      aria-label={language === 'he' ? 'ערוך הצעה' : 'Edit offer'}
+                                    >
+                                      <span className="material-icons text-[14px]">edit</span>
+                                      {language === 'he' ? 'ערוך' : 'Edit'}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); setDeletingOffer(item); }}
+                                      className="inline-flex items-center justify-center rounded-lg border border-red-200 bg-white text-red-600 hover:bg-red-50 w-7 h-7 transition-colors dark:border-red-900/40 dark:bg-slate-900 dark:text-red-400 dark:hover:bg-red-900/20"
+                                      aria-label={language === 'he' ? 'מחק הצעה' : 'Delete offer'}
+                                    >
+                                      <span className="material-icons text-[14px]">delete</span>
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-slate-400">—</span>
+                                )}
+                              </td>
+                            </tr>
                           );
-                        }); // end filteredBenefits.map
-                      })(/* end outer IIFE */)}
+                        });
+                      })()}
                     </tbody>
                   </table>
 

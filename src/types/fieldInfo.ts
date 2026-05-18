@@ -26,13 +26,11 @@ export type FieldInfoKey =
   // BenefitsPartnerships page - tab tooltips
   | 'tabCards'
   | 'tabTable'
-  // BenefitsPartnerships page - table column tooltips (columns that have no
-  // matching CreateOffer field reuse the keys above; only the columns that
-  // are admin-table specific need new keys).
+  // BenefitsPartnerships page - table column tooltips. Columns that mirror a
+  // CreateOffer field reuse the keys above (title / description / category /
+  // executionType / visibility / stockLimit / validFrom / validUntil / tags).
+  // Only admin-table-only columns get their own key here.
   | 'bpcStatus'
-  | 'bpcLogo'
-  | 'bpcBackgroundImage'
-  | 'bpcBusinessName'
-  | 'bpcBenefitType'
-  | 'bpcUsageTerms'
+  | 'bpcImage'
+  | 'bpcPrice'
   | 'bpcActions';
