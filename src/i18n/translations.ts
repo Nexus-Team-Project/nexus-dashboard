@@ -1030,6 +1030,10 @@ export const translations = {
     fi_tabTable_short: 'Spreadsheet-style read-only table mirroring the offer form fields.',
     fi_tabTable_detail: 'The Table tab shows the same offers as Cards but in a wide row-per-offer layout. Every cell is read-only - use the Edit button on each row to open the full offer drawer (only the offer creator and platform admins see Edit / Delete). Best for scanning, comparing, and reviewing many offers at once.',
     fi_tabTable_example: 'Use Table view when you need to compare end dates, prices, or stock across many offers at a glance, then click Edit on a row to make changes.',
+    fi_howToAdopt_label: 'How to adopt an offer',
+    fi_howToAdopt_short: 'Switch to the Table tab and flip the Status toggle on the offer row.',
+    fi_howToAdopt_detail: 'Browse the Cards tab to spot offers you like, then switch to the Table tab. Each row has a Status toggle in the first column - turn it ON to adopt the offer to your organization, OFF to remove it. Adopted offers appear in your members\' Benefits Catalog. The offer itself stays on the NEXUS platform either way; the toggle only controls whether YOUR members see it.',
+    fi_howToAdopt_example: 'See an offer in Cards you want for your team? Switch to Table, find the row, and switch the toggle on the left ON - members will see it the next time they open the catalog.',
 
     // ── BenefitsPartnerships page - table column tooltips ──
     fi_bpcStatus_label: 'Status',
@@ -1964,7 +1968,7 @@ export const translations = {
     om_soldOutIndicator: '🔴 אזל המלאי',
 
     // BenefitsPartnerships banner
-    bp_catalogSandboxNote: 'כדי להעלות הצעות לכל דיירי פלטפורמת NEXUS - השלם את הגדרת העסק תחילה. ניתן עדיין להעלות הצעות הגלויות לחברי הארגון שלך.',
+    bp_catalogSandboxNote: 'כדי להעלות הצעות לכל ארגוני פלטפורמת NEXUS - השלם את הגדרת העסק תחילה. ניתן עדיין להעלות הצעות הגלויות לחברי הארגון שלך.',
 
     // BenefitsPartnerships top bar + filter panel (Transactions/Users-style redesign)
     bp_tabCards: 'כרטיסים',
@@ -2039,7 +2043,7 @@ export const translations = {
     // ── visibility ──
     fi_visibility_label: 'נראות',
     fi_visibility_short: 'שולטת מי רואה הצעה זו. מערכת כולל דורשת אישור מנהל NEXUS.',
-    fi_visibility_detail: 'מערכת כולל: ההצעה נשלחת לבדיקת מנהל פלטפורמת NEXUS. לאחר אישור, היא מופיעה בקטלוגי כל הדיירים בפלטפורמה. הארגון שלי בלבד: מתפרסמת מיד לקטלוג הארגון שלך ללא שלב אישור - ארגונים אחרים אינם יכולים לראותה.',
+    fi_visibility_detail: 'מערכת כולל: ההצעה נשלחת לבדיקת מנהל פלטפורמת NEXUS. לאחר אישור, היא מופיעה בקטלוגי כל הארגונים בפלטפורמה. הארגון שלי בלבד: מתפרסמת מיד לקטלוג הארגון שלך ללא שלב אישור - ארגונים אחרים אינם יכולים לראותה.',
     fi_visibility_example: 'עסקת רשת קפה ארצית ← מערכת כולל (ממתין לאישור). הטבה פנימית לעובדים ← הארגון שלי בלבד (מיידי).',
 
     // ── implementationLink ──
@@ -2104,12 +2108,16 @@ export const translations = {
     fi_tabTable_short: 'טבלה בסגנון גיליון לקריאה בלבד התואמת לשדות טופס ההצעה.',
     fi_tabTable_detail: 'הטאב טבלה מציג את אותן הצעות ככרטיסים אך בפריסה רחבה עם שורה אחת לכל הצעה. כל תא לקריאה בלבד - השתמש בכפתור עריכה בכל שורה כדי לפתוח את חלון ההצעה המלא (רק יוצר ההצעה ומנהלי הפלטפורמה רואים עריכה / מחיקה). מתאים לסריקה, השוואה ובדיקה של הרבה הצעות במכה אחת.',
     fi_tabTable_example: 'השתמש בתצוגת טבלה כשצריך להשוות תאריכי תפוגה, מחירים או מלאי בין הרבה הצעות, ואז לחץ עריכה בשורה כדי לבצע שינויים.',
+    fi_howToAdopt_label: 'איך מאמצים הצעה',
+    fi_howToAdopt_short: 'עברו לטאב טבלה והפעילו את מתג הסטטוס בשורת ההצעה.',
+    fi_howToAdopt_detail: 'דפדפו בטאב כרטיסים כדי לאתר הצעות שמתאימות לכם, ואז עברו לטאב טבלה. לכל שורה יש מתג סטטוס בעמודה הראשונה - הפעילו אותו כדי לאמץ את ההצעה לארגון שלכם, או כבו כדי להסיר. הצעות שאומצו יופיעו בקטלוג ההטבות של החברים שלכם. ההצעה עצמה נשארת בפלטפורמת NEXUS בכל מקרה; המתג קובע רק האם החברים שלכם יראו אותה.',
+    fi_howToAdopt_example: 'ראיתם בכרטיסים הצעה שאתם רוצים לצוות? עברו לטבלה, מצאו את השורה והפעילו את המתג בצד - החברים יראו אותה בפעם הבאה שיפתחו את הקטלוג.',
 
     // ── דף שיתופי פעולה והטבות - טיפי עמודות בטבלה ──
     fi_bpcStatus_label: 'סטטוס',
     fi_bpcStatus_short: 'מתג אימוץ ותג סטטוס אישור להצעה.',
     fi_bpcStatus_detail: 'הפעל כדי לאמץ את ההצעה - היא תופיע בקטלוג ההטבות של החברים שלך. כבה כדי להסיר (החברים מאבדים גישה; ההצעה עצמה נשמרת בפלטפורמה). מנהלי NEXUS רואים כאן כפתורי אישור / דחייה להצעות הממתינות לבדיקה; אחרים רואים תג סטטוס. רק התא הזה אינטראקטיבי - שאר השורה לקריאה בלבד.',
-    fi_bpcStatus_example: 'מאומץ = גלוי לחברים שלך. לא מאומץ = מוסתר מהחברים שלך אך נשאר בפלטפורמה לדיירים אחרים.',
+    fi_bpcStatus_example: 'מאומץ = גלוי לחברים שלך. לא מאומץ = מוסתר מהחברים שלך אך נשאר בפלטפורמה לארגונים אחרים.',
     fi_bpcImage_label: 'תמונה',
     fi_bpcImage_short: 'תמונת כיסוי המוצגת לחברים בכרטיס ההצעה.',
     fi_bpcImage_detail: 'תמונת הכיסוי היחידה המשויכת להצעה. לחץ על התמונה הממוזערת כדי לפתוח במסך מלא. ריק כשיוצר ההצעה לא העלה תמונה. לא ניתן לערוך את התמונה מהטבלה - השתמש בכפתור עריכה כדי לפתוח את חלון ההצעה.',
@@ -2120,8 +2128,8 @@ export const translations = {
     fi_bpcPrice_example: 'שובר ₪100 יכול להיות עם מחיר חבר של ₪90; הצעת מסעדה יכולה להיות עם מחיר שוק של ₪50.',
     fi_bpcActions_label: 'פעולות',
     fi_bpcActions_short: 'כפתורי עריכה ומחיקה לשורה (מוגבל לפי בעלות).',
-    fi_bpcActions_detail: 'עריכה פותחת את חלון ההצעה המלא עם כל השדות (כולל תיאור עשיר ותמונה). מחיקה מסירה את ההצעה לצמיתות. שני הכפתורים גלויים רק לדייר שיצר את ההצעה ולמנהלי הפלטפורמה של NEXUS. מנהלי הפלטפורמה רואים גם אישור / דחייה עבור הצעות הממתינות לבדיקה.',
-    fi_bpcActions_example: 'מנהל דייר רואה עריכה + מחיקה רק עבור הצעות שהוא העלה - לעולם לא עבור הצעות אקוסיסטם של דיירים אחרים.',
+    fi_bpcActions_detail: 'עריכה פותחת את חלון ההצעה המלא עם כל השדות (כולל תיאור עשיר ותמונה). מחיקה מסירה את ההצעה לצמיתות. שני הכפתורים גלויים רק לארגון שיצר את ההצעה ולמנהלי הפלטפורמה של NEXUS. מנהלי הפלטפורמה רואים גם אישור / דחייה עבור הצעות הממתינות לבדיקה.',
+    fi_bpcActions_example: 'מנהל ארגון רואה עריכה + מחיקה רק עבור הצעות שהוא העלה - לעולם לא עבור הצעות אקוסיסטם של ארגונים אחרים.',
 
     // ── BenefitsPartnerships - מחרוזות תצוגה בתאים ──
     bp_notProvided: 'לא סופק',

@@ -101,6 +101,25 @@ const CatalogTopBar = ({
           </button>
           <FieldTooltip fieldKey="tabTable" placement="bottom" />
         </div>
+        {/* Eye-catching "how do I adopt an offer?" pill. Sits inline with the
+            tabs (not at the opposite edge) and uses an amber lightbulb badge
+            so admins notice the cards-then-table-toggle flow at a glance. */}
+        <div
+          className={cn(
+            'self-center inline-flex items-center gap-1.5 px-3 py-1 rounded-full',
+            'bg-amber-50 border border-amber-300 text-amber-800 shadow-sm',
+            'dark:bg-amber-900/20 dark:border-amber-700/40 dark:text-amber-200',
+            'transition-shadow hover:shadow-md hover:border-amber-400',
+          )}
+        >
+          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 shrink-0" aria-hidden="true">
+            <path fillRule="evenodd" d="M10 2a7 7 0 0 0-4.2 12.6c.42.3.62.7.71 1.1l.32 1.62c.13.66.7 1.14 1.37 1.14h3.6c.67 0 1.24-.48 1.37-1.14l.32-1.62c.09-.4.29-.8.71-1.1A7 7 0 0 0 10 2zM7 18.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5z" clipRule="evenodd" />
+          </svg>
+          <span className="text-xs font-semibold whitespace-nowrap">
+            {t('fi_howToAdopt_label')}
+          </span>
+          <FieldTooltip fieldKey="howToAdopt" placement="bottom" />
+        </div>
       </div>
 
       {/* Toolbar row */}

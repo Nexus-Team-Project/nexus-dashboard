@@ -131,13 +131,13 @@ export const TENANT_ROLE_COPY: Record<TenantRole, {
   platform_operator: {
     he: 'תפעול פלטפורמה',
     en: 'Platform operator',
-    descriptionHe: 'תגובה לאירועים חוצי-דיירים.',
+    descriptionHe: 'תגובה לאירועים חוצי-ארגונים.',
     descriptionEn: 'Cross-tenant incident response.',
   },
   platform_back_office: {
     he: 'בק-אופיס פלטפורמה',
     en: 'Platform back-office',
-    descriptionHe: 'תפעול שוטף חוצה-דיירים.',
+    descriptionHe: 'תפעול שוטף חוצה-ארגונים.',
     descriptionEn: 'Routine cross-tenant operations.',
   },
   platform_marketing: {
@@ -155,7 +155,7 @@ export const TENANT_ROLE_COPY: Record<TenantRole, {
   platform_support: {
     he: 'תמיכה פלטפורמה',
     en: 'Platform support',
-    descriptionHe: 'גישת קריאה חוצה-דיירים לתמיכת לקוחות.',
+    descriptionHe: 'גישת קריאה חוצה-ארגונים לתמיכת לקוחות.',
     descriptionEn: 'Read-only cross-tenant access for customer support.',
   },
   platform_finance: {
