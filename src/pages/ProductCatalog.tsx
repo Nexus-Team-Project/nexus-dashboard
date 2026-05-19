@@ -267,14 +267,27 @@ const ProductCatalog = () => {
             className="text-xs text-slate-500 flex-1"
           />
 
-          {/* Pricing row */}
+          {/* Pricing row. Voucher offers don't carry market_price; fall back
+              to member_price (what members pay), then face_value, so the card
+              always shows something useful next to the shekel icon. */}
           <div className="mt-3 flex items-center justify-between">
             <div className="flex items-baseline gap-1.5">
-              {item.market_price !== undefined && (
-                <span className="text-base font-bold text-slate-950">
-                  &#8362;{item.market_price}
-                </span>
-              )}
+              {(() => {
+                const price = item.market_price ?? item.member_price ?? item.face_value;
+                if (price === undefined) return null;
+                return (
+                  <>
+                    <span className="text-base font-bold text-slate-950">
+                      &#8362;{price}
+                    </span>
+                    {item.face_value !== undefined && item.face_value !== price && (
+                      <span className="text-xs text-slate-400 line-through">
+                        &#8362;{item.face_value}
+                      </span>
+                    )}
+                  </>
+                );
+              })()}
             </div>
 
             {/* Confirm / Remove button */}
