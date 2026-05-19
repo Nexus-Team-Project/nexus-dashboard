@@ -16,9 +16,27 @@ export type FieldInfoKey =
   | 'visibility'
   | 'implementationLink'
   | 'implementationInstructions'
+  | 'validFrom'
   | 'validUntil'
   | 'terms'
   | 'tags'
   | 'faceValue'
   | 'nexusCost'
-  | 'memberPrice';
+  | 'memberPrice'
+  // BenefitsPartnerships page - tab tooltips
+  | 'tabCards'
+  | 'tabTable'
+  // "How to adopt an offer" inline help next to the tabs row.
+  | 'howToAdopt'
+  // BenefitsPartnerships page - table column tooltips. Columns that mirror a
+  // CreateOffer field reuse the keys above (title / description / category /
+  // executionType / visibility / stockLimit / validFrom / validUntil / tags).
+  // Only admin-table-only columns get their own key here.
+  | 'bpcStatus'
+  | 'bpcImage'
+  | 'bpcPrice'
+  | 'bpcActions'
+  // Multi-image gallery on Create/Edit offer pages.
+  | 'images'
+  // Product Catalog page header — what the page is for.
+  | 'productCatalogPage';

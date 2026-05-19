@@ -724,8 +724,13 @@ export interface CatalogItem {
   offerId: string;
   title: string;
   description: string;
+  /** Legacy single cover URL. Equals `imageUrls[0]` when a gallery exists. */
   imageUrl?: string;
+  /** Ordered gallery of public image URLs (max 6). Index 0 is the cover. */
+  imageUrls?: string[];
   category: string;
+  /** 'ecosystem' (visible to every tenant) or 'tenant_only' (visible only to the creating tenant). */
+  visibility: 'ecosystem' | 'tenant_only' | string;
   market_price?: number;
   isAdopted: boolean;
   adoptedAt?: string;
@@ -742,6 +747,8 @@ export interface CatalogItem {
   implementationLink?: string | null;
   /** Step-by-step redemption instructions. */
   implementationInstructions?: string;
+  /** Date the offer becomes visible to members (ISO string). null = immediately. */
+  validFrom?: string | null;
   /** Offer expiry date as ISO string (serialised from backend Date). */
   validUntil?: string | null;
   /** Terms and conditions text. */
@@ -771,7 +778,10 @@ export interface NexusOffer {
   offerId: string;
   title: string;
   description: string;
+  /** Legacy single cover URL. Equals `imageUrls[0]` when a gallery exists. */
   imageUrl?: string;
+  /** Ordered gallery of public image URLs (max 6). Index 0 is the cover. */
+  imageUrls?: string[];
   category: string;
   market_price?: number;
   /** Offer lifecycle status. */
@@ -788,6 +798,8 @@ export interface NexusOffer {
   stockUsed: number;
   implementationLink?: string | null;
   implementationInstructions?: string;
+  /** Date the offer becomes visible to members (ISO string). null = immediately. */
+  validFrom?: string | null;
   validUntil?: string | null;
   terms?: string;
   tags?: string[];
@@ -835,40 +847,74 @@ export const OFFER_CATEGORIES = [
 ] as const;
 
 /**
- * Fetches all platform offers with per-tenant adoption status (admin view).
- * Matches GET /api/v1/offers/platform.
- * Input: optional category filter string; pass 'all' or omit to fetch all.
- * Output: array of CatalogItem with isAdopted flag set for the calling tenant.
+ * Server-side catalog query parameters. Mirrors the backend Zod schema in
+ * offers.routes.ts. Empty / undefined fields mean "no constraint".
  */
-export async function getPlatformOffers(category?: string): Promise<CatalogItem[]> {
-  const params = category && category !== 'all'
-    ? `?category=${encodeURIComponent(category)}`
-    : '';
-  const data = await request<{ items: CatalogItem[] }>(
-    'GET',
-    `/api/v1/offers/platform${params}`,
-  );
-  return data.items;
+export interface CatalogQuery {
+  page: number;
+  limit: number;
+  search?: string;
+  category?: string;
+  approvalStatus?: 'active' | 'pending_approval' | 'denied' | 'expired';
+  adoptionStatus?: 'adopted' | 'not_adopted';
+}
+
+/** Paginated response envelope returned by both catalog endpoints. */
+export interface CatalogPage {
+  items: CatalogItem[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
 }
 
 /**
- * Fetches the adopted offers for a tenant's member-facing catalog.
+ * Builds a URL query string from a CatalogQuery, dropping empty / undefined
+ * fields so the server sees only the filters the caller actually set.
+ * Numbers are stringified; enums and the search string are URI-encoded.
+ */
+function catalogQueryToParams(q: CatalogQuery): string {
+  const u = new URLSearchParams();
+  u.set('page', String(q.page));
+  u.set('limit', String(q.limit));
+  if (q.search && q.search.trim()) u.set('search', q.search.trim());
+  if (q.category) u.set('category', q.category);
+  if (q.approvalStatus) u.set('approvalStatus', q.approvalStatus);
+  if (q.adoptionStatus) u.set('adoptionStatus', q.adoptionStatus);
+  return u.toString();
+}
+
+/**
+ * Fetches one page of platform offers with per-tenant adoption status (admin view).
+ * Matches GET /api/v1/offers/platform.
+ * Input: CatalogQuery - page + filters.
+ * Output: CatalogPage with items + pagination metadata.
+ */
+export async function getPlatformOffers(query: CatalogQuery): Promise<CatalogPage> {
+  const data = await request<CatalogPage>(
+    'GET',
+    `/api/v1/offers/platform?${catalogQueryToParams(query)}`,
+  );
+  return data;
+}
+
+/**
+ * Fetches one page of adopted offers for a tenant's member-facing catalog.
  * Matches GET /api/v1/offers/:tenantId.
- * Input: tenantId - the tenant whose catalog to fetch; optional category filter.
- * Output: array of CatalogItem adopted by that tenant.
+ * Input: tenantId + CatalogQuery (member view honours only page/limit/search/category).
+ * Output: CatalogPage with items + pagination metadata.
  */
 export async function getMemberCatalog(
   tenantId: string,
-  category?: string,
-): Promise<CatalogItem[]> {
-  const params = category && category !== 'all'
-    ? `?category=${encodeURIComponent(category)}`
-    : '';
-  const data = await request<{ offers: CatalogItem[] }>(
+  query: CatalogQuery,
+): Promise<CatalogPage> {
+  const data = await request<CatalogPage>(
     'GET',
-    `/api/v1/offers/${encodeURIComponent(tenantId)}${params}`,
+    `/api/v1/offers/${encodeURIComponent(tenantId)}?${catalogQueryToParams(query)}`,
   );
-  return data.offers;
+  return data;
 }
 
 /**
@@ -941,51 +987,12 @@ export async function createOfferApi(formData: FormData): Promise<NexusOffer> {
  */
 export async function updateOfferApi(
   offerId: string,
-  data: {
-    title?: string;
-    description?: string;
-    category?: string;
-    market_price?: number;
-    stockLimit?: number | null;
-    executionType?: string;
-    visibility?: string;
-    implementationLink?: string | null;
-    implementationInstructions?: string;
-    validUntil?: string | null;
-    terms?: string;
-    tags?: string[];
-    imageFile?: File;
-    /** Voucher face value (voucher executionType only). */
-    face_value?: number;
-    /** Wholesale price NEXUS pays per voucher (voucher executionType only). */
-    nexus_cost?: number;
-    /** Price members pay; between nexus_cost and face_value (voucher executionType only). */
-    member_price?: number;
-  },
+  formData: FormData,
 ): Promise<NexusOffer> {
-  const { imageFile, tags, ...rest } = data;
-
-  if (imageFile) {
-    // Use FormData so the browser sets the correct multipart boundary automatically.
-    const fd = new FormData();
-    fd.append('image', imageFile);
-    Object.entries(rest).forEach(([k, v]) => {
-      if (v === null && (k === 'stockLimit' || k === 'validUntil')) {
-        fd.append(k, ''); // empty string signals null to backend (coerced by Zod)
-      } else if (v !== undefined && v !== null) {
-        fd.append(k, String(v));
-      }
-    });
-    if (tags !== undefined) fd.append('tags', JSON.stringify(tags));
-    const res = await request<{ offer: NexusOffer }>('PATCH', `/api/v1/offers/${offerId}`, fd);
-    return res.offer;
-  }
-
-  // JSON path - no image replacement.
-  const res = await request<{ offer: NexusOffer }>('PATCH', `/api/v1/offers/${offerId}`, {
-    ...rest,
-    ...(tags !== undefined && { tags }),
-  });
+  // Caller is responsible for assembling the FormData with `images[]` files
+  // and a JSON `keptImageUrls` array. We forward it unchanged; the request()
+  // helper omits Content-Type so the browser sets the multipart boundary.
+  const res = await request<{ offer: NexusOffer }>('PATCH', `/api/v1/offers/${offerId}`, formData);
   return res.offer;
 }
 

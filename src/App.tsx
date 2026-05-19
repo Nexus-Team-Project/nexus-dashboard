@@ -26,7 +26,7 @@ import SendGiftGreeting from './pages/SendGiftGreeting';
 import SendGiftRecipients from './pages/SendGiftRecipients';
 import SendGiftSummary from './pages/SendGiftSummary';
 import BenefitsPartnerships from './pages/BenefitsPartnerships';
-import EditBenefit from './pages/EditBenefit';
+import EditOffer from './pages/EditOffer';
 import ApiDocs from './pages/ApiDocs';
 import Organizations from './pages/Organizations';
 import OrgDetail from './pages/OrgDetail';
@@ -299,8 +299,7 @@ function AppRoutes() {
             <Route path="transactions" element={<Transactions />} />
             <Route path="points-gifts" element={<PointsGifts />} />
             <Route path="benefits-partnerships" element={<BenefitsPartnerships />} />
-            <Route path="benefits-partnerships/edit-benefit/:id" element={<EditBenefit />} />
-            <Route path="benefits-partnerships/edit-business/:id" element={<EditBenefit />} />
+            <Route path="benefits-partnerships/edit-offer/:offerId" element={<EditOffer />} />
             <Route path="product-catalog" element={<ProductCatalog />} />
             <Route
               path="supply/create"
@@ -400,8 +399,7 @@ function AppRoutes() {
         <Route path="transactions" element={<Transactions />} />
         <Route path="points-gifts" element={<PointsGifts />} />
         <Route path="benefits-partnerships" element={<BenefitsPartnerships />} />
-        <Route path="benefits-partnerships/edit-benefit/:id" element={<EditBenefit />} />
-        <Route path="benefits-partnerships/edit-business/:id" element={<EditBenefit />} />
+        <Route path="benefits-partnerships/edit-offer/:offerId" element={<EditOffer />} />
         <Route path="product-catalog" element={isTenantAdmin ? <ProductCatalog /> : <Navigate to="/" replace />} />
         <Route
           path="supply/create"

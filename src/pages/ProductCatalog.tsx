@@ -17,6 +17,9 @@ import {
   OFFER_CATEGORIES,
   EXECUTION_TYPE_LABELS,
 } from '../lib/api';
+import RichTextDisplay from '../components/RichTextDisplay';
+import OfferModal from '../components/catalog/OfferModal';
+import FieldTooltip from '../components/FieldTooltip';
 
 // ----------------------------------------------------------------
 // Types
@@ -88,6 +91,19 @@ const ProductCatalog = () => {
   const [removingId, setRemovingId] = useState<string | null>(null);
   // When set, shows an inline confirmation prompt for that offer
   const [confirmRemove, setConfirmRemove] = useState<ConfirmState | null>(null);
+  // Currently opened offer in the detail modal, or null when closed.
+  const [detailOffer, setDetailOffer] = useState<CatalogItem | null>(null);
+
+  /**
+   * Looks up the localized label for an offer category. Falls back to the
+   * raw category key (with underscores replaced) when the offer carries a
+   * category value that is not in the canonical OFFER_CATEGORIES list.
+   */
+  const categoryLabel = useCallback((value: string) => {
+    const meta = OFFER_CATEGORIES.find((c) => c.value === value);
+    if (!meta) return value.replace(/_/g, ' ');
+    return language === 'he' ? meta.labelHe : meta.label;
+  }, [language]);
 
   // ----------------------------------------------------------------
   // Data loading
@@ -101,8 +117,12 @@ const ProductCatalog = () => {
     setIsLoading(true);
     setFetchError(null);
     try {
-      const all = await getPlatformOffers();
-      setItems(all.filter((offer) => offer.isAdopted));
+      // Server-side filter to adopted offers only — the page is capped at 100
+      // (backend hard limit). Tenants with more than 100 adopted offers will
+      // not see the overflow here; if that becomes a real case we switch to a
+      // pagination loop. Single page keeps this page simple for now.
+      const page = await getPlatformOffers({ page: 1, limit: 100, adoptionStatus: 'adopted' });
+      setItems(page.items);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load catalog';
       setFetchError(message);
@@ -187,7 +207,12 @@ const ProductCatalog = () => {
     return (
       <article
         key={item.offerId}
-        className="rounded-lg border border-slate-200 bg-white overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col"
+        className="rounded-lg border border-slate-200 bg-white overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        role="button"
+        tabIndex={0}
+        onClick={() => setDetailOffer(item)}
+        onKeyDown={(e) => { if (e.key === 'Enter') setDetailOffer(item); }}
+        aria-label={`Open details: ${item.title}`}
       >
         {/* Offer image */}
         {item.imageUrl ? (
@@ -215,8 +240,8 @@ const ProductCatalog = () => {
               {item.title}
             </h3>
             <div className="flex flex-col items-end gap-1 shrink-0">
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500 capitalize whitespace-nowrap">
-                {item.category.replace(/_/g, ' ')}
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500 whitespace-nowrap">
+                {categoryLabel(item.category)}
               </span>
               {/* Execution type badge - shown when a delivery mechanism is set */}
               {item.executionType && EXECUTION_TYPE_LABELS[item.executionType] && (
@@ -236,33 +261,48 @@ const ProductCatalog = () => {
             </div>
           </div>
 
-          <p className="text-xs text-slate-500 line-clamp-2 flex-1">
-            {item.description}
-          </p>
+          <RichTextDisplay
+            html={item.description}
+            compact
+            className="text-xs text-slate-500 flex-1"
+          />
 
-          {/* Pricing row */}
+          {/* Pricing row. Voucher offers don't carry market_price; fall back
+              to member_price (what members pay), then face_value, so the card
+              always shows something useful next to the shekel icon. */}
           <div className="mt-3 flex items-center justify-between">
             <div className="flex items-baseline gap-1.5">
-              {item.market_price !== undefined && (
-                <span className="text-base font-bold text-slate-950">
-                  &#8362;{item.market_price}
-                </span>
-              )}
+              {(() => {
+                const price = item.market_price ?? item.member_price ?? item.face_value;
+                if (price === undefined) return null;
+                return (
+                  <>
+                    <span className="text-base font-bold text-slate-950">
+                      &#8362;{price}
+                    </span>
+                    {item.face_value !== undefined && item.face_value !== price && (
+                      <span className="text-xs text-slate-400 line-through">
+                        &#8362;{item.face_value}
+                      </span>
+                    )}
+                  </>
+                );
+              })()}
             </div>
 
             {/* Confirm / Remove button */}
             {isPendingConfirm ? (
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                 <span className="text-xs text-slate-500 mr-1">{t('pc_removeQuestion')}</span>
                 <button
-                  onClick={() => void confirmAndRemove(item.offerId)}
+                  onClick={(e) => { e.stopPropagation(); void confirmAndRemove(item.offerId); }}
                   className="bg-red-500 text-white px-2.5 py-1 rounded text-xs font-medium hover:bg-red-600 transition-colors"
                   aria-label={`Confirm removal of ${item.title}`}
                 >
                   {t('pc_btnYes')}
                 </button>
                 <button
-                  onClick={cancelRemove}
+                  onClick={(e) => { e.stopPropagation(); cancelRemove(); }}
                   className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-2.5 py-1 rounded text-xs font-medium transition-colors"
                   aria-label="Cancel removal"
                 >
@@ -271,7 +311,7 @@ const ProductCatalog = () => {
               </div>
             ) : (
               <button
-                onClick={() => requestRemove(item.offerId, item.title)}
+                onClick={(e) => { e.stopPropagation(); requestRemove(item.offerId, item.title); }}
                 disabled={isRemoving}
                 className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 disabled:opacity-50 px-3 py-1 rounded text-xs font-medium transition-colors"
                 aria-label={`Remove ${item.title} from catalog`}
@@ -301,8 +341,9 @@ const ProductCatalog = () => {
       {/* Page header */}
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-950">
+          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-slate-950">
             {t('pc_pageTitle')}
+            <FieldTooltip fieldKey="productCatalogPage" />
           </h1>
           <p className="mt-1 text-sm text-slate-500">
             {isLoading
@@ -347,7 +388,7 @@ const ProductCatalog = () => {
           <option value="all">{t('pc_allCategories')}</option>
           {OFFER_CATEGORIES.map((cat) => (
             <option key={cat.value} value={cat.value}>
-              {cat.label}
+              {language === 'he' ? cat.labelHe : cat.label}
             </option>
           ))}
         </select>
@@ -418,6 +459,19 @@ const ProductCatalog = () => {
         >
           {filtered.map(renderOfferCard)}
         </div>
+      )}
+
+      {/* Detail modal — opens on card click. Reuses the member-facing
+          OfferModal so the carousel + rich-text description rendering stays
+          consistent. Passed canPurchase=false so the redeem block stays
+          hidden in this admin preview context. */}
+      {detailOffer && (
+        <OfferModal
+          offer={detailOffer}
+          catalogMode="inactive"
+          canPurchase={false}
+          onClose={() => setDetailOffer(null)}
+        />
       )}
     </main>
   );

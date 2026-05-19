@@ -10,8 +10,11 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
-import { EXECUTION_TYPE_LABELS } from '../../lib/api';
+import { EXECUTION_TYPE_LABELS, OFFER_CATEGORIES } from '../../lib/api';
 import type { CatalogItem } from '../../lib/api';
+import OfferImageCarousel from './OfferImageCarousel';
+import RichTextDisplay from '../RichTextDisplay';
+import ImageLightbox from '../ImageLightbox';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -66,6 +69,125 @@ function AmbientOrbs() {
   );
 }
 
+/**
+ * Formats an ISO date string for display in the modal. Returns an empty
+ * string when the input is null/undefined/unparseable so callers can
+ * trivially `&&` against it.
+ */
+function formatDate(iso: string | null | undefined, language: 'he' | 'en'): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return new Intl.DateTimeFormat(language === 'he' ? 'he-IL' : 'en-GB', {
+    day: '2-digit', month: 'short', year: 'numeric',
+  }).format(d);
+}
+
+/**
+ * Detail rows shown inside OfferModal. Each row only renders when its
+ * value is present, so sparse offers collapse cleanly.
+ */
+function OfferDetails({ offer }: { offer: CatalogItem }) {
+  const { t, language } = useLanguage();
+  const validFrom = formatDate(offer.validFrom, language);
+  const validUntil = formatDate(offer.validUntil, language);
+  const typeMeta = offer.executionType ? EXECUTION_TYPE_LABELS[offer.executionType] : undefined;
+  const typeLabel = typeMeta ? (language === 'he' ? typeMeta.labelHe : typeMeta.label) : null;
+  const hasInstructions = !!offer.implementationInstructions;
+  const hasTerms = !!offer.terms;
+  const hasLink = !!offer.implementationLink;
+  const tags = (offer.tags ?? []).filter(Boolean);
+  const hasTags = tags.length > 0;
+
+  // Bail when nothing optional exists so the layout stays compact.
+  if (!validFrom && !validUntil && !typeLabel && !hasInstructions && !hasTerms && !hasLink && !hasTags) {
+    return null;
+  }
+
+  return (
+    <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-widest text-white/40">
+        {t('om_detailsTitle')}
+      </p>
+
+      <dl className="mt-3 grid grid-cols-1 gap-x-4 gap-y-2.5 text-[13px] sm:grid-cols-2">
+        {typeLabel && (
+          <div className="flex flex-col items-start gap-0.5">
+            <dt className="text-white/40">{t('om_typeLabel')}</dt>
+            <dd className="font-medium text-white/85">{typeLabel}</dd>
+          </div>
+        )}
+        {validFrom && (
+          <div className="flex flex-col items-start gap-0.5">
+            <dt className="text-white/40">{t('om_validFrom')}</dt>
+            <dd className="font-medium text-white/85">{validFrom}</dd>
+          </div>
+        )}
+        {validUntil && (
+          <div className="flex flex-col items-start gap-0.5">
+            <dt className="text-white/40">{t('om_validUntil')}</dt>
+            <dd className="font-medium text-white/85">{validUntil}</dd>
+          </div>
+        )}
+      </dl>
+
+      {hasInstructions && (
+        <div className="mt-4 border-t border-white/10 pt-3">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-white/40">
+            {t('om_redemptionInstructions')}
+          </p>
+          <RichTextDisplay
+            html={offer.implementationInstructions ?? ''}
+            className="mt-1.5 text-[13px] leading-relaxed text-white/75 [&_*]:!text-white/75 [&_a]:!text-indigo-300"
+          />
+        </div>
+      )}
+
+      {hasLink && (
+        <a
+          href={offer.implementationLink ?? '#'}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 inline-flex items-center gap-1.5 text-[13px] font-semibold text-indigo-300 hover:text-indigo-200 underline-offset-2 hover:underline"
+        >
+          {t('om_redemptionLink')}
+          <span aria-hidden>↗</span>
+        </a>
+      )}
+
+      {hasTerms && (
+        <details className="mt-4 border-t border-white/10 pt-3">
+          <summary className="cursor-pointer text-[11px] font-semibold uppercase tracking-widest text-white/40 hover:text-white/60">
+            {t('om_termsTitle')}
+          </summary>
+          <RichTextDisplay
+            html={offer.terms ?? ''}
+            className="mt-2 text-[12.5px] leading-relaxed text-white/65 [&_*]:!text-white/65 [&_a]:!text-indigo-300"
+          />
+        </details>
+      )}
+
+      {hasTags && (
+        <div className="mt-4 border-t border-white/10 pt-3">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-white/40">
+            {t('om_tagsTitle')}
+          </p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {tags.map((tag) => (
+              <span
+                key={tag}
+                className="rounded-full border border-white/15 bg-white/5 px-2.5 py-0.5 text-[11px] text-white/70"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 /**
@@ -87,6 +209,8 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
 
   /** Ephemeral in-flight state for the mock "Redeem Now" button animation. */
   const [mockingRedeem, setMockingRedeem] = useState(false);
+  /** Currently zoomed image URL, or null when the lightbox is closed. */
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
   /** Ref for initial focus trap - close button is focused on mount. */
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -128,9 +252,14 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
     >
       <AmbientOrbs />
 
-      {/* ── Modal panel ─────────────────────────────────────────────── */}
+      {/* ── Modal panel ───────────────────────────────────────────────
+          Mobile: full-screen sheet (`h-[100dvh]`) so there's no gap at the
+          top edge.
+          Desktop: centred card capped at 88vh.
+          Flex column so long descriptions scroll inside the modal while
+          the redeem CTA stays pinned at the bottom. */}
       <div
-        className="relative w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl"
+        className="relative w-full h-[100dvh] sm:h-auto sm:max-w-md sm:max-h-[88vh] flex flex-col sm:rounded-3xl overflow-hidden shadow-2xl"
         style={{
           background: 'rgba(15, 15, 25, 0.92)',
           backdropFilter: 'blur(24px)',
@@ -148,26 +277,38 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
           &#x2715;
         </button>
 
-        {/* ── Hero image with bottom gradient fade ─────────────────── */}
-        <div className="relative h-52 w-full overflow-hidden">
-          {offer.imageUrl ? (
-            <img
-              src={offer.imageUrl}
-              alt={offer.title}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div
-              className="h-full w-full flex items-center justify-center text-6xl"
-              style={{ background: 'linear-gradient(135deg, #1e1b4b, #312e81)' }}
-            >
-              🎁
-            </div>
-          )}
+        {/* ── Hero image carousel with bottom gradient fade ────────── */}
+        <div className="relative h-52 w-full shrink-0 overflow-hidden">
+          {(() => {
+            // Prefer the multi-image gallery; fall back to legacy single
+            // imageUrl so older offers (pre-gallery) keep rendering. Empty
+            // gallery falls through to the gift emoji placeholder.
+            const images = (offer.imageUrls && offer.imageUrls.length > 0)
+              ? offer.imageUrls
+              : (offer.imageUrl ? [offer.imageUrl] : []);
+            if (images.length === 0) {
+              return (
+                <div
+                  className="h-full w-full flex items-center justify-center text-6xl"
+                  style={{ background: 'linear-gradient(135deg, #1e1b4b, #312e81)' }}
+                >
+                  🎁
+                </div>
+              );
+            }
+            return (
+              <OfferImageCarousel
+                images={images}
+                alt={offer.title}
+                onImageClick={(url) => setLightboxSrc(url)}
+              />
+            );
+          })()}
 
-          {/* Gradient that fades the image into the dark body */}
+          {/* Gradient that fades the image into the dark body. pointer-events-none
+              so the carousel arrows + dots underneath stay clickable. */}
           <div
-            className="absolute inset-0"
+            className="absolute inset-0 pointer-events-none"
             style={{
               background:
                 'linear-gradient(to bottom, transparent 40%, rgba(15,15,25,0.92) 100%)',
@@ -175,10 +316,17 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
           />
 
 
-          {/* Category chip - bottom-left of hero */}
+          {/* Category chip - bottom-left of hero. Looked up against the
+              shared OFFER_CATEGORIES list so the label follows the current
+              language; falls back to the raw key when the offer carries a
+              category not in the canonical list. */}
           <div className="absolute bottom-3 left-4">
             <span className="rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-xs text-white/80 backdrop-blur-sm">
-              {CATEGORY_LABELS[offer.category] ?? offer.category}
+              {(() => {
+                const meta = OFFER_CATEGORIES.find((c) => c.value === offer.category);
+                if (meta) return language === 'he' ? meta.labelHe : meta.label;
+                return CATEGORY_LABELS[offer.category] ?? offer.category;
+              })()}
             </span>
           </div>
 
@@ -193,19 +341,45 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
           )}
         </div>
 
-        {/* ── Text body ─────────────────────────────────────────────── */}
-        <div className="px-5 pt-4 pb-2">
-          <h2 className="text-xl font-bold text-white leading-tight">{offer.title}</h2>
-          <p className="mt-2 text-sm text-white/60 leading-relaxed">{offer.description}</p>
+        {/* ── Scrollable body ──────────────────────────────────────────
+            Wraps the title/description/details so the redeem section at
+            the bottom stays sticky for tall content.
+            The outer wrapper is forced to `dir="ltr"` so the vertical
+            scrollbar always sits on the page's end side; an inner wrapper
+            restores the document direction for the actual text content. */}
+        <div
+          dir="ltr"
+          className="flex-1 min-h-0 overflow-y-auto overscroll-contain custom-scrollbar"
+        >
+          <div dir={language === 'he' ? 'rtl' : 'ltr'} className="px-5 pt-4 pb-2">
+          <h2 className="text-xl font-bold text-white leading-tight break-words">{offer.title}</h2>
+          {/* Long HTML descriptions are allowed to flow vertically inside
+              the scrollable body. break-words prevents long URLs / Hebrew
+              compound strings from forcing horizontal overflow. */}
+          <RichTextDisplay
+            html={offer.description}
+            className="mt-2 text-sm text-white/70 leading-relaxed break-words [&_*]:!text-white/70 [&_a]:!text-indigo-300 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-lg"
+          />
 
-          {/* Market price display - shown only when available */}
-          {offer.market_price !== undefined && (
-            <div className="mt-5">
-              <span className="text-4xl font-black text-white tracking-tight">
-                &#x20AA;{offer.market_price}
-              </span>
-            </div>
-          )}
+          {/* Price display.
+              - Vouchers: show member_price (nexus price + tenant margin) only.
+                face_value is the printed/nominal voucher value and must NOT
+                be shown as the selling price.
+              - Other types: market_price is the member-facing price.
+              No strike-through original price is ever displayed. */}
+          {(() => {
+            const display = offer.executionType === 'voucher'
+              ? offer.member_price
+              : (offer.market_price ?? offer.member_price);
+            if (display === undefined) return null;
+            return (
+              <div className="mt-5">
+                <span className="text-4xl font-black text-white tracking-tight">
+                  &#x20AA;{display.toLocaleString()}
+                </span>
+              </div>
+            );
+          })()}
 
           {/* Stock availability indicator - only shown when stock tracking is active */}
           {offer.stockLimit !== null && (
@@ -217,11 +391,18 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
                   : `${offer.stockAvailable} ${t('om_stockAvailable')}`}
             </p>
           )}
+
+          {/* Offer details block - renders only when at least one optional
+              backend field is present so the modal stays tight for sparse
+              offers. Dates use the active language locale; the redemption
+              link opens in a new tab with rel safety. */}
+          <OfferDetails offer={offer} />
+          </div>
         </div>
 
         {/* ── Perforated coupon tear-line (visible only when user can redeem) ── */}
         {showRedeemSection && (
-          <div className="mx-5 my-4 flex items-center">
+          <div className="mx-5 my-4 flex shrink-0 items-center">
             {/* Left notch */}
             <div className="h-4 w-4 -ml-9 rounded-full bg-black/60 shrink-0" />
             {/* Dashed line */}
@@ -233,7 +414,7 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
 
         {/* ── Redemption section ─────────────────────────────────────── */}
         {showRedeemSection ? (
-          <div className="px-5 pb-6">
+          <div className="shrink-0 px-5 pb-6">
             <p className="mb-4 text-center text-xs text-white/40 uppercase tracking-widest">
               {t('om_redeemTitle')}
             </p>
@@ -268,7 +449,7 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
           </div>
         ) : (
           // Admin / non-purchasing view: informational note only
-          <div className="px-5 pb-6 pt-2">
+          <div className="shrink-0 px-5 pb-6 pt-2">
             <p className="text-center text-xs text-white/30">
               {t('om_adminView')}
             </p>
@@ -283,6 +464,17 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
           to   { transform: translateY(0);    opacity: 1; }
         }
       `}</style>
+
+      {/* Fullscreen lightbox. Rendered via portal inside ImageLightbox so it
+          sits on top of the modal backdrop. Closes back to the modal, not the
+          page, so the user keeps their place. */}
+      {lightboxSrc && (
+        <ImageLightbox
+          src={lightboxSrc}
+          alt={offer.title}
+          onClose={() => setLightboxSrc(null)}
+        />
+      )}
     </div>
   );
 };
