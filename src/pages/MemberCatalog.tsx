@@ -8,7 +8,7 @@
  * Access: tenant members and admins. Visible only when catalogMode !== 'inactive'.
  * Route: /member-catalog
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import {
@@ -23,6 +23,11 @@ import ImageLightbox from '../components/ImageLightbox';
 import RichTextDisplay from '../components/RichTextDisplay';
 import Pagination from '../components/Pagination';
 import MemberCatalogBackdrop from '../components/catalog/MemberCatalogBackdrop';
+import MemberCatalogFilters, {
+  EMPTY_FILTERS,
+  applyFilters,
+  type MemberFilters,
+} from '../components/catalog/MemberCatalogFilters';
 import { useCatalogList } from '../hooks/useCatalogList';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -222,11 +227,14 @@ function BenefitCard({ item, language, onClick, onImageClick }: BenefitCardProps
             </div>
           )}
 
-          {/* Real HTML description, compact and clamped */}
+          {/* Real HTML description, compact and clamped. break-words +
+              [&_*]:break-words keep long URLs / unspaced Hebrew strings
+              from breaking the card width on mobile. Images inside the
+              HTML are forced to max-w-full so they cannot overflow. */}
           <RichTextDisplay
             html={item.description}
             compact
-            className="mt-2 text-[13px] leading-relaxed text-slate-500 line-clamp-2"
+            className="mt-2 max-w-full overflow-hidden text-[13px] leading-relaxed text-slate-500 line-clamp-2 break-words [&_*]:break-words [&_img]:max-w-full [&_img]:h-auto"
           />
         </div>
 
@@ -260,6 +268,23 @@ const MemberCatalog = () => {
   const tenantId = me?.context.tenantId ?? '';
 
   /**
+   * Track narrow viewports so the search input can swap to a shorter
+   * placeholder that fits without truncation. Tailwind's `sm` breakpoint
+   * is 640px; below that we render the short variant.
+   */
+  const [isNarrow, setIsNarrow] = useState<boolean>(
+    typeof window !== 'undefined' ? window.innerWidth < 640 : false,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 639px)');
+    const onChange = (e: MediaQueryListEvent | MediaQueryList) =>
+      setIsNarrow('matches' in e ? e.matches : (e as MediaQueryList).matches);
+    onChange(mq);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
+  /**
    * Modern font stack: Plus Jakarta Sans for English, Heebo for Hebrew.
    * Applied to the page root so all descendants inherit it without
    * touching the global Tailwind config.
@@ -288,8 +313,30 @@ const MemberCatalog = () => {
     error,
   } = useCatalogList({ fetcher });
 
-  const searchQuery = filters.search;
-  const setSearchQuery = (v: string) => setFilters({ ...filters, search: v });
+  /**
+   * Advanced filter state. search + category mirror the hook (server-side);
+   * everything else (price, dates, type, tags, stock, sort) is applied
+   * client-side after the page loads.
+   */
+  const [memberFilters, setMemberFilters] = useState<MemberFilters>(EMPTY_FILTERS);
+
+  /** Updating the search input also pushes the value to the hook so the
+   *  server filter stays in sync. */
+  const setSearchQuery = (v: string) => {
+    setMemberFilters((f) => ({ ...f, search: v }));
+    setFilters({ ...filters, search: v });
+  };
+  const searchQuery = memberFilters.search;
+
+  /** Commit advanced filters from the panel: mirror search/category to
+   *  the hook and store the full set locally. */
+  const handleAdvancedFiltersChange = (next: MemberFilters) => {
+    setMemberFilters(next);
+    setFilters({ ...filters, search: next.search, category: next.category });
+  };
+
+  /** Client-side filtered + sorted view of the current server page. */
+  const visibleItems = applyFilters(items, memberFilters);
 
   // ── Inactive gate ────────────────────────────────────────────────
   if (catalogMode === 'inactive') {
@@ -398,12 +445,13 @@ const MemberCatalog = () => {
           </div>
         )}
 
-        {/* Wide rounded search */}
-        <div className="mx-auto mt-6 max-w-[760px]">
+        {/* Search bar + glassmorphism filter trigger. The filter button
+            sits flush next to the search input on every breakpoint. */}
+        <div className="mx-auto mt-6 flex max-w-[760px] items-stretch gap-2 sm:gap-3">
           <label htmlFor="mc-search" className="sr-only">
             {t('mc_searchClubPlaceholder')}
           </label>
-          <div className="group relative">
+          <div className="group relative min-w-0 flex-1">
             <span
               aria-hidden
               className="pointer-events-none absolute top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-primary"
@@ -422,15 +470,12 @@ const MemberCatalog = () => {
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
             </span>
-            {/* Mobile uses a tighter icon-padding (40px) and smaller text so
-                the long bilingual placeholder is fully visible. From sm up
-                we restore the roomier 52px padding + 15px text. */}
             <input
               id="mc-search"
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t('mc_searchClubPlaceholder')}
+              placeholder={isNarrow ? t('mc_searchClubPlaceholderShort') : t('mc_searchClubPlaceholder')}
               aria-label={t('mc_searchClubPlaceholder')}
               className={`h-12 w-full min-w-0 rounded-full border border-slate-200 bg-white text-[13px] text-slate-900 placeholder:text-[13px] placeholder:text-slate-400 placeholder:overflow-ellipsis shadow-[0_6px_22px_-12px_rgba(15,23,42,0.2)] outline-none transition-all duration-200 focus:border-primary/40 focus:shadow-[0_0_0_4px_rgba(99,102,241,0.12),0_10px_26px_-14px_rgba(99,102,241,0.4)] sm:h-14 sm:text-[15px] sm:placeholder:text-[15px] ${
                 isRTL
@@ -439,10 +484,29 @@ const MemberCatalog = () => {
               }`}
             />
           </div>
+          <MemberCatalogFilters
+            value={memberFilters}
+            onChange={handleAdvancedFiltersChange}
+            items={items}
+          />
         </div>
 
+        {/* Pagination sits ABOVE the grid so users can jump pages
+            without scrolling past the cards first. Hidden when only one
+            page exists. */}
+        {!isLoading && !error && totalPages > 1 && (
+          <div className="mt-8 flex justify-center sm:mt-10">
+            <Pagination
+              page={page}
+              pages={totalPages}
+              onPageChange={setPage}
+              ariaLabel={t('mc_pageTitle')}
+            />
+          </div>
+        )}
+
         {/* Responsive grid - mobile-first: 1 col, 2 from sm, 3 from lg */}
-        <section className="mt-8 sm:mt-10" aria-label={t('mc_pageTitle')}>
+        <section className="mt-6 sm:mt-8" aria-label={t('mc_pageTitle')}>
           {isLoading ? (
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
               {Array.from({ length: 6 }).map((_, i) => (
@@ -453,37 +517,24 @@ const MemberCatalog = () => {
             <div className="mx-auto max-w-[760px] rounded-2xl border border-amber-200 bg-amber-50 p-8 text-center">
               <p className="text-sm text-amber-800">{error}</p>
             </div>
-          ) : items.length === 0 ? (
+          ) : visibleItems.length === 0 ? (
             <div className="mx-auto max-w-[760px] rounded-3xl border border-slate-100 bg-white p-12 text-center shadow-[0_8px_30px_-12px_rgba(15,23,42,0.15)]">
               <p className="text-sm font-medium text-slate-500">
                 {searchQuery ? t('mc_emptyNoMatch') : t('mc_emptyNoOffers')}
               </p>
             </div>
           ) : (
-            <>
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
-                {items.map((item) => (
-                  <BenefitCard
-                    key={item.offerId}
-                    item={item}
-                    language={language}
-                    onClick={() => setSelectedOffer(item)}
-                    onImageClick={(url) => setLightboxUrl(url)}
-                  />
-                ))}
-              </div>
-
-              {totalPages > 1 && (
-                <div className="mt-8 flex justify-center sm:mt-10">
-                  <Pagination
-                    page={page}
-                    pages={totalPages}
-                    onPageChange={setPage}
-                    ariaLabel={t('mc_pageTitle')}
-                  />
-                </div>
-              )}
-            </>
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
+              {visibleItems.map((item) => (
+                <BenefitCard
+                  key={item.offerId}
+                  item={item}
+                  language={language}
+                  onClick={() => setSelectedOffer(item)}
+                  onImageClick={(url) => setLightboxUrl(url)}
+                />
+              ))}
+            </div>
           )}
         </section>
       </div>
