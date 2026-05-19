@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import DashboardHeader from '../components/DashboardHeader';
 import Sidebar, { type SidebarState } from '../components/Sidebar';
 import AiChatPanel from '../components/AiChatPanel';
@@ -18,6 +18,15 @@ interface DashboardLayoutProps {
 const DashboardLayout = ({ onLogout, showBusinessSetup = false }: DashboardLayoutProps) => {
   const { isRTL } = useLanguage();
   const { isDevMode } = useDevMode();
+  const location = useLocation();
+  /**
+   * Pages that render their own full-bleed shell (hero banner + multi-column
+   * layout) opt out of the global `<main>` max-width + padding wrapper so the
+   * banner can span the full inner scroll area edge-to-edge.
+   */
+  const isFullBleedRoute =
+    location.pathname === '/supply/create'
+    || location.pathname.startsWith('/benefits-partnerships/edit-offer/');
   const [sidebarState, setSidebarState] = useState<SidebarState>('open');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -83,10 +92,16 @@ const DashboardLayout = ({ onLogout, showBusinessSetup = false }: DashboardLayou
             >
               {/* Inner scrollable area */}
               <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar bg-white dark:bg-card-dark rounded-tr-xl">
-                <main className="flex-1 w-full max-w-[1400px] mx-auto px-3 py-3 sm:px-4 lg:px-6 lg:py-4">
-                  <PendingInvitationsPanel />
-                  <Outlet />
-                </main>
+                {isFullBleedRoute ? (
+                  <main className="flex-1 w-full">
+                    <Outlet />
+                  </main>
+                ) : (
+                  <main className="flex-1 w-full max-w-[1400px] mx-auto px-3 py-3 sm:px-4 lg:px-6 lg:py-4">
+                    <PendingInvitationsPanel />
+                    <Outlet />
+                  </main>
+                )}
                 <footer className="max-w-[1400px] w-full mx-auto px-3 py-4 sm:px-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-[11px] text-slate-400 font-medium">
                   <p>© 2024 Nexus Admin. All Rights Reserved.</p>
                   <div className="flex flex-wrap gap-4">

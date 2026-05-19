@@ -10,8 +10,11 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
-import { EXECUTION_TYPE_LABELS } from '../../lib/api';
+import { EXECUTION_TYPE_LABELS, OFFER_CATEGORIES } from '../../lib/api';
 import type { CatalogItem } from '../../lib/api';
+import OfferImageCarousel from './OfferImageCarousel';
+import RichTextDisplay from '../RichTextDisplay';
+import ImageLightbox from '../ImageLightbox';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -87,6 +90,8 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
 
   /** Ephemeral in-flight state for the mock "Redeem Now" button animation. */
   const [mockingRedeem, setMockingRedeem] = useState(false);
+  /** Currently zoomed image URL, or null when the lightbox is closed. */
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
   /** Ref for initial focus trap - close button is focused on mount. */
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -148,26 +153,38 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
           &#x2715;
         </button>
 
-        {/* ── Hero image with bottom gradient fade ─────────────────── */}
+        {/* ── Hero image carousel with bottom gradient fade ────────── */}
         <div className="relative h-52 w-full overflow-hidden">
-          {offer.imageUrl ? (
-            <img
-              src={offer.imageUrl}
-              alt={offer.title}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div
-              className="h-full w-full flex items-center justify-center text-6xl"
-              style={{ background: 'linear-gradient(135deg, #1e1b4b, #312e81)' }}
-            >
-              🎁
-            </div>
-          )}
+          {(() => {
+            // Prefer the multi-image gallery; fall back to legacy single
+            // imageUrl so older offers (pre-gallery) keep rendering. Empty
+            // gallery falls through to the gift emoji placeholder.
+            const images = (offer.imageUrls && offer.imageUrls.length > 0)
+              ? offer.imageUrls
+              : (offer.imageUrl ? [offer.imageUrl] : []);
+            if (images.length === 0) {
+              return (
+                <div
+                  className="h-full w-full flex items-center justify-center text-6xl"
+                  style={{ background: 'linear-gradient(135deg, #1e1b4b, #312e81)' }}
+                >
+                  🎁
+                </div>
+              );
+            }
+            return (
+              <OfferImageCarousel
+                images={images}
+                alt={offer.title}
+                onImageClick={(url) => setLightboxSrc(url)}
+              />
+            );
+          })()}
 
-          {/* Gradient that fades the image into the dark body */}
+          {/* Gradient that fades the image into the dark body. pointer-events-none
+              so the carousel arrows + dots underneath stay clickable. */}
           <div
-            className="absolute inset-0"
+            className="absolute inset-0 pointer-events-none"
             style={{
               background:
                 'linear-gradient(to bottom, transparent 40%, rgba(15,15,25,0.92) 100%)',
@@ -175,10 +192,17 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
           />
 
 
-          {/* Category chip - bottom-left of hero */}
+          {/* Category chip - bottom-left of hero. Looked up against the
+              shared OFFER_CATEGORIES list so the label follows the current
+              language; falls back to the raw key when the offer carries a
+              category not in the canonical list. */}
           <div className="absolute bottom-3 left-4">
             <span className="rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-xs text-white/80 backdrop-blur-sm">
-              {CATEGORY_LABELS[offer.category] ?? offer.category}
+              {(() => {
+                const meta = OFFER_CATEGORIES.find((c) => c.value === offer.category);
+                if (meta) return language === 'he' ? meta.labelHe : meta.label;
+                return CATEGORY_LABELS[offer.category] ?? offer.category;
+              })()}
             </span>
           </div>
 
@@ -196,16 +220,31 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
         {/* ── Text body ─────────────────────────────────────────────── */}
         <div className="px-5 pt-4 pb-2">
           <h2 className="text-xl font-bold text-white leading-tight">{offer.title}</h2>
-          <p className="mt-2 text-sm text-white/60 leading-relaxed">{offer.description}</p>
+          <RichTextDisplay
+            html={offer.description}
+            className="mt-2 text-sm text-white/70 leading-relaxed [&_*]:!text-white/70 [&_a]:!text-indigo-300"
+          />
 
-          {/* Market price display - shown only when available */}
-          {offer.market_price !== undefined && (
-            <div className="mt-5">
-              <span className="text-4xl font-black text-white tracking-tight">
-                &#x20AA;{offer.market_price}
-              </span>
-            </div>
-          )}
+          {/* Price display. Voucher offers carry a member_price (what members
+              actually pay); non-voucher offers carry market_price as the
+              display reference. Show whichever is set; market_price wins when
+              both exist so the member-facing price stays prominent. */}
+          {(() => {
+            const display = offer.market_price ?? offer.member_price ?? offer.face_value;
+            if (display === undefined) return null;
+            return (
+              <div className="mt-5 flex items-baseline gap-2">
+                <span className="text-4xl font-black text-white tracking-tight">
+                  &#x20AA;{display}
+                </span>
+                {offer.face_value !== undefined && offer.face_value !== display && (
+                  <span className="text-base text-white/40 line-through">
+                    &#x20AA;{offer.face_value}
+                  </span>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Stock availability indicator - only shown when stock tracking is active */}
           {offer.stockLimit !== null && (
@@ -283,6 +322,17 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
           to   { transform: translateY(0);    opacity: 1; }
         }
       `}</style>
+
+      {/* Fullscreen lightbox. Rendered via portal inside ImageLightbox so it
+          sits on top of the modal backdrop. Closes back to the modal, not the
+          page, so the user keeps their place. */}
+      {lightboxSrc && (
+        <ImageLightbox
+          src={lightboxSrc}
+          alt={offer.title}
+          onClose={() => setLightboxSrc(null)}
+        />
+      )}
     </div>
   );
 };

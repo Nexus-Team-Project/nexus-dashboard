@@ -724,7 +724,10 @@ export interface CatalogItem {
   offerId: string;
   title: string;
   description: string;
+  /** Legacy single cover URL. Equals `imageUrls[0]` when a gallery exists. */
   imageUrl?: string;
+  /** Ordered gallery of public image URLs (max 6). Index 0 is the cover. */
+  imageUrls?: string[];
   category: string;
   /** 'ecosystem' (visible to every tenant) or 'tenant_only' (visible only to the creating tenant). */
   visibility: 'ecosystem' | 'tenant_only' | string;
@@ -775,7 +778,10 @@ export interface NexusOffer {
   offerId: string;
   title: string;
   description: string;
+  /** Legacy single cover URL. Equals `imageUrls[0]` when a gallery exists. */
   imageUrl?: string;
+  /** Ordered gallery of public image URLs (max 6). Index 0 is the cover. */
+  imageUrls?: string[];
   category: string;
   market_price?: number;
   /** Offer lifecycle status. */
@@ -981,52 +987,12 @@ export async function createOfferApi(formData: FormData): Promise<NexusOffer> {
  */
 export async function updateOfferApi(
   offerId: string,
-  data: {
-    title?: string;
-    description?: string;
-    category?: string;
-    market_price?: number;
-    stockLimit?: number | null;
-    executionType?: string;
-    visibility?: string;
-    implementationLink?: string | null;
-    implementationInstructions?: string;
-    validFrom?: string | null;
-    validUntil?: string | null;
-    terms?: string;
-    tags?: string[];
-    imageFile?: File;
-    /** Voucher face value (voucher executionType only). */
-    face_value?: number;
-    /** Wholesale price NEXUS pays per voucher (voucher executionType only). */
-    nexus_cost?: number;
-    /** Price members pay; between nexus_cost and face_value (voucher executionType only). */
-    member_price?: number;
-  },
+  formData: FormData,
 ): Promise<NexusOffer> {
-  const { imageFile, tags, ...rest } = data;
-
-  if (imageFile) {
-    // Use FormData so the browser sets the correct multipart boundary automatically.
-    const fd = new FormData();
-    fd.append('image', imageFile);
-    Object.entries(rest).forEach(([k, v]) => {
-      if (v === null && (k === 'stockLimit' || k === 'validUntil' || k === 'validFrom')) {
-        fd.append(k, ''); // empty string signals null to backend (coerced by Zod)
-      } else if (v !== undefined && v !== null) {
-        fd.append(k, String(v));
-      }
-    });
-    if (tags !== undefined) fd.append('tags', JSON.stringify(tags));
-    const res = await request<{ offer: NexusOffer }>('PATCH', `/api/v1/offers/${offerId}`, fd);
-    return res.offer;
-  }
-
-  // JSON path - no image replacement.
-  const res = await request<{ offer: NexusOffer }>('PATCH', `/api/v1/offers/${offerId}`, {
-    ...rest,
-    ...(tags !== undefined && { tags }),
-  });
+  // Caller is responsible for assembling the FormData with `images[]` files
+  // and a JSON `keptImageUrls` array. We forward it unchanged; the request()
+  // helper omits Content-Type so the browser sets the multipart boundary.
+  const res = await request<{ offer: NexusOffer }>('PATCH', `/api/v1/offers/${offerId}`, formData);
   return res.offer;
 }
 

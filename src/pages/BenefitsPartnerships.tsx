@@ -28,7 +28,6 @@ import { stripHtml } from '../lib/stripHtml';
 import ServiceActivationBanner from '../components/ServiceActivationBanner';
 import BenefitsCatalogTeaser from '../components/BenefitsCatalogTeaser';
 import ImageLightbox from '../components/ImageLightbox';
-import EditOfferDrawer from '../components/EditOfferDrawer';
 import DeleteOfferConfirmModal from '../components/DeleteOfferConfirmModal';
 import RichTextDisplay from '../components/RichTextDisplay';
 import CatalogTopBar from '../components/catalog/CatalogTopBar';
@@ -166,8 +165,6 @@ const BenefitsPartnerships = () => {
   /** URL of the image currently shown in the full-screen lightbox, or null when closed. */
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
-  /** CatalogItem currently open in the EditOfferDrawer, or null when the drawer is closed. */
-  const [editingOffer, setEditingOffer] = useState<CatalogItem | null>(null);
 
   /** CatalogItem pending deletion confirmation, or null when no deletion is in progress. */
   const [deletingOffer, setDeletingOffer] = useState<CatalogItem | null>(null);
@@ -971,7 +968,7 @@ const BenefitsPartnerships = () => {
                                   <div className="inline-flex items-center gap-1.5">
                                     <button
                                       type="button"
-                                      onClick={(e) => { e.stopPropagation(); setEditingOffer(item); }}
+                                      onClick={(e) => { e.stopPropagation(); navigate(`/benefits-partnerships/edit-offer/${item.offerId}`); }}
                                       className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 px-2.5 py-1 text-xs font-semibold transition-colors dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
                                       aria-label={language === 'he' ? 'ערוך הצעה' : 'Edit offer'}
                                     >
@@ -1137,7 +1134,7 @@ const BenefitsPartnerships = () => {
                           <div className="px-8 pb-4 flex gap-2">
                             <button
                               type="button"
-                              onClick={(e) => { e.stopPropagation(); setEditingOffer(catalogItem); }}
+                              onClick={(e) => { e.stopPropagation(); navigate(`/benefits-partnerships/edit-offer/${catalogItem.offerId}`); }}
                               className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex-1"
                             >
                               עריכה
@@ -1271,7 +1268,7 @@ const BenefitsPartnerships = () => {
                             <div className="flex gap-2 pt-1">
                               <button
                                 type="button"
-                                onClick={(e) => { e.stopPropagation(); setEditingOffer(catalogItem); }}
+                                onClick={(e) => { e.stopPropagation(); navigate(`/benefits-partnerships/edit-offer/${catalogItem.offerId}`); }}
                                 className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex-1"
                               >
                                 עריכה
@@ -1467,15 +1464,6 @@ const BenefitsPartnerships = () => {
           src={lightboxUrl}
           alt="תצוגת הצעה"
           onClose={() => setLightboxUrl(null)}
-        />
-      )}
-
-      {/* Edit offer drawer - slides in from the left when an editable offer is selected */}
-      {editingOffer && (
-        <EditOfferDrawer
-          offer={editingOffer}
-          onClose={() => setEditingOffer(null)}
-          onSaved={loadCatalog}
         />
       )}
 

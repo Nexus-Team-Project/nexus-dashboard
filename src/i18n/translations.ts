@@ -1012,9 +1012,9 @@ export const translations = {
     fi_faceValue_example: 'A ₪100 Coffee Time gift card has face value ₪100.',
 
     fi_nexusCost_label: 'Nexus Price',
-    fi_nexusCost_short: 'The price you charge NEXUS for this voucher.',
-    fi_nexusCost_detail: "This is the wholesale price NEXUS pays you for each voucher. It stays between you and NEXUS - members and other organizations never see this figure. Must be lower than the face value.",
-    fi_nexusCost_example: 'You sell ₪100 vouchers to NEXUS at ₪80 each.',
+    fi_nexusCost_short: 'The base price agreed with NEXUS — the minimum members will pay.',
+    fi_nexusCost_detail: "The price your organization and NEXUS agreed to display on the platform. This is the real base price members pay. If you want to add margin you can raise the member price above this figure, but never above the face value (שווי). Setting the member price equal to this means no extra profit; setting it higher up to the face value adds the difference as your profit.",
+    fi_nexusCost_example: 'Face value ₪100, Nexus Price ₪80. Member price must be between ₪80 and ₪100. Setting it to ₪90 gives your organization a ₪10 profit per voucher.',
 
     fi_memberPrice_label: 'Member Price',
     fi_memberPrice_short: 'What end customers (members) will pay. Drag the slider to set it.',
@@ -1052,6 +1052,41 @@ export const translations = {
     fi_bpcActions_short: 'Per-row Edit and Delete buttons (gated by ownership).',
     fi_bpcActions_detail: 'Edit opens the full offer drawer with all fields (including the rich-text description and image). Delete removes the offer permanently. Both buttons are visible only to the tenant that created the offer and to NEXUS platform admins. Platform admins also see Approve / Deny for offers pending review.',
     fi_bpcActions_example: 'A tenant admin sees Edit + Delete only on offers they uploaded - never on ecosystem offers from other tenants.',
+
+    // ── Product Catalog page header tooltip ──
+    fi_productCatalogPage_label: 'Product Catalog',
+    fi_productCatalogPage_short: 'The offers you picked for your members.',
+    fi_productCatalogPage_detail: 'This page shows all the offers your tenant has added to its catalog. Members see these offers and can use them. Click an offer to see its full details. Use "Remove" to stop showing an offer to members. To add more offers go to Benefits & Partnerships.',
+    fi_productCatalogPage_example: 'You added 3 food offers and 2 gym offers. This page lists those 5 offers.',
+
+    // ── images (multi-image gallery on Create / Edit Offer) ──
+    fi_images_label: 'Offer Images',
+    fi_images_short: 'Up to 6 images. The first one is the cover shown on cards.',
+    fi_images_detail: 'Upload up to 6 photos that show the offer at its best. The first tile is the cover used by catalog cards and the page banner. Drag tiles to reorder; hover a tile to delete it. Each file must be an image under 5MB.',
+    fi_images_example: 'Restaurant offer: a hero shot of the dish first, then plates, menu, interior, exterior.',
+
+    // ── Offer page chrome (create + edit shared layout) ──
+    of_pageTitleCreate: 'Create offer',
+    of_pageTitleEdit: 'Edit offer',
+    of_breadcrumbRoot: 'Benefits & Partnerships',
+    of_saveCreate: 'Publish',
+    of_saveUpdate: 'Save changes',
+    of_saveResubmit: 'Resubmit for approval',
+    of_saving: 'Saving…',
+    of_cancel: 'Cancel',
+    of_sectionImages: 'Images & media',
+    of_addImage: 'Add image',
+    of_removeImage: 'Remove image',
+    of_coverBadge: 'Cover',
+    of_dragHint: 'Drag tiles to reorder. The first image is the cover.',
+    of_sidebarTipsTitle: 'Tips',
+    of_sidebarTip1: 'A great cover photo gets twice the engagement.',
+    of_sidebarTip2: 'Write a short, scannable description — bullets are fine.',
+    of_sidebarTip3: 'Set a launch date if the offer is not live yet.',
+    of_denialReasonTitle: 'This offer was denied',
+    of_backToCatalog: 'Back to catalog',
+    of_loadNotFound: 'Offer not found. It may have been deleted.',
+    of_loadFailed: 'Could not load the offer. Please try again.',
 
     // ── BenefitsPartnerships - in-cell display strings ──
     bp_notProvided: "Wasn't provided",
@@ -2090,9 +2125,9 @@ export const translations = {
     fi_faceValue_example: 'כרטיס מתנה לקפה טיים בשווי ₪100 יש לו ערך נקוב של ₪100.',
 
     fi_nexusCost_label: 'מחיר מכירה לנקסוס',
-    fi_nexusCost_short: 'המחיר שאתה גובה מ-NEXUS עבור שובר זה.',
-    fi_nexusCost_detail: 'זהו המחיר הסיטונאי ש-NEXUS משלם לך עבור כל שובר. זה נשאר בינך לבין NEXUS - חברים וארגונים אחרים לא רואים נתון זה. חייב להיות נמוך מהערך הנקוב.',
-    fi_nexusCost_example: 'אתה מוכר שוברים של ₪100 ל-NEXUS במחיר ₪80 לכל אחד.',
+    fi_nexusCost_short: 'המחיר הבסיסי שהוסכם עם NEXUS - המינימום שחברים ישלמו.',
+    fi_nexusCost_detail: 'המחיר שהארגון שלך ו-NEXUS הסכימו להציג בפלטפורמה. זהו המחיר הבסיסי האמיתי שהחברים משלמים. אם ברצונך להוסיף רווח, ניתן להעלות את מחיר החבר מעל סכום זה, אך לעולם לא מעל הערך הנקוב (שווי). אם תקבע את מחיר החבר שווה לסכום הזה - אין רווח נוסף; אם תקבע אותו גבוה יותר עד שווי השובר - ההפרש הוא הרווח של הארגון.',
+    fi_nexusCost_example: 'שווי ₪100, מחיר מכירה לנקסוס ₪80. מחיר החבר חייב להיות בין ₪80 ל-₪100. הגדרה ל-₪90 נותנת לארגון רווח של ₪10 לשובר.',
 
     fi_memberPrice_label: 'מחיר לחבר',
     fi_memberPrice_short: 'מה לקוחות הקצה (חברים) ישלמו. גרור את המחוון לקביעת המחיר.',
@@ -2130,6 +2165,41 @@ export const translations = {
     fi_bpcActions_short: 'כפתורי עריכה ומחיקה לשורה (מוגבל לפי בעלות).',
     fi_bpcActions_detail: 'עריכה פותחת את חלון ההצעה המלא עם כל השדות (כולל תיאור עשיר ותמונה). מחיקה מסירה את ההצעה לצמיתות. שני הכפתורים גלויים רק לארגון שיצר את ההצעה ולמנהלי הפלטפורמה של NEXUS. מנהלי הפלטפורמה רואים גם אישור / דחייה עבור הצעות הממתינות לבדיקה.',
     fi_bpcActions_example: 'מנהל ארגון רואה עריכה + מחיקה רק עבור הצעות שהוא העלה - לעולם לא עבור הצעות אקוסיסטם של ארגונים אחרים.',
+
+    // ── טיפ לכותרת דף קטלוג מוצרים ──
+    fi_productCatalogPage_label: 'קטלוג מוצרים',
+    fi_productCatalogPage_short: 'ההצעות שבחרת להציג לחברים שלך.',
+    fi_productCatalogPage_detail: 'הדף הזה מציג את כל ההצעות שהוספת לקטלוג של הארגון. החברים שלך רואים ויכולים להשתמש בהצעות האלה. לחץ על הצעה כדי לראות את כל הפרטים. השתמש ב"הסר" כדי להפסיק להציג הצעה. כדי להוסיף עוד הצעות, היכנס ל"הטבות ושיתופי פעולה".',
+    fi_productCatalogPage_example: 'הוספת 3 הצעות אוכל ו-2 הצעות חדר כושר. הדף הזה מציג את 5 ההצעות.',
+
+    // ── גלריית תמונות מרובת תמונות (Create / Edit Offer) ──
+    fi_images_label: 'תמונות ההצעה',
+    fi_images_short: 'עד 6 תמונות. הראשונה היא תמונת השער שמופיעה בכרטיסים.',
+    fi_images_detail: 'העלו עד 6 תמונות שמציגות את ההצעה במיטבה. המשבצת הראשונה משמשת כתמונת השער בכרטיסי הקטלוג ובבאנר הדף. גררו משבצות כדי לסדר מחדש; העבירו עכבר על משבצת כדי למחוק. כל קובץ חייב להיות תמונה עד 5MB.',
+    fi_images_example: 'הצעת מסעדה: תמונת מנה מרשימה ראשונה, ואחריה מנות, תפריט, פנים ומחוץ.',
+
+    // ── דפי הצעה (Create + Edit shared layout) ──
+    of_pageTitleCreate: 'יצירת הצעה',
+    of_pageTitleEdit: 'עריכת הצעה',
+    of_breadcrumbRoot: 'הטבות ושיתופי פעולה',
+    of_saveCreate: 'פרסם',
+    of_saveUpdate: 'שמור שינויים',
+    of_saveResubmit: 'הגש לאישור מחדש',
+    of_saving: 'שומר…',
+    of_cancel: 'ביטול',
+    of_sectionImages: 'תמונות ומדיה',
+    of_addImage: 'הוסף תמונה',
+    of_removeImage: 'הסר תמונה',
+    of_coverBadge: 'שער',
+    of_dragHint: 'גררו משבצות כדי לסדר. התמונה הראשונה היא תמונת השער.',
+    of_sidebarTipsTitle: 'טיפים',
+    of_sidebarTip1: 'תמונת שער מצוינת מכפילה את ההנעה לפעולה.',
+    of_sidebarTip2: 'כתבו תיאור קצר וסרוקבי - גם נקודות תבליט עובדות.',
+    of_sidebarTip3: 'הגדירו תאריך השקה אם ההצעה עוד לא חיה.',
+    of_denialReasonTitle: 'הצעה זו נדחתה',
+    of_backToCatalog: 'חזרה לקטלוג',
+    of_loadNotFound: 'ההצעה לא נמצאה. ייתכן שנמחקה.',
+    of_loadFailed: 'לא ניתן לטעון את ההצעה. נסו שוב.',
 
     // ── BenefitsPartnerships - מחרוזות תצוגה בתאים ──
     bp_notProvided: 'לא סופק',

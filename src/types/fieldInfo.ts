@@ -35,4 +35,8 @@ export type FieldInfoKey =
   | 'bpcStatus'
   | 'bpcImage'
   | 'bpcPrice'
-  | 'bpcActions';
+  | 'bpcActions'
+  // Multi-image gallery on Create/Edit offer pages.
+  | 'images'
+  // Product Catalog page header — what the page is for.
+  | 'productCatalogPage';
