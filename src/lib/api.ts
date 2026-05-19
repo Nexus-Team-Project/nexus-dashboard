@@ -857,6 +857,22 @@ export interface CatalogQuery {
   category?: string;
   approvalStatus?: 'active' | 'pending_approval' | 'denied' | 'expired';
   adoptionStatus?: 'adopted' | 'not_adopted';
+  /** Filter by one or more offer execution types (e.g. 'voucher', 'booking'). */
+  offerTypes?: string[];
+  /** Minimum selling price filter (inclusive). */
+  priceMin?: number;
+  /** Maximum selling price filter (inclusive). */
+  priceMax?: number;
+  /** ISO-8601 date string; return only offers whose validFrom is after this date. */
+  validFromAfter?: string;
+  /** ISO-8601 date string; return only offers whose validUntil is before this date. */
+  validUntilBefore?: string;
+  /** Free-text tags to filter on (server matches any tag in the array). */
+  tags?: string[];
+  /** When true, exclude out-of-stock offers. */
+  inStockOnly?: boolean;
+  /** Result ordering. Defaults to 'newest' when omitted. */
+  sort?: 'newest' | 'price_asc' | 'price_desc' | 'expiry_soon' | 'expiry_far';
 }
 
 /** Paginated response envelope returned by both catalog endpoints. */
@@ -877,12 +893,27 @@ export interface CatalogPage {
  */
 function catalogQueryToParams(q: CatalogQuery): string {
   const u = new URLSearchParams();
-  u.set('page', String(q.page));
-  u.set('limit', String(q.limit));
+  // Pagination - always sent so the server never has to guess defaults.
+  if (q.page) u.set('page', String(q.page));
+  if (q.limit) u.set('limit', String(q.limit));
+  // Text / category filters.
   if (q.search && q.search.trim()) u.set('search', q.search.trim());
   if (q.category) u.set('category', q.category);
+  // Status filters used by the admin (platform) catalog view.
   if (q.approvalStatus) u.set('approvalStatus', q.approvalStatus);
   if (q.adoptionStatus) u.set('adoptionStatus', q.adoptionStatus);
+  // Extended server-side filters (Task 11 - mirrors backend CatalogQuery Zod schema).
+  if (q.offerTypes && q.offerTypes.length > 0) {
+    u.set('offerTypes', q.offerTypes.join(','));
+  }
+  if (q.priceMin != null) u.set('priceMin', String(q.priceMin));
+  if (q.priceMax != null) u.set('priceMax', String(q.priceMax));
+  if (q.validFromAfter) u.set('validFromAfter', q.validFromAfter);
+  if (q.validUntilBefore) u.set('validUntilBefore', q.validUntilBefore);
+  if (q.tags && q.tags.length > 0) u.set('tags', q.tags.join(','));
+  if (q.inStockOnly) u.set('inStockOnly', 'true');
+  // 'newest' is the server default - omit it to keep URLs clean.
+  if (q.sort && q.sort !== 'newest') u.set('sort', q.sort);
   return u.toString();
 }
 

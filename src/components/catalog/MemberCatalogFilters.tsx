@@ -10,160 +10,41 @@
  * owns local "draft" state while the panel is open and only commits to
  * the parent when the user presses "Apply".
  *
- * Exports:
- *  - <MemberCatalogFilters /> the trigger + panel component
- *  - applyFilters() pure helper that filters and sorts a CatalogItem[]
- *  - EMPTY_FILTERS, type MemberFilters
+ * As of 2026-05-19, filtering is fully server-side: this component is a
+ * pure controller that emits the shared `CatalogFilters` shape upward.
+ * The legacy `applyFilters` client-side helper has been removed because
+ * the backend now honours every filter and sort field across the entire
+ * adopted catalog, not just the current 25-item page.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { OFFER_CATEGORIES, type CatalogItem } from '../../lib/api';
-
-// ─── Public model ─────────────────────────────────────────────────────────────
-
-/** Sort order applied client-side to the visible page. */
-export type MemberSort = 'default' | 'newest' | 'priceAsc' | 'priceDesc';
-
-/**
- * The full advanced-filter state. Search + category are also mirrored to
- * the parent so the visible search bar and the panel stay in sync, but
- * those two go to the backend; everything else is applied client-side.
- */
-export interface MemberFilters {
-  /** Free-text search across title and description. */
-  search: string;
-  /** Single category value from OFFER_CATEGORIES, or '' for any. */
-  category: string;
-  /** Multi-select offer execution types (voucher / coupon / etc). */
-  offerTypes: string[];
-  /** Min start date - offers whose validFrom is on/after this date. ISO yyyy-mm-dd. */
-  startDateFrom: string;
-  /** Max start date - offers whose validFrom is on/before this date. */
-  startDateTo: string;
-  /** Min expiry - offers whose validUntil is on/after this date. */
-  expiryFrom: string;
-  /** Max expiry - offers whose validUntil is on/before this date. */
-  expiryTo: string;
-  /** Min price (₪) as a string so the input can be empty. */
-  priceMin: string;
-  /** Max price (₪) as a string so the input can be empty. */
-  priceMax: string;
-  /** Multi-select offer tags. */
-  tags: string[];
-  /** Hide sold-out / zero-stock offers. */
-  inStockOnly: boolean;
-  /** Sort order applied after filtering. */
-  sort: MemberSort;
-}
-
-/** Empty/default filter values. */
-export const EMPTY_FILTERS: MemberFilters = {
-  search: '',
-  category: '',
-  offerTypes: [],
-  startDateFrom: '',
-  startDateTo: '',
-  expiryFrom: '',
-  expiryTo: '',
-  priceMin: '',
-  priceMax: '',
-  tags: [],
-  inStockOnly: false,
-  sort: 'default',
-};
-
-/** Returns the number of non-search/non-category filters that are active. */
-function countAdvancedActive(f: MemberFilters): number {
-  let n = 0;
-  if (f.offerTypes.length) n += 1;
-  if (f.startDateFrom || f.startDateTo) n += 1;
-  if (f.expiryFrom || f.expiryTo) n += 1;
-  if (f.priceMin || f.priceMax) n += 1;
-  if (f.tags.length) n += 1;
-  if (f.inStockOnly) n += 1;
-  if (f.sort !== 'default') n += 1;
-  return n;
-}
+import {
+  type CatalogFilters,
+  EMPTY_CATALOG_FILTERS,
+} from './catalogFilters';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Parses a yyyy-mm-dd value into a midnight UTC timestamp, or null. */
-function dateToMs(value: string): number | null {
-  if (!value) return null;
-  const t = new Date(value).getTime();
-  return Number.isNaN(t) ? null : t;
-}
-
-/** Parses an item's ISO date string into ms, or null. */
-function isoToMs(iso: string | null | undefined): number | null {
-  if (!iso) return null;
-  const t = new Date(iso).getTime();
-  return Number.isNaN(t) ? null : t;
-}
-
-/** Resolves the member-facing selling price; returns null when unknown. */
-function priceOf(item: CatalogItem): number | null {
-  const v = item.executionType === 'voucher'
-    ? item.member_price
-    : (item.market_price ?? item.member_price);
-  return typeof v === 'number' ? v : null;
-}
-
-/**
- * Pure, side-effect-free filter + sort. The parent runs this on every
- * render of the visible items so the grid stays in sync with the panel.
- * Search + category are pre-filtered by the server, so this helper
- * only re-applies them for completeness when the server is bypassed.
- */
-export function applyFilters(items: CatalogItem[], f: MemberFilters): CatalogItem[] {
-  const min = f.priceMin === '' ? null : Number(f.priceMin);
-  const max = f.priceMax === '' ? null : Number(f.priceMax);
-  const startFromMs = dateToMs(f.startDateFrom);
-  const startToMs = dateToMs(f.startDateTo);
-  const expFromMs = dateToMs(f.expiryFrom);
-  const expToMs = dateToMs(f.expiryTo);
-
-  const filtered = items.filter((i) => {
-    if (f.offerTypes.length && !f.offerTypes.includes(i.executionType)) return false;
-    if (f.inStockOnly && (i.isSoldOut || i.stockAvailable === 0)) return false;
-    if (f.tags.length && !f.tags.some((t) => i.tags?.includes(t))) return false;
-
-    const itemStart = isoToMs(i.validFrom);
-    if (startFromMs !== null && (itemStart === null || itemStart < startFromMs)) return false;
-    if (startToMs   !== null && (itemStart === null || itemStart > startToMs))   return false;
-
-    const itemEnd = isoToMs(i.validUntil);
-    if (expFromMs !== null && (itemEnd === null || itemEnd < expFromMs)) return false;
-    if (expToMs   !== null && (itemEnd === null || itemEnd > expToMs))   return false;
-
-    const p = priceOf(i);
-    if (min !== null && !Number.isNaN(min) && (p === null || p < min)) return false;
-    if (max !== null && !Number.isNaN(max) && (p === null || p > max)) return false;
-    return true;
-  });
-
-  switch (f.sort) {
-    case 'newest':
-      return [...filtered].sort((a, b) => {
-        const ta = isoToMs(a.adoptedAt) ?? 0;
-        const tb = isoToMs(b.adoptedAt) ?? 0;
-        return tb - ta;
-      });
-    case 'priceAsc':
-      return [...filtered].sort((a, b) => (priceOf(a) ?? Infinity) - (priceOf(b) ?? Infinity));
-    case 'priceDesc':
-      return [...filtered].sort((a, b) => (priceOf(b) ?? -Infinity) - (priceOf(a) ?? -Infinity));
-    default:
-      return filtered;
-  }
+/** Returns the number of non-search/non-category filters that are active. */
+function countAdvancedActive(f: CatalogFilters): number {
+  let n = 0;
+  if (f.offerTypes.length) n += 1;
+  if (f.validFromAfter) n += 1;
+  if (f.validUntilBefore) n += 1;
+  if (f.priceMin !== null || f.priceMax !== null) n += 1;
+  if (f.tags.length) n += 1;
+  if (f.inStockOnly) n += 1;
+  if (f.sort !== 'newest') n += 1;
+  return n;
 }
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface Props {
-  value: MemberFilters;
-  onChange: (next: MemberFilters) => void;
+  value: CatalogFilters;
+  onChange: (next: CatalogFilters) => void;
   /** All offers on the current visible result set; used to derive tag chips. */
   items: CatalogItem[];
 }
@@ -288,7 +169,7 @@ const MemberCatalogFilters = ({ value, onChange, items }: Props) => {
   const { t, language, isRTL } = useLanguage();
   const [open, setOpen] = useState(false);
   /** Local draft - committed to the parent only when "Apply" is pressed. */
-  const [draft, setDraft] = useState<MemberFilters>(value);
+  const [draft, setDraft] = useState<CatalogFilters>(value);
   /** Sync the draft back to incoming value whenever we (re-)open the panel. */
   useEffect(() => { if (open) setDraft(value); }, [open, value]);
 
@@ -399,7 +280,7 @@ const MemberCatalogFilters = ({ value, onChange, items }: Props) => {
     onChange(draft);
     setOpen(false);
   };
-  const handleReset = () => setDraft(EMPTY_FILTERS);
+  const handleReset = () => setDraft(EMPTY_CATALOG_FILTERS);
 
   /** Plain-language tooltips per filter, per language. Kept inline so
    *  copy lives next to the component it documents and stays easy to edit. */
@@ -510,13 +391,14 @@ const MemberCatalogFilters = ({ value, onChange, items }: Props) => {
                 <FilterSection title={t('mc_filtersSortBy')} tooltip={tipSort}>
                   <select
                     value={draft.sort}
-                    onChange={(e) => setDraft({ ...draft, sort: e.target.value as MemberSort })}
+                    onChange={(e) => setDraft({ ...draft, sort: e.target.value as CatalogFilters['sort'] })}
                     className={INPUT_CLS}
                   >
-                    <option value="default">{t('mc_filtersSortDefault')}</option>
                     <option value="newest">{t('mc_filtersSortNewest')}</option>
-                    <option value="priceAsc">{t('mc_filtersSortPriceAsc')}</option>
-                    <option value="priceDesc">{t('mc_filtersSortPriceDesc')}</option>
+                    <option value="price_asc">{t('mc_filtersSortPriceAsc')}</option>
+                    <option value="price_desc">{t('mc_filtersSortPriceDesc')}</option>
+                    <option value="expiry_soon">{t('mc_filtersSortExpirySoon')}</option>
+                    <option value="expiry_far">{t('mc_filtersSortExpiryFar')}</option>
                   </select>
                 </FilterSection>
 
@@ -558,8 +440,8 @@ const MemberCatalogFilters = ({ value, onChange, items }: Props) => {
                       type="number"
                       inputMode="numeric"
                       min={0}
-                      value={draft.priceMin}
-                      onChange={(e) => setDraft({ ...draft, priceMin: e.target.value })}
+                      value={draft.priceMin ?? ''}
+                      onChange={(e) => setDraft({ ...draft, priceMin: e.target.value === '' ? null : Number(e.target.value) })}
                       onWheel={(e) => e.currentTarget.blur()}
                       placeholder={t('mc_filtersMin')}
                       aria-label={t('mc_filtersMin')}
@@ -569,8 +451,8 @@ const MemberCatalogFilters = ({ value, onChange, items }: Props) => {
                       type="number"
                       inputMode="numeric"
                       min={0}
-                      value={draft.priceMax}
-                      onChange={(e) => setDraft({ ...draft, priceMax: e.target.value })}
+                      value={draft.priceMax ?? ''}
+                      onChange={(e) => setDraft({ ...draft, priceMax: e.target.value === '' ? null : Number(e.target.value) })}
                       onWheel={(e) => e.currentTarget.blur()}
                       placeholder={t('mc_filtersMax')}
                       aria-label={t('mc_filtersMax')}
@@ -579,57 +461,34 @@ const MemberCatalogFilters = ({ value, onChange, items }: Props) => {
                   </div>
                 </FilterSection>
 
-                {/* Start date range - each input has a From/To label above
-                    so the user can tell which side is the range start. */}
+                {/* Start date - server contract only supports a single
+                    "valid from after" boundary, so this is one date input. */}
                 <FilterSection title={t('mc_filtersStartDate')} tooltip={tipStart}>
-                  <div className="grid grid-cols-2 gap-2">
-                    <label className="flex flex-col gap-1 text-[11px] font-medium text-slate-500">
-                      <span>{fromLabel}</span>
-                      <input
-                        type="date"
-                        value={draft.startDateFrom}
-                        onChange={(e) => setDraft({ ...draft, startDateFrom: e.target.value })}
-                        aria-label={`${t('mc_filtersStartDate')} - ${fromLabel}`}
-                        className={INPUT_CLS}
-                      />
-                    </label>
-                    <label className="flex flex-col gap-1 text-[11px] font-medium text-slate-500">
-                      <span>{toLabel}</span>
-                      <input
-                        type="date"
-                        value={draft.startDateTo}
-                        onChange={(e) => setDraft({ ...draft, startDateTo: e.target.value })}
-                        aria-label={`${t('mc_filtersStartDate')} - ${toLabel}`}
-                        className={INPUT_CLS}
-                      />
-                    </label>
-                  </div>
+                  <label className="flex flex-col gap-1 text-[11px] font-medium text-slate-500">
+                    <span>{fromLabel}</span>
+                    <input
+                      type="date"
+                      value={draft.validFromAfter}
+                      onChange={(e) => setDraft({ ...draft, validFromAfter: e.target.value })}
+                      aria-label={`${t('mc_filtersStartDate')} - ${fromLabel}`}
+                      className={INPUT_CLS}
+                    />
+                  </label>
                 </FilterSection>
 
-                {/* Expiry range */}
+                {/* Expiry - server contract only supports a single
+                    "valid until before" boundary. */}
                 <FilterSection title={t('mc_filtersExpiry')} tooltip={tipExp}>
-                  <div className="grid grid-cols-2 gap-2">
-                    <label className="flex flex-col gap-1 text-[11px] font-medium text-slate-500">
-                      <span>{fromLabel}</span>
-                      <input
-                        type="date"
-                        value={draft.expiryFrom}
-                        onChange={(e) => setDraft({ ...draft, expiryFrom: e.target.value })}
-                        aria-label={`${t('mc_filtersExpiry')} - ${fromLabel}`}
-                        className={INPUT_CLS}
-                      />
-                    </label>
-                    <label className="flex flex-col gap-1 text-[11px] font-medium text-slate-500">
-                      <span>{toLabel}</span>
-                      <input
-                        type="date"
-                        value={draft.expiryTo}
-                        onChange={(e) => setDraft({ ...draft, expiryTo: e.target.value })}
-                        aria-label={`${t('mc_filtersExpiry')} - ${toLabel}`}
-                        className={INPUT_CLS}
-                      />
-                    </label>
-                  </div>
+                  <label className="flex flex-col gap-1 text-[11px] font-medium text-slate-500">
+                    <span>{toLabel}</span>
+                    <input
+                      type="date"
+                      value={draft.validUntilBefore}
+                      onChange={(e) => setDraft({ ...draft, validUntilBefore: e.target.value })}
+                      aria-label={`${t('mc_filtersExpiry')} - ${toLabel}`}
+                      className={INPUT_CLS}
+                    />
+                  </label>
                 </FilterSection>
 
                 {/* Tags */}
