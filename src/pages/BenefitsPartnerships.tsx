@@ -1312,6 +1312,7 @@ const BenefitsPartnerships = () => {
             onClear={resetFilters}
             categoryOptions={filterCategoryOptions}
             resultsCount={catalogTotal}
+            items={catalogItems}
           />
         </div>{/* /flex container */}
       </main>

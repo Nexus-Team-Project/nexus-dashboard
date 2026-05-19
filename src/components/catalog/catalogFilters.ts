@@ -41,6 +41,20 @@ export interface CatalogFilters {
   sort: 'newest' | 'price_asc' | 'price_desc' | 'expiry_soon' | 'expiry_far';
 }
 
+/**
+ * Display metadata for the five `executionType` values an offer can have.
+ * Shared by both filter panels (admin Benefits & Partnerships + member catalog)
+ * so the offer-type chip set stays consistent. Adding a new executionType
+ * means adding one entry here, NOT editing each panel.
+ */
+export const OFFER_TYPE_OPTIONS: readonly { value: string; he: string; en: string }[] = [
+  { value: 'voucher',   he: 'שובר',         en: 'Voucher' },
+  { value: 'coupon',    he: 'קופון',        en: 'Coupon' },
+  { value: 'gift_card', he: 'כרטיס מתנה',   en: 'Gift card' },
+  { value: 'product',   he: 'מוצר',         en: 'Product' },
+  { value: 'service',   he: 'שירות',        en: 'Service' },
+] as const;
+
 /** Initial / cleared state for the catalog filter form. */
 export const EMPTY_CATALOG_FILTERS: CatalogFilters = {
   search: '',

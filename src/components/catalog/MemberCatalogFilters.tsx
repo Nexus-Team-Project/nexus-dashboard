@@ -23,6 +23,7 @@ import { OFFER_CATEGORIES, type CatalogItem } from '../../lib/api';
 import {
   type CatalogFilters,
   EMPTY_CATALOG_FILTERS,
+  OFFER_TYPE_OPTIONS,
 } from './catalogFilters';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -50,14 +51,6 @@ interface Props {
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
-
-const OFFER_TYPE_OPTIONS: { value: string; he: string; en: string }[] = [
-  { value: 'voucher',   he: 'שובר',         en: 'Voucher' },
-  { value: 'coupon',    he: 'קופון',        en: 'Coupon' },
-  { value: 'gift_card', he: 'כרטיס מתנה',   en: 'Gift card' },
-  { value: 'product',   he: 'מוצר',         en: 'Product' },
-  { value: 'service',   he: 'שירות',        en: 'Service' },
-];
 
 /** Standard input class so every form control matches. */
 const INPUT_CLS =
