@@ -8,14 +8,23 @@
  * - The page reflows: cards/table shrink, the aside docks to the inline-end side.
  * - On mobile (< lg) the aside stacks above the table at full width.
  *
- * Filter shape is owned by the parent page. This component is a pure controlled view.
+ * Filter shape is owned by the parent page. This component is a pure controlled view
+ * that composes small per-field widgets from `./filters/`. Adding a new field means
+ * adding one widget file there, NOT growing this file.
  */
 import { useLanguage } from '../../i18n/LanguageContext';
-import { cn } from '../../lib/utils';
+import type { CatalogItem } from '../../lib/api';
 import {
   countActiveCatalogFilters,
   type CatalogFilters,
 } from './catalogFilters';
+import { ChipButton } from './filters/ChipButton';
+import { AdminOfferTypeFilter } from './filters/AdminOfferTypeFilter';
+import { AdminPriceRangeFilter } from './filters/AdminPriceRangeFilter';
+import { AdminDateBoundaryFilter } from './filters/AdminDateBoundaryFilter';
+import { AdminTagFilter } from './filters/AdminTagFilter';
+import { AdminInStockToggleFilter } from './filters/AdminInStockToggleFilter';
+import { AdminSortFilter } from './filters/AdminSortFilter';
 
 // ─── Public contract ──────────────────────────────────────────────────────────
 //
@@ -43,6 +52,8 @@ interface CatalogFilterPanelProps {
   categoryOptions: CategoryOption[];
   /** Number of catalog items matched by the current filters - shown in the footer. */
   resultsCount: number;
+  /** Visible catalog items on the current page - used by AdminTagFilter to derive its chip set. */
+  items: CatalogItem[];
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -60,6 +71,7 @@ const CatalogFilterPanel = ({
   onClear,
   categoryOptions,
   resultsCount,
+  items,
 }: CatalogFilterPanelProps) => {
   const { t } = useLanguage();
 
@@ -138,6 +150,12 @@ const CatalogFilterPanel = ({
             </div>
           </fieldset>
 
+          {/* Sort */}
+          <AdminSortFilter
+            value={filters.sort}
+            onChange={(sort) => onChange({ ...filters, sort })}
+          />
+
           {/* Category */}
           <fieldset>
             <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
@@ -159,6 +177,12 @@ const CatalogFilterPanel = ({
               ))}
             </div>
           </fieldset>
+
+          {/* Offer type */}
+          <AdminOfferTypeFilter
+            value={filters.offerTypes}
+            onChange={(offerTypes) => onChange({ ...filters, offerTypes })}
+          />
 
           {/* Approval status */}
           <fieldset>
@@ -193,6 +217,40 @@ const CatalogFilterPanel = ({
               ))}
             </div>
           </fieldset>
+
+          {/* Price range */}
+          <AdminPriceRangeFilter
+            min={filters.priceMin}
+            max={filters.priceMax}
+            onChange={({ min, max }) => onChange({ ...filters, priceMin: min, priceMax: max })}
+          />
+
+          {/* Valid from */}
+          <AdminDateBoundaryFilter
+            labelKey="bp_filterValidFromAfter"
+            value={filters.validFromAfter}
+            onChange={(validFromAfter) => onChange({ ...filters, validFromAfter })}
+          />
+
+          {/* Valid until */}
+          <AdminDateBoundaryFilter
+            labelKey="bp_filterValidUntilBefore"
+            value={filters.validUntilBefore}
+            onChange={(validUntilBefore) => onChange({ ...filters, validUntilBefore })}
+          />
+
+          {/* Tags */}
+          <AdminTagFilter
+            value={filters.tags}
+            onChange={(tags) => onChange({ ...filters, tags })}
+            items={items}
+          />
+
+          {/* In-stock toggle */}
+          <AdminInStockToggleFilter
+            value={filters.inStockOnly}
+            onChange={(inStockOnly) => onChange({ ...filters, inStockOnly })}
+          />
         </div>
 
         {/* Footer - sticky results count + Clear button */}
@@ -213,38 +271,5 @@ const CatalogFilterPanel = ({
     </aside>
   );
 };
-
-// ─── Internal chip button ─────────────────────────────────────────────────────
-
-/**
- * Small radio-style chip button used by every filter section in this panel.
- * Active state uses the same purple token (#635bff) that Transactions/Users use
- * to keep the visual language consistent.
- */
-function ChipButton({
-  isActive,
-  onClick,
-  label,
-}: {
-  isActive: boolean;
-  onClick: () => void;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
-        isActive
-          ? 'bg-[#635bff] text-white'
-          : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700',
-      )}
-      aria-pressed={isActive}
-    >
-      {label}
-    </button>
-  );
-}
 
 export default CatalogFilterPanel;
