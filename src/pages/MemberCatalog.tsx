@@ -9,6 +9,7 @@
  * Route: /member-catalog
  */
 import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import {
@@ -23,12 +24,13 @@ import ImageLightbox from '../components/ImageLightbox';
 import RichTextDisplay from '../components/RichTextDisplay';
 import Pagination from '../components/Pagination';
 import MemberCatalogBackdrop from '../components/catalog/MemberCatalogBackdrop';
-import MemberCatalogFilters, {
-  EMPTY_FILTERS,
-  applyFilters,
-  type MemberFilters,
-} from '../components/catalog/MemberCatalogFilters';
+import MemberCatalogFilters from '../components/catalog/MemberCatalogFilters';
+import {
+  type CatalogFilters,
+  EMPTY_CATALOG_FILTERS,
+} from '../components/catalog/catalogFilters';
 import { useCatalogList } from '../hooks/useCatalogList';
+import { cn } from '../lib/utils';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -153,8 +155,19 @@ function BenefitCard({ item, language, onClick, onImageClick }: BenefitCardProps
 
   return (
     <article
-      className="group flex h-full flex-col overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-[0_10px_32px_-14px_rgba(15,23,42,0.2)] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_22px_44px_-18px_rgba(15,23,42,0.3)] focus-within:ring-2 focus-within:ring-primary/40"
+      className={cn(
+        'group relative flex h-full flex-col overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-[0_10px_32px_-14px_rgba(15,23,42,0.2)] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_22px_44px_-18px_rgba(15,23,42,0.3)] focus-within:ring-2 focus-within:ring-primary/40',
+        item.isSoldOut && 'opacity-60 grayscale',
+      )}
     >
+      {item.isSoldOut && (
+        <span
+          className="absolute top-3 z-10 inline-flex items-center rounded-full bg-slate-900/85 px-3 py-1 text-[11px] font-semibold tracking-wide text-white shadow-md backdrop-blur-md"
+          style={isRTL ? { right: '0.75rem' } : { left: '0.75rem' }}
+        >
+          {t('mc_soldOut')}
+        </span>
+      )}
       {/* Image fills the top - rounded top corners */}
       <button
         type="button"
@@ -314,29 +327,60 @@ const MemberCatalog = () => {
   } = useCatalogList({ fetcher });
 
   /**
-   * Advanced filter state. search + category mirror the hook (server-side);
-   * everything else (price, dates, type, tags, stock, sort) is applied
-   * client-side after the page loads.
+   * Filters live entirely in the useCatalogList hook now. The page just
+   * proxies the search bar value and forwards the advanced-filter modal's
+   * output straight back to the hook, which ships every field to the
+   * backend on every change.
    */
-  const [memberFilters, setMemberFilters] = useState<MemberFilters>(EMPTY_FILTERS);
+  const setSearchQuery = (v: string) => setFilters({ ...filters, search: v });
+  const searchQuery = filters.search;
+  const handleAdvancedFiltersChange = (next: CatalogFilters) => setFilters(next);
 
-  /** Updating the search input also pushes the value to the hook so the
-   *  server filter stays in sync. */
-  const setSearchQuery = (v: string) => {
-    setMemberFilters((f) => ({ ...f, search: v }));
-    setFilters({ ...filters, search: v });
-  };
-  const searchQuery = memberFilters.search;
+  // ── URL persistence ──────────────────────────────────────────────
+  // Mirror the filter state to the URL query string so deep-linking,
+  // sharing, and the back button all work. Replace (not push) so the
+  // history isn't flooded with one entry per chip click.
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  /** Commit advanced filters from the panel: mirror search/category to
-   *  the hook and store the full set locally. */
-  const handleAdvancedFiltersChange = (next: MemberFilters) => {
-    setMemberFilters(next);
-    setFilters({ ...filters, search: next.search, category: next.category });
-  };
+  // Read filters from the URL once on mount.
+  useEffect(() => {
+    const next: CatalogFilters = { ...EMPTY_CATALOG_FILTERS };
+    const cat = searchParams.get('category');
+    if (cat) next.category = cat;
+    const types = searchParams.get('offerTypes');
+    if (types) next.offerTypes = types.split(',').filter(Boolean);
+    const priceMin = searchParams.get('priceMin');
+    if (priceMin) next.priceMin = Number(priceMin);
+    const priceMax = searchParams.get('priceMax');
+    if (priceMax) next.priceMax = Number(priceMax);
+    const vfa = searchParams.get('validFromAfter');
+    if (vfa) next.validFromAfter = vfa;
+    const vub = searchParams.get('validUntilBefore');
+    if (vub) next.validUntilBefore = vub;
+    const tags = searchParams.get('tags');
+    if (tags) next.tags = tags.split(',').filter(Boolean);
+    const sort = searchParams.get('sort');
+    if (sort) next.sort = sort as CatalogFilters['sort'];
+    const inStock = searchParams.get('inStockOnly');
+    if (inStock === 'true') next.inStockOnly = true;
+    setFilters(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  /** Client-side filtered + sorted view of the current server page. */
-  const visibleItems = applyFilters(items, memberFilters);
+  // Push filter changes back into the URL (replace, not push).
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (filters.category) params.set('category', filters.category);
+    if (filters.offerTypes.length) params.set('offerTypes', filters.offerTypes.join(','));
+    if (filters.priceMin != null) params.set('priceMin', String(filters.priceMin));
+    if (filters.priceMax != null) params.set('priceMax', String(filters.priceMax));
+    if (filters.validFromAfter) params.set('validFromAfter', filters.validFromAfter);
+    if (filters.validUntilBefore) params.set('validUntilBefore', filters.validUntilBefore);
+    if (filters.tags.length) params.set('tags', filters.tags.join(','));
+    if (filters.inStockOnly) params.set('inStockOnly', 'true');
+    if (filters.sort !== 'newest') params.set('sort', filters.sort);
+    setSearchParams(params, { replace: true });
+  }, [filters, setSearchParams]);
 
   // ── Inactive gate ────────────────────────────────────────────────
   if (catalogMode === 'inactive') {
@@ -485,7 +529,7 @@ const MemberCatalog = () => {
             />
           </div>
           <MemberCatalogFilters
-            value={memberFilters}
+            value={filters}
             onChange={handleAdvancedFiltersChange}
             items={items}
           />
@@ -517,7 +561,7 @@ const MemberCatalog = () => {
             <div className="mx-auto max-w-[760px] rounded-2xl border border-amber-200 bg-amber-50 p-8 text-center">
               <p className="text-sm text-amber-800">{error}</p>
             </div>
-          ) : visibleItems.length === 0 ? (
+          ) : items.length === 0 ? (
             <div className="mx-auto max-w-[760px] rounded-3xl border border-slate-100 bg-white p-12 text-center shadow-[0_8px_30px_-12px_rgba(15,23,42,0.15)]">
               <p className="text-sm font-medium text-slate-500">
                 {searchQuery ? t('mc_emptyNoMatch') : t('mc_emptyNoOffers')}
@@ -525,7 +569,7 @@ const MemberCatalog = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
-              {visibleItems.map((item) => (
+              {items.map((item) => (
                 <BenefitCard
                   key={item.offerId}
                   item={item}
