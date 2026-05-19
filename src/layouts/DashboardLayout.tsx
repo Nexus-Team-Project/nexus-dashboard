@@ -26,7 +26,23 @@ const DashboardLayout = ({ onLogout, showBusinessSetup = false }: DashboardLayou
    */
   const isFullBleedRoute =
     location.pathname === '/supply/create'
-    || location.pathname.startsWith('/benefits-partnerships/edit-offer/');
+    || location.pathname.startsWith('/benefits-partnerships/edit-offer/')
+    || location.pathname === '/member-catalog';
+
+  /**
+   * Routes that paint their own immersive page background. The scroll
+   * shell drops its default `bg-white` (and footer) so the page background
+   * reaches every edge with no white gap around it.
+   */
+  const isImmersiveBgRoute = location.pathname === '/member-catalog';
+  /**
+   * The /member-catalog page paints its own particle backdrop (grid + gold/
+   * silver geometric particles). The layout simply removes the surrounding
+   * white shell so that backdrop reaches every edge.
+   */
+  const immersiveBgStyle: React.CSSProperties = isImmersiveBgRoute
+    ? { background: '#ffffff' }
+    : {};
   const [sidebarState, setSidebarState] = useState<SidebarState>('open');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -40,7 +56,7 @@ const DashboardLayout = ({ onLogout, showBusinessSetup = false }: DashboardLayou
   }, []);
 
   return (
-    <div className={`min-h-screen bg-[#edf1fc] dark:bg-background-dark text-slate-900 dark:text-slate-100 transition-colors duration-200 ${isDevMode ? 'pb-12' : 'pb-0'} ${isRTL ? 'rtl' : 'ltr'}`}>
+    <div className={`min-h-screen ${isImmersiveBgRoute ? 'bg-white' : 'bg-[#edf1fc]'} dark:bg-background-dark text-slate-900 dark:text-slate-100 transition-colors duration-200 ${isDevMode ? 'pb-12' : 'pb-0'} ${isRTL ? 'rtl' : 'ltr'}`}>
       {/* Top-level flex: page + chat panel side by side */}
       <div className="flex min-h-screen">
         {/* Gray strip near right edge */}
@@ -49,7 +65,7 @@ const DashboardLayout = ({ onLogout, showBusinessSetup = false }: DashboardLayou
         <div className="flex-1 min-w-0 flex flex-col transition-all duration-300 ease-in-out">
           {showBusinessSetup && <SetupBanner />}
           {/* Stripe-style rounded corners — thin decorative strip that overlaps the orange banner */}
-          <div className="h-2 -mt-2 rounded-t-2xl bg-[#edf1fc] dark:bg-background-dark relative z-[1] shrink-0" />
+          <div className={`h-2 -mt-2 rounded-t-2xl ${isImmersiveBgRoute ? 'bg-white' : 'bg-[#edf1fc]'} dark:bg-background-dark relative z-[1] shrink-0`} />
           <DashboardHeader
             onLogout={onLogout}
             isChatOpen={isChatOpen}
@@ -91,7 +107,10 @@ const DashboardLayout = ({ onLogout, showBusinessSetup = false }: DashboardLayou
               onMouseMove={handleContentMouseMove}
             >
               {/* Inner scrollable area */}
-              <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar bg-white dark:bg-card-dark rounded-tr-xl">
+              <div
+                className={`flex-1 flex flex-col overflow-y-auto custom-scrollbar dark:bg-card-dark rounded-tr-xl ${isImmersiveBgRoute ? '' : 'bg-white'}`}
+                style={immersiveBgStyle}
+              >
                 {isFullBleedRoute ? (
                   <main className="flex-1 w-full">
                     <Outlet />
@@ -102,6 +121,7 @@ const DashboardLayout = ({ onLogout, showBusinessSetup = false }: DashboardLayou
                     <Outlet />
                   </main>
                 )}
+                {!isImmersiveBgRoute && (
                 <footer className="max-w-[1400px] w-full mx-auto px-3 py-4 sm:px-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-[11px] text-slate-400 font-medium">
                   <p>© 2024 Nexus Admin. All Rights Reserved.</p>
                   <div className="flex flex-wrap gap-4">
@@ -110,6 +130,7 @@ const DashboardLayout = ({ onLogout, showBusinessSetup = false }: DashboardLayou
                     <a className="hover:text-primary transition-colors" href="#">Help Center</a>
                   </div>
                 </footer>
+                )}
               </div>
             </div>
           </div>

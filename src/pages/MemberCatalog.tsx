@@ -22,6 +22,7 @@ import OfferModal from '../components/catalog/OfferModal';
 import ImageLightbox from '../components/ImageLightbox';
 import RichTextDisplay from '../components/RichTextDisplay';
 import Pagination from '../components/Pagination';
+import MemberCatalogBackdrop from '../components/catalog/MemberCatalogBackdrop';
 import { useCatalogList } from '../hooks/useCatalogList';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -65,6 +66,41 @@ function displayPrice(item: CatalogItem): number | null {
   return typeof v === 'number' ? v : null;
 }
 
+/**
+ * Resolves the localised label for an offer's execution type. Returns null
+ * when the value is unknown so the badge simply hides instead of leaking
+ * a raw backend enum string. Takes the bound `t()` so the i18n key stays
+ * a string literal and remains type-safe.
+ */
+function executionTypeLabel(
+  value: string | undefined,
+  t: (k: 'mc_typeVoucher' | 'mc_typeCoupon' | 'mc_typeGiftCard' | 'mc_typeProduct' | 'mc_typeService') => string,
+): string | null {
+  switch (value) {
+    case 'voucher':   return t('mc_typeVoucher');
+    case 'coupon':    return t('mc_typeCoupon');
+    case 'gift_card': return t('mc_typeGiftCard');
+    case 'product':   return t('mc_typeProduct');
+    case 'service':   return t('mc_typeService');
+    default:          return null;
+  }
+}
+
+/**
+ * Computes the integer number of days until an offer expires. Returns null
+ * when the offer has no expiry, has already expired, or the date is
+ * unparseable. Used to drive the "expires soon" warning badge - shown only
+ * when the offer expires within two weeks.
+ */
+function daysUntilExpiry(validUntil: string | null | undefined): number | null {
+  if (!validUntil) return null;
+  const t = new Date(validUntil).getTime();
+  if (Number.isNaN(t)) return null;
+  const diff = t - Date.now();
+  if (diff < 0) return null;
+  return Math.ceil(diff / (24 * 60 * 60 * 1000));
+}
+
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
 /** Skeleton card matching the real card shape. Prevents layout shift. */
@@ -100,7 +136,15 @@ function BenefitCard({ item, language, onClick, onImageClick }: BenefitCardProps
   const cover = item.imageUrls?.[0] ?? item.imageUrl;
   const accent = CARD_ACCENTS[hashIndex(item.offerId, CARD_ACCENTS.length)];
   const price = displayPrice(item);
-  const badgeText = categoryLabel(item.category, language);
+  const categoryText = categoryLabel(item.category, language);
+  const typeText = executionTypeLabel(item.executionType, t);
+  const days = daysUntilExpiry(item.validUntil);
+  const showExpiry = days !== null && days <= 14;
+  const expiryText = days === null
+    ? null
+    : days <= 0
+      ? t('mc_expiresToday')
+      : t('mc_expiresInDays').replace('{n}', String(days));
 
   return (
     <article
@@ -127,13 +171,35 @@ function BenefitCard({ item, language, onClick, onImageClick }: BenefitCardProps
           </div>
         )}
 
-        {/* Dark capsule badge - top corner (flips with direction) */}
-        {badgeText && (
+        {/* Top badges: category + offer type (e.g. voucher / coupon). */}
+        <div
+          className="absolute top-3 flex max-w-[80%] flex-wrap items-center gap-1.5"
+          style={isRTL ? { left: '0.75rem' } : { right: '0.75rem' }}
+        >
+          {categoryText && (
+            <span className="inline-flex items-center rounded-full bg-slate-900/85 px-3 py-1 text-[11px] font-semibold tracking-wide text-white backdrop-blur-md">
+              <span className="truncate">{categoryText}</span>
+            </span>
+          )}
+          {typeText && (
+            <span className="inline-flex items-center rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold tracking-wide text-slate-800 backdrop-blur-md">
+              <span className="truncate">{typeText}</span>
+            </span>
+          )}
+        </div>
+
+        {/* Expiry-soon warning: appears only when expiry is within two weeks.
+            Bottom-opposite-corner so it never overlaps the category badges. */}
+        {showExpiry && expiryText && (
           <span
-            className="absolute top-3 inline-flex max-w-[70%] items-center rounded-full bg-slate-900/85 px-3 py-1 text-[11px] font-semibold tracking-wide text-white backdrop-blur-md"
-            style={isRTL ? { left: '0.75rem' } : { right: '0.75rem' }}
+            className="absolute bottom-3 inline-flex items-center gap-1 rounded-full bg-amber-500/95 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[0_4px_14px_-4px_rgba(245,158,11,0.55)] backdrop-blur-md"
+            style={isRTL ? { right: '0.75rem' } : { left: '0.75rem' }}
           >
-            <span className="truncate">{badgeText}</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            {expiryText}
           </span>
         )}
       </button>
@@ -228,7 +294,7 @@ const MemberCatalog = () => {
   // ── Inactive gate ────────────────────────────────────────────────
   if (catalogMode === 'inactive') {
     return (
-      <div className="min-h-screen" dir={isRTL ? 'rtl' : 'ltr'} style={{ fontFamily: fontStack, background: 'radial-gradient(1200px 600px at 50% -200px, #EEF2FF 0%, transparent 70%), linear-gradient(180deg, #FBFBFE 0%, #F3F5FB 100%)' }}>
+      <div className="min-h-screen bg-white" dir={isRTL ? 'rtl' : 'ltr'} style={{ fontFamily: fontStack }}>
         <div className="mx-auto max-w-[1200px] px-4 pt-10 pb-16 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center justify-center rounded-3xl border border-slate-100 bg-white p-12 text-center shadow-[0_8px_30px_-12px_rgba(15,23,42,0.15)]">
             <span className="material-icons !text-[48px] text-slate-300 mb-4" aria-hidden>
@@ -244,25 +310,77 @@ const MemberCatalog = () => {
 
   const title = t('mc_clubTitle');
 
+  /**
+   * Renders the page title with the closing phrase ("הבלעדי שלך" in Hebrew,
+   * "exclusive" in English) highlighted in gold and underlined with a
+   * hand-drawn swoosh SVG instead of a flat text-decoration line.
+   *
+   * Returns a fragment so the surrounding <h1> tag can keep its styling.
+   */
+  const renderTitle = () => {
+    const marker = language === 'he' ? 'הבלעדי שלך' : 'exclusive';
+    const idx = title.indexOf(marker);
+    if (idx === -1) return title;
+    /**
+     * Underline path:
+     *  - A near-straight stroke under the phrase.
+     *  - Curls upward into a small open loop at the end (the visual "end"
+     *    of the word: right in LTR, left in RTL via scaleX(-1)).
+     *
+     * viewBox uses preserveAspectRatio="none" so the curve stretches with
+     * the highlighted phrase's width while keeping the curl proportional.
+     */
+    return (
+      <>
+        {title.slice(0, idx)}
+        <span className="relative inline-block whitespace-nowrap pb-3 text-[#C9A24B]">
+          {marker}
+          <svg
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 -bottom-1 h-3 w-full"
+            viewBox="0 0 100 12"
+            preserveAspectRatio="none"
+            style={isRTL ? { transform: 'scaleX(-1)' } : undefined}
+          >
+            <defs>
+              <linearGradient id="mc-underline" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%"   stopColor="#C9A24B" stopOpacity="0.15" />
+                <stop offset="30%"  stopColor="#C9A24B" stopOpacity="1" />
+                <stop offset="80%"  stopColor="#A87A30" stopOpacity="1" />
+                <stop offset="100%" stopColor="#A87A30" stopOpacity="1" />
+              </linearGradient>
+            </defs>
+            <path
+              d="M2 6 L 70 6 C 84 6, 93 7, 96 12"
+              stroke="url(#mc-underline)"
+              strokeWidth="2.4"
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
+        {title.slice(idx + marker.length)}
+      </>
+    );
+  };
+
   return (
     <div
-      className="relative min-h-screen overflow-hidden"
+      className="relative min-h-full overflow-x-clip"
       dir={isRTL ? 'rtl' : 'ltr'}
-      style={{
-        fontFamily: fontStack,
-        background:
-          'radial-gradient(1200px 600px at 50% -220px, #EEF2FF 0%, transparent 70%), radial-gradient(900px 500px at 100% 10%, #FDE8E4 0%, transparent 60%), radial-gradient(900px 500px at 0% 20%, #E0F2FE 0%, transparent 60%), linear-gradient(180deg, #FBFBFE 0%, #F3F5FB 100%)',
-      }}
+      style={{ fontFamily: fontStack }}
     >
-      {/* Soft decorative blobs to break the flat white feel */}
-      <div aria-hidden className="pointer-events-none absolute -top-32 left-1/2 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-gradient-to-br from-indigo-200/40 to-fuchsia-200/30 blur-3xl" />
-      <div aria-hidden className="pointer-events-none absolute top-40 -left-24 h-[320px] w-[320px] rounded-full bg-sky-200/30 blur-3xl" />
-      <div aria-hidden className="pointer-events-none absolute top-24 -right-24 h-[320px] w-[320px] rounded-full bg-rose-200/30 blur-3xl" />
+      {/* Premium "Digital Geometric Particle" backdrop:
+          white base + faint architectural grid + clusters of shimmering
+          gold/silver particles with subtle mouse-parallax. */}
+      <MemberCatalogBackdrop />
+
       <div className="relative z-10 mx-auto max-w-[1200px] px-4 pt-6 pb-[max(2.5rem,env(safe-area-inset-bottom))] sm:px-6 lg:px-8 lg:pt-10">
         {/* Header block - centered, dynamic */}
         <header className="text-center">
           <h1 className="text-[28px] font-extrabold tracking-tight text-slate-900 sm:text-[36px] lg:text-[44px]">
-            {title}
+            {renderTitle()}
           </h1>
           <p className="mx-auto mt-3 max-w-[640px] text-[15px] leading-relaxed text-slate-500">
             {t('mc_clubCta')}
@@ -289,13 +407,24 @@ const MemberCatalog = () => {
             <span
               aria-hidden
               className="pointer-events-none absolute top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-primary"
-              style={isRTL ? { right: '20px' } : { left: '20px' }}
+              style={isRTL ? { right: '14px' } : { left: '14px' }}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                className="h-[18px] w-[18px] sm:h-5 sm:w-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <circle cx="11" cy="11" r="7" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
             </span>
+            {/* Mobile uses a tighter icon-padding (40px) and smaller text so
+                the long bilingual placeholder is fully visible. From sm up
+                we restore the roomier 52px padding + 15px text. */}
             <input
               id="mc-search"
               type="text"
@@ -303,8 +432,10 @@ const MemberCatalog = () => {
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={t('mc_searchClubPlaceholder')}
               aria-label={t('mc_searchClubPlaceholder')}
-              className={`h-14 w-full rounded-full border border-slate-200 bg-white text-[15px] text-slate-900 placeholder:text-slate-400 shadow-[0_6px_22px_-12px_rgba(15,23,42,0.2)] outline-none transition-all duration-200 focus:border-primary/40 focus:shadow-[0_0_0_4px_rgba(99,102,241,0.12),0_10px_26px_-14px_rgba(99,102,241,0.4)] ${
-                isRTL ? 'pr-[52px] pl-5' : 'pl-[52px] pr-5'
+              className={`h-12 w-full min-w-0 rounded-full border border-slate-200 bg-white text-[13px] text-slate-900 placeholder:text-[13px] placeholder:text-slate-400 placeholder:overflow-ellipsis shadow-[0_6px_22px_-12px_rgba(15,23,42,0.2)] outline-none transition-all duration-200 focus:border-primary/40 focus:shadow-[0_0_0_4px_rgba(99,102,241,0.12),0_10px_26px_-14px_rgba(99,102,241,0.4)] sm:h-14 sm:text-[15px] sm:placeholder:text-[15px] ${
+                isRTL
+                  ? 'pr-10 pl-4 sm:pr-[52px] sm:pl-5'
+                  : 'pl-10 pr-4 sm:pl-[52px] sm:pr-5'
               }`}
             />
           </div>
