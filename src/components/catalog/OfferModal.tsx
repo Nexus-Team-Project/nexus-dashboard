@@ -227,21 +227,16 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
 
           {/* Price display. Voucher offers carry a member_price (what members
               actually pay); non-voucher offers carry market_price as the
-              display reference. Show whichever is set; market_price wins when
-              both exist so the member-facing price stays prominent. */}
+              display reference. Only the selling price is shown - no
+              original / strike-through reference. */}
           {(() => {
             const display = offer.market_price ?? offer.member_price ?? offer.face_value;
             if (display === undefined) return null;
             return (
-              <div className="mt-5 flex items-baseline gap-2">
+              <div className="mt-5">
                 <span className="text-4xl font-black text-white tracking-tight">
                   &#x20AA;{display}
                 </span>
-                {offer.face_value !== undefined && offer.face_value !== display && (
-                  <span className="text-base text-white/40 line-through">
-                    &#x20AA;{offer.face_value}
-                  </span>
-                )}
               </div>
             );
           })()}
