@@ -454,6 +454,11 @@ export interface TenantMemberInviteInput {
    * Omit or pass undefined to use the backend default (benefits_catalog).
    */
   services?: string[];
+  /**
+   * Optional Israeli mobile carried from the invite to the new member.
+   * Backend accepts "+972…", dashes, spaces and normalizes to "05XXXXXXXX".
+   */
+  phone?: string;
   language?: 'he' | 'en';
   sendEmail?: boolean;
 }
@@ -543,6 +548,8 @@ export interface TenantContact {
   displayName: string;
   status: 'active' | 'inactive' | 'pending' | 'expired';
   address: string | null;
+  /** Canonical Israeli mobile number ("05XXXXXXXX") or null when not provided. */
+  phone: string | null;
   lastActivityAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -574,11 +581,11 @@ export const tenantContactsApi = {
       'GET',
       `/api/v1/tenant/contacts${buildContactsQuery(params)}`,
     ),
-  create: (data: { email: string; displayName?: string; address?: string }) =>
+  create: (data: { email: string; displayName?: string; address?: string; phone?: string }) =>
     request<TenantContact>('POST', '/api/v1/tenant/contacts', data),
-  update: (contactId: string, data: { displayName?: string; address?: string }) =>
+  update: (contactId: string, data: { displayName?: string; address?: string; phone?: string }) =>
     request<TenantContact>('PATCH', `/api/v1/tenant/contacts/${encodeURIComponent(contactId)}`, data),
-  importContacts: (rows: Array<{ email: string; displayName?: string; address?: string }>) =>
+  importContacts: (rows: Array<{ email: string; displayName?: string; address?: string; phone?: string }>) =>
     request<ContactImportResult>('POST', '/api/v1/tenant/contacts/import', { rows }),
   updateEmail: (tenantContactId: string, email: string) =>
     request<{ ok: boolean }>(

@@ -30,6 +30,8 @@ interface InviteRow {
   roles: TenantRole[];
   /** Services granted to this member at invite time. Defaults to benefits_catalog. */
   services: string[];
+  /** Canonical Israeli mobile ("05XXXXXXXX") seeded from CSV import. */
+  phone?: string;
   status: 'draft' | 'pending' | 'failed';
   error?: string;
 }
@@ -100,14 +102,33 @@ const COPY = {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Creates a new invite row with the default member role and benefits_catalog service. */
-function makeRow(email: string): InviteRow {
-  return { id: `${email}_${crypto.randomUUID()}`, email, roles: ['member'], services: ['benefits_catalog'], status: 'draft' };
+function makeRow(email: string, phone?: string): InviteRow {
+  return {
+    id: `${email}_${crypto.randomUUID()}`,
+    email,
+    roles: ['member'],
+    services: ['benefits_catalog'],
+    ...(phone ? { phone } : {}),
+    status: 'draft',
+  };
 }
 
 /** Merges new emails into an existing row list without duplicates. */
 function mergeRows(existing: InviteRow[], emails: string[]): InviteRow[] {
   const seen = new Set(existing.map((r) => r.email));
-  return [...existing, ...emails.filter((e) => !seen.has(e)).map(makeRow)];
+  return [...existing, ...emails.filter((e) => !seen.has(e)).map((e) => makeRow(e))];
+}
+
+/**
+ * Merges CSV-resolved rows (email + optional normalized phone) into the row list.
+ * Skips emails already present so the existing row's phone is preserved.
+ */
+function mergeResolvedRows(existing: InviteRow[], resolved: ResolvedInviteRow[]): InviteRow[] {
+  const seen = new Set(existing.map((r) => r.email));
+  const additions = resolved
+    .filter((r) => !seen.has(r.email))
+    .map((r) => makeRow(r.email, r.phone));
+  return [...existing, ...additions];
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -236,7 +257,7 @@ export default function InviteCollaborators() {
   };
 
   const handleCsvConfirm = (resolved: ResolvedInviteRow[]) => {
-    setRows((cur) => mergeRows(cur, resolved.map((r) => r.email)));
+    setRows((cur) => mergeResolvedRows(cur, resolved));
     setCsvData(null);
   };
 
@@ -248,7 +269,16 @@ export default function InviteCollaborators() {
     setIsSending(true);
     setSubmitError(null);
     try {
-      const payload = draftRows.map((r) => ({ email: r.email, roles: r.roles, services: r.services ?? ['benefits_catalog'], language, sendEmail: true }));
+      const payload = draftRows.map((r) => ({
+        email: r.email,
+        roles: r.roles,
+        services: r.services ?? ['benefits_catalog'],
+        // Forward the phone when the row carries one (e.g. from CSV import).
+        // Backend normalizes and stores it on the invitation + member docs.
+        ...(r.phone ? { phone: r.phone } : {}),
+        language,
+        sendEmail: true,
+      }));
       const response =
         payload.length === 1
           ? { results: [{ email: payload[0].email, ok: true, result: await tenantMembersApi.invite(payload[0]) }] }

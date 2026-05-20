@@ -23,6 +23,7 @@ const COPY = {
     email: 'אימייל',
     status: 'סטטוס',
     address: 'כתובת',
+    phone: 'טלפון',
     lastActivity: 'פעילות אחרונה',
     firstEntry: 'כניסה ראשונה',
     invitePrefix: 'הזמן ל-',
@@ -30,6 +31,7 @@ const COPY = {
     remove: 'הסר',
     empty: 'אין אנשי קשר עדיין.',
     noAddress: 'לא צוין',
+    noPhone: 'לא צוין',
     noActivity: 'לא ידוע',
   },
   en: {
@@ -37,6 +39,7 @@ const COPY = {
     email: 'Email',
     status: 'Status',
     address: 'Address',
+    phone: 'Phone',
     lastActivity: 'Last Activity',
     firstEntry: 'First Entry',
     invitePrefix: 'Invite to ',
@@ -44,6 +47,7 @@ const COPY = {
     remove: 'Remove',
     empty: 'No contacts yet.',
     noAddress: 'Not provided',
+    noPhone: 'Not provided',
     noActivity: 'Unknown',
   },
 } as const;
@@ -193,11 +197,12 @@ export default function ContactsTable({ contacts, loading, language, canManage, 
     <>
       {/* Desktop table */}
       <div className="hidden overflow-x-auto md:block">
-        <table className="w-full min-w-[860px] text-sm" style={{ borderSpacing: 0 }}>
+        <table className="w-full min-w-[960px] text-sm" style={{ borderSpacing: 0 }}>
           <thead className="border-y-2 border-violet-200/60 bg-violet-50 text-xs font-bold uppercase tracking-wider text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
             <tr>
               <th className="px-6 py-2.5 text-start">{copy.name}</th>
               <th className="px-6 py-2.5 text-start">{copy.email}</th>
+              <th className="px-6 py-2.5 text-start">{copy.phone}</th>
               <th className="px-6 py-2.5 text-start">{copy.status}</th>
               <th className="px-6 py-2.5 text-start">{copy.address}</th>
               <th className="px-6 py-2.5 text-start">{copy.lastActivity}</th>
@@ -210,6 +215,7 @@ export default function ContactsTable({ contacts, loading, language, canManage, 
               <tr key={i} className="animate-pulse border-b border-slate-100 dark:border-slate-800">
                 <td className="px-6 py-3"><div className="h-4 w-28 rounded bg-slate-200 dark:bg-slate-700" /></td>
                 <td className="px-6 py-3"><div className="h-4 w-40 rounded bg-slate-200 dark:bg-slate-700" /></td>
+                <td className="px-6 py-3"><div className="h-4 w-24 rounded bg-slate-200 dark:bg-slate-700" /></td>
                 <td className="px-6 py-3"><div className="h-5 w-16 rounded-full bg-slate-200 dark:bg-slate-700" /></td>
                 <td className="px-6 py-3"><div className="h-4 w-32 rounded bg-slate-200 dark:bg-slate-700" /></td>
                 <td className="px-6 py-3"><div className="h-4 w-20 rounded bg-slate-200 dark:bg-slate-700" /></td>
@@ -226,6 +232,7 @@ export default function ContactsTable({ contacts, loading, language, canManage, 
                   {c.displayName || '-'}
                 </td>
                 <td className="max-w-[200px] truncate px-6 py-2.5 text-slate-600 dark:text-slate-300">{c.email}</td>
+                <td className="px-6 py-2.5 text-slate-500 whitespace-nowrap" dir="ltr">{c.phone ?? copy.noPhone}</td>
                 <td className="px-6 py-2.5">
                   <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS_CLASSES[c.status] ?? STATUS_CLASSES.inactive}`}>
                     {c.status}
@@ -241,7 +248,7 @@ export default function ContactsTable({ contacts, loading, language, canManage, 
             ))}
             {!loading && contacts.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-6 py-10 text-center text-sm text-slate-500">{copy.empty}</td>
+                <td colSpan={8} className="px-6 py-10 text-center text-sm text-slate-500">{copy.empty}</td>
               </tr>
             )}
           </tbody>
@@ -272,7 +279,8 @@ export default function ContactsTable({ contacts, loading, language, canManage, 
                 {c.status}
               </span>
             </div>
-            {c.address && <p className="mt-2 text-xs text-slate-500">{c.address}</p>}
+            {c.phone && <p className="mt-2 text-xs text-slate-500" dir="ltr">{c.phone}</p>}
+            {c.address && <p className="mt-1 text-xs text-slate-500">{c.address}</p>}
             <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
               <span>{fmtDate(c.createdAt, language, '-')}</span>
               {canManage && (

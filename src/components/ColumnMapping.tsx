@@ -7,9 +7,10 @@
  */
 import { useState, useMemo } from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
+import { normalizeIsraeliPhone } from '../lib/israeliPhone';
 
 /** System fields a CSV column can be mapped to. Status is lifecycle-managed, not imported. */
-type SystemField = 'Full Name' | 'Email Address' | 'Address' | '';
+type SystemField = 'Full Name' | 'Email Address' | 'Address' | 'Phone' | '';
 
 interface ColumnMappingRow {
   csvColumn: string;
@@ -23,6 +24,9 @@ export interface ResolvedContactRow {
   email: string;
   displayName?: string;
   address?: string;
+  /** Normalized Israeli mobile number ("05XXXXXXXX"). Absent when the source
+   *  row had no phone or the phone could not be normalized. */
+  phone?: string;
 }
 
 export interface ColumnMappingProps {
@@ -36,7 +40,7 @@ export interface ColumnMappingProps {
   csvRows: Record<string, string>[];
 }
 
-const SYSTEM_FIELDS: SystemField[] = ['Full Name', 'Email Address', 'Address', ''];
+const SYSTEM_FIELDS: SystemField[] = ['Full Name', 'Email Address', 'Address', 'Phone', ''];
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -49,6 +53,7 @@ function autoDetect(header: string): SystemField {
   const h = header.toLowerCase().trim();
   if (/e[-_]?mail|mail address|כתובת.?אימייל|אימייל|מייל/.test(h)) return 'Email Address';
   if (/\bname\b|full.?name|שם|שם.?מלא/.test(h)) return 'Full Name';
+  if (/phone|mobile|cell|tel(?!l)|נייד|טלפון|פלאפון/.test(h)) return 'Phone';
   if (/address|כתובת/.test(h)) return 'Address';
   return '';
 }
@@ -75,6 +80,7 @@ function resolveRows(
   const emailCol = mappings.find((m) => m.systemField === 'Email Address')?.csvColumn;
   const nameCol = mappings.find((m) => m.systemField === 'Full Name')?.csvColumn;
   const addressCol = mappings.find((m) => m.systemField === 'Address')?.csvColumn;
+  const phoneCol = mappings.find((m) => m.systemField === 'Phone')?.csvColumn;
 
   const seen = new Set<string>();
   const rows: ResolvedContactRow[] = [];
@@ -84,10 +90,18 @@ function resolveRows(
     const email = emailCol ? (row[emailCol] ?? '').trim().toLowerCase() : '';
     if (!email || !EMAIL_RE.test(email) || seen.has(email)) { skipped++; continue; }
     seen.add(email);
+
+    // Phone is optional: only attach when the cell normalizes to a valid
+    // Israeli mobile. Invalid/blank phone cells silently drop the field so
+    // the row still imports, matching the behavior of address.
+    const rawPhone = phoneCol ? (row[phoneCol] ?? '').trim() : '';
+    const normalizedPhone = rawPhone ? normalizeIsraeliPhone(rawPhone) : null;
+
     rows.push({
       email,
       ...(nameCol && row[nameCol] ? { displayName: row[nameCol].trim() } : {}),
       ...(addressCol && row[addressCol] ? { address: row[addressCol].trim() } : {}),
+      ...(normalizedPhone ? { phone: normalizedPhone } : {}),
     });
   }
   return { rows, skipped };

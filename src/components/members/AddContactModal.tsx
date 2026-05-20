@@ -4,6 +4,7 @@
  */
 import { useState } from 'react';
 import { tenantContactsApi } from '../../lib/api';
+import { normalizeIsraeliPhone } from '../../lib/israeliPhone';
 
 interface AddContactModalProps {
   language: 'he' | 'en';
@@ -21,11 +22,14 @@ const COPY = {
     emailPh: 'name@example.com',
     address: 'כתובת',
     addressPh: 'רחוב הרצל 1, תל אביב',
+    phone: 'טלפון נייד',
+    phonePh: '0508465858 / +972508465858',
     cancel: 'ביטול',
     save: 'שמור',
     saving: 'שומר...',
     required: 'אימייל הוא שדה חובה',
     invalid: 'אימייל לא תקין',
+    invalidPhone: 'מספר טלפון לא תקין. השתמש בפורמט 05XXXXXXXX או +972XXXXXXXX.',
   },
   en: {
     title: 'Add contact',
@@ -35,11 +39,14 @@ const COPY = {
     emailPh: 'name@example.com',
     address: 'Address',
     addressPh: '1 Main St, City',
+    phone: 'Mobile phone',
+    phonePh: '0508465858 / +972508465858',
     cancel: 'Cancel',
     save: 'Save',
     saving: 'Saving...',
     required: 'Email is required',
     invalid: 'Invalid email address',
+    invalidPhone: 'Invalid phone number. Use 05XXXXXXXX or +972XXXXXXXX.',
   },
 } as const;
 
@@ -55,7 +62,9 @@ export default function AddContactModal({ language, onClose, onCreated }: AddCon
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [address, setAddress] = useState('');
+  const [phone, setPhone] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -63,13 +72,26 @@ export default function AddContactModal({ language, onClose, onCreated }: AddCon
     const trimmedEmail = email.trim().toLowerCase();
     if (!trimmedEmail) { setError(copy.required); return; }
     if (!EMAIL_RE.test(trimmedEmail)) { setError(copy.invalid); return; }
+
+    // Phone is optional. When provided, it must normalize to a valid Israeli
+    // mobile; otherwise we block the submit and show a per-field error.
+    const trimmedPhone = phone.trim();
+    let normalizedPhone: string | undefined;
+    if (trimmedPhone) {
+      const n = normalizeIsraeliPhone(trimmedPhone);
+      if (!n) { setPhoneError(copy.invalidPhone); return; }
+      normalizedPhone = n;
+    }
+
     setError(null);
+    setPhoneError(null);
     setSaving(true);
     try {
       await tenantContactsApi.create({
         email: trimmedEmail,
         displayName: displayName.trim() || undefined,
         address: address.trim() || undefined,
+        phone: normalizedPhone,
       });
       onCreated();
       onClose();
@@ -143,6 +165,28 @@ export default function AddContactModal({ language, onClose, onCreated }: AddCon
               placeholder={copy.addressPh}
               className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
             />
+          </div>
+
+          {/* Phone (Israeli mobile, optional) */}
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300">
+              {copy.phone}
+            </label>
+            <input
+              type="tel"
+              dir="ltr"
+              inputMode="tel"
+              autoComplete="tel"
+              value={phone}
+              onChange={(e) => { setPhone(e.target.value); setPhoneError(null); }}
+              placeholder={copy.phonePh}
+              className={`w-full rounded-lg border bg-slate-50 px-3 py-2.5 text-sm outline-none transition-all focus:ring-2 dark:bg-slate-800 dark:text-white ${
+                phoneError
+                  ? 'border-red-400 focus:border-red-400 focus:ring-red-200'
+                  : 'border-slate-200 focus:border-primary focus:ring-primary/20 dark:border-slate-700'
+              }`}
+            />
+            {phoneError && <p className="mt-1 text-xs text-red-500">{phoneError}</p>}
           </div>
 
           {/* Actions */}

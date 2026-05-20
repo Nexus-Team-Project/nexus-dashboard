@@ -8,14 +8,17 @@ import { useMemo, useState } from 'react';
 import type { TenantRole } from '../../lib/api';
 import { getTenantRoleLabel } from '../../lib/tenantRoles';
 import type { ParsedCsv } from '../../lib/csvParser';
+import { normalizeIsraeliPhone } from '../../lib/israeliPhone';
 
 /** The field a CSV column can be mapped to. */
-type CsvField = 'email' | 'role' | 'ignore';
+type CsvField = 'email' | 'role' | 'phone' | 'ignore';
 
 /** A resolved import row ready to merge into the invite table. */
 export interface ResolvedInviteRow {
   email: string;
   roles: TenantRole[];
+  /** Normalized Israeli mobile ("05XXXXXXXX") when the CSV provided a valid one. */
+  phone?: string;
 }
 
 export interface CsvColumnMapperProps {
@@ -35,11 +38,14 @@ const COPY = {
     mapsTo: 'ממופה ל',
     fieldEmail: 'אימייל',
     fieldRole: 'תפקיד',
+    fieldPhone: 'טלפון',
     fieldIgnore: 'התעלם',
     autoDetected: 'זוהה אוטומטית',
     previewTitle: 'תצוגה מקדימה',
     previewEmail: 'אימייל',
     previewRole: 'תפקיד',
+    previewPhone: 'טלפון',
+    noPhone: '—',
     defaultRole: 'ברירת מחדל: Member',
     noEmailCol: 'יש למפות לפחות עמודה אחת לאימייל.',
     skipped: (n: number) => `${n} שורות דולגו – אימייל לא תקין`,
@@ -53,11 +59,14 @@ const COPY = {
     mapsTo: 'Maps to',
     fieldEmail: 'Email',
     fieldRole: 'Role',
+    fieldPhone: 'Phone',
     fieldIgnore: 'Ignore',
     autoDetected: 'Auto-detected',
     previewTitle: 'Preview',
     previewEmail: 'Email',
     previewRole: 'Role',
+    previewPhone: 'Phone',
+    noPhone: '—',
     defaultRole: 'Default: Member',
     noEmailCol: 'Map at least one column to Email.',
     skipped: (n: number) => `${n} row${n === 1 ? '' : 's'} skipped – invalid email`,
@@ -82,9 +91,11 @@ function autoDetect(header: string): CsvField {
   // English patterns
   if (/e[-_]?mail|mail address/.test(h)) return 'email';
   if (/\brole\b|permission|access/.test(h)) return 'role';
+  if (/phone|mobile|cell|tel(?!l)/.test(h)) return 'phone';
   // Hebrew patterns
   if (/אימייל|כתובת.?אימייל|מייל/.test(h)) return 'email';
   if (/תפקיד|הרשאה/.test(h)) return 'role';
+  if (/נייד|טלפון|פלאפון/.test(h)) return 'phone';
   return 'ignore';
 }
 
@@ -144,6 +155,7 @@ export default function CsvColumnMapper({ csv, language, onConfirm, onCancel }: 
   const { resolved, skipped } = useMemo(() => {
     const emailCols = csv.headers.filter((h) => mapping[h] === 'email');
     const roleCols = csv.headers.filter((h) => mapping[h] === 'role');
+    const phoneCols = csv.headers.filter((h) => mapping[h] === 'phone');
     const seen = new Set<string>();
     const resolved: ResolvedInviteRow[] = [];
     let skipped = 0;
@@ -172,7 +184,15 @@ export default function CsvColumnMapper({ csv, language, onConfirm, onCancel }: 
       }
       if (roleSet.size === 0) roleSet.add('member');
 
-      resolved.push({ email, roles: Array.from(roleSet) });
+      // First normalizable phone wins. Invalid/blank phone cells drop only
+      // the phone field — the row still imports based on email.
+      let phone: string | undefined;
+      for (const col of phoneCols) {
+        const n = normalizeIsraeliPhone(row[col]);
+        if (n) { phone = n; break; }
+      }
+
+      resolved.push({ email, roles: Array.from(roleSet), ...(phone ? { phone } : {}) });
     }
 
     return { resolved, skipped };
@@ -240,6 +260,7 @@ export default function CsvColumnMapper({ csv, language, onConfirm, onCancel }: 
                   >
                     <option value="email">{copy.fieldEmail}</option>
                     <option value="role">{copy.fieldRole}</option>
+                    <option value="phone">{copy.fieldPhone}</option>
                     <option value="ignore">{copy.fieldIgnore}</option>
                   </select>
                 </td>
@@ -263,6 +284,9 @@ export default function CsvColumnMapper({ csv, language, onConfirm, onCancel }: 
                     {copy.previewEmail}
                   </th>
                   <th scope="col" className="px-4 py-2 text-start text-xs font-semibold text-slate-500">
+                    {copy.previewPhone}
+                  </th>
+                  <th scope="col" className="px-4 py-2 text-start text-xs font-semibold text-slate-500">
                     {copy.previewRole}
                   </th>
                 </tr>
@@ -272,6 +296,9 @@ export default function CsvColumnMapper({ csv, language, onConfirm, onCancel }: 
                   <tr key={row.email} className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/40">
                     <td className="px-4 py-2.5 font-medium text-slate-800 dark:text-slate-200">
                       {row.email}
+                    </td>
+                    <td className="px-4 py-2.5 text-slate-600 dark:text-slate-300" dir="ltr">
+                      {row.phone ?? copy.noPhone}
                     </td>
                     <td className="px-4 py-2.5">
                       <div className="flex flex-wrap gap-1">

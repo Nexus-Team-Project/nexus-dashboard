@@ -329,7 +329,7 @@ export default function Members() {
   const handleExport = () => {
     if (activeTab === 'contacts') {
       exportToCsv(
-        contacts.map((c) => ({ Name: c.displayName, Email: c.email, Status: c.status, Address: c.address ?? '', 'Last Activity': c.lastActivityAt ?? '', 'First Entry': c.createdAt })),
+        contacts.map((c) => ({ Name: c.displayName, Email: c.email, Phone: c.phone ?? '', Status: c.status, Address: c.address ?? '', 'Last Activity': c.lastActivityAt ?? '', 'First Entry': c.createdAt })),
         'contacts',
       );
     } else {
