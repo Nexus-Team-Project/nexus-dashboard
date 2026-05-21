@@ -34,6 +34,7 @@ import CatalogTopBar from '../components/catalog/CatalogTopBar';
 import CatalogFilterPanel from '../components/catalog/CatalogFilterPanel';
 import FieldTooltip from '../components/FieldTooltip';
 import { countActiveCatalogFilters } from '../components/catalog/catalogFilters';
+import VoucherPricePopover from '../components/catalog/VoucherPricePopover';
 
 interface Benefit {
   id: string;
@@ -156,6 +157,26 @@ const BenefitsPartnerships = () => {
 
   /** offerId of a benefit whose adoption toggle is currently being saved. */
   const [adoptingId, setAdoptingId] = useState<string | null>(null);
+
+  /**
+   * State for the voucher price slider popover.
+   * Holds the offerId, voucher bounds, current member price, and the anchor
+   * button element. Null when the popover is closed.
+   */
+  const [pricePopover, setPricePopover] = useState<null | {
+    offerId: string;
+    faceValue: number;
+    nexusCost: number;
+    currentMemberPrice: number;
+    anchor: HTMLElement;
+  }>(null);
+
+  /**
+   * Per-offer optimistic price overrides keyed by offerId. Applied at render
+   * time so the table reflects the new price immediately while the next
+   * refresh re-syncs from the server.
+   */
+  const [priceOverrides, setPriceOverrides] = useState<Record<string, number>>({});
 
   /** True while /api/me is being re-fetched after a service state change. Shows loading skeleton. */
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -457,11 +478,22 @@ const BenefitsPartnerships = () => {
     featured: false,
     image: item.imageUrl,
     title: item.title,
-    discount: item.member_price != null
-      ? `₪${item.member_price}`
-      : item.market_price != null
-        ? `₪${item.market_price}`
-        : '',
+    discount: (() => {
+      // Price resolution for the cards view. Must mirror the table view's
+      // editable popover: optimistic override (from priceOverrides) wins,
+      // then the per-tenant override (tenantMemberPrice) from the backend,
+      // then voucher uses member_price, non-voucher prefers market_price.
+      const override = priceOverrides[item.offerId];
+      if (override != null) return `₪${override}`;
+      if (item.tenantMemberPrice != null) return `₪${item.tenantMemberPrice}`;
+      if (item.executionType === 'voucher') {
+        if (item.member_price != null) return `₪${item.member_price}`;
+        return '';
+      }
+      if (item.market_price != null) return `₪${item.market_price}`;
+      if (item.member_price != null) return `₪${item.member_price}`;
+      return '';
+    })(),
     stockLimit: item.stockLimit,
     stockAvailable: item.stockAvailable,
     isSoldOut: item.isSoldOut,
@@ -759,7 +791,17 @@ const BenefitsPartnerships = () => {
                                 ? EXECUTION_TYPE_LABELS[item.executionType].labelHe
                                 : EXECUTION_TYPE_LABELS[item.executionType].label)
                             : item.executionType;
-                          const priceValue = isVoucher ? item.member_price : item.market_price;
+                          // Read-only price for the table cell. The editable
+                          // voucher button branch handles its own override
+                          // resolution; this branch fires for non-vouchers and
+                          // for vouchers the caller cannot edit. In both cases
+                          // a per-tenant override (tenantMemberPrice) must win
+                          // over the offer-level price.
+                          const priceValue = item.tenantMemberPrice != null
+                            ? item.tenantMemberPrice
+                            : isVoucher
+                              ? (item.member_price ?? null)
+                              : (item.market_price ?? null);
                           const descPlain = stripHtml(item.description);
                           const tagsList = item.tags ?? [];
                           const visibility = item.visibility;
@@ -890,16 +932,57 @@ const BenefitsPartnerships = () => {
                                 </span>
                               </td>
 
-                              {/* 8. Price — member_price for vouchers, market_price otherwise. */}
+                              {/* 8. Price - member_price for vouchers, market_price otherwise.
+                                  Voucher rows the caller can edit open the slider popover. */}
                               <td className="px-4 py-4 align-top">
-                                <span className={cn(
-                                  'text-sm font-semibold tabular-nums whitespace-nowrap',
-                                  priceValue == null
-                                    ? 'text-slate-400 italic font-normal'
-                                    : 'text-slate-900 dark:text-slate-100',
-                                )}>
-                                  {formatPrice(priceValue)}
-                                </span>
+                                {isVoucher && editable && item.face_value !== undefined && item.nexus_cost !== undefined ? (
+                                  (() => {
+                                    const effectivePrice =
+                                      priceOverrides[item.offerId] ??
+                                      item.tenantMemberPrice ??
+                                      item.member_price ??
+                                      (item.nexus_cost as number);
+                                    return (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setPricePopover({
+                                            offerId: item.offerId,
+                                            faceValue: item.face_value as number,
+                                            nexusCost: item.nexus_cost as number,
+                                            currentMemberPrice: effectivePrice,
+                                            anchor: e.currentTarget,
+                                          });
+                                        }}
+                                        title={t('vp_clickToEdit')}
+                                        aria-label={t('vp_clickToEdit')}
+                                        className="group inline-flex items-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-semibold tabular-nums text-slate-900 hover:border-primary/30 hover:bg-slate-100 dark:text-white dark:hover:bg-slate-800"
+                                      >
+                                        <svg
+                                          className="w-3.5 h-3.5 text-slate-400 group-hover:text-primary"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          strokeWidth={1.75}
+                                          viewBox="0 0 24 24"
+                                          aria-hidden="true"
+                                        >
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z" />
+                                        </svg>
+                                        <span>{`₪${effectivePrice}`}</span>
+                                      </button>
+                                    );
+                                  })()
+                                ) : (
+                                  <span className={cn(
+                                    'text-sm font-semibold tabular-nums whitespace-nowrap',
+                                    priceValue == null
+                                      ? 'text-slate-400 italic font-normal'
+                                      : 'text-slate-900 dark:text-slate-100',
+                                  )}>
+                                    {formatPrice(priceValue)}
+                                  </span>
+                                )}
                               </td>
 
                               {/* 9. Stock — Unlimited / available/limit / Sold out. */}
@@ -1487,6 +1570,22 @@ const BenefitsPartnerships = () => {
             await loadCatalog();
             setDenyTarget(null);
           }}
+        />
+      )}
+
+      {/* Voucher price slider popover - opens from a voucher row's price cell. */}
+      {pricePopover && (
+        <VoucherPricePopover
+          offerId={pricePopover.offerId}
+          faceValue={pricePopover.faceValue}
+          nexusCost={pricePopover.nexusCost}
+          currentMemberPrice={pricePopover.currentMemberPrice}
+          anchor={pricePopover.anchor}
+          onSaved={(newPrice) => {
+            setPriceOverrides((prev) => ({ ...prev, [pricePopover.offerId]: newPrice }));
+            void loadCatalog();
+          }}
+          onClose={() => setPricePopover(null)}
         />
       )}
 

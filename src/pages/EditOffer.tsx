@@ -48,7 +48,6 @@ const EditOffer = () => {
   const [stockLimit, setStockLimit] = useState('');
   const [faceValue, setFaceValue] = useState('');
   const [nexusCost, setNexusCost] = useState('');
-  const [memberPrice, setMemberPrice] = useState<number | null>(null);
   const [implementationLink, setImplementationLink] = useState('');
   const [implementationInstructions, setImplementationInstructions] = useState('');
   const [validFrom, setValidFrom] = useState('');
@@ -78,7 +77,6 @@ const EditOffer = () => {
         setStockLimit(detail.stockLimit !== null && detail.stockLimit !== undefined ? String(detail.stockLimit) : '');
         setFaceValue(detail.face_value ? String(detail.face_value) : '');
         setNexusCost(detail.nexus_cost ? String(detail.nexus_cost) : '');
-        setMemberPrice(detail.member_price ?? null);
         setImplementationLink(detail.implementationLink ?? '');
         setImplementationInstructions(detail.implementationInstructions ?? '');
         setValidFrom(detail.validFrom ? detail.validFrom.slice(0, 10) : '');
@@ -131,7 +129,6 @@ const EditOffer = () => {
       if (executionType === 'voucher') {
         if (faceValue) fd.append('face_value', faceValue);
         if (nexusCost) fd.append('nexus_cost', nexusCost);
-        if (memberPrice !== null) fd.append('member_price', String(memberPrice));
       }
       fd.append('implementationLink', implementationLink.trim());
       fd.append('implementationInstructions', implementationInstructions.trim());
@@ -201,7 +198,6 @@ const EditOffer = () => {
         stockLimit={stockLimit} setStockLimit={setStockLimit}
         faceValue={faceValue} setFaceValue={setFaceValue}
         nexusCost={nexusCost} setNexusCost={setNexusCost}
-        memberPrice={memberPrice} setMemberPrice={setMemberPrice}
         isSubmitting={isSubmitting}
       />
       <CreateOfferRedemptionSection

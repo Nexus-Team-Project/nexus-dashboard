@@ -273,7 +273,15 @@ const ProductCatalog = () => {
           <div className="mt-3 flex items-center justify-between">
             <div className="flex items-baseline gap-1.5">
               {(() => {
-                const price = item.market_price ?? item.member_price ?? item.face_value;
+                // Per-tenant override (tenantMemberPrice) always wins so a
+                // price edit in BenefitsPartnerships is reflected immediately
+                // on adopted-offer cards. Vouchers prefer member_price; only
+                // fall back to face_value when no selling price is set, never
+                // as a normal display price.
+                const price = item.tenantMemberPrice
+                  ?? (item.executionType === 'voucher'
+                        ? (item.member_price ?? item.face_value)
+                        : (item.market_price ?? item.member_price ?? item.face_value));
                 if (price === undefined) return null;
                 return (
                   <>
