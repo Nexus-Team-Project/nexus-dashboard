@@ -1083,10 +1083,6 @@ export const translations = {
     fi_nexusCost_detail: "The price your organization and NEXUS agreed to display on the platform. This is the real base price members pay. If you want to add margin you can raise the member price above this figure, but never above the face value (שווי). Setting the member price equal to this means no extra profit; setting it higher up to the face value adds the difference as your profit.",
     fi_nexusCost_example: 'Face value ₪100, Nexus Price ₪80. Member price must be between ₪80 and ₪100. Setting it to ₪90 gives your organization a ₪10 profit per voucher.',
 
-    fi_memberPrice_label: 'Member Price',
-    fi_memberPrice_short: 'What end customers (members) will pay. Drag the slider to set it.',
-    fi_memberPrice_detail: "Set the price members pay using the slider. The minimum is the NEXUS price (your cost to NEXUS) and the maximum is the face value. The difference between the member price and the NEXUS price is your organization's profit margin.",
-    fi_memberPrice_example: 'NEXUS price ₪80, face value ₪100 - set member price to ₪90 - your profit is ₪10 per voucher.',
 
     // ── BenefitsPartnerships page - tab tooltips ──
     fi_tabCards_label: 'Cards view',
@@ -1113,8 +1109,8 @@ export const translations = {
     fi_bpcImage_example: 'A food offer typically uses a photo of the dish or storefront.',
     fi_bpcPrice_label: 'Price',
     fi_bpcPrice_short: 'What members pay for this offer.',
-    fi_bpcPrice_detail: 'For voucher offers this is the member price (set by the creator between the supplier cost and the face value). For non-voucher offers this is the optional market price. Read-only - use the row Edit button to change pricing. The internal supplier cost is never shown here.',
-    fi_bpcPrice_example: 'A ₪100 voucher might have a member price of ₪90; a restaurant offer might have a market price of ₪50.',
+    fi_bpcPrice_detail: "Per-tenant voucher selling price. Click a voucher row's price to open a slider and set your tenant's price between Nexus cost and face value. Tenants set this independently - your change never affects other tenants.",
+    fi_bpcPrice_example: 'Face value ₪100, Nexus cost ₪80. Slide to ₪90 and your members pay ₪90; your profit is ₪10 per voucher.',
     fi_bpcActions_label: 'Actions',
     fi_bpcActions_short: 'Per-row Edit and Delete buttons (gated by ownership).',
     fi_bpcActions_detail: 'Edit opens the full offer drawer with all fields (including the rich-text description and image). Delete removes the offer permanently. Both buttons are visible only to the tenant that created the offer and to NEXUS platform admins. Platform admins also see Approve / Deny for offers pending review.',
@@ -1177,6 +1173,19 @@ export const translations = {
     co_denyModalPlaceholder: 'Enter reason for denial (minimum 10 characters)...',
     co_denyModalSubmit: 'Send Denial',
     co_denyModalCancel: 'Cancel',
+
+    // Voucher price popover
+    vp_title: 'Set member price',
+    vp_minLabel: 'Min ({{value}})',
+    vp_maxLabel: 'Max ({{value}})',
+    vp_membersPay: 'Members pay',
+    vp_yourProfit: 'Your profit',
+    vp_save: 'Save',
+    vp_cancel: 'Cancel',
+    vp_error_bounds: 'Price must be between {{min}} and {{max}}',
+    vp_error_generic: "Couldn't save price. Try again.",
+    vp_clickToEdit: 'Click to set member price',
+    vp_priceEditableHint: 'Editable',
   },
   he: {
     // App
@@ -2263,10 +2272,6 @@ export const translations = {
     fi_nexusCost_detail: 'המחיר שהארגון שלך ו-NEXUS הסכימו להציג בפלטפורמה. זהו המחיר הבסיסי האמיתי שהחברים משלמים. אם ברצונך להוסיף רווח, ניתן להעלות את מחיר החבר מעל סכום זה, אך לעולם לא מעל הערך הנקוב (שווי). אם תקבע את מחיר החבר שווה לסכום הזה - אין רווח נוסף; אם תקבע אותו גבוה יותר עד שווי השובר - ההפרש הוא הרווח של הארגון.',
     fi_nexusCost_example: 'שווי ₪100, מחיר מכירה לנקסוס ₪80. מחיר החבר חייב להיות בין ₪80 ל-₪100. הגדרה ל-₪90 נותנת לארגון רווח של ₪10 לשובר.',
 
-    fi_memberPrice_label: 'מחיר לחבר',
-    fi_memberPrice_short: 'מה לקוחות הקצה (חברים) ישלמו. גרור את המחוון לקביעת המחיר.',
-    fi_memberPrice_detail: 'קבע את המחיר שחברים משלמים באמצעות המחוון. המינימום הוא מחיר ה-NEXUS והמקסימום הוא הערך הנקוב. ההפרש בין מחיר החבר למחיר ה-NEXUS הוא רווח הארגון שלך.',
-    fi_memberPrice_example: 'מחיר NEXUS ₪80, ערך נקוב ₪100 - קבע מחיר חבר ל-₪90 - הרווח שלך הוא ₪10 לשובר.',
 
     // ── דף שיתופי פעולה והטבות - טיפים לטאבים ──
     fi_tabCards_label: 'תצוגת כרטיסים',
@@ -2293,8 +2298,8 @@ export const translations = {
     fi_bpcImage_example: 'הצעה של מזון משתמשת בדרך כלל בתמונה של המנה או של החזית.',
     fi_bpcPrice_label: 'מחיר',
     fi_bpcPrice_short: 'כמה חברים משלמים עבור ההצעה.',
-    fi_bpcPrice_detail: 'עבור הצעות שובר זהו מחיר החבר (נקבע על-ידי היוצר בין עלות הספק לערך הנקוב). עבור הצעות שאינן שובר זהו מחיר השוק (אופציונלי). לקריאה בלבד - השתמש בכפתור עריכה כדי לשנות תמחור. עלות הספק הפנימית לעולם אינה מוצגת כאן.',
-    fi_bpcPrice_example: 'שובר ₪100 יכול להיות עם מחיר חבר של ₪90; הצעת מסעדה יכולה להיות עם מחיר שוק של ₪50.',
+    fi_bpcPrice_detail: 'מחיר מכירת שובר לחבר, ייחודי לכל לקוח. לחיצה על המחיר בשורת שובר פותחת סליידר להגדרת המחיר של הלקוח שלך בין עלות נקסוס לשווי. הגדרה זו עצמאית - השינוי שלך אינו משפיע על לקוחות אחרים.',
+    fi_bpcPrice_example: 'שווי ₪100, עלות נקסוס ₪80. הזזה ל-₪90 והחברים שלך משלמים ₪90; הרווח שלך הוא ₪10 לשובר.',
     fi_bpcActions_label: 'פעולות',
     fi_bpcActions_short: 'כפתורי עריכה ומחיקה לשורה (מוגבל לפי בעלות).',
     fi_bpcActions_detail: 'עריכה פותחת את חלון ההצעה המלא עם כל השדות (כולל תיאור עשיר ותמונה). מחיקה מסירה את ההצעה לצמיתות. שני הכפתורים גלויים רק לארגון שיצר את ההצעה ולמנהלי הפלטפורמה של NEXUS. מנהלי הפלטפורמה רואים גם אישור / דחייה עבור הצעות הממתינות לבדיקה.',
@@ -2357,6 +2362,19 @@ export const translations = {
     co_denyModalPlaceholder: 'הזן סיבה לדחייה (מינימום 10 תווים)...',
     co_denyModalSubmit: 'שלח דחייה',
     co_denyModalCancel: 'ביטול',
+
+    // Voucher price popover
+    vp_title: 'הגדרת מחיר לחבר',
+    vp_minLabel: 'מינ׳ ({{value}})',
+    vp_maxLabel: 'מקס׳ ({{value}})',
+    vp_membersPay: 'חברים משלמים',
+    vp_yourProfit: 'הרווח שלך',
+    vp_save: 'שמירה',
+    vp_cancel: 'ביטול',
+    vp_error_bounds: 'המחיר חייב להיות בין {{min}} ל-{{max}}',
+    vp_error_generic: 'לא ניתן היה לשמור את המחיר. נסה שוב.',
+    vp_clickToEdit: 'לחץ להגדרת מחיר לחבר',
+    vp_priceEditableHint: 'ניתן לעריכה',
   }
 };
 

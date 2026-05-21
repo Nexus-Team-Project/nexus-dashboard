@@ -34,6 +34,8 @@ import CatalogTopBar from '../components/catalog/CatalogTopBar';
 import CatalogFilterPanel from '../components/catalog/CatalogFilterPanel';
 import FieldTooltip from '../components/FieldTooltip';
 import { countActiveCatalogFilters } from '../components/catalog/catalogFilters';
+import VoucherPricePopover from '../components/catalog/VoucherPricePopover';
+import OfferTypeBadge from '../components/catalog/OfferTypeBadge';
 
 interface Benefit {
   id: string;
@@ -42,6 +44,8 @@ interface Benefit {
   businessName: string;
   businessLogo: string;
   backgroundImage?: string;
+  /** Full ordered gallery URLs from NexusOffer.imageUrls. Used by the lightbox. */
+  galleryImages?: string[];
   implementationMethod: 'voucher' | 'coupon' | 'registration' | 'product' | 'card' | 'service' | 'nexus';
   benefitType: 'percentage' | 'gift' | 'amount';
   usageTerms: string[];
@@ -157,13 +161,40 @@ const BenefitsPartnerships = () => {
   /** offerId of a benefit whose adoption toggle is currently being saved. */
   const [adoptingId, setAdoptingId] = useState<string | null>(null);
 
+  /**
+   * State for the voucher price slider popover.
+   * Holds the offerId, voucher bounds, current member price, and the anchor
+   * button element. Null when the popover is closed.
+   */
+  const [pricePopover, setPricePopover] = useState<null | {
+    offerId: string;
+    faceValue: number;
+    nexusCost: number;
+    currentMemberPrice: number;
+    anchor: HTMLElement;
+  }>(null);
+
+  /**
+   * Per-offer optimistic price overrides keyed by offerId. Applied at render
+   * time so the table reflects the new price immediately while the next
+   * refresh re-syncs from the server.
+   */
+  const [priceOverrides, setPriceOverrides] = useState<Record<string, number>>({});
+
   /** True while /api/me is being re-fetched after a service state change. Shows loading skeleton. */
   const [isRefreshing, setIsRefreshing] = useState(false);
   /** True while the activation API call is in-flight (drives teaser button spinner). */
   const [isActivating, setIsActivating] = useState(false);
 
-  /** URL of the image currently shown in the full-screen lightbox, or null when closed. */
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  /**
+   * Lightbox state. When non-null carries the full ordered gallery for the
+   * offer the user clicked on, plus the index to open at. Null when closed.
+   * An offer with one image still passes through here so the lightbox UX is
+   * uniform; the lightbox itself hides nav controls for single-image cases.
+   */
+  const [lightboxGallery, setLightboxGallery] = useState<
+    { images: string[]; initialIndex: number } | null
+  >(null);
 
 
   /** CatalogItem pending deletion confirmation, or null when no deletion is in progress. */
@@ -292,6 +323,21 @@ const BenefitsPartnerships = () => {
    */
   const canEditOffer = (item: CatalogItem): boolean => {
     if (me?.authorization.isPlatformAdmin === true) return true;
+    const myTenantId = me?.context?.tenantId;
+    return !!myTenantId && item.createdByTenantId === myTenantId;
+  };
+
+  /**
+   * Whether the caller can edit the per-tenant voucher member price on this row.
+   * True when the caller's tenant has adopted the offer OR created it. The backend
+   * returns `tenantMemberPrice` only when an active TenantOfferConfig exists for
+   * the caller's tenant, so its presence is the cleanest adoption signal.
+   * Adopting tenants get this even when they cannot edit the offer itself.
+   * Input: catalog item.
+   * Output: boolean.
+   */
+  const canEditTenantPrice = (item: CatalogItem): boolean => {
+    if (item.tenantMemberPrice !== undefined) return true;
     const myTenantId = me?.context?.tenantId;
     return !!myTenantId && item.createdByTenantId === myTenantId;
   };
@@ -442,6 +488,9 @@ const BenefitsPartnerships = () => {
     businessName: item.title,
     businessLogo: '',
     backgroundImage: item.imageUrl,
+    galleryImages: (item.imageUrls && item.imageUrls.length > 0)
+      ? item.imageUrls
+      : (item.imageUrl ? [item.imageUrl] : []),
     implementationMethod: toImplementationMethod(item.executionType),
     benefitType: toBenefitType(item.executionType),
     usageTerms: item.stockLimit !== null
@@ -457,11 +506,22 @@ const BenefitsPartnerships = () => {
     featured: false,
     image: item.imageUrl,
     title: item.title,
-    discount: item.member_price != null
-      ? `₪${item.member_price}`
-      : item.market_price != null
-        ? `₪${item.market_price}`
-        : '',
+    discount: (() => {
+      // Price resolution for the cards view. Must mirror the table view's
+      // editable popover: optimistic override (from priceOverrides) wins,
+      // then the per-tenant override (tenantMemberPrice) from the backend,
+      // then voucher uses member_price, non-voucher prefers market_price.
+      const override = priceOverrides[item.offerId];
+      if (override != null) return `₪${override}`;
+      if (item.tenantMemberPrice != null) return `₪${item.tenantMemberPrice}`;
+      if (item.executionType === 'voucher') {
+        if (item.member_price != null) return `₪${item.member_price}`;
+        return '';
+      }
+      if (item.market_price != null) return `₪${item.market_price}`;
+      if (item.member_price != null) return `₪${item.member_price}`;
+      return '';
+    })(),
     stockLimit: item.stockLimit,
     stockAvailable: item.stockAvailable,
     isSoldOut: item.isSoldOut,
@@ -752,6 +812,7 @@ const BenefitsPartnerships = () => {
                           const item = itemMap.get(benefit.id);
                           if (!item) return null;
                           const editable = canEditOffer(item);
+                          const canEditPrice = canEditTenantPrice(item);
                           const categoryLabel = categories.find((c) => c.id === item.category)?.label ?? item.category;
                           const isVoucher = item.executionType === 'voucher';
                           const executionLabel = EXECUTION_TYPE_LABELS[item.executionType]
@@ -759,7 +820,17 @@ const BenefitsPartnerships = () => {
                                 ? EXECUTION_TYPE_LABELS[item.executionType].labelHe
                                 : EXECUTION_TYPE_LABELS[item.executionType].label)
                             : item.executionType;
-                          const priceValue = isVoucher ? item.member_price : item.market_price;
+                          // Read-only price for the table cell. The editable
+                          // voucher button branch handles its own override
+                          // resolution; this branch fires for non-vouchers and
+                          // for vouchers the caller cannot edit. In both cases
+                          // a per-tenant override (tenantMemberPrice) must win
+                          // over the offer-level price.
+                          const priceValue = item.tenantMemberPrice != null
+                            ? item.tenantMemberPrice
+                            : isVoucher
+                              ? (item.member_price ?? null)
+                              : (item.market_price ?? null);
                           const descPlain = stripHtml(item.description);
                           const tagsList = item.tags ?? [];
                           const visibility = item.visibility;
@@ -826,12 +897,35 @@ const BenefitsPartnerships = () => {
                               {/* 2. Image — cover thumbnail; click for full-screen lightbox. */}
                               <td className="px-4 py-4 align-top">
                                 {item.imageUrl ? (
-                                  <img
-                                    src={item.imageUrl}
-                                    alt={item.title}
-                                    className="w-14 h-14 rounded-lg object-cover border border-slate-200 dark:border-slate-700 cursor-zoom-in"
-                                    onClick={() => item.imageUrl && setLightboxUrl(item.imageUrl)}
-                                  />
+                                  <div className="relative inline-block">
+                                    <img
+                                      src={item.imageUrl}
+                                      alt={item.title}
+                                      className="w-14 h-14 rounded-lg object-cover border border-slate-200 dark:border-slate-700 cursor-zoom-in"
+                                      onClick={() => {
+                                        // Open the lightbox on the cover, but
+                                        // hand it the full ordered gallery so
+                                        // the user can flip through every image.
+                                        const images = (item.imageUrls && item.imageUrls.length > 0)
+                                          ? item.imageUrls
+                                          : (item.imageUrl ? [item.imageUrl] : []);
+                                        if (images.length === 0) return;
+                                        setLightboxGallery({ images, initialIndex: 0 });
+                                      }}
+                                    />
+                                    {/* Subtle multi-image badge: shows "+N" in the
+                                        corner when the offer has more than one image
+                                        so admins know clicking opens a gallery. */}
+                                    {item.imageUrls && item.imageUrls.length > 1 && (
+                                      <span
+                                        aria-label={`${item.imageUrls.length} images`}
+                                        className="pointer-events-none absolute -top-1 -end-1 rounded-full bg-slate-900/85 text-white text-[10px] leading-none px-1.5 py-0.5 font-medium"
+                                        dir="ltr"
+                                      >
+                                        +{item.imageUrls.length - 1}
+                                      </span>
+                                    )}
+                                  </div>
                                 ) : (
                                   <div
                                     aria-label={t('bp_imageMissingAlt')}
@@ -890,16 +984,57 @@ const BenefitsPartnerships = () => {
                                 </span>
                               </td>
 
-                              {/* 8. Price — member_price for vouchers, market_price otherwise. */}
+                              {/* 8. Price - member_price for vouchers, market_price otherwise.
+                                  Voucher rows the caller can edit open the slider popover. */}
                               <td className="px-4 py-4 align-top">
-                                <span className={cn(
-                                  'text-sm font-semibold tabular-nums whitespace-nowrap',
-                                  priceValue == null
-                                    ? 'text-slate-400 italic font-normal'
-                                    : 'text-slate-900 dark:text-slate-100',
-                                )}>
-                                  {formatPrice(priceValue)}
-                                </span>
+                                {isVoucher && canEditPrice && item.face_value !== undefined && item.nexus_cost !== undefined ? (
+                                  (() => {
+                                    const effectivePrice =
+                                      priceOverrides[item.offerId] ??
+                                      item.tenantMemberPrice ??
+                                      item.member_price ??
+                                      (item.nexus_cost as number);
+                                    return (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setPricePopover({
+                                            offerId: item.offerId,
+                                            faceValue: item.face_value as number,
+                                            nexusCost: item.nexus_cost as number,
+                                            currentMemberPrice: effectivePrice,
+                                            anchor: e.currentTarget,
+                                          });
+                                        }}
+                                        title={t('vp_clickToEdit')}
+                                        aria-label={t('vp_clickToEdit')}
+                                        className="group inline-flex items-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-semibold tabular-nums text-slate-900 hover:border-primary/30 hover:bg-slate-100 dark:text-white dark:hover:bg-slate-800"
+                                      >
+                                        <svg
+                                          className="w-3.5 h-3.5 text-slate-400 group-hover:text-primary"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          strokeWidth={1.75}
+                                          viewBox="0 0 24 24"
+                                          aria-hidden="true"
+                                        >
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z" />
+                                        </svg>
+                                        <span>{`₪${effectivePrice}`}</span>
+                                      </button>
+                                    );
+                                  })()
+                                ) : (
+                                  <span className={cn(
+                                    'text-sm font-semibold tabular-nums whitespace-nowrap',
+                                    priceValue == null
+                                      ? 'text-slate-400 italic font-normal'
+                                      : 'text-slate-900 dark:text-slate-100',
+                                  )}>
+                                    {formatPrice(priceValue)}
+                                  </span>
+                                )}
                               </td>
 
                               {/* 9. Stock — Unlimited / available/limit / Sold out. */}
@@ -1057,9 +1192,30 @@ const BenefitsPartnerships = () => {
                               src={benefit.backgroundImage}
                               alt={benefit.title}
                               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 cursor-zoom-in"
-                              onClick={(e) => { e.stopPropagation(); setLightboxUrl(benefit.backgroundImage!); }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const images = (benefit.galleryImages && benefit.galleryImages.length > 0)
+                                  ? benefit.galleryImages
+                                  : (benefit.backgroundImage ? [benefit.backgroundImage] : []);
+                                if (images.length === 0) return;
+                                setLightboxGallery({ images, initialIndex: 0 });
+                              }}
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+                            {/* Multi-image indicator: small badge in the corner
+                                so users know there's a gallery to flip through. */}
+                            {benefit.galleryImages && benefit.galleryImages.length > 1 && (
+                              <span
+                                aria-label={`${benefit.galleryImages.length} images`}
+                                className="pointer-events-none absolute top-2 end-2 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-medium text-white"
+                                dir="ltr"
+                              >
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                                </svg>
+                                {benefit.galleryImages.length}
+                              </span>
+                            )}
                           </>
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-6xl">
@@ -1091,12 +1247,11 @@ const BenefitsPartnerships = () => {
                           <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mb-2">
                             {benefit.discount}
                           </div>
-                          {/* Execution type badge */}
-                          {catalogItem?.executionType && EXECUTION_TYPE_LABELS[catalogItem.executionType] && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-100 px-2 py-0.5 text-xs text-indigo-700 mt-1">
-                              {EXECUTION_TYPE_LABELS[catalogItem.executionType].icon}{' '}
-                              {language === 'he' ? EXECUTION_TYPE_LABELS[catalogItem.executionType].labelHe : EXECUTION_TYPE_LABELS[catalogItem.executionType].label}
-                            </span>
+                          {/* Execution type badge - bilingual, type-coloured. */}
+                          {catalogItem?.executionType && (
+                            <div className="mt-1">
+                              <OfferTypeBadge executionType={catalogItem.executionType} />
+                            </div>
                           )}
                           {/* Stock indicator */}
                           {benefit.stockLimit !== null && benefit.stockLimit !== undefined && (
@@ -1174,7 +1329,14 @@ const BenefitsPartnerships = () => {
                             src={benefit.backgroundImage}
                             alt={benefit.title}
                             className="w-full h-32 object-cover cursor-zoom-in"
-                            onClick={(e) => { e.stopPropagation(); setLightboxUrl(benefit.backgroundImage!); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const images = (benefit.galleryImages && benefit.galleryImages.length > 0)
+                                ? benefit.galleryImages
+                                : (benefit.backgroundImage ? [benefit.backgroundImage] : []);
+                              if (images.length === 0) return;
+                              setLightboxGallery({ images, initialIndex: 0 });
+                            }}
                             onError={(e) => {
                               // Hide broken image and reveal the placeholder sibling
                               (e.currentTarget as HTMLImageElement).style.display = 'none';
@@ -1183,6 +1345,19 @@ const BenefitsPartnerships = () => {
                             }}
                           />
                         ) : null}
+                        {/* Multi-image indicator on regular cards. */}
+                        {benefit.galleryImages && benefit.galleryImages.length > 1 && (
+                          <span
+                            aria-label={`${benefit.galleryImages.length} images`}
+                            className="pointer-events-none absolute top-2 end-2 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-medium text-white"
+                            dir="ltr"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                            </svg>
+                            {benefit.galleryImages.length}
+                          </span>
+                        )}
                         {/* Placeholder shown when no backgroundImage or when the img fails to load */}
                         <div
                           className={cn('w-full h-32 bg-slate-100 dark:bg-slate-800 flex items-center justify-center', benefit.backgroundImage && 'hidden')}
@@ -1215,13 +1390,10 @@ const BenefitsPartnerships = () => {
                             {benefit.discount}
                           </p>
 
-                          {/* Execution type badge */}
-                          {catalogItem?.executionType && EXECUTION_TYPE_LABELS[catalogItem.executionType] && (
+                          {/* Execution type badge - bilingual, type-coloured. */}
+                          {catalogItem?.executionType && (
                             <div>
-                              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-100 px-2.5 py-1 text-xs text-indigo-700">
-                                {EXECUTION_TYPE_LABELS[catalogItem.executionType].icon}{' '}
-                                {EXECUTION_TYPE_LABELS[catalogItem.executionType].label}
-                              </span>
+                              <OfferTypeBadge executionType={catalogItem.executionType} />
                             </div>
                           )}
 
@@ -1459,12 +1631,14 @@ const BenefitsPartnerships = () => {
         </div>
       )}
 
-      {/* Full-screen image lightbox - rendered as a portal over the entire viewport */}
-      {lightboxUrl && (
+      {/* Full-screen image lightbox - portal-rendered over the viewport.
+          Gallery mode shows prev/next + dot pagination when imageUrls > 1. */}
+      {lightboxGallery && (
         <ImageLightbox
-          src={lightboxUrl}
-          alt="תצוגת הצעה"
-          onClose={() => setLightboxUrl(null)}
+          images={lightboxGallery.images}
+          initialIndex={lightboxGallery.initialIndex}
+          alt={t('bp_imageMissingAlt')}
+          onClose={() => setLightboxGallery(null)}
         />
       )}
 
@@ -1487,6 +1661,22 @@ const BenefitsPartnerships = () => {
             await loadCatalog();
             setDenyTarget(null);
           }}
+        />
+      )}
+
+      {/* Voucher price slider popover - opens from a voucher row's price cell. */}
+      {pricePopover && (
+        <VoucherPricePopover
+          offerId={pricePopover.offerId}
+          faceValue={pricePopover.faceValue}
+          nexusCost={pricePopover.nexusCost}
+          currentMemberPrice={pricePopover.currentMemberPrice}
+          anchor={pricePopover.anchor}
+          onSaved={(newPrice) => {
+            setPriceOverrides((prev) => ({ ...prev, [pricePopover.offerId]: newPrice }));
+            void loadCatalog();
+          }}
+          onClose={() => setPricePopover(null)}
         />
       )}
 

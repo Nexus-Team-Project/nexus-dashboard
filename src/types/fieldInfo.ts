@@ -22,7 +22,6 @@ export type FieldInfoKey =
   | 'tags'
   | 'faceValue'
   | 'nexusCost'
-  | 'memberPrice'
   // BenefitsPartnerships page - tab tooltips
   | 'tabCards'
   | 'tabTable'

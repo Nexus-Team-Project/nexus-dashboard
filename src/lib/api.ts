@@ -827,6 +827,22 @@ export interface CatalogItem {
   approval_status?: string;
   /** Denial reason - only returned to the creating tenant when status is 'denied'. */
   denial_reason?: string;
+  /** Per-tenant override of voucher member price (admin view only). */
+  tenantMemberPrice?: number;
+  /** Per-tenant denormalized display price (admin view only). */
+  tenantDisplayPrice?: number;
+}
+
+/**
+ * Per-tenant offer configuration row. Tracks adoption state plus any
+ * per-tenant price overrides for the given offer.
+ */
+export interface TenantOfferConfig {
+  tenantId: string;
+  offerId: string;
+  adoptionStatus: 'active' | 'excluded';
+  memberPrice?: number;
+  displayPrice?: number;
 }
 
 /**
@@ -1039,6 +1055,27 @@ export async function adoptOffer(offerId: string): Promise<void> {
  */
 export async function excludeOffer(offerId: string): Promise<void> {
   await request<void>('DELETE', `/api/v1/offers/${encodeURIComponent(offerId)}/adopt`);
+}
+
+/**
+ * Set the caller-tenant's voucher member price for one offer.
+ * Backend resolves the tenant from the session - the caller never
+ * supplies tenantId.
+ *
+ * Matches PATCH /api/v1/offers/:offerId/tenant-price.
+ * Input:  offerId, memberPrice (positive number in shekels).
+ * Output: updated TenantOfferConfig row.
+ * Errors: 400 (bounds / non-voucher), 403 (not adopted), 404 (offer gone).
+ */
+export async function updateTenantVoucherPrice(
+  offerId: string,
+  memberPrice: number,
+): Promise<{ config: TenantOfferConfig }> {
+  return request<{ config: TenantOfferConfig }>(
+    'PATCH',
+    `/api/v1/offers/${encodeURIComponent(offerId)}/tenant-price`,
+    { memberPrice },
+  );
 }
 
 /**

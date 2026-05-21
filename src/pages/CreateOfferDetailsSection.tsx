@@ -51,12 +51,14 @@ interface DetailsSectionProps {
   nexusCost: string;
   /** Setter for nexusCost. */
   setNexusCost: (v: string) => void;
-  /** Member price set via slider (required when executionType === 'voucher'). */
-  memberPrice: number | null;
-  /** Setter for memberPrice. */
-  setMemberPrice: (v: number | null) => void;
   /** Whether the parent form is submitting - disables all inputs. */
   isSubmitting: boolean;
+  /**
+   * Pass-through for VoucherPricingSection. When true, face_value + nexus_cost
+   * become read-only and a help message tells the user to contact Nexus.
+   * Used on the Edit page for non-platform-admin callers. Defaults to false.
+   */
+  pricingLocked?: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -85,9 +87,8 @@ const CreateOfferDetailsSection = ({
   setFaceValue,
   nexusCost,
   setNexusCost,
-  memberPrice,
-  setMemberPrice,
   isSubmitting,
+  pricingLocked = false,
 }: DetailsSectionProps) => {
   const { t, language } = useLanguage();
 
@@ -193,17 +194,16 @@ const CreateOfferDetailsSection = ({
         </h2>
 
         {executionType === 'voucher' ? (
-          /* Voucher-specific pricing: face value, nexus cost, member price slider, stock limit */
+          /* Voucher-specific pricing: face value, nexus cost, stock limit */
           <VoucherPricingSection
             faceValue={faceValue}
             setFaceValue={setFaceValue}
             nexusCost={nexusCost}
             setNexusCost={setNexusCost}
-            memberPrice={memberPrice}
-            setMemberPrice={setMemberPrice}
             stockLimit={stockLimit}
             setStockLimit={setStockLimit}
             isSubmitting={isSubmitting}
+            pricingLocked={pricingLocked}
           />
         ) : (
           <>

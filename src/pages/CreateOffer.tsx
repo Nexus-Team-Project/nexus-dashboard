@@ -45,7 +45,6 @@ const CreateOffer = () => {
   const [stockLimit, setStockLimit] = useState('');
   const [faceValue, setFaceValue] = useState('');
   const [nexusCost, setNexusCost] = useState('');
-  const [memberPrice, setMemberPrice] = useState<number | null>(null);
   const [visibility, setVisibility] = useState<OfferVisibility>('ecosystem');
   const [implementationLink, setImplementationLink] = useState('');
   const [implementationInstructions, setImplementationInstructions] = useState('');
@@ -96,9 +95,6 @@ const CreateOffer = () => {
       if (!nexusCost || isNaN(nc) || nc <= 0 || nc >= fv) {
         setError(language === 'he' ? 'מחיר NEXUS חייב להיות חיובי ופחות מהשווי' : 'Nexus price must be positive and less than face value'); return;
       }
-      if (memberPrice === null || memberPrice < nc || memberPrice > fv) {
-        setError(language === 'he' ? 'מחיר החבר חייב להיות בין מחיר NEXUS לשווי' : 'Member price must be between Nexus price and face value'); return;
-      }
     }
 
     setIsSubmitting(true);
@@ -115,7 +111,6 @@ const CreateOffer = () => {
       if (executionType === 'voucher') {
         fd.append('face_value', faceValue);
         fd.append('nexus_cost', nexusCost);
-        if (memberPrice !== null) fd.append('member_price', String(memberPrice));
       }
       // New files: append every blob under the same `images` field name.
       gallery.forEach((item) => {
@@ -170,7 +165,6 @@ const CreateOffer = () => {
         stockLimit={stockLimit} setStockLimit={setStockLimit}
         faceValue={faceValue} setFaceValue={setFaceValue}
         nexusCost={nexusCost} setNexusCost={setNexusCost}
-        memberPrice={memberPrice} setMemberPrice={setMemberPrice}
         isSubmitting={isSubmitting}
       />
       <CreateOfferRedemptionSection

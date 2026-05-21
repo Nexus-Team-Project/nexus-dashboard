@@ -1,17 +1,22 @@
 /**
- * CreateOfferVoucherPricing - voucher-specific pricing section for the CreateOffer form.
- * Replaces the standard market price field when executionType === 'voucher'.
+ * CreateOfferVoucherPricing - voucher-specific pricing section for the
+ * CreateOffer / EditOffer forms.
  *
- * Renders three pricing inputs:
- *   1. Face Value (שווי) - nominal value of the voucher
- *   2. Nexus Price (מחיר מכירה לנקסוס) - wholesale cost NEXUS pays the supplier
- *   3. Member Price Slider - range slider from nexusCost to faceValue
+ * Renders two pricing inputs plus stock limit:
+ *   1. Face Value          - nominal value of the voucher
+ *   2. Nexus Price         - wholesale cost NEXUS pays the supplier
+ *   3. Stock Limit         - optional cap on issued vouchers
  *
- * Additionally renders the Stock Limit field (moved from the standard pricing card).
+ * The per-tenant member price is no longer chosen on this form. Each
+ * adopting tenant sets it from the BenefitsPartnerships table view via
+ * VoucherPricePopover. Backend seeds member_price = nexus_cost on create.
  *
- * All state is controlled from the parent (CreateOffer / EditOfferDrawer).
+ * Pricing lock: face_value + nexus_cost are the prices Nexus and the supplier
+ * agreed on. Once the offer exists, only a platform admin may change them. The
+ * parent passes pricingLocked=true on the Edit page for non-platform-admin
+ * callers; this component then disables both inputs and shows a help message
+ * pointing the user to Nexus support. Stock limit stays editable.
  */
-import { useEffect } from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
 import FieldTooltip from '../components/FieldTooltip';
 
@@ -30,37 +35,39 @@ interface VoucherPricingSectionProps {
   nexusCost: string;
   /** Setter for nexusCost. */
   setNexusCost: (v: string) => void;
-  /** Member price (end-customer price); null until slider is interacted with. */
-  memberPrice: number | null;
-  /** Setter for memberPrice. */
-  setMemberPrice: (v: number | null) => void;
   /** Stock limit as string (form input); empty = unlimited. */
   stockLimit: string;
   /** Setter for stockLimit. */
   setStockLimit: (v: string) => void;
   /** Whether the parent form is submitting - disables all inputs. */
   isSubmitting: boolean;
+  /**
+   * When true, face_value + nexus_cost are read-only. Used on the Edit page
+   * for non-platform-admin callers because those prices were agreed with
+   * Nexus and can only be changed by Nexus support. Stock limit stays
+   * editable regardless. Defaults to false.
+   */
+  pricingLocked?: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 /**
- * Voucher pricing section with face value, nexus cost, and member price slider.
+ * Voucher pricing section with face value and nexus cost inputs.
  * Also renders the stock limit field below the pricing controls.
  *
  * Input: controlled props for all voucher pricing fields and their setters.
- * Output: renders three pricing inputs and the stock limit field inside a card body.
+ * Output: renders the pricing inputs and the stock limit field inside a card body.
  */
 const VoucherPricingSection = ({
   faceValue,
   setFaceValue,
   nexusCost,
   setNexusCost,
-  memberPrice,
-  setMemberPrice,
   stockLimit,
   setStockLimit,
   isSubmitting,
+  pricingLocked = false,
 }: VoucherPricingSectionProps) => {
   const { t, language } = useLanguage();
 
@@ -68,33 +75,8 @@ const VoucherPricingSection = ({
   const faceValueNum = parseFloat(faceValue);
   const nexusCostNum = parseFloat(nexusCost);
 
-  /**
-   * Whether the slider can be rendered: both values are valid positive numbers
-   * and nexusCost is strictly less than faceValue.
-   */
-  const sliderReady =
-    !isNaN(faceValueNum) && faceValueNum > 0 &&
-    !isNaN(nexusCostNum) && nexusCostNum > 0 &&
-    nexusCostNum < faceValueNum;
-
-  /**
-   * Synchronize memberPrice when the slider bounds change.
-   * If memberPrice is null or outside [nexusCostNum, faceValueNum], reset to nexusCostNum.
-   * Runs whenever faceValue or nexusCost changes.
-   */
-  useEffect(() => {
-    if (!sliderReady) {
-      setMemberPrice(null);
-      return;
-    }
-    if (memberPrice === null || memberPrice < nexusCostNum || memberPrice > faceValueNum) {
-      setMemberPrice(nexusCostNum);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [faceValue, nexusCost]);
-
-  /** Profit = member price minus nexus cost (what the supplier earns per voucher). */
-  const profit = sliderReady && memberPrice !== null ? memberPrice - nexusCostNum : 0;
+  /** Inputs are read-only when locked OR when the parent form is submitting. */
+  const pricingDisabled = isSubmitting || pricingLocked;
 
   /** Shared input class - matches the existing CreateOffer form style. */
   const inputCls =
@@ -123,7 +105,9 @@ const VoucherPricingSection = ({
             onChange={(e) => setFaceValue(e.target.value)}
             onWheel={(e) => e.currentTarget.blur()}
             placeholder="0.00"
-            disabled={isSubmitting}
+            disabled={pricingDisabled}
+            readOnly={pricingLocked}
+            aria-readonly={pricingLocked || undefined}
             dir="ltr"
             className={inputCls + ' pr-8'}
           />
@@ -151,7 +135,9 @@ const VoucherPricingSection = ({
             onChange={(e) => setNexusCost(e.target.value)}
             onWheel={(e) => e.currentTarget.blur()}
             placeholder="0.00"
-            disabled={isSubmitting}
+            disabled={pricingDisabled}
+            readOnly={pricingLocked}
+            aria-readonly={pricingLocked || undefined}
             dir="ltr"
             className={inputCls + ' pr-8'}
           />
@@ -163,51 +149,29 @@ const VoucherPricingSection = ({
         )}
       </div>
 
-      {/* Member Price Slider - only rendered when bounds are valid */}
-      {sliderReady && (
-        <div className="mb-4">
-          <div className="mb-1.5 flex items-center text-sm font-medium text-slate-700 dark:text-slate-300">
-            {t('fi_memberPrice_label')}
-            <span className="text-red-500 ms-0.5" aria-hidden="true">*</span>
-            <FieldTooltip fieldKey="memberPrice" />
-          </div>
-          <input
-            type="range"
-            min={nexusCostNum}
-            max={faceValueNum}
-            step={1}
-            value={memberPrice ?? nexusCostNum}
-            onChange={(e) => setMemberPrice(Number(e.target.value))}
-            onWheel={(e) => e.currentTarget.blur()}
-            disabled={isSubmitting}
-            className="w-full accent-primary cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
-            dir="ltr"
-            aria-label={language === 'he' ? 'מחיר לחבר' : 'Member price'}
-          />
-          {/* Slider bounds labels */}
-          <div className="flex justify-between text-xs text-slate-400 mt-1" dir="ltr">
-            <span>₪{nexusCostNum.toFixed(0)}</span>
-            <span>₪{faceValueNum.toFixed(0)}</span>
-          </div>
-          {/* Display row: members pay + profit */}
-          <div className="mt-2 flex flex-col gap-1 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/50">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-600 dark:text-slate-400">
-                {language === 'he' ? 'חברים משלמים:' : 'Members pay:'}
-              </span>
-              <span className="font-semibold text-slate-900 dark:text-white">
-                ₪{(memberPrice ?? nexusCostNum).toFixed(0)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-600 dark:text-slate-400">
-                {language === 'he' ? 'הרווח שלך:' : 'Your profit:'}
-              </span>
-              <span className={`font-semibold ${profit > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500'}`}>
-                ₪{profit.toFixed(2)}
-              </span>
-            </div>
-          </div>
+      {/* Locked-pricing notice. Shown only on Edit for non-platform-admin
+          callers. Keeps the message close to the inputs so the user sees
+          why the fields are read-only and where to go to change them. */}
+      {pricingLocked && (
+        <div
+          className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200"
+          role="note"
+        >
+          <svg
+            className="mt-0.5 h-4 w-4 flex-shrink-0"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.75}
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+          </svg>
+          <span>
+            {language === 'he'
+              ? 'מחירים אלו הוסכמו עם נקסוס וניתן לשנותם רק על ידי נקסוס. לבקשת שינוי פנו לתמיכת נקסוס.'
+              : 'These prices were agreed with Nexus and can only be changed by Nexus. Contact Nexus support to request a change.'}
+          </span>
         </div>
       )}
 
