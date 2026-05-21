@@ -317,6 +317,21 @@ const BenefitsPartnerships = () => {
     return !!myTenantId && item.createdByTenantId === myTenantId;
   };
 
+  /**
+   * Whether the caller can edit the per-tenant voucher member price on this row.
+   * True when the caller's tenant has adopted the offer OR created it. The backend
+   * returns `tenantMemberPrice` only when an active TenantOfferConfig exists for
+   * the caller's tenant, so its presence is the cleanest adoption signal.
+   * Adopting tenants get this even when they cannot edit the offer itself.
+   * Input: catalog item.
+   * Output: boolean.
+   */
+  const canEditTenantPrice = (item: CatalogItem): boolean => {
+    if (item.tenantMemberPrice !== undefined) return true;
+    const myTenantId = me?.context?.tenantId;
+    return !!myTenantId && item.createdByTenantId === myTenantId;
+  };
+
 
   /**
    * Permanently deletes an offer and its Cloudinary image.
@@ -784,6 +799,7 @@ const BenefitsPartnerships = () => {
                           const item = itemMap.get(benefit.id);
                           if (!item) return null;
                           const editable = canEditOffer(item);
+                          const canEditPrice = canEditTenantPrice(item);
                           const categoryLabel = categories.find((c) => c.id === item.category)?.label ?? item.category;
                           const isVoucher = item.executionType === 'voucher';
                           const executionLabel = EXECUTION_TYPE_LABELS[item.executionType]
@@ -935,7 +951,7 @@ const BenefitsPartnerships = () => {
                               {/* 8. Price - member_price for vouchers, market_price otherwise.
                                   Voucher rows the caller can edit open the slider popover. */}
                               <td className="px-4 py-4 align-top">
-                                {isVoucher && editable && item.face_value !== undefined && item.nexus_cost !== undefined ? (
+                                {isVoucher && canEditPrice && item.face_value !== undefined && item.nexus_cost !== undefined ? (
                                   (() => {
                                     const effectivePrice =
                                       priceOverrides[item.offerId] ??
