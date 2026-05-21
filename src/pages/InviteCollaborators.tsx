@@ -10,7 +10,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   tenantMembersApi,
-  type BulkTenantMemberInviteResult,
   type TenantRole,
   type TenantRolePermissions,
 } from '../lib/api';
@@ -21,6 +20,12 @@ import { useAuth } from '../contexts/AuthContext';
 import CsvColumnMapper, { type ResolvedInviteRow } from '../components/invite/CsvColumnMapper';
 import CsvImportGuide from '../components/invite/CsvImportGuide';
 import RoleGroupAccordion from '../components/invite/RoleGroupAccordion';
+import InviteJobProgress from '../components/invite/InviteJobProgress';
+
+/** Chunk size for the bulk-async invite call. Backend caps at 1000 per request. */
+const BULK_ASYNC_CHUNK = 500;
+/** Above this row count the dashboard switches to the background-worker flow. */
+const ASYNC_THRESHOLD = 1;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -186,6 +191,8 @@ export default function InviteCollaborators() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
   const [csvData, setCsvData] = useState<ParsedCsv | null>(null);
+  // Background-worker job ids returned by /bulk-async. Drives the progress panel.
+  const [activeJobIds, setActiveJobIds] = useState<string[]>([]);
 
   useEffect(() => {
     void tenantMembersApi.roles()
@@ -263,6 +270,12 @@ export default function InviteCollaborators() {
 
   // ── Send ────────────────────────────────────────────────────────────────────
 
+  /**
+   * Sends the current drafts. One row keeps the original synchronous path so a
+   * quick single invite still feels instant. Two or more rows go through the
+   * background-worker flow: rows are chunked, each chunk is enqueued, and the
+   * progress panel polls the worker for delivery status.
+   */
   const sendInvites = async () => {
     const draftRows = rows.filter((r) => r.status !== 'pending');
     if (!draftRows.length) return;
@@ -273,33 +286,51 @@ export default function InviteCollaborators() {
         email: r.email,
         roles: r.roles,
         services: r.services ?? ['benefits_catalog'],
-        // Forward the phone when the row carries one (e.g. from CSV import).
-        // Backend normalizes and stores it on the invitation + member docs.
         ...(r.phone ? { phone: r.phone } : {}),
         language,
         sendEmail: true,
       }));
-      const response =
-        payload.length === 1
-          ? { results: [{ email: payload[0].email, ok: true, result: await tenantMembersApi.invite(payload[0]) }] }
-          : await tenantMembersApi.bulkInvite(payload, language);
 
-      const results = response.results as BulkTenantMemberInviteResult[];
-      const byEmail = new Map(results.map((r) => [r.email, r]));
+      if (payload.length <= ASYNC_THRESHOLD) {
+        // Single-row fast path keeps existing UX: send synchronously and show
+        // the per-row outcome without spinning up the progress panel.
+        const result = await tenantMembersApi.invite(payload[0]);
+        setRows((cur) =>
+          cur.map((row) =>
+            row.email === payload[0].email ? { ...row, status: 'pending', error: undefined } : row,
+          ),
+        );
+        toast.success(copy.successToast, { description: result.email });
+        void reloadMe();
+        return;
+      }
+
+      // Multi-row path: split into worker-friendly chunks and enqueue each.
+      const chunks: typeof payload[] = [];
+      for (let i = 0; i < payload.length; i += BULK_ASYNC_CHUNK) {
+        chunks.push(payload.slice(i, i + BULK_ASYNC_CHUNK));
+      }
+      const responses = await Promise.all(
+        chunks.map((chunk) => tenantMembersApi.bulkInviteAsync(chunk, language)),
+      );
+
+      // Flatten per-row create-time results so we can update each draft row.
+      const resultByEmail = new Map<string, { ok: boolean; error?: string }>();
+      for (const r of responses) {
+        for (const row of r.results) resultByEmail.set(row.email, { ok: row.ok, error: row.error });
+      }
       setRows((cur) =>
         cur.map((row) => {
-          const res = byEmail.get(row.email);
+          const res = resultByEmail.get(row.email);
           if (!res) return row;
-          return res.ok ? { ...row, status: 'pending', error: undefined } : { ...row, status: 'failed', error: res.error ?? copy.failed };
+          if (res.ok) return { ...row, status: 'pending', error: undefined };
+          if (res.error === 'already_invited') return { ...row, status: 'pending', error: undefined };
+          return { ...row, status: 'failed', error: res.error ?? copy.failed };
         }),
       );
-      const failedCount = results.filter((r) => !r.ok).length;
-      if (failedCount > 0) {
-        toast.error(copy.failedToast, { description: `${failedCount}/${results.length}` });
-      } else {
-        toast.success(copy.successToast, { description: `${results.length}` });
-        void reloadMe();
-      }
+      setActiveJobIds(responses.map((r) => r.jobId));
+      const queued = responses.reduce((sum, r) => sum + r.totalQueued, 0);
+      toast.success(copy.successToast, { description: String(queued) });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed';
       setSubmitError(msg);
@@ -373,6 +404,14 @@ export default function InviteCollaborators() {
       )}
       {submitError && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-400">{submitError}</div>
+      )}
+
+      {activeJobIds.length > 0 && (
+        <InviteJobProgress
+          jobIds={activeJobIds}
+          language={language}
+          onAllComplete={() => { void reloadMe(); }}
+        />
       )}
 
       {/* Email input */}

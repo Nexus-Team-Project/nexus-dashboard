@@ -484,6 +484,38 @@ export interface BulkTenantMemberInviteResult {
   error?: string;
 }
 
+/**
+ * Per-row create-time outcome from POST /members/invitations/bulk-async.
+ * 'ok' rows are queued for the worker; 'already_invited' and
+ * 'duplicate_in_batch' rows are surfaced so the dashboard can show why a
+ * given email did not get queued.
+ */
+export interface BulkInviteAsyncRowResult {
+  email: string;
+  ok: boolean;
+  invitationId?: string;
+  error?: string;
+}
+
+export interface BulkInviteAsyncResponse {
+  jobId: string;
+  totalQueued: number;
+  totalSkipped: number;
+  totalFailed: number;
+  results: BulkInviteAsyncRowResult[];
+}
+
+export interface InviteJobStatusResponse {
+  jobId: string;
+  status: 'queued' | 'processing' | 'completed';
+  totalCount: number;
+  sentCount: number;
+  failedCount: number;
+  skippedCount: number;
+  language: 'he' | 'en';
+  failedItems: { email: string; lastError?: string }[];
+}
+
 export interface TenantMemberInvitationPreview {
   invitationId?: string;
   tenantId?: string;
@@ -524,6 +556,26 @@ export const tenantMembersApi = {
       invitations,
       language,
     }),
+  /**
+   * Production-scale bulk invite. Returns immediately with a jobId that the
+   * dashboard polls for delivery progress. Caller is responsible for chunking
+   * if the row count exceeds the server cap (1000).
+   */
+  bulkInviteAsync: (invitations: TenantMemberInviteInput[], language: 'he' | 'en') =>
+    request<BulkInviteAsyncResponse>('POST', '/api/v1/tenant/members/invitations/bulk-async', {
+      invitations,
+      language,
+    }),
+  getInviteJobStatus: (jobId: string) =>
+    request<InviteJobStatusResponse>(
+      'GET',
+      `/api/v1/tenant/members/invitations/jobs/${encodeURIComponent(jobId)}`,
+    ),
+  retryInviteJobFailed: (jobId: string) =>
+    request<{ requeued: number }>(
+      'POST',
+      `/api/v1/tenant/members/invitations/jobs/${encodeURIComponent(jobId)}/retry-failed`,
+    ),
   updateRoles: (tenantMemberId: string, roles: TenantRole[]) =>
     request<{ roles: TenantRole[] }>(
       'PATCH',
