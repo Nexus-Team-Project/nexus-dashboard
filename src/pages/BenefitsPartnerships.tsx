@@ -35,6 +35,7 @@ import CatalogFilterPanel from '../components/catalog/CatalogFilterPanel';
 import FieldTooltip from '../components/FieldTooltip';
 import { countActiveCatalogFilters } from '../components/catalog/catalogFilters';
 import VoucherPricePopover from '../components/catalog/VoucherPricePopover';
+import OfferTypeBadge from '../components/catalog/OfferTypeBadge';
 
 interface Benefit {
   id: string;
@@ -1246,12 +1247,11 @@ const BenefitsPartnerships = () => {
                           <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mb-2">
                             {benefit.discount}
                           </div>
-                          {/* Execution type badge */}
-                          {catalogItem?.executionType && EXECUTION_TYPE_LABELS[catalogItem.executionType] && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-100 px-2 py-0.5 text-xs text-indigo-700 mt-1">
-                              {EXECUTION_TYPE_LABELS[catalogItem.executionType].icon}{' '}
-                              {language === 'he' ? EXECUTION_TYPE_LABELS[catalogItem.executionType].labelHe : EXECUTION_TYPE_LABELS[catalogItem.executionType].label}
-                            </span>
+                          {/* Execution type badge - bilingual, type-coloured. */}
+                          {catalogItem?.executionType && (
+                            <div className="mt-1">
+                              <OfferTypeBadge executionType={catalogItem.executionType} />
+                            </div>
                           )}
                           {/* Stock indicator */}
                           {benefit.stockLimit !== null && benefit.stockLimit !== undefined && (
@@ -1390,13 +1390,10 @@ const BenefitsPartnerships = () => {
                             {benefit.discount}
                           </p>
 
-                          {/* Execution type badge */}
-                          {catalogItem?.executionType && EXECUTION_TYPE_LABELS[catalogItem.executionType] && (
+                          {/* Execution type badge - bilingual, type-coloured. */}
+                          {catalogItem?.executionType && (
                             <div>
-                              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-100 px-2.5 py-1 text-xs text-indigo-700">
-                                {EXECUTION_TYPE_LABELS[catalogItem.executionType].icon}{' '}
-                                {EXECUTION_TYPE_LABELS[catalogItem.executionType].label}
-                              </span>
+                              <OfferTypeBadge executionType={catalogItem.executionType} />
                             </div>
                           )}
 
