@@ -328,9 +328,9 @@ export default function InviteCollaborators() {
           return { ...row, status: 'failed', error: res.error ?? copy.failed };
         }),
       );
+      // The progress panel surfaces sent/failed/skipped counters in real time,
+      // so a duplicate success toast here would just add noise.
       setActiveJobIds(responses.map((r) => r.jobId));
-      const queued = responses.reduce((sum, r) => sum + r.totalQueued, 0);
-      toast.success(copy.successToast, { description: String(queued) });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed';
       setSubmitError(msg);
