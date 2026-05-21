@@ -53,6 +53,12 @@ interface DetailsSectionProps {
   setNexusCost: (v: string) => void;
   /** Whether the parent form is submitting - disables all inputs. */
   isSubmitting: boolean;
+  /**
+   * Pass-through for VoucherPricingSection. When true, face_value + nexus_cost
+   * become read-only and a help message tells the user to contact Nexus.
+   * Used on the Edit page for non-platform-admin callers. Defaults to false.
+   */
+  pricingLocked?: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -82,6 +88,7 @@ const CreateOfferDetailsSection = ({
   nexusCost,
   setNexusCost,
   isSubmitting,
+  pricingLocked = false,
 }: DetailsSectionProps) => {
   const { t, language } = useLanguage();
 
@@ -196,6 +203,7 @@ const CreateOfferDetailsSection = ({
             stockLimit={stockLimit}
             setStockLimit={setStockLimit}
             isSubmitting={isSubmitting}
+            pricingLocked={pricingLocked}
           />
         ) : (
           <>

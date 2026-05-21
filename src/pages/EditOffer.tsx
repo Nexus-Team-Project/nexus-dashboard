@@ -34,6 +34,12 @@ const EditOffer = () => {
   const { me } = useAuth();
   const { t, language } = useLanguage();
 
+  // Voucher pricing (face_value + nexus_cost) was agreed with Nexus and can
+  // only be changed by a platform admin. The form disables the inputs and
+  // the submit handler skips them when locked. Backend re-enforces the rule.
+  const isPlatformAdmin = me?.authorization?.isPlatformAdmin === true;
+  const pricingLocked = !isPlatformAdmin;
+
   const [offer, setOffer] = useState<CatalogItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -126,7 +132,10 @@ const EditOffer = () => {
       fd.append('executionType', executionType);
       if (marketPrice && Number(marketPrice) > 0) fd.append('market_price', marketPrice);
       fd.append('stockLimit', stockLimit && Number(stockLimit) > 0 ? stockLimit : '');
-      if (executionType === 'voucher') {
+      // Voucher pricing is locked for non-platform-admin callers. Skip the
+      // fields entirely so the backend update payload doesn't try to change
+      // them; the server also rejects the change defensively.
+      if (executionType === 'voucher' && !pricingLocked) {
         if (faceValue) fd.append('face_value', faceValue);
         if (nexusCost) fd.append('nexus_cost', nexusCost);
       }
@@ -199,6 +208,7 @@ const EditOffer = () => {
         faceValue={faceValue} setFaceValue={setFaceValue}
         nexusCost={nexusCost} setNexusCost={setNexusCost}
         isSubmitting={isSubmitting}
+        pricingLocked={pricingLocked}
       />
       <CreateOfferRedemptionSection
         implementationLink={implementationLink} setImplementationLink={setImplementationLink}

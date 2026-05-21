@@ -10,6 +10,12 @@
  * The per-tenant member price is no longer chosen on this form. Each
  * adopting tenant sets it from the BenefitsPartnerships table view via
  * VoucherPricePopover. Backend seeds member_price = nexus_cost on create.
+ *
+ * Pricing lock: face_value + nexus_cost are the prices Nexus and the supplier
+ * agreed on. Once the offer exists, only a platform admin may change them. The
+ * parent passes pricingLocked=true on the Edit page for non-platform-admin
+ * callers; this component then disables both inputs and shows a help message
+ * pointing the user to Nexus support. Stock limit stays editable.
  */
 import { useLanguage } from '../i18n/LanguageContext';
 import FieldTooltip from '../components/FieldTooltip';
@@ -35,6 +41,13 @@ interface VoucherPricingSectionProps {
   setStockLimit: (v: string) => void;
   /** Whether the parent form is submitting - disables all inputs. */
   isSubmitting: boolean;
+  /**
+   * When true, face_value + nexus_cost are read-only. Used on the Edit page
+   * for non-platform-admin callers because those prices were agreed with
+   * Nexus and can only be changed by Nexus support. Stock limit stays
+   * editable regardless. Defaults to false.
+   */
+  pricingLocked?: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -54,12 +67,16 @@ const VoucherPricingSection = ({
   stockLimit,
   setStockLimit,
   isSubmitting,
+  pricingLocked = false,
 }: VoucherPricingSectionProps) => {
   const { t, language } = useLanguage();
 
   /** Parsed numeric values - NaN when the string is empty or invalid. */
   const faceValueNum = parseFloat(faceValue);
   const nexusCostNum = parseFloat(nexusCost);
+
+  /** Inputs are read-only when locked OR when the parent form is submitting. */
+  const pricingDisabled = isSubmitting || pricingLocked;
 
   /** Shared input class - matches the existing CreateOffer form style. */
   const inputCls =
@@ -88,7 +105,9 @@ const VoucherPricingSection = ({
             onChange={(e) => setFaceValue(e.target.value)}
             onWheel={(e) => e.currentTarget.blur()}
             placeholder="0.00"
-            disabled={isSubmitting}
+            disabled={pricingDisabled}
+            readOnly={pricingLocked}
+            aria-readonly={pricingLocked || undefined}
             dir="ltr"
             className={inputCls + ' pr-8'}
           />
@@ -116,7 +135,9 @@ const VoucherPricingSection = ({
             onChange={(e) => setNexusCost(e.target.value)}
             onWheel={(e) => e.currentTarget.blur()}
             placeholder="0.00"
-            disabled={isSubmitting}
+            disabled={pricingDisabled}
+            readOnly={pricingLocked}
+            aria-readonly={pricingLocked || undefined}
             dir="ltr"
             className={inputCls + ' pr-8'}
           />
@@ -127,6 +148,32 @@ const VoucherPricingSection = ({
           </p>
         )}
       </div>
+
+      {/* Locked-pricing notice. Shown only on Edit for non-platform-admin
+          callers. Keeps the message close to the inputs so the user sees
+          why the fields are read-only and where to go to change them. */}
+      {pricingLocked && (
+        <div
+          className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200"
+          role="note"
+        >
+          <svg
+            className="mt-0.5 h-4 w-4 flex-shrink-0"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.75}
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+          </svg>
+          <span>
+            {language === 'he'
+              ? 'מחירים אלו הוסכמו עם נקסוס וניתן לשנותם רק על ידי נקסוס. לבקשת שינוי פנו לתמיכת נקסוס.'
+              : 'These prices were agreed with Nexus and can only be changed by Nexus. Contact Nexus support to request a change.'}
+          </span>
+        </div>
+      )}
 
       {/* Stock Limit - kept together with voucher pricing for logical grouping */}
       <div className="mt-4">
