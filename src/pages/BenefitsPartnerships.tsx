@@ -43,6 +43,8 @@ interface Benefit {
   businessName: string;
   businessLogo: string;
   backgroundImage?: string;
+  /** Full ordered gallery URLs from NexusOffer.imageUrls. Used by the lightbox. */
+  galleryImages?: string[];
   implementationMethod: 'voucher' | 'coupon' | 'registration' | 'product' | 'card' | 'service' | 'nexus';
   benefitType: 'percentage' | 'gift' | 'amount';
   usageTerms: string[];
@@ -183,8 +185,15 @@ const BenefitsPartnerships = () => {
   /** True while the activation API call is in-flight (drives teaser button spinner). */
   const [isActivating, setIsActivating] = useState(false);
 
-  /** URL of the image currently shown in the full-screen lightbox, or null when closed. */
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  /**
+   * Lightbox state. When non-null carries the full ordered gallery for the
+   * offer the user clicked on, plus the index to open at. Null when closed.
+   * An offer with one image still passes through here so the lightbox UX is
+   * uniform; the lightbox itself hides nav controls for single-image cases.
+   */
+  const [lightboxGallery, setLightboxGallery] = useState<
+    { images: string[]; initialIndex: number } | null
+  >(null);
 
 
   /** CatalogItem pending deletion confirmation, or null when no deletion is in progress. */
@@ -478,6 +487,9 @@ const BenefitsPartnerships = () => {
     businessName: item.title,
     businessLogo: '',
     backgroundImage: item.imageUrl,
+    galleryImages: (item.imageUrls && item.imageUrls.length > 0)
+      ? item.imageUrls
+      : (item.imageUrl ? [item.imageUrl] : []),
     implementationMethod: toImplementationMethod(item.executionType),
     benefitType: toBenefitType(item.executionType),
     usageTerms: item.stockLimit !== null
@@ -884,12 +896,35 @@ const BenefitsPartnerships = () => {
                               {/* 2. Image — cover thumbnail; click for full-screen lightbox. */}
                               <td className="px-4 py-4 align-top">
                                 {item.imageUrl ? (
-                                  <img
-                                    src={item.imageUrl}
-                                    alt={item.title}
-                                    className="w-14 h-14 rounded-lg object-cover border border-slate-200 dark:border-slate-700 cursor-zoom-in"
-                                    onClick={() => item.imageUrl && setLightboxUrl(item.imageUrl)}
-                                  />
+                                  <div className="relative inline-block">
+                                    <img
+                                      src={item.imageUrl}
+                                      alt={item.title}
+                                      className="w-14 h-14 rounded-lg object-cover border border-slate-200 dark:border-slate-700 cursor-zoom-in"
+                                      onClick={() => {
+                                        // Open the lightbox on the cover, but
+                                        // hand it the full ordered gallery so
+                                        // the user can flip through every image.
+                                        const images = (item.imageUrls && item.imageUrls.length > 0)
+                                          ? item.imageUrls
+                                          : (item.imageUrl ? [item.imageUrl] : []);
+                                        if (images.length === 0) return;
+                                        setLightboxGallery({ images, initialIndex: 0 });
+                                      }}
+                                    />
+                                    {/* Subtle multi-image badge: shows "+N" in the
+                                        corner when the offer has more than one image
+                                        so admins know clicking opens a gallery. */}
+                                    {item.imageUrls && item.imageUrls.length > 1 && (
+                                      <span
+                                        aria-label={`${item.imageUrls.length} images`}
+                                        className="pointer-events-none absolute -top-1 -end-1 rounded-full bg-slate-900/85 text-white text-[10px] leading-none px-1.5 py-0.5 font-medium"
+                                        dir="ltr"
+                                      >
+                                        +{item.imageUrls.length - 1}
+                                      </span>
+                                    )}
+                                  </div>
                                 ) : (
                                   <div
                                     aria-label={t('bp_imageMissingAlt')}
@@ -1156,9 +1191,30 @@ const BenefitsPartnerships = () => {
                               src={benefit.backgroundImage}
                               alt={benefit.title}
                               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 cursor-zoom-in"
-                              onClick={(e) => { e.stopPropagation(); setLightboxUrl(benefit.backgroundImage!); }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const images = (benefit.galleryImages && benefit.galleryImages.length > 0)
+                                  ? benefit.galleryImages
+                                  : (benefit.backgroundImage ? [benefit.backgroundImage] : []);
+                                if (images.length === 0) return;
+                                setLightboxGallery({ images, initialIndex: 0 });
+                              }}
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+                            {/* Multi-image indicator: small badge in the corner
+                                so users know there's a gallery to flip through. */}
+                            {benefit.galleryImages && benefit.galleryImages.length > 1 && (
+                              <span
+                                aria-label={`${benefit.galleryImages.length} images`}
+                                className="pointer-events-none absolute top-2 end-2 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-medium text-white"
+                                dir="ltr"
+                              >
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                                </svg>
+                                {benefit.galleryImages.length}
+                              </span>
+                            )}
                           </>
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-6xl">
@@ -1273,7 +1329,14 @@ const BenefitsPartnerships = () => {
                             src={benefit.backgroundImage}
                             alt={benefit.title}
                             className="w-full h-32 object-cover cursor-zoom-in"
-                            onClick={(e) => { e.stopPropagation(); setLightboxUrl(benefit.backgroundImage!); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const images = (benefit.galleryImages && benefit.galleryImages.length > 0)
+                                ? benefit.galleryImages
+                                : (benefit.backgroundImage ? [benefit.backgroundImage] : []);
+                              if (images.length === 0) return;
+                              setLightboxGallery({ images, initialIndex: 0 });
+                            }}
                             onError={(e) => {
                               // Hide broken image and reveal the placeholder sibling
                               (e.currentTarget as HTMLImageElement).style.display = 'none';
@@ -1282,6 +1345,19 @@ const BenefitsPartnerships = () => {
                             }}
                           />
                         ) : null}
+                        {/* Multi-image indicator on regular cards. */}
+                        {benefit.galleryImages && benefit.galleryImages.length > 1 && (
+                          <span
+                            aria-label={`${benefit.galleryImages.length} images`}
+                            className="pointer-events-none absolute top-2 end-2 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-medium text-white"
+                            dir="ltr"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                            </svg>
+                            {benefit.galleryImages.length}
+                          </span>
+                        )}
                         {/* Placeholder shown when no backgroundImage or when the img fails to load */}
                         <div
                           className={cn('w-full h-32 bg-slate-100 dark:bg-slate-800 flex items-center justify-center', benefit.backgroundImage && 'hidden')}
@@ -1558,12 +1634,14 @@ const BenefitsPartnerships = () => {
         </div>
       )}
 
-      {/* Full-screen image lightbox - rendered as a portal over the entire viewport */}
-      {lightboxUrl && (
+      {/* Full-screen image lightbox - portal-rendered over the viewport.
+          Gallery mode shows prev/next + dot pagination when imageUrls > 1. */}
+      {lightboxGallery && (
         <ImageLightbox
-          src={lightboxUrl}
-          alt="תצוגת הצעה"
-          onClose={() => setLightboxUrl(null)}
+          images={lightboxGallery.images}
+          initialIndex={lightboxGallery.initialIndex}
+          alt={t('bp_imageMissingAlt')}
+          onClose={() => setLightboxGallery(null)}
         />
       )}
 
