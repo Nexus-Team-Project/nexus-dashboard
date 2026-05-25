@@ -28,6 +28,7 @@ import AddContactModal from '../components/members/AddContactModal';
 import EditEmailModal from '../components/members/EditEmailModal';
 import EditRolesModal from '../components/members/EditRolesModal';
 import ConfirmRemoveModal from '../components/members/ConfirmRemoveModal';
+import PendingJoinRequestsPanel from '../components/members/PendingJoinRequestsPanel';
 
 type ActiveTab = 'contacts' | 'members';
 
@@ -357,6 +358,20 @@ export default function Members() {
           {copy.subtitle(me?.context.tenantName ?? copy.workspaceFallback)}
         </p>
       </div>
+
+      {/* Pending wallet join requests. Auto-hides when empty. After an
+          approve/deny decision we refresh both lists because the
+          backend writes the new member into tenantMembersV2 (Registered
+          tab) and tenantContacts (Contacts tab) at the same time. */}
+      {canManage && (
+        <PendingJoinRequestsPanel
+          language={language}
+          onDecisionMade={() => {
+            void fetchContacts(contactsParams);
+            void fetchMembers(membersParams);
+          }}
+        />
+      )}
 
       {/* Tabs */}
       <div className="mb-6">
