@@ -366,6 +366,7 @@ export default function Members() {
       {canManage && (
         <PendingJoinRequestsPanel
           language={language}
+          tenantName={me?.context.tenantName ?? copy.workspaceFallback}
           onDecisionMade={() => {
             void fetchContacts(contactsParams);
             void fetchMembers(membersParams);
