@@ -88,6 +88,12 @@ export default function PendingJoinRequestsPanel({
   const [requests, setRequests] = useState<TenantJoinRequestItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [decidingId, setDecidingId] = useState<string | null>(null);
+  // Surface backend failures (403 / 500 / network) so admins do not
+  // see a silently-disappearing panel and conclude "there are no
+  // pending requests" when in fact the call failed. Without this the
+  // panel auto-hid on any error and the only signal was the brief
+  // loading skeleton.
+  const [error, setError] = useState<string | null>(null);
 
   /**
    * Reloads the pending list. Used on mount and after every decision
@@ -95,13 +101,19 @@ export default function PendingJoinRequestsPanel({
    */
   const reload = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const r = await tenantJoinRequestsApi.list();
       // Defensive: backend can in theory return decided rows for audit;
       // only render pending here so the panel always reflects actionable work.
       setRequests(r.requests.filter((req) => req.status === 'pending'));
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'unknown error';
+      // Console error captures the full Error object (including the
+      // backend's error payload from request()) for devtools triage.
+      console.error('[pending-join-requests] list failed:', err);
       setRequests([]);
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -145,10 +157,11 @@ export default function PendingJoinRequestsPanel({
     }
   };
 
-  // Hide the entire panel when there is nothing to action and we are
-  // not in the initial-load skeleton. This keeps the Members page from
-  // showing an empty section to admins with no inbound requests.
-  if (!loading && requests.length === 0) return null;
+  // Hide the entire panel when there is nothing to action AND no
+  // error AND we are past the initial-load skeleton. When an error
+  // occurs we keep the panel mounted so the admin sees the failure
+  // instead of a silently-disappearing UI.
+  if (!loading && requests.length === 0 && !error) return null;
 
   return (
     <section
@@ -166,6 +179,13 @@ export default function PendingJoinRequestsPanel({
           </p>
         </div>
       </header>
+
+      {error && !loading ? (
+        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
+          {isHe ? 'הטעינה נכשלה: ' : 'Load failed: '}
+          <code className="font-mono">{error}</code>
+        </div>
+      ) : null}
 
       {loading ? (
         <div className="space-y-2">
