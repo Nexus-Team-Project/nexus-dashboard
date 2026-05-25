@@ -666,6 +666,41 @@ export const tenantMemberInvitationsApi = {
     ),
 };
 
+/**
+ * Tenant-admin join-request management. Backed by
+ * /api/v1/tenant/join-requests in nexus-website/backend (Plan #4).
+ * Each entry represents a wallet user asking to be added to this
+ * tenant; admin approves -> becomes member, or denies (optional reason).
+ */
+export interface TenantJoinRequestItem {
+  id: string;
+  nexusIdentityId: string;
+  email: string;
+  displayName: string | null;
+  status: 'pending' | 'approved' | 'denied' | 'auto_accepted';
+  createdAt: string;
+}
+
+export const tenantJoinRequestsApi = {
+  /** List pending join requests for the calling tenant admin. */
+  list: () =>
+    request<{ requests: TenantJoinRequestItem[] }>('GET', '/api/v1/tenant/join-requests'),
+  /** Approve a single pending request - creates member role + tenantMember row. */
+  approve: (id: string) =>
+    request<{ status: 'approved'; tenantId: string; nexusIdentityId: string }>(
+      'PATCH',
+      `/api/v1/tenant/join-requests/${encodeURIComponent(id)}`,
+      { decision: 'approve' },
+    ),
+  /** Deny a single pending request. Reason is shown to the user via email. */
+  deny: (id: string, reason?: string) =>
+    request<{ status: 'denied'; tenantId: string; nexusIdentityId: string }>(
+      'PATCH',
+      `/api/v1/tenant/join-requests/${encodeURIComponent(id)}`,
+      { decision: 'deny', ...(reason ? { reason } : {}) },
+    ),
+};
+
 export interface AdminUsersResponse {
   users: AdminUser[];
   total: number;
