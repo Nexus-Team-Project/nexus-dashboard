@@ -9,6 +9,9 @@ import { getTenantRoleLabel } from '../lib/tenantRoles';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
 
+/** Nexus Wallet base URL. Members consume their benefits there, not in the dashboard. */
+const WALLET_URL = import.meta.env.VITE_WALLET_URL ?? 'http://localhost:8080';
+
 type AcceptState =
   | { status: 'loading' }
   | { status: 'accepted'; preview: TenantMemberInvitationPreview; alreadyAccepted: boolean }
@@ -22,6 +25,8 @@ const COPY = {
     body: 'עכשיו אפשר לעבוד בתוך סביבת העבודה.',
     dashboard: 'פתח דשבורד',
     missing: 'קישור ההזמנה חסר או לא תקין.',
+    walletBody: 'אפשר עכשיו לפתוח את אפליקציית Nexus Wallet כדי לממש את ההטבות שלך.',
+    openWallet: 'פתח את Nexus Wallet',
   },
   en: {
     loading: 'Accepting invitation...',
@@ -30,6 +35,8 @@ const COPY = {
     body: 'You can now work inside the tenant workspace.',
     dashboard: 'Open dashboard',
     missing: 'The invitation link is missing or invalid.',
+    walletBody: 'You can now open the Nexus Wallet app to use your benefits.',
+    openWallet: 'Open Nexus Wallet',
   },
 } as const;
 
@@ -119,14 +126,28 @@ export default function MemberInviteAccept() {
                 ))}
               </div>
             )}
-            <p className="mt-3 text-sm leading-6 text-slate-600">{copy.body}</p>
-            <button
-              type="button"
-              onClick={() => navigate('/')}
-              className="mt-8 cursor-pointer rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
-            >
-              {copy.dashboard}
-            </button>
+            {((state.preview.roles ?? []) as TenantRole[]).every((role) => role === 'member') ? (
+              <>
+                <p className="mt-3 text-sm leading-6 text-slate-600">{copy.walletBody}</p>
+                <a
+                  href={WALLET_URL}
+                  className="mt-8 inline-block cursor-pointer rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
+                >
+                  {copy.openWallet}
+                </a>
+              </>
+            ) : (
+              <>
+                <p className="mt-3 text-sm leading-6 text-slate-600">{copy.body}</p>
+                <button
+                  type="button"
+                  onClick={() => navigate('/')}
+                  className="mt-8 cursor-pointer rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
+                >
+                  {copy.dashboard}
+                </button>
+              </>
+            )}
           </>
         )}
       </section>

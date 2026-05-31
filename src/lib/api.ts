@@ -1042,23 +1042,6 @@ export async function getPlatformOffers(query: CatalogQuery): Promise<CatalogPag
 }
 
 /**
- * Fetches one page of adopted offers for a tenant's member-facing catalog.
- * Matches GET /api/v1/offers/:tenantId.
- * Input: tenantId + CatalogQuery (member view honours only page/limit/search/category).
- * Output: CatalogPage with items + pagination metadata.
- */
-export async function getMemberCatalog(
-  tenantId: string,
-  query: CatalogQuery,
-): Promise<CatalogPage> {
-  const data = await request<CatalogPage>(
-    'GET',
-    `/api/v1/offers/${encodeURIComponent(tenantId)}?${catalogQueryToParams(query)}`,
-  );
-  return data;
-}
-
-/**
  * Fetches a single offer's full detail record.
  * Matches GET /api/v1/offers/:offerId/details.
  * Input: offerId - the platform offer identifier.
