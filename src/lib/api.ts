@@ -304,6 +304,12 @@ export interface DashboardMe {
     required: boolean;
     step: OnboardingStep;
   };
+  /**
+   * True when the user is a NEXUS platform admin. The backend returns this at the top level
+   * as well as under `authorization`, so call sites may read either `me.isPlatformAdmin` or
+   * `me.authorization.isPlatformAdmin`. Optional to stay backward-compatible with older payloads.
+   */
+  isPlatformAdmin?: boolean;
 }
 
 export interface WorkspaceSetupInput {
