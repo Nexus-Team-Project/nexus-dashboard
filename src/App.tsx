@@ -3,13 +3,12 @@
  * The shell waits for real website-backed authentication before rendering data.
  */
 import { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
 import { DevModeProvider } from './contexts/DevModeContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import DashboardLayout from './layouts/DashboardLayout';
-import MemberLayout from './layouts/MemberLayout';
 import Home from './pages/Home';
 import Content from './pages/Content';
 import Settings from './pages/Settings';
@@ -17,7 +16,6 @@ import Members from './pages/Members';
 import RolesPermissions from './pages/RolesPermissions';
 import InviteCollaborators from './pages/InviteCollaborators';
 import MemberInviteAccept from './pages/MemberInviteAccept';
-import TenantMemberDashboard from './pages/TenantMemberDashboard';
 import Lobby from './pages/Lobby';
 import PointsGifts from './pages/PointsGifts';
 import SendGiftEvent from './pages/SendGiftEvent';
@@ -39,7 +37,6 @@ import BusinessSetupPage from './pages/BusinessSetupPage';
 import WorkspaceSetupModal from './components/workspace/WorkspaceSetupModal';
 import CreateOffer from './pages/CreateOffer';
 import ProductCatalog from './pages/ProductCatalog';
-import MemberCatalog from './pages/MemberCatalog';
 
 const WEBSITE_URL = import.meta.env.VITE_WEBSITE_URL ?? 'http://localhost:3000';
 
@@ -100,21 +97,6 @@ function WebsiteLoginRedirectScreen() {
   );
 }
 
-const MEMBER_COPY = {
-  he: {
-    title: 'אזור החבר שלך מוכן',
-    body: 'נרשמת כחבר יחיד. אפשר להשתמש בפעולות אישיות, אך ניהול עסקי, אנליטיקות והגדרת עסק זמינים רק לסביבות עבודה של ארגונים.',
-    badge: 'חבר',
-    signOut: 'התנתקות',
-  },
-  en: {
-    title: 'Your member area is ready',
-    body: 'You joined as an individual member. Personal actions are available, while business analytics and business setup are only available for tenant workspaces.',
-    badge: 'Member',
-    signOut: 'Sign out',
-  },
-} as const;
-
 const DEFERRED_COPY = {
   he: {
     badge: 'ההקמה ממתינה',
@@ -131,44 +113,6 @@ const DEFERRED_COPY = {
     signOut: 'Sign out',
   },
 } as const;
-
-/**
- * Shows the non-tenant member state without mounting tenant analytics.
- * Input: logout callback for ending the authenticated session.
- * Output: member-only dashboard placeholder with no tenant actions.
- */
-function MemberDashboardScreen({ onLogout }: { onLogout: () => Promise<void> }) {
-  const { language, isRTL } = useLanguage();
-  const copy = MEMBER_COPY[language];
-
-  return (
-    <main
-      dir={isRTL ? 'rtl' : 'ltr'}
-      className="min-h-screen bg-[#edf1fc] px-6 py-8 text-slate-950"
-    >
-      <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-3xl items-center justify-center">
-        <section className="w-full rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
-          <div className="mb-5 inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-            {copy.badge}
-          </div>
-          <h1 className="text-2xl font-bold tracking-normal text-slate-950">
-            {copy.title}
-          </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-            {copy.body}
-          </p>
-          <button
-            type="button"
-            onClick={() => void onLogout()}
-            className="mt-8 rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
-          >
-            {copy.signOut}
-          </button>
-        </section>
-      </div>
-    </main>
-  );
-}
 
 /**
  * Shows a locked state for users who deferred workspace setup.
@@ -249,6 +193,8 @@ function AppRoutes() {
     return () => observer.disconnect();
   }, []);
 
+  const location = useLocation();
+
   if (isLoading) return <AuthLoadingScreen />;
 
   if (!isAuthenticated) {
@@ -261,35 +207,51 @@ function AppRoutes() {
 
   if (!me) return <AuthLoadingScreen />;
 
+  // The invite-accept page must always render standalone — never behind the forced
+  // workspace-setup wizard. It accepts the token, then routes the user onward
+  // (members → Nexus Wallet, staff roles → dashboard). Without this guard the forced
+  // wizard overlay covered the accept page and trapped invited members on the wizard.
+  if (location.pathname === '/member-invite/accept') {
+    return (
+      <Routes>
+        <Route path="/member-invite/accept" element={<MemberInviteAccept />} />
+      </Routes>
+    );
+  }
+
   const requiresWorkspaceSetup = me.onboarding.required === true && me.onboarding.step === 'workspace_setup';
   const isWorkspaceSetupDeferred = me.context.mode === 'workspace_setup_deferred';
   const hasTenantWorkspace = me.context.isTenant === true;
   const isTenantAdmin = hasTenantWorkspace && (me.context.role === 'admin' || me.context.role === 'owner');
-  const shouldUseLimitedRoleDashboard = hasTenantWorkspace && me.context.role !== 'admin' && me.context.role !== 'owner';
+  // Pure members and skipped-setup users no longer get a member dashboard. They are offered
+  // the workspace-setup wizard so they can still create their own workspace if they want.
+  const isPureMember = hasTenantWorkspace && me.context.role === 'member';
+  const isRegularUser = me.context.mode === 'regular_user';
+  // Show the onboarding wizard for: new users, deferred setup, pure members, skipped-setup
+  // users, and any authenticated user that has no tenant workspace at all.
+  const showWorkspaceOnboarding =
+    requiresWorkspaceSetup || isWorkspaceSetupDeferred || isPureMember || isRegularUser || !hasTenantWorkspace;
+  // The wizard is force-open (no dismiss) for every entry except the deferred case, which keeps
+  // its transparent click-interceptor so the header sign-out stays reachable.
+  const forceWorkspaceWizardOpen =
+    requiresWorkspaceSetup || isPureMember || isRegularUser || !hasTenantWorkspace;
   const canViewMembers = me.authorization.canViewMembers === true || me.authorization.canManageMembers === true;
   const canManageMembers = me.authorization.canManageMembers === true;
   /** True when the authenticated user is a NEXUS platform admin.
    *  Platform admins can access supply creation regardless of tenant context. */
   const isPlatformAdmin = me.authorization.isPlatformAdmin === true;
-  /** True when the user is allowed to create or manage supply catalog offers.
-   *  Granted to platform admins and tenant supply_manager roles. */
-  const canManageSupply = me.authorization.canManageSupply === true || isPlatformAdmin;
-  /** True when the tenant has activated the Benefits Catalog service.
-   *  Platform admins bypass this gate since they manage the global catalog. */
-  const catalogServiceActive = me.authorization.catalogServiceActive === true;
   const firstName = user?.fullName?.split(/\s+/)[0] ?? me?.user.name?.split(/\s+/)[0];
 
   // Setup states: always show the full tenant admin dashboard behind a wizard overlay.
   // For requiresWorkspaceSetup: wizard is always visible (modal backdrop blurs the dashboard).
   // For isWorkspaceSetupDeferred: transparent interceptor catches all dashboard clicks and
   // opens the wizard. User sees the full dashboard but can't act until setup is complete.
-  if (requiresWorkspaceSetup || isWorkspaceSetupDeferred) {
+  if (showWorkspaceOnboarding) {
     return (
       <>
         {/* Full tenant admin dashboard always visible in background */}
         <Routes>
           <Route path="/api-docs" element={<ApiDocs />} />
-          <Route path="/member-invite/accept" element={<MemberInviteAccept />} />
           <Route path="/business-setup" element={<BusinessSetupPage />} />
           <Route path="/" element={<DashboardLayout onLogout={logout} showBusinessSetup />}>
             <Route index element={<Home />} />
@@ -334,62 +296,26 @@ function AppRoutes() {
           />
         )}
 
-        {/* Wizard overlay — always open for requiresWorkspaceSetup, toggled for deferred */}
-        {(requiresWorkspaceSetup || isDeferredSetupOpen) && (
+        {/* Wizard overlay — force-open for new/member/regular/tenant-less users, toggled for deferred */}
+        {(forceWorkspaceWizardOpen || isDeferredSetupOpen) && (
           <WorkspaceSetupModal
-            onClose={requiresWorkspaceSetup ? () => undefined : () => setIsDeferredSetupOpen(false)}
+            onClose={forceWorkspaceWizardOpen ? () => undefined : () => setIsDeferredSetupOpen(false)}
             onFinished={async () => {
               setIsDeferredSetupOpen(false);
               await reloadMe();
             }}
             firstName={firstName}
-            forceOpen={requiresWorkspaceSetup}
+            forceOpen={forceWorkspaceWizardOpen}
+            skipToWallet={isPureMember || isRegularUser}
           />
         )}
       </>
     );
   }
 
-  if (!hasTenantWorkspace) {
-    return (
-      <Routes>
-        <Route path="*" element={<MemberDashboardScreen onLogout={logout} />} />
-      </Routes>
-    );
-  }
-
-  if (shouldUseLimitedRoleDashboard) {
-    return (
-      <Routes>
-        {/* Accept invite outside the layout shell - no chrome needed for this flow */}
-        <Route path="/member-invite/accept" element={<MemberInviteAccept />} />
-        {/* All member pages inside the layout shell (header + sidebar + outlet) */}
-        <Route element={<MemberLayout onLogout={logout} />}>
-          <Route
-            index
-            element={(
-              <TenantMemberDashboard
-                userName={me.user.name}
-                userEmail={me.user.email}
-                tenantName={me.context.tenantName}
-                role={me.context.role}
-                onLogout={logout}
-                catalogMode={me.authorization.catalogMode}
-                memberServices={me.authorization.memberServices}
-              />
-            )}
-          />
-          <Route path="member-catalog" element={<MemberCatalog />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Route>
-      </Routes>
-    );
-  }
-
   return (
     <Routes>
       <Route path="/api-docs" element={<ApiDocs />} />
-      <Route path="/member-invite/accept" element={<MemberInviteAccept />} />
       <Route path="/business-setup" element={isTenantAdmin ? <BusinessSetupPage /> : <Navigate to="/" replace />} />
       <Route path="/" element={<DashboardLayout onLogout={logout} showBusinessSetup={isTenantAdmin} />}>
         <Route index element={<Home />} />
@@ -418,8 +344,6 @@ function AppRoutes() {
         <Route path="settings" element={<Settings />} />
         <Route path="settings/roles-permissions" element={canViewMembers ? <RolesPermissions /> : <Navigate to="/" replace />} />
         <Route path="settings/roles-permissions/invite" element={canManageMembers ? <InviteCollaborators /> : <Navigate to="/" replace />} />
-        {/* Member-facing catalog - accessible to tenant admins as a preview/admin view */}
-        <Route path="member-catalog" element={<MemberCatalog />} />
         <Route path="dev" element={<DevPlaygroundRoute />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

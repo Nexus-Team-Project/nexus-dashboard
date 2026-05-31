@@ -3,8 +3,7 @@
  *
  * Pattern:
  *   1. Caller supplies a fetcher of shape (CatalogQuery) => Promise<CatalogPage>.
- *      That is `getPlatformOffers` for admins and `getMemberCatalog(tenantId, ...)`
- *      bound to a tenant for members.
+ *      Use `getPlatformOffers` for the admin supply catalog view.
  *   2. The hook owns `filters` (CatalogFilters) and `page` (number).
  *   3. Search input is debounced 250ms so a fast typist does not trigger one
  *      request per keystroke. Other filter chips fire immediately.

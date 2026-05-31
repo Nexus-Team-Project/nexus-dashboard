@@ -4,9 +4,8 @@
  *
  * Visual language matches the Stripe-inspired admin panels
  * (Transactions / Users): rounded pill, neutral inactive state,
- * #635bff active state. Different by design from the gold
- * member-catalog chip in MemberCatalogFilters.tsx — the two
- * panels intentionally use different palettes.
+ * #635bff active state. Uses the admin filter palette (active accent),
+ * distinct from the member-facing palette.
  */
 import { cn } from '../../../lib/utils';
 

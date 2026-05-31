@@ -13,11 +13,21 @@ import nexusBlackLogo from '../../assets/logos/Nexus_wide_logo_blak.png';
 import { onboardingApi, type SkipReason, type WizardDraftPayload } from '../../lib/api';
 import { useLanguage } from '../../i18n/LanguageContext';
 
+/** Nexus Wallet base URL — the end-user app where members and regular users live. */
+const WALLET_URL = import.meta.env.VITE_WALLET_URL ?? 'http://localhost:8080';
+
 interface WorkspaceSetupModalProps {
   onClose: () => void;
   onFinished?: () => Promise<unknown> | unknown;
   firstName?: string;
   forceOpen?: boolean;
+  /**
+   * When true, any "skip" action hands the user off to the Nexus Wallet instead of the
+   * regular/defer choice screen. Set for members and regular users, who already belong to
+   * the wallet and have no workspace setup to defer — the backend skip call is a no-op for
+   * them and would otherwise loop them back into this forced wizard.
+   */
+  skipToWallet?: boolean;
 }
 
 type Phase = 'wizard' | 'skip_choice' | 'animation' | 'schedule';
@@ -39,7 +49,7 @@ const SKIP_COPY = {
   },
 } as const;
 
-const WorkspaceSetupModal = ({ onClose, onFinished, firstName, forceOpen = false }: WorkspaceSetupModalProps) => {
+const WorkspaceSetupModal = ({ onClose, onFinished, firstName, forceOpen = false, skipToWallet = false }: WorkspaceSetupModalProps) => {
   const navigate = useNavigate();
   const { language } = useLanguage();
   const savingText = language === 'he' ? 'שומר...' : 'Saving...';
@@ -124,6 +134,13 @@ const WorkspaceSetupModal = ({ onClose, onFinished, firstName, forceOpen = false
    * Output: backend onboarding state is updated and the modal closes.
    */
   const handleSkipChoice = async (skipReason: SkipReason, draft?: WizardDraftPayload) => {
+    // Members / regular users escape straight to the Nexus Wallet. There is no workspace
+    // setup to record or defer for them (the backend skip call returns mode "tenant" and
+    // would loop them back into this forced wizard), so every skip path just hands off.
+    if (skipToWallet) {
+      window.location.href = WALLET_URL;
+      return;
+    }
     setIsSubmitting(true);
     setError(null);
     try {
@@ -134,6 +151,14 @@ const WorkspaceSetupModal = ({ onClose, onFinished, firstName, forceOpen = false
       await onboardingApi.skipWorkspace(skipReason);
       await onFinished?.();
       onClose();
+      // "Continue as a regular user" sends the user to the Nexus Wallet (the end-user app) —
+      // members and regular users live there, not in the admin dashboard. This is also the
+      // escape hatch for a member who is forced into this wizard but does not want a workspace.
+      // "Complete later" instead keeps them in the dashboard's deferred state to finish setup.
+      if (skipReason === 'regular_user') {
+        window.location.href = WALLET_URL;
+        return;
+      }
       navigate('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : skipErrorText);
@@ -148,6 +173,12 @@ const WorkspaceSetupModal = ({ onClose, onFinished, firstName, forceOpen = false
    * Output: local modal phase changes.
    */
   const handleSkip = () => {
+    // Members / regular users have no business setup to defer — skip hands them off to the
+    // Nexus Wallet directly instead of showing the regular/defer choice screen.
+    if (skipToWallet) {
+      window.location.href = WALLET_URL;
+      return;
+    }
     setError(null);
     setPhase('skip_choice');
   };
