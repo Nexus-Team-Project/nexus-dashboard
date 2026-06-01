@@ -150,6 +150,11 @@ export const translations = {
     saveChanges: 'Save Changes',
     language: 'Language',
     languageDesc: 'Select your preferred language',
+    joinRequests: 'Join requests',
+    joinRequestsDesc:
+      'When on, users requesting to join your organization are added instantly. Off - requests wait for your approval.',
+    joinRequestsAriaLabel: 'Auto-accept join requests',
+    joinRequestsUpdateFailed: 'Could not update the setting',
 
     // Header
     adminUser: 'Admin User',
@@ -1276,6 +1281,11 @@ export const translations = {
     saveChanges: 'שמור שינויים',
     language: 'שפה',
     languageDesc: 'בחר את השפה המועדפת עליך',
+    joinRequests: 'בקשות הצטרפות',
+    joinRequestsDesc:
+      'כשמופעל, משתמשים שמבקשים להצטרף לארגון מצטרפים מיד. כבוי - הבקשות ממתינות לאישור.',
+    joinRequestsAriaLabel: 'אישור אוטומטי של בקשות הצטרפות',
+    joinRequestsUpdateFailed: 'עדכון ההגדרה נכשל',
 
     // Header
     adminUser: 'משתמש מנהל',

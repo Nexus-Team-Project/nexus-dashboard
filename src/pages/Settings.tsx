@@ -3,10 +3,13 @@
  * backend grants the current user member-view permission.
  */
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useNavigate } from 'react-router-dom';
 import type { Language } from '../i18n/translations';
 import { useAuth } from '../contexts/AuthContext';
+import { tenantJoinRequestsApi } from '../lib/api';
+import ToggleSwitch from '../components/ToggleSwitch';
 
 interface SettingsTile {
   id: string;
@@ -24,6 +27,16 @@ const Settings = () => {
   const { me } = useAuth();
   const canViewMembers = me?.authorization.canViewMembers === true || me?.authorization.canManageMembers === true;
 
+  /**
+   * Auto-accept join-requests setting. Mirrors the toggle in the /users
+   * join-requests panel - both read/write the same backend setting. The
+   * card is hidden until the GET resolves; if the GET 403s (caller is not
+   * a tenant admin) the card stays hidden rather than showing a broken control.
+   */
+  const [autoAccept, setAutoAccept] = useState(true);
+  const [joinSettingsReady, setJoinSettingsReady] = useState(false);
+  const [savingJoinSettings, setSavingJoinSettings] = useState(false);
+
   // Simulate loading
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -31,6 +44,48 @@ const Settings = () => {
     }, 1500);
     return () => clearTimeout(timer);
   }, []);
+
+  // Load the tenant's auto-accept setting once on mount.
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const r = await tenantJoinRequestsApi.getSettings();
+        if (active) {
+          setAutoAccept(r.autoAcceptEnabled);
+          setJoinSettingsReady(true);
+        }
+      } catch (err) {
+        // 403 (not a tenant admin) or transient error: keep the card hidden.
+        console.error('[settings] join-request settings load failed:', err);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  /**
+   * Optimistically flips the auto-accept setting, persists it, and reverts
+   * on failure (surfacing the error via a Sonner toast - the app-wide pattern).
+   * Input: next - the desired on/off value from the toggle.
+   * Output: none (state updated as a side effect).
+   */
+  const handleToggleAutoAccept = async (next: boolean): Promise<void> => {
+    const previous = autoAccept;
+    setAutoAccept(next);
+    setSavingJoinSettings(true);
+    try {
+      const r = await tenantJoinRequestsApi.updateSettings(next);
+      setAutoAccept(r.autoAcceptEnabled);
+    } catch (err) {
+      console.error('[settings] join-request settings update failed:', err);
+      setAutoAccept(previous);
+      toast.error(t('joinRequestsUpdateFailed'));
+    } finally {
+      setSavingJoinSettings(false);
+    }
+  };
 
   const settingsTiles: SettingsTile[] = [
     ...(canViewMembers ? [{
@@ -187,6 +242,28 @@ const Settings = () => {
           </div>
         </div>
       </div>
+
+      {/* Join Requests Section - mirrors the toggle in the /users panel.
+          Hidden until the setting loads (and stays hidden for non-admins). */}
+      {joinSettingsReady && (
+        <div className="mt-10">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-1">{t('joinRequests')}</h2>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mb-4">{t('joinRequestsDesc')}</p>
+          <div className="bg-white dark:bg-card-dark rounded-2xl border border-slate-100 dark:border-slate-800 p-6 max-w-md">
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                {t('joinRequests')}
+              </span>
+              <ToggleSwitch
+                checked={autoAccept}
+                onChange={(next) => void handleToggleAutoAccept(next)}
+                disabled={savingJoinSettings}
+                aria-label={t('joinRequestsAriaLabel')}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

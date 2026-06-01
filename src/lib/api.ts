@@ -705,6 +705,27 @@ export const tenantJoinRequestsApi = {
       `/api/v1/tenant/join-requests/${encodeURIComponent(id)}`,
       { decision: 'deny', ...(reason ? { reason } : {}) },
     ),
+  /**
+   * Read the tenant's auto-accept setting. When true, new wallet join
+   * requests are accepted instantly instead of landing in the pending list.
+   * Requires tenant-admin auth (enforced server-side).
+   */
+  getSettings: () =>
+    request<{ autoAcceptEnabled: boolean }>(
+      'GET',
+      '/api/v1/tenant/join-requests/settings',
+    ),
+  /**
+   * Update the tenant's auto-accept setting.
+   * Input: autoAcceptEnabled - the desired on/off state.
+   * Output: the persisted setting echoed back by the backend.
+   */
+  updateSettings: (autoAcceptEnabled: boolean) =>
+    request<{ autoAcceptEnabled: boolean }>(
+      'PATCH',
+      '/api/v1/tenant/join-requests/settings',
+      { autoAcceptEnabled },
+    ),
 };
 
 export interface AdminUsersResponse {
