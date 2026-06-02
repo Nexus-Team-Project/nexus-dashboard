@@ -21,6 +21,7 @@ import {
 } from '../../lib/api';
 import ApproveJoinRequestModal from './ApproveJoinRequestModal';
 import DenyJoinRequestModal from './DenyJoinRequestModal';
+import ToggleSwitch from '../ToggleSwitch';
 
 interface PendingJoinRequestsPanelProps {
   language: 'he' | 'en';
@@ -60,6 +61,10 @@ const COPY = {
     decideFailed: 'הפעולה נכשלה',
     loadFailed: 'הטעינה נכשלה: ',
     loading: 'טוען בקשות...',
+    autoAcceptOn: 'בקשות הצטרפות מאושרות אוטומטית',
+    autoAcceptOff: 'בקשות הצטרפות ממתינות לאישורך',
+    autoAcceptLabel: 'אישור אוטומטי של בקשות הצטרפות',
+    autoAcceptUpdateFailed: 'עדכון ההגדרה נכשל',
   },
   en: {
     title: 'Pending join requests',
@@ -81,6 +86,10 @@ const COPY = {
     decideFailed: 'Action failed',
     loadFailed: 'Load failed: ',
     loading: 'Loading requests...',
+    autoAcceptOn: 'Join requests are auto-accepted',
+    autoAcceptOff: 'Join requests need your approval',
+    autoAcceptLabel: 'Auto-accept join requests',
+    autoAcceptUpdateFailed: 'Could not update the setting',
   },
 } as const;
 
@@ -125,6 +134,58 @@ export default function PendingJoinRequestsPanel({
   /** True once the initial fetch resolved - prevents re-collapsing on later refetches. */
   const [collapseInitialized, setCollapseInitialized] = useState(false);
   const [modal, setModal] = useState<ModalState>({ kind: 'none' });
+
+  /**
+   * Auto-accept setting state. We default to `true` (the backend default)
+   * while loading so the optimistic UI never flickers to "off". `settingsReady`
+   * flips true only after the GET resolves; if the GET 403s (caller is not a
+   * tenant admin) we simply hide the toggle rather than show a broken control.
+   */
+  const [autoAccept, setAutoAccept] = useState(true);
+  const [settingsReady, setSettingsReady] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const r = await tenantJoinRequestsApi.getSettings();
+        if (active) {
+          setAutoAccept(r.autoAcceptEnabled);
+          setSettingsReady(true);
+        }
+      } catch (err) {
+        // 403 (not a tenant admin) or transient error: keep the toggle hidden.
+        console.error('[pending-join-requests] settings load failed:', err);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  /**
+   * Optimistically flips the auto-accept setting, persists it, and reverts
+   * on failure. Surfaces failures via the same `toast` pattern the rest of
+   * the panel uses for decision errors.
+   * Input: next - the desired on/off value from the toggle.
+   * Output: none (state is updated as a side effect).
+   */
+  const handleToggleAutoAccept = async (next: boolean): Promise<void> => {
+    const previous = autoAccept;
+    setAutoAccept(next);
+    setSavingSettings(true);
+    try {
+      const r = await tenantJoinRequestsApi.updateSettings(next);
+      setAutoAccept(r.autoAcceptEnabled);
+    } catch (err) {
+      console.error('[pending-join-requests] settings update failed:', err);
+      setAutoAccept(previous);
+      toast.error(copy.autoAcceptUpdateFailed);
+    } finally {
+      setSavingSettings(false);
+    }
+  };
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -249,9 +310,12 @@ export default function PendingJoinRequestsPanel({
     onDecisionMade?.();
   };
 
-  // Hide the entire panel when there is nothing to action AND no
-  // error AND we are past the initial skeleton.
-  if (!loading && requests.length === 0 && !error) return null;
+  // Hide the entire panel only when there is nothing to action, no error,
+  // we are past the initial skeleton, AND the auto-accept toggle is not
+  // available (settings did not load / caller is not an admin). When the
+  // toggle IS available we keep the panel mounted so admins can flip the
+  // setting even with zero pending requests.
+  if (!loading && requests.length === 0 && !error && !settingsReady) return null;
 
   const showSearch = !loading && requests.length > SEARCH_THRESHOLD;
   const showBulkActions = !loading && filtered.length >= 2;
@@ -267,7 +331,7 @@ export default function PendingJoinRequestsPanel({
           <h3 className="truncate text-sm font-bold text-slate-900 dark:text-white">
             {copy.title}
           </h3>
-          {!loading && (
+          {!loading && requests.length > 0 && (
             <span className="inline-flex h-6 min-w-[24px] items-center justify-center rounded-full bg-amber-500 px-2 text-xs font-bold text-white">
               {requests.length}
             </span>
@@ -289,6 +353,23 @@ export default function PendingJoinRequestsPanel({
           )}
         </div>
       </header>
+
+      {/* Auto-accept setting: hidden until the GET resolves (and stays hidden
+          for non-admins whose GET 403s). When ON, new join requests skip the
+          pending list below; any pre-existing pending rows still render. */}
+      {settingsReady && (
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900">
+          <p className="min-w-0 flex-1 text-xs font-medium text-slate-700 dark:text-slate-300">
+            {autoAccept ? copy.autoAcceptOn : copy.autoAcceptOff}
+          </p>
+          <ToggleSwitch
+            checked={autoAccept}
+            onChange={(next) => void handleToggleAutoAccept(next)}
+            disabled={savingSettings}
+            aria-label={copy.autoAcceptLabel}
+          />
+        </div>
+      )}
 
       {!loading && (
         <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
