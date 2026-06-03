@@ -233,8 +233,12 @@ function AppRoutes() {
     requiresWorkspaceSetup || isWorkspaceSetupDeferred || isPureMember || isRegularUser || !hasTenantWorkspace;
   // The wizard is force-open (no dismiss) for every entry except the deferred case, which keeps
   // its transparent click-interceptor so the header sign-out stays reachable.
+  // A user who chose "complete later" has NO tenant yet, so `!hasTenantWorkspace` would otherwise
+  // keep the wizard force-open and loop them right back after skipping — explicitly exclude the
+  // deferred state so the skip actually escapes to the (dismissible) deferred dashboard.
   const forceWorkspaceWizardOpen =
-    requiresWorkspaceSetup || isPureMember || isRegularUser || !hasTenantWorkspace;
+    !isWorkspaceSetupDeferred &&
+    (requiresWorkspaceSetup || isPureMember || isRegularUser || !hasTenantWorkspace);
   const canViewMembers = me.authorization.canViewMembers === true || me.authorization.canManageMembers === true;
   const canManageMembers = me.authorization.canManageMembers === true;
   /** True when the authenticated user is a NEXUS platform admin.
