@@ -604,6 +604,26 @@ export const tenantMembersApi = {
 
 // ─── Tenant Contacts ─────────────────────────────────────────────
 
+/** Value type a custom contact column can hold. */
+export type ContactFieldType = 'free_text' | 'number' | 'date' | 'single_label' | 'multi_label' | 'location';
+
+/** A tenant-defined custom column on the contacts table. */
+export interface ContactField {
+  fieldId: string;
+  name: string;
+  type: ContactFieldType;
+  /** Allowed values for single_label / multi_label columns. */
+  options?: string[];
+  order: number;
+}
+
+/** One custom-column filter sent to the contacts list endpoint. */
+export interface ContactCustomFilter {
+  fieldId: string;
+  op: 'contains' | 'range' | 'in';
+  value: unknown;
+}
+
 export interface TenantContact {
   tenantContactId: string;
   email: string;
@@ -615,6 +635,8 @@ export interface TenantContact {
   /** True only when the member verified the number themselves (SMS / wallet OTP).
    *  Tenant-entered or test-attached numbers are false. */
   phoneVerified: boolean;
+  /** Custom-column values keyed by fieldId; empty/undefined when none set. */
+  customFields?: Record<string, unknown>;
   lastActivityAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -631,14 +653,33 @@ export interface ListContactsParams {
   limit?: number;
   search?: string;
   status?: string;
+  /** Active custom-column filters (serialized as a JSON query param). */
+  customFilters?: ContactCustomFilter[];
 }
 
 function buildContactsQuery(params?: ListContactsParams): string {
   if (!params) return '';
-  const entries = Object.entries(params).filter(([, v]) => v !== undefined && v !== '');
-  if (entries.length === 0) return '';
-  return '?' + new URLSearchParams(entries.map(([k, v]) => [k, String(v)])).toString();
+  const sp = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v === undefined || v === '') continue;
+    if (k === 'customFilters') {
+      if (Array.isArray(v) && v.length) sp.set('customFilters', JSON.stringify(v));
+      continue;
+    }
+    sp.set(k, String(v));
+  }
+  const qs = sp.toString();
+  return qs ? `?${qs}` : '';
 }
+
+/** Payload shape for creating/updating a contact (custom values optional). */
+type ContactWritePayload = {
+  email?: string;
+  displayName?: string;
+  address?: string;
+  phone?: string;
+  customFields?: Record<string, unknown>;
+};
 
 export const tenantContactsApi = {
   list: (params?: ListContactsParams) =>
@@ -646,11 +687,11 @@ export const tenantContactsApi = {
       'GET',
       `/api/v1/tenant/contacts${buildContactsQuery(params)}`,
     ),
-  create: (data: { email: string; displayName?: string; address?: string; phone?: string }) =>
+  create: (data: ContactWritePayload & { email: string }) =>
     request<TenantContact>('POST', '/api/v1/tenant/contacts', data),
-  update: (contactId: string, data: { displayName?: string; address?: string; phone?: string }) =>
+  update: (contactId: string, data: ContactWritePayload) =>
     request<TenantContact>('PATCH', `/api/v1/tenant/contacts/${encodeURIComponent(contactId)}`, data),
-  importContacts: (rows: Array<{ email: string; displayName?: string; address?: string; phone?: string }>) =>
+  importContacts: (rows: Array<ContactWritePayload & { email: string }>) =>
     request<ContactImportResult>('POST', '/api/v1/tenant/contacts/import', { rows }),
   updateEmail: (tenantContactId: string, email: string) =>
     request<{ ok: boolean }>(
@@ -660,6 +701,19 @@ export const tenantContactsApi = {
     ),
   remove: (tenantContactId: string) =>
     request<void>('DELETE', `/api/v1/tenant/contacts/${encodeURIComponent(tenantContactId)}`),
+};
+
+/** Tenant-defined custom columns on the contacts table (tenant-admin only). */
+export const tenantContactFieldsApi = {
+  list: () => request<{ fields: ContactField[] }>('GET', '/api/v1/tenant/contact-fields'),
+  create: (data: { name: string; type: ContactFieldType; options?: string[] }) =>
+    request<ContactField>('POST', '/api/v1/tenant/contact-fields', data),
+  rename: (fieldId: string, name: string) =>
+    request<ContactField>('PATCH', `/api/v1/tenant/contact-fields/${encodeURIComponent(fieldId)}`, { name }),
+  remove: (fieldId: string) =>
+    request<{ ok: true }>('DELETE', `/api/v1/tenant/contact-fields/${encodeURIComponent(fieldId)}`),
+  reorder: (order: Array<{ fieldId: string; order: number }>) =>
+    request<{ fields: ContactField[] }>('PATCH', '/api/v1/tenant/contact-fields/reorder', { order }),
 };
 
 export const tenantMemberInvitationsApi = {

@@ -8,13 +8,16 @@
 import { useState, useMemo } from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { normalizeIsraeliPhone } from '../lib/israeliPhone';
+import type { ContactField } from '../lib/api';
 
 /** System fields a CSV column can be mapped to. Status is lifecycle-managed, not imported. */
 type SystemField = 'Full Name' | 'Email Address' | 'Address' | 'Phone' | '';
 
+/** A mapping target is a system field, a custom-column fieldId, or '' (ignore). */
 interface ColumnMappingRow {
   csvColumn: string;
-  systemField: SystemField;
+  /** '' | SystemField | custom fieldId ("cf_..."). */
+  target: string;
   sample: string;
   isMapped: boolean;
 }
@@ -27,6 +30,9 @@ export interface ResolvedContactRow {
   /** Normalized Israeli mobile number ("05XXXXXXXX"). Absent when the source
    *  row had no phone or the phone could not be normalized. */
   phone?: string;
+  /** Raw custom-column values keyed by fieldId; the server coerces/validates
+   *  each per type and blanks anything invalid (the row still imports). */
+  customFields?: Record<string, unknown>;
 }
 
 export interface ColumnMappingProps {
@@ -38,6 +44,8 @@ export interface ColumnMappingProps {
   csvHeaders: string[];
   /** Real CSV data rows keyed by header name. */
   csvRows: Record<string, string>[];
+  /** Tenant custom columns - added as mapping targets. */
+  contactFields: ContactField[];
 }
 
 const SYSTEM_FIELDS: SystemField[] = ['Full Name', 'Email Address', 'Address', 'Phone', ''];
@@ -76,11 +84,17 @@ function sampleValues(rows: Record<string, string>[], header: string): string {
 function resolveRows(
   mappings: ColumnMappingRow[],
   csvRows: Record<string, string>[],
+  contactFields: ContactField[],
 ): { rows: ResolvedContactRow[]; skipped: number } {
-  const emailCol = mappings.find((m) => m.systemField === 'Email Address')?.csvColumn;
-  const nameCol = mappings.find((m) => m.systemField === 'Full Name')?.csvColumn;
-  const addressCol = mappings.find((m) => m.systemField === 'Address')?.csvColumn;
-  const phoneCol = mappings.find((m) => m.systemField === 'Phone')?.csvColumn;
+  const emailCol = mappings.find((m) => m.target === 'Email Address')?.csvColumn;
+  const nameCol = mappings.find((m) => m.target === 'Full Name')?.csvColumn;
+  const addressCol = mappings.find((m) => m.target === 'Address')?.csvColumn;
+  const phoneCol = mappings.find((m) => m.target === 'Phone')?.csvColumn;
+
+  // Custom columns the user mapped: fieldId -> source CSV column.
+  const customCols = contactFields
+    .map((f) => ({ fieldId: f.fieldId, col: mappings.find((m) => m.target === f.fieldId)?.csvColumn }))
+    .filter((c): c is { fieldId: string; col: string } => !!c.col);
 
   const seen = new Set<string>();
   const rows: ResolvedContactRow[] = [];
@@ -97,11 +111,20 @@ function resolveRows(
     const rawPhone = phoneCol ? (row[phoneCol] ?? '').trim() : '';
     const normalizedPhone = rawPhone ? normalizeIsraeliPhone(rawPhone) : null;
 
+    // Raw custom values (non-empty cells). The server coerces/validates per
+    // type and blanks anything invalid, so the row always imports.
+    const customFields: Record<string, unknown> = {};
+    for (const { fieldId, col } of customCols) {
+      const raw = (row[col] ?? '').trim();
+      if (raw) customFields[fieldId] = raw;
+    }
+
     rows.push({
       email,
       ...(nameCol && row[nameCol] ? { displayName: row[nameCol].trim() } : {}),
       ...(addressCol && row[addressCol] ? { address: row[addressCol].trim() } : {}),
       ...(normalizedPhone ? { phone: normalizedPhone } : {}),
+      ...(Object.keys(customFields).length ? { customFields } : {}),
     });
   }
   return { rows, skipped };
@@ -112,32 +135,32 @@ function resolveRows(
  * Input: CSV headers + rows from the file, plus import and close callbacks.
  * Output: full-screen modal with column mapping UI and confirmation button.
  */
-const ColumnMapping = ({ onClose, onImport, fileName, csvHeaders, csvRows }: ColumnMappingProps) => {
+const ColumnMapping = ({ onClose, onImport, fileName, csvHeaders, csvRows, contactFields }: ColumnMappingProps) => {
   const { t } = useLanguage();
   const [isImporting, setIsImporting] = useState(false);
 
   const [mappings, setMappings] = useState<ColumnMappingRow[]>(() =>
     csvHeaders.map((header) => {
-      const field = autoDetect(header);
-      return {
-        csvColumn: header,
-        systemField: field,
-        sample: sampleValues(csvRows, header),
-        isMapped: field !== '',
-      };
+      // Auto-map to a system field, else to a custom column whose name matches.
+      let target: string = autoDetect(header);
+      if (!target) {
+        const match = contactFields.find((f) => f.name.trim().toLowerCase() === header.trim().toLowerCase());
+        if (match) target = match.fieldId;
+      }
+      return { csvColumn: header, target, sample: sampleValues(csvRows, header), isMapped: target !== '' };
     }),
   );
 
-  const handleMappingChange = (index: number, value: SystemField) => {
+  const handleMappingChange = (index: number, value: string) => {
     setMappings((prev) =>
-      prev.map((m, i) => (i === index ? { ...m, systemField: value, isMapped: value !== '' } : m)),
+      prev.map((m, i) => (i === index ? { ...m, target: value, isMapped: value !== '' } : m)),
     );
   };
 
   const unmappedCount = mappings.filter((m) => !m.isMapped).length;
-  const emailMapped = mappings.some((m) => m.systemField === 'Email Address');
+  const emailMapped = mappings.some((m) => m.target === 'Email Address');
 
-  const { rows: previewRows, skipped } = useMemo(() => resolveRows(mappings, csvRows), [mappings, csvRows]);
+  const { rows: previewRows, skipped } = useMemo(() => resolveRows(mappings, csvRows, contactFields), [mappings, csvRows, contactFields]);
 
   const handleConfirm = async () => {
     if (!emailMapped || previewRows.length === 0) return;
@@ -217,8 +240,8 @@ const ColumnMapping = ({ onClose, onImport, fileName, csvHeaders, csvRows }: Col
                     <div className="flex-1">
                       <div className="relative">
                         <select
-                          value={mapping.systemField}
-                          onChange={(e) => handleMappingChange(index, e.target.value as SystemField)}
+                          value={mapping.target}
+                          onChange={(e) => handleMappingChange(index, e.target.value)}
                           className={`w-full bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-primary/40 focus:border-primary py-3 px-4 pr-10 transition-all cursor-pointer hover:shadow-md ${
                             !mapping.isMapped ? 'text-slate-400 italic' : 'text-slate-900 dark:text-white font-medium'
                           }`}
@@ -226,10 +249,18 @@ const ColumnMapping = ({ onClose, onImport, fileName, csvHeaders, csvRows }: Col
                         >
                           <option value="">{t('cm_chooseColumn')}</option>
                           {SYSTEM_FIELDS.filter((f) => f !== '').map((field) => {
-                            const claimedByOther = mappings.some((m, i) => i !== index && m.systemField === field);
+                            const claimedByOther = mappings.some((m, i) => i !== index && m.target === field);
                             return (
                               <option key={field} value={field} disabled={claimedByOther}>
                                 {field}{claimedByOther ? ' ✓' : ''}
+                              </option>
+                            );
+                          })}
+                          {contactFields.map((f) => {
+                            const claimedByOther = mappings.some((m, i) => i !== index && m.target === f.fieldId);
+                            return (
+                              <option key={f.fieldId} value={f.fieldId} disabled={claimedByOther}>
+                                {f.name}{claimedByOther ? ' ✓' : ''}
                               </option>
                             );
                           })}

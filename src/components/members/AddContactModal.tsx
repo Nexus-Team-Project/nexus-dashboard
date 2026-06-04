@@ -3,12 +3,15 @@
  * Calls the contacts API on submit and notifies the parent on success.
  */
 import { useState } from 'react';
-import { tenantContactsApi } from '../../lib/api';
+import { tenantContactsApi, type ContactField } from '../../lib/api';
 import { normalizeIsraeliPhone } from '../../lib/israeliPhone';
+import { CustomFieldInput } from './customFieldsUtil';
 
 interface AddContactModalProps {
   language: 'he' | 'en';
   onClose: () => void;
+  /** Tenant custom columns, rendered as optional inputs at the bottom. */
+  contactFields: ContactField[];
   /** Called after a contact is successfully created so the table can refresh. */
   onCreated: () => void;
 }
@@ -24,12 +27,16 @@ const COPY = {
     addressPh: 'רחוב הרצל 1, תל אביב',
     phone: 'טלפון נייד',
     phonePh: '0508465858 / +972508465858',
+    customSection: 'עמודות מותאמות אישית',
+    optional: 'אופציונלי',
     cancel: 'ביטול',
     save: 'שמור',
     saving: 'שומר...',
     required: 'אימייל הוא שדה חובה',
+    nameRequired: 'שם מלא הוא שדה חובה',
     invalid: 'אימייל לא תקין',
     invalidPhone: 'מספר טלפון לא תקין. השתמש בפורמט 05XXXXXXXX או +972XXXXXXXX.',
+    saveFailed: 'שמירת איש הקשר נכשלה',
   },
   en: {
     title: 'Add contact',
@@ -41,12 +48,16 @@ const COPY = {
     addressPh: '1 Main St, City',
     phone: 'Mobile phone',
     phonePh: '0508465858 / +972508465858',
+    customSection: 'Custom columns',
+    optional: 'optional',
     cancel: 'Cancel',
     save: 'Save',
     saving: 'Saving...',
     required: 'Email is required',
+    nameRequired: 'Full name is required',
     invalid: 'Invalid email address',
     invalidPhone: 'Invalid phone number. Use 05XXXXXXXX or +972XXXXXXXX.',
+    saveFailed: 'Failed to save contact',
   },
 } as const;
 
@@ -57,19 +68,26 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
  * Input: language, close callback, success callback.
  * Output: form that posts to the contacts API on submit.
  */
-export default function AddContactModal({ language, onClose, onCreated }: AddContactModalProps) {
+export default function AddContactModal({ language, onClose, contactFields, onCreated }: AddContactModalProps) {
   const copy = COPY[language];
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
+  const [customValues, setCustomValues] = useState<Record<string, unknown>>({});
+  const [nameError, setNameError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError(null);
+    const trimmedName = displayName.trim();
     const trimmedEmail = email.trim().toLowerCase();
+    // Full name is required (matches the backend rule).
+    if (!trimmedName) { setNameError(copy.nameRequired); return; }
     if (!trimmedEmail) { setError(copy.required); return; }
     if (!EMAIL_RE.test(trimmedEmail)) { setError(copy.invalid); return; }
 
@@ -83,20 +101,22 @@ export default function AddContactModal({ language, onClose, onCreated }: AddCon
       normalizedPhone = n;
     }
 
+    setNameError(null);
     setError(null);
     setPhoneError(null);
     setSaving(true);
     try {
       await tenantContactsApi.create({
         email: trimmedEmail,
-        displayName: displayName.trim() || undefined,
+        displayName: trimmedName,
         address: address.trim() || undefined,
         phone: normalizedPhone,
+        ...(Object.keys(customValues).length ? { customFields: customValues } : {}),
       });
       onCreated();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save contact');
+      setSubmitError(err instanceof Error && err.message ? err.message : copy.saveFailed);
     } finally {
       setSaving(false);
     }
@@ -120,18 +140,31 @@ export default function AddContactModal({ language, onClose, onCreated }: AddCon
 
         {/* Form */}
         <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4 px-6 py-5">
-          {/* Full Name */}
+          {/* Submit error banner */}
+          {submitError && (
+            <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-400">
+              <span className="material-icons text-sm">error_outline</span>
+              <span dir="auto">{submitError}</span>
+            </div>
+          )}
+
+          {/* Full Name (required) */}
           <div>
             <label className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300">
-              {copy.name}
+              {copy.name} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
+              onChange={(e) => { setDisplayName(e.target.value); setNameError(null); }}
               placeholder={copy.namePh}
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              className={`w-full rounded-lg border bg-slate-50 px-3 py-2.5 text-sm outline-none transition-all focus:ring-2 dark:bg-slate-800 dark:text-white ${
+                nameError
+                  ? 'border-red-400 focus:border-red-400 focus:ring-red-200'
+                  : 'border-slate-200 focus:border-primary focus:ring-primary/20 dark:border-slate-700'
+              }`}
             />
+            {nameError && <p className="mt-1 text-xs text-red-500">{nameError}</p>}
           </div>
 
           {/* Email */}
@@ -188,6 +221,21 @@ export default function AddContactModal({ language, onClose, onCreated }: AddCon
             />
             {phoneError && <p className="mt-1 text-xs text-red-500">{phoneError}</p>}
           </div>
+
+          {/* Custom columns (optional) */}
+          {contactFields.length > 0 && (
+            <div className="space-y-4 border-t border-slate-100 pt-4 dark:border-slate-800">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                {copy.customSection} <span className="lowercase">({copy.optional})</span>
+              </p>
+              {contactFields.map((f) => (
+                <div key={f.fieldId}>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300" dir="auto">{f.name}</label>
+                  <CustomFieldInput field={f} value={customValues[f.fieldId]} onChange={(next) => setCustomValues((prev) => ({ ...prev, [f.fieldId]: next }))} />
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex items-center justify-end gap-3 pt-1">
