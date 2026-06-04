@@ -10,7 +10,7 @@ import ScheduleStep from './ScheduleStep';
 import type { OnboardingData } from './OnboardingWizard';
 import { clearOnboardingDraft } from './OnboardingWizard';
 import nexusBlackLogo from '../../assets/logos/Nexus_wide_logo_blak.png';
-import { onboardingApi, type SkipReason, type WizardDraftPayload } from '../../lib/api';
+import { onboardingApi, tenantLogoApi, tenantBrandColorApi, type SkipReason, type WizardDraftPayload } from '../../lib/api';
 import { useLanguage } from '../../i18n/LanguageContext';
 
 /** Nexus Wallet base URL — the end-user app where members and regular users live. */
@@ -87,6 +87,19 @@ const WorkspaceSetupModal = ({ onClose, onFinished, firstName, forceOpen = false
         contactPhone: data.phone,
         contactRole: data.role,
       });
+      // The tenant now exists -> upload the optional logo (best-effort; a logo
+      // failure must not block onboarding completion).
+      if (data.logoBlob) {
+        await tenantLogoApi.upload(data.logoBlob).catch((e) => {
+          console.error('[onboarding] logo upload failed (non-fatal):', e);
+        });
+      }
+      // Save the optional brand color (best-effort; never blocks completion).
+      if (data.brandColor) {
+        await tenantBrandColorApi.set(data.brandColor).catch((e) => {
+          console.error('[onboarding] brand color save failed (non-fatal):', e);
+        });
+      }
       // Clear both localStorage and MongoDB draft on success
       clearOnboardingDraft();
       void onboardingApi.clearWizardDraft().catch(() => { /* non-fatal */ });

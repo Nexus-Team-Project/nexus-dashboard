@@ -11,6 +11,7 @@
 import { useState, useRef, useCallback } from 'react';
 import ReactCrop, { type Crop, type PixelCrop, centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
+import { useLanguage } from '../i18n/LanguageContext';
 
 // ─── Props ─────────────────────────────────────────────────────────────────────
 
@@ -21,6 +22,12 @@ interface ImageCropModalProps {
   onCrop: (blob: Blob) => void;
   /** Called when the user closes the modal without confirming. */
   onCancel: () => void;
+  /** Lock the crop to this width/height ratio (e.g. 1 for a square logo).
+   *  Omitted = free-form crop that keeps the image's natural ratio. */
+  aspect?: number;
+  /** Show a "use full image" button that skips cropping and returns the whole
+   *  image as-is. Useful for logos that are already correctly framed. */
+  allowFullImage?: boolean;
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -69,9 +76,9 @@ async function getCroppedBlob(imgEl: HTMLImageElement, pixelCrop: PixelCrop): Pr
  * Input:  mediaWidth, mediaHeight - natural image dimensions in pixels.
  * Output: Crop object ready to pass to react-image-crop's `crop` prop.
  */
-function defaultCrop(mediaWidth: number, mediaHeight: number): Crop {
+function defaultCrop(mediaWidth: number, mediaHeight: number, aspect?: number): Crop {
   return centerCrop(
-    makeAspectCrop({ unit: '%', width: 80 }, mediaWidth / mediaHeight, mediaWidth, mediaHeight),
+    makeAspectCrop({ unit: '%', width: 80 }, aspect ?? mediaWidth / mediaHeight, mediaWidth, mediaHeight),
     mediaWidth,
     mediaHeight,
   );
@@ -87,7 +94,9 @@ function defaultCrop(mediaWidth: number, mediaHeight: number): Crop {
  * Input:  src, onCrop, onCancel via props.
  * Output: renders a modal overlay; calls onCrop(blob) or onCancel() on dismiss.
  */
-export default function ImageCropModal({ src, onCrop, onCancel }: ImageCropModalProps) {
+export default function ImageCropModal({ src, onCrop, onCancel, aspect, allowFullImage }: ImageCropModalProps) {
+  const { language } = useLanguage();
+  const isHe = language === 'he';
   /** Current percentage-based crop selection (drives the reactive UI). */
   const [crop, setCrop] = useState<Crop>();
   /** Pixel-based completed crop - populated once the user finishes dragging. */
@@ -106,8 +115,8 @@ export default function ImageCropModal({ src, onCrop, onCancel }: ImageCropModal
    */
   const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const { naturalWidth, naturalHeight } = e.currentTarget;
-    setCrop(defaultCrop(naturalWidth, naturalHeight));
-  }, []);
+    setCrop(defaultCrop(naturalWidth, naturalHeight, aspect));
+  }, [aspect]);
 
   /**
    * Runs canvas extraction on the completed crop selection and calls onCrop.
@@ -124,6 +133,22 @@ export default function ImageCropModal({ src, onCrop, onCancel }: ImageCropModal
       onCrop(blob);
     } catch (err) {
       console.error('Crop extraction failed:', err);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  /** Skip cropping: return the whole image as-is (full display area). */
+  const handleUseFull = async () => {
+    if (!imgRef.current) return;
+    setIsProcessing(true);
+    try {
+      const img = imgRef.current;
+      const full: PixelCrop = { unit: 'px', x: 0, y: 0, width: img.width, height: img.height };
+      const blob = await getCroppedBlob(img, full);
+      onCrop(blob);
+    } catch (err) {
+      console.error('Full-image extraction failed:', err);
     } finally {
       setIsProcessing(false);
     }
@@ -155,6 +180,7 @@ export default function ImageCropModal({ src, onCrop, onCancel }: ImageCropModal
             crop={crop}
             onChange={(_px, percentCrop) => setCrop(percentCrop)}
             onComplete={(c) => setCompletedCrop(c)}
+            aspect={aspect}
             minWidth={50}
             minHeight={50}
           >
@@ -169,7 +195,17 @@ export default function ImageCropModal({ src, onCrop, onCancel }: ImageCropModal
         </div>
 
         {/* Actions */}
-        <div className="flex justify-end gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
+          {allowFullImage && (
+            <button
+              type="button"
+              onClick={() => void handleUseFull()}
+              disabled={isProcessing}
+              className="me-auto rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+            >
+              {isHe ? 'השתמש בתמונה המלאה' : 'Use full image'}
+            </button>
+          )}
           <button
             type="button"
             onClick={onCancel}

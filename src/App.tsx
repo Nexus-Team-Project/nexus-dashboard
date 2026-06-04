@@ -14,6 +14,8 @@ import Content from './pages/Content';
 import Settings from './pages/Settings';
 import Members from './pages/Members';
 import RolesPermissions from './pages/RolesPermissions';
+import AppearanceSettings from './pages/AppearanceSettings';
+import JoinRequestsSettings from './pages/JoinRequestsSettings';
 import InviteCollaborators from './pages/InviteCollaborators';
 import MemberInviteAccept from './pages/MemberInviteAccept';
 import Lobby from './pages/Lobby';
@@ -284,6 +286,8 @@ function AppRoutes() {
             <Route path="settings" element={<Settings />} />
             <Route path="settings/roles-permissions" element={<RolesPermissions />} />
             <Route path="settings/roles-permissions/invite" element={<InviteCollaborators />} />
+            <Route path="settings/appearance" element={<AppearanceSettings />} />
+            <Route path="settings/join-requests" element={<JoinRequestsSettings />} />
             <Route path="dev" element={<DevPlaygroundRoute />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
@@ -348,6 +352,8 @@ function AppRoutes() {
         <Route path="settings" element={<Settings />} />
         <Route path="settings/roles-permissions" element={canViewMembers ? <RolesPermissions /> : <Navigate to="/" replace />} />
         <Route path="settings/roles-permissions/invite" element={canManageMembers ? <InviteCollaborators /> : <Navigate to="/" replace />} />
+        <Route path="settings/appearance" element={<AppearanceSettings />} />
+        <Route path="settings/join-requests" element={canManageMembers ? <JoinRequestsSettings /> : <Navigate to="/" replace />} />
         <Route path="dev" element={<DevPlaygroundRoute />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
