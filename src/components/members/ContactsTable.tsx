@@ -33,8 +33,10 @@ const COPY = {
     noAddress: 'לא צוין',
     noPhone: 'לא צוין',
     noActivity: 'לא ידוע',
-    phoneVerified: 'אומת ע״י המשתמש',
+    phoneVerified: 'מאומת',
     phoneUnverified: 'לא אומת',
+    phoneVerifiedTitle: 'אומת על ידי המשתמש',
+    phoneUnverifiedTitle: 'לא אומת על ידי המשתמש',
   },
   en: {
     name: 'Full Name',
@@ -51,8 +53,10 @@ const COPY = {
     noAddress: 'Not provided',
     noPhone: 'Not provided',
     noActivity: 'Unknown',
-    phoneVerified: 'Verified by user',
-    phoneUnverified: 'Not verified',
+    phoneVerified: 'Verified',
+    phoneUnverified: 'Unverified',
+    phoneVerifiedTitle: 'Verified by the user',
+    phoneUnverifiedTitle: 'Not verified by the user',
   },
 } as const;
 
@@ -236,21 +240,21 @@ export default function ContactsTable({ contacts, loading, language, canManage, 
                   {c.displayName || '-'}
                 </td>
                 <td className="max-w-[200px] truncate px-6 py-2.5 text-slate-600 dark:text-slate-300">{c.email}</td>
-                <td className="px-6 py-2.5 text-slate-500 whitespace-nowrap" dir="ltr">
+                <td className="px-6 py-2.5 text-slate-500">
                   {c.phone ? (
-                    <span className="inline-flex items-center gap-1.5">
-                      <span>{c.phone}</span>
+                    <div className="flex flex-col items-start gap-1">
+                      <span className="whitespace-nowrap" dir="ltr">{c.phone}</span>
                       {c.phoneVerified ? (
-                        <span title={copy.phoneVerified} className="inline-flex items-center gap-0.5 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                        <span title={copy.phoneVerifiedTitle} className="inline-flex items-center gap-0.5 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                           {copy.phoneVerified}
                         </span>
                       ) : (
-                        <span title={copy.phoneUnverified} className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400 dark:bg-slate-700 dark:text-slate-400">
+                        <span title={copy.phoneUnverifiedTitle} className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400 dark:bg-slate-700 dark:text-slate-400">
                           {copy.phoneUnverified}
                         </span>
                       )}
-                    </span>
+                    </div>
                   ) : (
                     copy.noPhone
                   )}
