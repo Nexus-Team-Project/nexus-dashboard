@@ -33,6 +33,8 @@ const COPY = {
     noAddress: 'לא צוין',
     noPhone: 'לא צוין',
     noActivity: 'לא ידוע',
+    phoneVerified: 'אומת ע״י המשתמש',
+    phoneUnverified: 'לא אומת',
   },
   en: {
     name: 'Full Name',
@@ -49,6 +51,8 @@ const COPY = {
     noAddress: 'Not provided',
     noPhone: 'Not provided',
     noActivity: 'Unknown',
+    phoneVerified: 'Verified by user',
+    phoneUnverified: 'Not verified',
   },
 } as const;
 
@@ -232,7 +236,25 @@ export default function ContactsTable({ contacts, loading, language, canManage, 
                   {c.displayName || '-'}
                 </td>
                 <td className="max-w-[200px] truncate px-6 py-2.5 text-slate-600 dark:text-slate-300">{c.email}</td>
-                <td className="px-6 py-2.5 text-slate-500 whitespace-nowrap" dir="ltr">{c.phone ?? copy.noPhone}</td>
+                <td className="px-6 py-2.5 text-slate-500 whitespace-nowrap" dir="ltr">
+                  {c.phone ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <span>{c.phone}</span>
+                      {c.phoneVerified ? (
+                        <span title={copy.phoneVerified} className="inline-flex items-center gap-0.5 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                          {copy.phoneVerified}
+                        </span>
+                      ) : (
+                        <span title={copy.phoneUnverified} className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400 dark:bg-slate-700 dark:text-slate-400">
+                          {copy.phoneUnverified}
+                        </span>
+                      )}
+                    </span>
+                  ) : (
+                    copy.noPhone
+                  )}
+                </td>
                 <td className="px-6 py-2.5">
                   <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS_CLASSES[c.status] ?? STATUS_CLASSES.inactive}`}>
                     {c.status}
@@ -279,7 +301,14 @@ export default function ContactsTable({ contacts, loading, language, canManage, 
                 {c.status}
               </span>
             </div>
-            {c.phone && <p className="mt-2 text-xs text-slate-500" dir="ltr">{c.phone}</p>}
+            {c.phone && (
+              <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500" dir="ltr">
+                <span>{c.phone}</span>
+                <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${c.phoneVerified ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-400 dark:bg-slate-700'}`}>
+                  {c.phoneVerified ? copy.phoneVerified : copy.phoneUnverified}
+                </span>
+              </p>
+            )}
             {c.address && <p className="mt-1 text-xs text-slate-500">{c.address}</p>}
             <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
               <span>{fmtDate(c.createdAt, language, '-')}</span>

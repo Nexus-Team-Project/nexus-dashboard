@@ -608,6 +608,9 @@ export interface TenantContact {
   address: string | null;
   /** Canonical Israeli mobile number ("05XXXXXXXX") or null when not provided. */
   phone: string | null;
+  /** True only when the member verified the number themselves (SMS / wallet OTP).
+   *  Tenant-entered or test-attached numbers are false. */
+  phoneVerified: boolean;
   lastActivityAt: string | null;
   createdAt: string;
   updatedAt: string;
