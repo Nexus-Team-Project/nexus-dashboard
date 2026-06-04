@@ -9,8 +9,11 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   tenantContactsApi,
+  tenantContactFieldsApi,
   tenantMembersApi,
   type TenantContact,
+  type ContactField,
+  type ContactCustomFilter,
   type TenantMemberListItem,
   type TenantRole,
   type PaginationMeta,
@@ -25,6 +28,8 @@ import ContactsTable from '../components/members/ContactsTable';
 import RegisteredTable from '../components/members/RegisteredTable';
 import FilterPanel from '../components/members/FilterPanel';
 import AddContactModal from '../components/members/AddContactModal';
+import AddContactFieldModal from '../components/members/AddContactFieldModal';
+import EditContactModal from '../components/members/EditContactModal';
 import EditEmailModal from '../components/members/EditEmailModal';
 import EditRolesModal from '../components/members/EditRolesModal';
 import ConfirmRemoveModal from '../components/members/ConfirmRemoveModal';
@@ -116,12 +121,15 @@ function exportToCsv(rows: Record<string, string | null | undefined>[], filename
  */
 function TooltipButton({
   icon,
+  iconNode,
   label,
   onClick,
   active = false,
   badge,
 }: {
-  icon: string;
+  icon?: string;
+  /** Custom icon element; overrides the material-icons `icon` when provided. */
+  iconNode?: React.ReactNode;
   label: string;
   onClick: () => void;
   active?: boolean;
@@ -142,7 +150,7 @@ function TooltipButton({
           active ? 'bg-primary text-white' : 'text-primary hover:bg-primary/10'
         }`}
       >
-        <span className="material-icons text-[16px]">{icon}</span>
+        {iconNode ?? <span className="material-icons text-[16px]">{icon}</span>}
       </button>
       {badge !== undefined && badge > 0 && !active && (
         <span className="pointer-events-none absolute -end-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full border border-primary bg-white text-[10px] font-bold text-primary">
@@ -197,6 +205,14 @@ export default function Members() {
   const [contactsParams, setContactsParams] = useState<ListContactsParams>({ page: 1, limit: PAGE_SIZE });
   const [contactsLoading, setContactsLoading] = useState(true);
 
+  // Custom columns (field definitions) + their management modals.
+  const [contactFields, setContactFields] = useState<ContactField[]>([]);
+  const [showAddColumn, setShowAddColumn] = useState(false);
+  const [editContact, setEditContact] = useState<TenantContact | null>(null);
+  const [renameField, setRenameField] = useState<ContactField | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [deleteField, setDeleteField] = useState<ContactField | null>(null);
+
   // Registered members state
   const [members, setMembers] = useState<TenantMemberListItem[]>([]);
   const [membersPagination, setMembersPagination] = useState<PaginationMeta | null>(null);
@@ -250,6 +266,75 @@ export default function Members() {
   useEffect(() => { void fetchContacts(contactsParams); }, [contactsParams, fetchContacts]);
   useEffect(() => { if (activeTab === 'members') void fetchMembers(membersParams); }, [activeTab, membersParams, fetchMembers]);
 
+  // Load the tenant's custom columns once (used by the table, filter, import).
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const r = await tenantContactFieldsApi.list();
+        if (active) setContactFields(r.fields);
+      } catch (err) {
+        console.error('[members] load contact fields failed:', err);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
+
+  /** Persist a column rename. */
+  const submitRename = async () => {
+    if (!renameField || !renameValue.trim()) return;
+    try {
+      const f = await tenantContactFieldsApi.rename(renameField.fieldId, renameValue.trim());
+      setContactFields((prev) => prev.map((x) => (x.fieldId === f.fieldId ? f : x)));
+      setRenameField(null);
+    } catch (err) {
+      toast.error(language === 'he' ? 'שינוי השם נכשל' : 'Rename failed', { description: err instanceof Error ? err.message : undefined });
+    }
+  };
+
+  /** Delete a column (also clears its values on the server) and refresh rows. */
+  const confirmDeleteColumn = async () => {
+    if (!deleteField) return;
+    try {
+      await tenantContactFieldsApi.remove(deleteField.fieldId);
+      setContactFields((prev) => prev.filter((x) => x.fieldId !== deleteField.fieldId));
+      setDeleteField(null);
+      void fetchContacts(contactsParams);
+    } catch (err) {
+      toast.error(language === 'he' ? 'מחיקת העמודה נכשלה' : 'Delete failed', { description: err instanceof Error ? err.message : undefined });
+    }
+  };
+
+  /** Move a column one slot earlier/later (optimistic, then persist order). */
+  const moveColumn = async (field: ContactField, dir: 'earlier' | 'later') => {
+    const sorted = [...contactFields].sort((a, b) => a.order - b.order);
+    const idx = sorted.findIndex((f) => f.fieldId === field.fieldId);
+    const swap = dir === 'earlier' ? idx - 1 : idx + 1;
+    if (idx < 0 || swap < 0 || swap >= sorted.length) return;
+    [sorted[idx], sorted[swap]] = [sorted[swap], sorted[idx]];
+    const reordered = sorted.map((f, i) => ({ ...f, order: i }));
+    setContactFields(reordered);
+    try {
+      const r = await tenantContactFieldsApi.reorder(reordered.map((f) => ({ fieldId: f.fieldId, order: f.order })));
+      setContactFields(r.fields);
+    } catch {
+      try { const r = await tenantContactFieldsApi.list(); setContactFields(r.fields); } catch { /* ignore */ }
+    }
+  };
+
+  /** Add/replace/remove one custom-column filter and reset to page 1. */
+  const updateContactsCustomFilter = (fieldId: string, op: ContactCustomFilter['op'], value: unknown) => {
+    setContactsParams((prev) => {
+      const others = (prev.customFilters ?? []).filter((f) => f.fieldId !== fieldId);
+      const isEmpty =
+        value === undefined || value === null || value === '' ||
+        (Array.isArray(value) && value.length === 0) ||
+        (typeof value === 'object' && !Array.isArray(value) &&
+          Object.values(value as Record<string, unknown>).every((v) => v === '' || v === undefined || v === null));
+      return { ...prev, customFilters: isEmpty ? others : [...others, { fieldId, op, value }], page: 1 };
+    });
+  };
+
   /** Updates a contacts filter param and resets to page 1. */
   const updateContactsFilter = (key: keyof ListContactsParams, value: string) => {
     setContactsParams((prev) => ({
@@ -273,10 +358,11 @@ export default function Members() {
     setMembersParams({ page: 1, limit: PAGE_SIZE });
   };
 
-  const activeFilterCount = [
-    contactsParams.search, contactsParams.status,
-    membersParams.search, membersParams.status, membersParams.role,
-  ].filter(Boolean).length;
+  const activeFilterCount =
+    [
+      contactsParams.search, contactsParams.status,
+      membersParams.search, membersParams.status, membersParams.role,
+    ].filter(Boolean).length + (contactsParams.customFilters?.length ?? 0);
 
   /**
    * Paginates through all inactive contacts, stores their emails in sessionStorage,
@@ -429,8 +515,10 @@ export default function Members() {
             language={language}
             contactsParams={contactsParams}
             membersParams={membersParams}
+            contactFields={contactFields}
             activeFilterCount={activeFilterCount}
             onContactsFilter={updateContactsFilter}
+            onContactsCustomFilter={updateContactsCustomFilter}
             onMembersFilter={updateMembersFilter}
             onClearFilters={clearFilters}
             onClose={() => setShowFilterPanel(false)}
@@ -457,6 +545,22 @@ export default function Members() {
                   icon="person_add_alt"
                   label={language === 'he' ? 'הוסף איש קשר' : 'Add contact'}
                   onClick={() => setShowAddContact(true)}
+                />
+              )}
+
+              {/* Add custom column — contacts tab only. Custom icon: two columns
+                  with a plus, clearer than the generic view_column glyph. */}
+              {activeTab === 'contacts' && canManage && (
+                <TooltipButton
+                  iconNode={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+                      <rect x="3" y="4" width="6" height="16" rx="1.5" />
+                      <rect x="10.5" y="4" width="6" height="16" rx="1.5" />
+                      <path d="M20.5 8.5v5M18 11h5" />
+                    </svg>
+                  }
+                  label={language === 'he' ? 'הוסף עמודה' : 'Add column'}
+                  onClick={() => setShowAddColumn(true)}
                 />
               )}
 
@@ -560,8 +664,13 @@ export default function Members() {
               language={language}
               canManage={canManage}
               tenantName={me?.context.tenantName ?? undefined}
+              contactFields={contactFields}
               onEditEmail={canManage ? (c) => setEditEmailContact(c) : undefined}
+              onEditContact={canManage ? (c) => setEditContact(c) : undefined}
               onRemove={canManage ? (c) => setRemoveContact(c) : undefined}
+              onRenameColumn={canManage ? (f) => { setRenameField(f); setRenameValue(f.name); } : undefined}
+              onDeleteColumn={canManage ? (f) => setDeleteField(f) : undefined}
+              onMoveColumn={canManage ? (f, dir) => void moveColumn(f, dir) : undefined}
             />
           ) : (
             <RegisteredTable
@@ -582,6 +691,7 @@ export default function Members() {
       {showAddContact && (
         <AddContactModal
           language={language}
+          contactFields={contactFields}
           onClose={() => setShowAddContact(false)}
           onCreated={() => void fetchContacts(contactsParams)}
         />
@@ -691,9 +801,70 @@ export default function Members() {
           fileName={csvFileName}
           csvHeaders={csvData.headers}
           csvRows={csvData.rows}
+          contactFields={contactFields}
           onImport={handleImport}
           onClose={() => setCsvData(null)}
         />
+      )}
+
+      {/* Add custom column */}
+      {showAddColumn && (
+        <AddContactFieldModal
+          language={language}
+          onClose={() => setShowAddColumn(false)}
+          onCreated={(field) => setContactFields((prev) => [...prev, field].sort((a, b) => a.order - b.order))}
+        />
+      )}
+
+      {/* Edit contact (base fields + custom columns) */}
+      {editContact && (
+        <EditContactModal
+          language={language}
+          contact={editContact}
+          fields={contactFields}
+          onClose={() => setEditContact(null)}
+          onSaved={() => void fetchContacts(contactsParams)}
+        />
+      )}
+
+      {/* Rename column */}
+      {renameField && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true" onClick={() => setRenameField(null)}>
+          <div dir={isRTL ? 'rtl' : 'ltr'} className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl dark:bg-slate-900" onClick={(e) => e.stopPropagation()}>
+            <h2 className="mb-3 text-lg font-bold text-slate-900 dark:text-white">{language === 'he' ? 'שינוי שם עמודה' : 'Rename column'}</h2>
+            <input
+              type="text"
+              value={renameValue}
+              maxLength={50}
+              autoFocus
+              onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') void submitRename(); }}
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" onClick={() => setRenameField(null)} className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">{language === 'he' ? 'ביטול' : 'Cancel'}</button>
+              <button type="button" onClick={() => void submitRename()} disabled={!renameValue.trim()} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm hover:opacity-90 disabled:opacity-50">{language === 'he' ? 'שמירה' : 'Save'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete column confirm */}
+      {deleteField && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true" onClick={() => setDeleteField(null)}>
+          <div dir={isRTL ? 'rtl' : 'ltr'} className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl dark:bg-slate-900" onClick={(e) => e.stopPropagation()}>
+            <h2 className="mb-2 text-lg font-bold text-slate-900 dark:text-white">{language === 'he' ? 'מחיקת עמודה' : 'Delete column'}</h2>
+            <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+              {language === 'he'
+                ? `מחיקת "${deleteField.name}" תסיר את הערכים שלה מכל אנשי הקשר. לא ניתן לבטל פעולה זו.`
+                : `Deleting "${deleteField.name}" removes its values from all contacts. This cannot be undone.`}
+            </p>
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setDeleteField(null)} className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">{language === 'he' ? 'ביטול' : 'Cancel'}</button>
+              <button type="button" onClick={() => void confirmDeleteColumn()} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700">{language === 'he' ? 'מחק' : 'Delete'}</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

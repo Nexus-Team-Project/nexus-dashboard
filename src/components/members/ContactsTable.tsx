@@ -5,7 +5,8 @@
  */
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { TenantContact } from '../../lib/api';
+import type { TenantContact, ContactField } from '../../lib/api';
+import { renderCustomCell, isEmptyValue } from './customFieldsUtil';
 
 export interface ContactsTableProps {
   contacts: TenantContact[];
@@ -13,8 +14,15 @@ export interface ContactsTableProps {
   language: 'he' | 'en';
   canManage: boolean;
   tenantName?: string;
+  /** Tenant-defined custom columns, in display order. */
+  contactFields: ContactField[];
   onEditEmail?: (contact: TenantContact) => void;
+  onEditContact?: (contact: TenantContact) => void;
   onRemove?: (contact: TenantContact) => void;
+  /** Custom-column management (admins). */
+  onRenameColumn?: (field: ContactField) => void;
+  onDeleteColumn?: (field: ContactField) => void;
+  onMoveColumn?: (field: ContactField, dir: 'earlier' | 'later') => void;
 }
 
 const COPY = {
@@ -28,7 +36,13 @@ const COPY = {
     firstEntry: 'כניסה ראשונה',
     invitePrefix: 'הזמן ל-',
     editEmail: 'שינוי אימייל',
+    editContact: 'עריכת פרטים',
     remove: 'הסר',
+    addColumn: 'הוסף עמודה',
+    renameColumn: 'שנה שם',
+    deleteColumn: 'מחק עמודה',
+    moveEarlier: 'הזז שמאלה',
+    moveLater: 'הזז ימינה',
     empty: 'אין אנשי קשר עדיין.',
     noAddress: 'לא צוין',
     noPhone: 'לא צוין',
@@ -48,7 +62,13 @@ const COPY = {
     firstEntry: 'First Entry',
     invitePrefix: 'Invite to ',
     editEmail: 'Change email',
+    editContact: 'Edit details',
     remove: 'Remove',
+    addColumn: 'Add column',
+    renameColumn: 'Rename',
+    deleteColumn: 'Delete column',
+    moveEarlier: 'Move left',
+    moveLater: 'Move right',
     empty: 'No contacts yet.',
     noAddress: 'Not provided',
     noPhone: 'Not provided',
@@ -93,6 +113,7 @@ function RowMenu({
   tenantName,
   onInvite,
   onEditEmail,
+  onEditContact,
   onRemove,
 }: {
   contact: TenantContact;
@@ -101,6 +122,7 @@ function RowMenu({
   tenantName: string;
   onInvite: (email: string) => void;
   onEditEmail?: (contact: TenantContact) => void;
+  onEditContact?: (contact: TenantContact) => void;
   onRemove?: (contact: TenantContact) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -146,6 +168,17 @@ function RowMenu({
               ? { bottom: dropPos.bottom, right: dropPos.right }
               : { top: dropPos.top, right: dropPos.right }}
           >
+            {/* Edit details (base fields + custom columns) */}
+            {onEditContact && (
+              <button
+                type="button"
+                onClick={() => { setOpen(false); onEditContact(contact); }}
+                className="flex w-full cursor-pointer items-center gap-3 border-b border-slate-100 px-4 py-3 text-start text-sm transition-colors hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-700"
+              >
+                <span className="material-icons text-sm text-slate-500">edit_note</span>
+                <span className="font-medium">{copy.editContact}</span>
+              </button>
+            )}
             {/* Invite to tenant */}
             <button
               type="button"
@@ -188,11 +221,100 @@ function RowMenu({
 }
 
 /**
+ * Custom-column header with a management menu (rename / move / delete). Without
+ * manage permission it renders just the column name.
+ */
+function ColumnHeaderMenu({
+  field,
+  language,
+  isFirst,
+  isLast,
+  onRename,
+  onDelete,
+  onMove,
+}: {
+  field: ContactField;
+  language: 'he' | 'en';
+  isFirst: boolean;
+  isLast: boolean;
+  onRename?: (f: ContactField) => void;
+  onDelete?: (f: ContactField) => void;
+  onMove?: (f: ContactField, dir: 'earlier' | 'later') => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const copy = COPY[language];
+  const canManage = !!(onRename || onDelete || onMove);
+
+  if (!canManage) return <span className="truncate" dir="auto">{field.name}</span>;
+
+  // Fixed positioning (computed from the trigger) so the menu escapes the
+  // table's overflow-x-auto wrapper, which would otherwise clip it.
+  const handleOpen = () => {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setPos({ top: r.bottom + 4, right: window.innerWidth - r.right });
+    }
+    setOpen((v) => !v);
+  };
+
+  return (
+    <div className="inline-flex items-center gap-1">
+      <span className="max-w-[140px] truncate" dir="auto">{field.name}</span>
+      <button ref={btnRef} type="button" onClick={handleOpen} className="cursor-pointer rounded p-0.5 text-slate-400 hover:text-slate-600" aria-label={field.name}>
+        <span className="material-icons text-sm">expand_more</span>
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} aria-hidden="true" />
+          <div className="fixed z-20 w-44 overflow-hidden rounded-lg border border-slate-200 bg-white normal-case shadow-lg dark:border-slate-700 dark:bg-slate-800" style={{ top: pos.top, right: pos.right }}>
+            {onRename && (
+              <button type="button" onClick={() => { setOpen(false); onRename(field); }} className="flex w-full cursor-pointer items-center gap-2 px-3 py-2.5 text-start text-sm font-normal tracking-normal text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700">
+                <span className="material-icons text-sm text-slate-500">edit</span>{copy.renameColumn}
+              </button>
+            )}
+            {onMove && !isFirst && (
+              <button type="button" onClick={() => { setOpen(false); onMove(field, 'earlier'); }} className="flex w-full cursor-pointer items-center gap-2 border-t border-slate-100 px-3 py-2.5 text-start text-sm font-normal tracking-normal text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700">
+                <span className="material-icons text-sm text-slate-500">arrow_back</span>{copy.moveEarlier}
+              </button>
+            )}
+            {onMove && !isLast && (
+              <button type="button" onClick={() => { setOpen(false); onMove(field, 'later'); }} className="flex w-full cursor-pointer items-center gap-2 border-t border-slate-100 px-3 py-2.5 text-start text-sm font-normal tracking-normal text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700">
+                <span className="material-icons text-sm text-slate-500">arrow_forward</span>{copy.moveLater}
+              </button>
+            )}
+            {onDelete && (
+              <button type="button" onClick={() => { setOpen(false); onDelete(field); }} className="flex w-full cursor-pointer items-center gap-2 border-t border-slate-100 px-3 py-2.5 text-start text-sm font-normal tracking-normal text-red-600 hover:bg-red-50 dark:border-slate-700 dark:hover:bg-red-900/20">
+                <span className="material-icons text-sm">delete</span>{copy.deleteColumn}
+              </button>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
  * Renders the contacts table (desktop) and mobile card list.
  * Input: contact list, loading state, language, and manage permission.
  * Output: responsive data display with per-row action menus.
  */
-export default function ContactsTable({ contacts, loading, language, canManage, tenantName = 'Tenant', onEditEmail, onRemove }: ContactsTableProps) {
+export default function ContactsTable({
+  contacts,
+  loading,
+  language,
+  canManage,
+  tenantName = 'Tenant',
+  contactFields,
+  onEditEmail,
+  onEditContact,
+  onRemove,
+  onRenameColumn,
+  onDeleteColumn,
+  onMoveColumn,
+}: ContactsTableProps) {
   const navigate = useNavigate();
   const copy = COPY[language];
 
@@ -215,6 +337,19 @@ export default function ContactsTable({ contacts, loading, language, canManage, 
               <th className="px-6 py-2.5 text-start">{copy.address}</th>
               <th className="px-6 py-2.5 text-start">{copy.lastActivity}</th>
               <th className="px-6 py-2.5 text-start">{copy.firstEntry}</th>
+              {contactFields.map((f, i) => (
+                <th key={f.fieldId} className="px-6 py-2.5 text-start">
+                  <ColumnHeaderMenu
+                    field={f}
+                    language={language}
+                    isFirst={i === 0}
+                    isLast={i === contactFields.length - 1}
+                    onRename={canManage ? onRenameColumn : undefined}
+                    onDelete={canManage ? onDeleteColumn : undefined}
+                    onMove={canManage ? onMoveColumn : undefined}
+                  />
+                </th>
+              ))}
               <th className="w-12 px-6 py-2.5" />
             </tr>
           </thead>
@@ -228,6 +363,9 @@ export default function ContactsTable({ contacts, loading, language, canManage, 
                 <td className="px-6 py-3"><div className="h-4 w-32 rounded bg-slate-200 dark:bg-slate-700" /></td>
                 <td className="px-6 py-3"><div className="h-4 w-20 rounded bg-slate-200 dark:bg-slate-700" /></td>
                 <td className="px-6 py-3"><div className="h-4 w-20 rounded bg-slate-200 dark:bg-slate-700" /></td>
+                {contactFields.map((f) => (
+                  <td key={f.fieldId} className="px-6 py-3"><div className="h-4 w-20 rounded bg-slate-200 dark:bg-slate-700" /></td>
+                ))}
                 <td className="px-6 py-3" />
               </tr>
             ))}
@@ -239,7 +377,7 @@ export default function ContactsTable({ contacts, loading, language, canManage, 
                 <td className="max-w-[160px] truncate px-6 py-2.5 font-medium text-slate-900 dark:text-white">
                   {c.displayName || '-'}
                 </td>
-                <td className="max-w-[200px] truncate px-6 py-2.5 text-slate-600 dark:text-slate-300">{c.email}</td>
+                <td className="whitespace-nowrap px-6 py-2.5 text-slate-600 dark:text-slate-300">{c.email}</td>
                 <td className="px-6 py-2.5 text-slate-500">
                   {c.phone ? (
                     <div className="flex flex-col items-start gap-1">
@@ -267,14 +405,19 @@ export default function ContactsTable({ contacts, loading, language, canManage, 
                 <td className="max-w-[180px] truncate px-6 py-2.5 text-slate-500">{c.address ?? copy.noAddress}</td>
                 <td className="px-6 py-2.5 text-slate-500">{fmtDate(c.lastActivityAt, language, copy.noActivity)}</td>
                 <td className="px-6 py-2.5 text-slate-500">{fmtDate(c.createdAt, language, '-')}</td>
+                {contactFields.map((f) => (
+                  <td key={f.fieldId} className="max-w-[200px] truncate px-6 py-2.5">
+                    {renderCustomCell(f, c.customFields?.[f.fieldId], language)}
+                  </td>
+                ))}
                 <td className="px-6 py-2.5 text-end">
-                  <RowMenu contact={c} canManage={canManage} language={language} tenantName={tenantName} onInvite={handleInvite} onEditEmail={onEditEmail} onRemove={onRemove} />
+                  <RowMenu contact={c} canManage={canManage} language={language} tenantName={tenantName} onInvite={handleInvite} onEditEmail={onEditEmail} onEditContact={onEditContact} onRemove={onRemove} />
                 </td>
               </tr>
             ))}
             {!loading && contacts.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-6 py-10 text-center text-sm text-slate-500">{copy.empty}</td>
+                <td colSpan={8 + contactFields.length} className="px-6 py-10 text-center text-sm text-slate-500">{copy.empty}</td>
               </tr>
             )}
           </tbody>
@@ -314,6 +457,14 @@ export default function ContactsTable({ contacts, loading, language, canManage, 
               </p>
             )}
             {c.address && <p className="mt-1 text-xs text-slate-500">{c.address}</p>}
+            {contactFields
+              .filter((f) => !isEmptyValue(c.customFields?.[f.fieldId]))
+              .map((f) => (
+                <p key={f.fieldId} className="mt-1 flex flex-wrap items-center gap-1 text-xs text-slate-500">
+                  <span className="font-medium text-slate-600 dark:text-slate-400" dir="auto">{f.name}:</span>
+                  {renderCustomCell(f, c.customFields?.[f.fieldId], language)}
+                </p>
+              ))}
             <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
               <span>{fmtDate(c.createdAt, language, '-')}</span>
               {canManage && (
@@ -326,9 +477,18 @@ export default function ContactsTable({ contacts, loading, language, canManage, 
                 </button>
               )}
             </div>
-            {canManage && NOT_ACCEPTED.includes(c.status) && (
+            {canManage && (onEditContact || NOT_ACCEPTED.includes(c.status)) && (
               <div className="mt-2 flex items-center gap-3 border-t border-slate-100 pt-2 dark:border-slate-800">
-                {onEditEmail && (
+                {onEditContact && (
+                  <button
+                    type="button"
+                    onClick={() => onEditContact(c)}
+                    className="cursor-pointer text-xs font-medium text-slate-500 hover:text-primary"
+                  >
+                    {copy.editContact}
+                  </button>
+                )}
+                {NOT_ACCEPTED.includes(c.status) && onEditEmail && (
                   <button
                     type="button"
                     onClick={() => onEditEmail(c)}
@@ -337,7 +497,7 @@ export default function ContactsTable({ contacts, loading, language, canManage, 
                     {copy.editEmail}
                   </button>
                 )}
-                {onRemove && (
+                {NOT_ACCEPTED.includes(c.status) && onRemove && (
                   <button
                     type="button"
                     onClick={() => onRemove(c)}
