@@ -16,11 +16,19 @@ const COPY = {
     settings: 'הגדרות',
     title: 'בקשות הצטרפות',
     body: 'נהל כיצד מטופלות בקשות הצטרפות שמגיעות מהארנק.',
+    soon: 'בקרוב',
+    soonTitle: 'איסוף פרטי הצטרפות מותאמים אישית',
+    soonBody:
+      'בקרוב תוכלו להחליט אילו פרטים לאסוף ממשתמשים שמבקשים להצטרף לארגון - כדי להכיר אותם טוב יותר ולהתאים את ההטבות והחוויה לצרכים שלכם.',
   },
   en: {
     settings: 'Settings',
     title: 'Join requests',
     body: 'Manage how join requests coming from the wallet are handled.',
+    soon: 'Coming soon',
+    soonTitle: 'Custom join information',
+    soonBody:
+      'Soon you will be able to decide which details to collect from people who want to join your organization - so you can get to know your users and better tailor the benefits and experience to your needs.',
   },
 } as const;
 
@@ -112,6 +120,24 @@ export default function JoinRequestsSettings() {
           </div>
         )}
         <p className="mt-3 text-xs leading-relaxed text-slate-500 dark:text-slate-400">{t('joinRequestsDesc')}</p>
+      </div>
+
+      {/* Coming-soon: custom join-information collection (placeholder, disabled). */}
+      <div className="max-w-md rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 dark:border-slate-700 dark:bg-slate-900/40">
+        <div className="flex items-start gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-slate-300 to-slate-400 shadow-sm dark:from-slate-600 dark:to-slate-700">
+            <span className="material-icons text-white">assignment</span>
+          </div>
+          <div className="min-w-0">
+            <div className="mb-1 flex flex-wrap items-center gap-2">
+              <h3 className="font-bold text-slate-700 dark:text-slate-200">{copy.soonTitle}</h3>
+              <span className="rounded-full bg-slate-200 px-2.5 py-0.5 text-[11px] font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                {copy.soon}
+              </span>
+            </div>
+            <p className="text-sm leading-relaxed text-slate-500 dark:text-slate-400">{copy.soonBody}</p>
+          </div>
+        </div>
       </div>
     </div>
   );
