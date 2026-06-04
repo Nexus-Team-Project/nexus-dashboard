@@ -273,6 +273,10 @@ export interface DashboardMe {
     mode: DashboardMode;
     tenantId: string | null;
     tenantName: string | null;
+    /** Cloudinary URL of the tenant logo, or null -> show the name initials. */
+    tenantLogoUrl?: string | null;
+    /** Org brand color ("#rrggbb"), or null -> wallet derives one from the id. */
+    tenantBrandColor?: string | null;
     memberId: string | null;
     role: string | null;
     plan?: TenantPlan;
@@ -689,6 +693,26 @@ export interface TenantJoinRequestItem {
   status: 'pending' | 'approved' | 'denied' | 'auto_accepted';
   createdAt: string;
 }
+
+/** Organization logo upload/remove (Cloudinary, tenant-admin only). */
+export const tenantLogoApi = {
+  /** Upload a square-cropped logo. Returns the new Cloudinary URL. */
+  upload: (blob: Blob) => {
+    const fd = new FormData();
+    fd.append('logo', blob, 'logo.jpg');
+    return request<{ logoUrl: string }>('POST', '/api/v1/tenant/logo', fd);
+  },
+  /** Remove the logo (revert to the tenant-name initials). */
+  remove: () => request<{ ok: true }>('DELETE', '/api/v1/tenant/logo'),
+};
+
+/** Organization brand color (tenant-admin only). Drives the wallet first-login
+ *  accent. Pass a "#rrggbb" hex to set, or null to clear (wallet falls back to
+ *  a color derived from the tenant id). */
+export const tenantBrandColorApi = {
+  set: (brandColor: string | null) =>
+    request<{ brandColor: string | null }>('PATCH', '/api/v1/tenant/brand-color', { brandColor }),
+};
 
 export const tenantJoinRequestsApi = {
   /** List pending join requests for the calling tenant admin. */

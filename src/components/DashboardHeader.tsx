@@ -13,7 +13,7 @@ import UserPanel from './UserPanel';
 import LanguageSwitcher from './LanguageSwitcher';
 import nexusLogoAnimated from '../assets/logos/Nexus_Wide_Logo_Animation_Black_Whithout_Slogan.gif';
 import nexusLogoStatic from '../assets/logos/Nexus_wide_logo_blak.png';
-import orgLogo from '../assets/logos/Nexus_Logo_only_Icon_Black.png';
+import TenantLogo from './common/TenantLogo';
 
 interface DashboardHeaderProps {
   onLogout: () => void;
@@ -42,8 +42,11 @@ function getDisplayInitial(label: string): string {
 
 const DashboardHeader = ({ onLogout, isChatOpen, onChatToggle, onMenuToggle }: DashboardHeaderProps) => {
   const { t, isRTL } = useLanguage();
-  const { user } = useAuth();
+  const { user, me } = useAuth();
   const navigate = useNavigate();
+  const tenantName = me?.context.tenantName ?? '';
+  const tenantLogoUrl = me?.context.tenantLogoUrl ?? null;
+  const [isLogoPreviewOpen, setIsLogoPreviewOpen] = useState(false);
   const [isLogoHovered, setIsLogoHovered] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isInboxOpen, setIsInboxOpen] = useState(false);
@@ -100,14 +103,15 @@ const DashboardHeader = ({ onLogout, isChatOpen, onChatToggle, onMenuToggle }: D
         </button>
         {/* All buttons and user profile at far left */}
         <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto no-scrollbar">
-          <div className="relative me-1 shrink-0">
-            <div className="absolute -end-1.5 -bottom-1 w-4 h-4 rounded-full bg-white border border-slate-200 flex items-center justify-center z-10 overflow-hidden">
-              <img src={orgLogo} alt="Organization" className="w-3 h-3 object-contain" />
-            </div>
+          {/* Avatar with the organization logo as a small badge on its bottom
+              corner. The wrapper is exactly the avatar's size so the absolutely
+              positioned badge anchors to the avatar, never stacks above it.
+              Inline styles guarantee the offset regardless of Tailwind purge. */}
+          <div className="relative me-1 shrink-0" style={{ width: 28, height: 28 }}>
             <button
               ref={userBtnRef}
               onClick={() => { setIsUserPanelOpen(!isUserPanelOpen); setIsNotificationsOpen(false); setIsInboxOpen(false); }}
-              className={`w-7 h-7 rounded-full flex items-center justify-center overflow-hidden transition-all shrink-0 ${
+              className={`w-7 h-7 rounded-full flex items-center justify-center overflow-hidden transition-all ${
                 isUserPanelOpen
                   ? 'ring-2 ring-[#635bff]'
                   : 'hover:ring-2 hover:ring-slate-300'
@@ -125,6 +129,16 @@ const DashboardHeader = ({ onLogout, isChatOpen, onChatToggle, onMenuToggle }: D
               ) : (
                 <span className="text-white font-semibold text-[12px]">{displayInitial}</span>
               )}
+            </button>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setIsLogoPreviewOpen(true); }}
+              style={{ position: 'absolute', insetInlineEnd: -5, bottom: -3, width: 16, height: 16 }}
+              className="rounded-full bg-white border border-slate-200 flex items-center justify-center z-10 overflow-hidden"
+              aria-label={isRTL ? 'לוגו הארגון' : 'Organization logo'}
+              title={tenantName}
+            >
+              <TenantLogo name={tenantName || 'N'} logoUrl={tenantLogoUrl} size={14} />
             </button>
           </div>
           <UserPanel
@@ -221,6 +235,27 @@ const DashboardHeader = ({ onLogout, isChatOpen, onChatToggle, onMenuToggle }: D
           />
         </div>
       </header>
+
+      {/* Full-screen organization logo preview (logo, or large name initials). */}
+      {isLogoPreviewOpen && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-6"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setIsLogoPreviewOpen(false)}
+        >
+          <div className="flex flex-col items-center gap-4" onClick={(e) => e.stopPropagation()}>
+            <TenantLogo
+              name={tenantName || 'N'}
+              logoUrl={tenantLogoUrl}
+              size={240}
+              rounded="rounded-3xl"
+              className="shadow-2xl"
+            />
+            {tenantName && <span className="text-lg font-semibold text-white">{tenantName}</span>}
+          </div>
+        </div>
+      )}
     </>
   );
 };

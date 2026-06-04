@@ -3,9 +3,15 @@
  * The component collects tenant setup data but leaves persistence to the parent.
  */
 import { useState, useRef, useEffect } from 'react';
+import { toast } from 'sonner';
 import nexusBlackLogo from '../../assets/logos/Nexus_wide_logo_blak.png';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { PhoneInputField } from '../ui/PhoneInputField';
+import TenantLogo from '../common/TenantLogo';
+import LogoCropUpload from '../common/LogoCropUpload';
+import InfoTooltip from '../common/InfoTooltip';
+import BrandColorPicker from '../common/BrandColorPicker';
+import { DEFAULT_BRAND_COLOR } from '../../lib/brandColor';
 
 const TOTAL_STEPS = 3;
 const MIN_DESC_CHARS = 20;
@@ -17,6 +23,12 @@ export interface OnboardingData {
   primary_use_cases: string[];
   phone: string;
   role: string;
+  /** Optional square-cropped logo, uploaded by the parent after the workspace
+   *  is created (the tenant must exist first). */
+  logoBlob?: Blob;
+  /** Optional brand color ("#rrggbb"), saved by the parent after the workspace
+   *  is created. Omitted when the admin left the default untouched. */
+  brandColor?: string;
 }
 
 // ── Use-case option definitions ────────────────────────────────────────────
@@ -47,6 +59,16 @@ const COPY = {
     welcomeSubtitle: 'ספרו לנו קצת על הארגון שלכם כדי להתאים את הסביבה. תמיד ניתן לשנות זאת מאוחר יותר.',
     orgNameLabel: 'שם הארגון',
     orgNamePlaceholder: 'נקסוס בע"מ',
+    logoLabel: 'לוגו הארגון',
+    logoOptional: 'אופציונלי',
+    logoUpload: 'העלאת לוגו',
+    logoChange: 'החלפה',
+    logoRemove: 'הסרה',
+    logoTip: 'העלו לוגו מרובע (מומלץ 512×512 פיקסלים), עדיף PNG עם רקע שקוף - כך הלוגו נראה חד בכל מקום. עד 5MB. פורמטים: PNG, JPG, WEBP. אם לא תעלו, יוצגו ראשי התיבות של שם הארגון.',
+    logoInvalidType: 'פורמט לא נתמך (PNG/JPG/WEBP)',
+    logoTooLarge: 'הקובץ גדול מדי (עד 5MB)',
+    brandColorLabel: 'צבע המותג',
+    brandColorTip: 'זהו הצבע שמשתמשי הארגון שלך יראו כשהם נכנסים בפעם הראשונה להטבות שלך.',
     websiteLabel: 'אתר',
     websitePlaceholder: 'www.example.com',
     websiteError: 'כתובת האתר אינה תקינה',
@@ -75,6 +97,16 @@ const COPY = {
     welcomeSubtitle: 'Tell us about your organization so we can tailor the workspace. You can change this later.',
     orgNameLabel: 'Organization name',
     orgNamePlaceholder: 'Nexus Ltd.',
+    logoLabel: 'Organization logo',
+    logoOptional: 'optional',
+    logoUpload: 'Upload logo',
+    logoChange: 'Change',
+    logoRemove: 'Remove',
+    logoTip: 'Upload a square logo (recommended 512×512 px), ideally a transparent PNG so it stays crisp everywhere. Max 5MB. Formats: PNG, JPG, WEBP. If you skip it, the organization-name initials are used.',
+    logoInvalidType: 'Unsupported format (PNG/JPG/WEBP)',
+    logoTooLarge: 'File too large (max 5MB)',
+    brandColorLabel: 'Brand color',
+    brandColorTip: 'This is the color your organization users will see when logging in for the first time to your benefits.',
     websiteLabel: 'Website',
     websitePlaceholder: 'www.example.com',
     websiteError: 'Website is invalid',
@@ -120,6 +152,7 @@ export interface WizardDraft {
   primarySuggested?: string[];
   phone?: string;
   role?: string;
+  brandColor?: string;
 }
 
 interface OnboardingWizardProps {
@@ -171,6 +204,13 @@ export default function OnboardingWizard({ onComplete, onSkip, onSkipWithDraft, 
 
   // Step 0 fields
   const [orgName, setOrgName]           = useState((draft?.orgName as string | undefined) ?? '');
+  // Logo is optional and not draft-persisted (a Blob can't be serialized); it is
+  // uploaded by the parent after the workspace is created.
+  const [logoBlob, setLogoBlob]         = useState<Blob | null>(null);
+  const [logoPreview, setLogoPreview]   = useState<string | null>(null);
+  // Brand color (wallet first-login accent). Defaults to the shared default and
+  // is only saved by the parent when the admin changes it from that default.
+  const [brandColor, setBrandColor]     = useState<string>((draft?.brandColor as string | undefined) ?? DEFAULT_BRAND_COLOR);
   const [website, setWebsite]           = useState((draft?.website as string | undefined) ?? '');
   const [websiteError, setWebsiteError] = useState(false);
   const [businessDesc, setBusinessDesc] = useState((draft?.businessDesc as string | undefined) ?? '');
@@ -199,8 +239,8 @@ export default function OnboardingWizard({ onComplete, onSkip, onSkipWithDraft, 
 
   // Auto-save draft to sessionStorage whenever any field changes
   useEffect(() => {
-    saveDraft({ step, orgName, website, businessDesc, primarySelected, primarySuggested, phone, role });
-  }, [step, orgName, website, businessDesc, primarySelected, primarySuggested, phone, role]);
+    saveDraft({ step, orgName, website, businessDesc, primarySelected, primarySuggested, phone, role, brandColor });
+  }, [step, orgName, website, businessDesc, primarySelected, primarySuggested, phone, role, brandColor]);
 
   // ── URL validation ────────────────────────────────────────────────────────
   const validateWebsite = (val: string) => {
@@ -249,7 +289,12 @@ export default function OnboardingWizard({ onComplete, onSkip, onSkipWithDraft, 
       setStep(2);
     } else {
       clearOnboardingDraft();
-      onComplete({ org_name: orgName, website, business_desc: businessDesc, primary_use_cases: primarySelected, phone, role });
+      onComplete({
+        org_name: orgName, website, business_desc: businessDesc, primary_use_cases: primarySelected,
+        phone, role, logoBlob: logoBlob ?? undefined,
+        // Only send the color when the admin moved it off the default.
+        brandColor: brandColor.toLowerCase() !== DEFAULT_BRAND_COLOR ? brandColor : undefined,
+      });
     }
   };
 
@@ -355,6 +400,47 @@ export default function OnboardingWizard({ onComplete, onSkip, onSkipWithDraft, 
                   placeholder={c.orgNamePlaceholder}
                   className={inputNormal}
                 />
+              </div>
+
+              {/* Optional organization logo (square crop). Skipped -> initials. */}
+              <div>
+                <label className="mb-1.5 flex items-center text-[13px] font-medium text-slate-700">
+                  {c.logoLabel}
+                  <span className="ms-1 text-xs text-slate-400">({c.logoOptional})</span>
+                  <InfoTooltip text={c.logoTip} />
+                </label>
+                <div className="flex items-center gap-3">
+                  {logoPreview ? (
+                    <img src={logoPreview} alt="" className="h-14 w-14 rounded-2xl bg-white object-contain" />
+                  ) : (
+                    <TenantLogo name={orgName || 'N'} size={56} rounded="rounded-2xl" />
+                  )}
+                  <LogoCropUpload
+                    onCropped={(b, p) => { if (logoPreview) URL.revokeObjectURL(logoPreview); setLogoBlob(b); setLogoPreview(p); }}
+                    onError={(code) => toast.error(code === 'too_large' ? c.logoTooLarge : c.logoInvalidType)}
+                  >
+                    {(open) => (
+                      <button type="button" onClick={open} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                        {logoPreview ? c.logoChange : c.logoUpload}
+                      </button>
+                    )}
+                  </LogoCropUpload>
+                  {logoPreview && (
+                    <button type="button" onClick={() => { URL.revokeObjectURL(logoPreview); setLogoBlob(null); setLogoPreview(null); }} className="text-xs font-medium text-slate-500 hover:text-red-600">
+                      {c.logoRemove}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Optional brand color (wallet first-login accent). */}
+              <div>
+                <label className="mb-1.5 flex items-center text-[13px] font-medium text-slate-700">
+                  {c.brandColorLabel}
+                  <span className="ms-1 text-xs text-slate-400">({c.logoOptional})</span>
+                  <InfoTooltip text={c.brandColorTip} />
+                </label>
+                <BrandColorPicker value={brandColor} onChange={setBrandColor} />
               </div>
 
               <div>

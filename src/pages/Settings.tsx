@@ -10,6 +10,8 @@ import type { Language } from '../i18n/translations';
 import { useAuth } from '../contexts/AuthContext';
 import { tenantJoinRequestsApi } from '../lib/api';
 import ToggleSwitch from '../components/ToggleSwitch';
+import LogoSettingsCard from '../components/settings/LogoSettingsCard';
+import BrandColorCard from '../components/settings/BrandColorCard';
 
 interface SettingsTile {
   id: string;
@@ -242,6 +244,12 @@ const Settings = () => {
           </div>
         </div>
       </div>
+
+      {/* Organization logo - upload/replace/remove (Cloudinary). */}
+      <LogoSettingsCard />
+
+      {/* Organization brand color - wallet first-login accent. */}
+      <BrandColorCard />
 
       {/* Join Requests Section - mirrors the toggle in the /users panel.
           Hidden until the setting loads (and stays hidden for non-admins). */}
