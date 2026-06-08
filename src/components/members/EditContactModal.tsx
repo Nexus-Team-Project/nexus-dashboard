@@ -59,12 +59,15 @@ export default function EditContactModal({
   onSaved: () => void;
 }) {
   const copy = COPY[language];
+  // Wallet mirror columns are read-only (edited in the wallet, synced here), so
+  // they are excluded from the editable inputs and the saved payload.
+  const editableFields = fields.filter((f) => f.origin !== 'wallet_profile');
   const [displayName, setDisplayName] = useState(contact.displayName ?? '');
   const [address, setAddress] = useState(contact.address ?? '');
   const [phone, setPhone] = useState(contact.phone ?? '');
   const [values, setValues] = useState<Record<string, unknown>>(() => {
     const init: Record<string, unknown> = {};
-    for (const f of fields) init[f.fieldId] = initialValue(f, contact.customFields?.[f.fieldId]);
+    for (const f of editableFields) init[f.fieldId] = initialValue(f, contact.customFields?.[f.fieldId]);
     return init;
   });
   const [busy, setBusy] = useState(false);
@@ -122,11 +125,11 @@ export default function EditContactModal({
           <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputBase} dir="ltr" placeholder="05XXXXXXXX" />
         </div>
 
-        {fields.length > 0 && (
+        {editableFields.length > 0 && (
           <div className="border-t border-slate-100 pt-3 dark:border-slate-800">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">{copy.customSection}</p>
             <div className="flex flex-col gap-4">
-              {fields.map((f) => (
+              {editableFields.map((f) => (
                 <div key={f.fieldId}>
                   <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300" dir="auto">{f.name}</label>
                   <CustomFieldInput field={f} value={values[f.fieldId]} onChange={(next) => setValues((prev) => ({ ...prev, [f.fieldId]: next }))} />

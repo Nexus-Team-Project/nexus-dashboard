@@ -139,12 +139,16 @@ const ColumnMapping = ({ onClose, onImport, fileName, csvHeaders, csvRows, conta
   const { t } = useLanguage();
   const [isImporting, setIsImporting] = useState(false);
 
+  // Wallet mirror columns (origin 'wallet_profile') are read-only and cannot be
+  // import targets - exclude them from auto-map, the dropdown, and resolution.
+  const mappableFields = contactFields.filter((f) => f.origin !== 'wallet_profile');
+
   const [mappings, setMappings] = useState<ColumnMappingRow[]>(() =>
     csvHeaders.map((header) => {
       // Auto-map to a system field, else to a custom column whose name matches.
       let target: string = autoDetect(header);
       if (!target) {
-        const match = contactFields.find((f) => f.name.trim().toLowerCase() === header.trim().toLowerCase());
+        const match = mappableFields.find((f) => f.name.trim().toLowerCase() === header.trim().toLowerCase());
         if (match) target = match.fieldId;
       }
       return { csvColumn: header, target, sample: sampleValues(csvRows, header), isMapped: target !== '' };
@@ -160,7 +164,7 @@ const ColumnMapping = ({ onClose, onImport, fileName, csvHeaders, csvRows, conta
   const unmappedCount = mappings.filter((m) => !m.isMapped).length;
   const emailMapped = mappings.some((m) => m.target === 'Email Address');
 
-  const { rows: previewRows, skipped } = useMemo(() => resolveRows(mappings, csvRows, contactFields), [mappings, csvRows, contactFields]);
+  const { rows: previewRows, skipped } = useMemo(() => resolveRows(mappings, csvRows, mappableFields), [mappings, csvRows, mappableFields]);
 
   const handleConfirm = async () => {
     if (!emailMapped || previewRows.length === 0) return;
@@ -256,7 +260,7 @@ const ColumnMapping = ({ onClose, onImport, fileName, csvHeaders, csvRows, conta
                               </option>
                             );
                           })}
-                          {contactFields.map((f) => {
+                          {mappableFields.map((f) => {
                             const claimedByOther = mappings.some((m, i) => i !== index && m.target === f.fieldId);
                             return (
                               <option key={f.fieldId} value={f.fieldId} disabled={claimedByOther}>
