@@ -1106,6 +1106,7 @@ const Users = () => {
           fileName={uploadedFile?.name}
           csvHeaders={[]}
           csvRows={[]}
+          contactFields={[]}
         />
       )}
 
