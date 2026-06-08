@@ -40,8 +40,9 @@ export default function LogoSettingsCard() {
         tip: 'Upload a square logo (recommended 512×512 px), ideally a transparent PNG so it stays crisp everywhere. Max 5MB. Formats: PNG, JPG, WEBP.',
       };
 
-  const onError = (code: 'invalid_type' | 'too_large'): void =>
+  const onError = (code: 'invalid_type' | 'too_large'): void => {
     toast.error(code === 'too_large' ? c.tooLarge : c.invalidType);
+  };
 
   const cancelNew = (): void => {
     if (newPreview) URL.revokeObjectURL(newPreview);

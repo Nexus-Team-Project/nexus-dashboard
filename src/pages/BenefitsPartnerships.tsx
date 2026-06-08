@@ -74,6 +74,8 @@ interface Benefit {
   stockLimit: number | null;
   stockAvailable: number | null;
   isSoldOut: boolean;
+  // Optional display tags.
+  tags?: string[];
 }
 
 /**
@@ -430,6 +432,10 @@ const BenefitsPartnerships = () => {
       image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&h=600&fit=crop',
       title: 'הנחה על ארוחות',
       discount: '25% הנחה',
+      category: 'food',
+      stockLimit: null,
+      stockAvailable: null,
+      isSoldOut: false,
     },
     {
       id: '2',
@@ -452,6 +458,10 @@ const BenefitsPartnerships = () => {
       image: 'https://images.unsplash.com/photo-1523474253046-8cd2748b5fd2?w=800&h=600&fit=crop',
       title: 'משלוח חינם',
       discount: 'משלוח חינם',
+      category: 'shopping',
+      stockLimit: null,
+      stockAvailable: null,
+      isSoldOut: false,
     },
     {
       id: '3',
@@ -472,6 +482,10 @@ const BenefitsPartnerships = () => {
       featured: false,
       title: 'ארוחה חינם',
       discount: 'ארוחה במתנה',
+      category: 'food',
+      stockLimit: null,
+      stockAvailable: null,
+      isSoldOut: false,
     },
   ];
 
