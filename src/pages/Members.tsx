@@ -270,19 +270,21 @@ export default function Members() {
   useEffect(() => { void fetchContacts(contactsParams); }, [contactsParams, fetchContacts]);
   useEffect(() => { if (activeTab === 'members') void fetchMembers(membersParams); }, [activeTab, membersParams, fetchMembers]);
 
-  // Load the tenant's custom columns once (used by the table, filter, import).
-  useEffect(() => {
-    let active = true;
-    void (async () => {
-      try {
-        const r = await tenantContactFieldsApi.list();
-        if (active) setContactFields(r.fields);
-      } catch (err) {
-        console.error('[members] load contact fields failed:', err);
-      }
-    })();
-    return () => { active = false; };
+  // Load the tenant's custom columns (used by the table, filter, import). Also
+  // refetched after a join decision: approving a member can create new
+  // wallet_profile mirror columns on the backend, and without reloading the
+  // definitions the new answer values would have no column to render in until a
+  // full page refresh.
+  const loadContactFields = useCallback(async () => {
+    try {
+      const r = await tenantContactFieldsApi.list();
+      setContactFields(r.fields);
+    } catch (err) {
+      console.error('[members] load contact fields failed:', err);
+    }
   }, []);
+
+  useEffect(() => { void loadContactFields(); }, [loadContactFields]);
 
   // Load the wallet mirror-field registry once (labels + options, both languages).
   useEffect(() => {
@@ -475,6 +477,7 @@ export default function Members() {
           onDecisionMade={() => {
             void fetchContacts(contactsParams);
             void fetchMembers(membersParams);
+            void loadContactFields();
           }}
         />
       )}

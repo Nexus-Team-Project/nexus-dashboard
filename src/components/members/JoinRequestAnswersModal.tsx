@@ -89,7 +89,7 @@ export default function JoinRequestAnswersModal({ language, name, email, answers
           </dl>
         )}
 
-        <div className="mt-5 flex justify-end">
+        <div className={`mt-5 flex ${isHe ? 'justify-start' : 'justify-end'}`}>
           <button
             type="button"
             onClick={onClose}

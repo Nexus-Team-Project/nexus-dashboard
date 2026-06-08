@@ -302,6 +302,112 @@ function ColumnHeaderMenu({
 }
 
 /**
+ * Mobile contact card. Collapsed by default (name + email + status) to keep the
+ * list scannable on small screens; tapping the header expands it to reveal
+ * phone, custom/wallet fields, dates, and the management actions. The desktop
+ * table renders all columns inline instead.
+ */
+function MobileContactCard({
+  contact: c,
+  language,
+  canManage,
+  tenantName,
+  contactFields,
+  mirrorDefFor,
+  onInvite,
+  onEditEmail,
+  onEditContact,
+  onRemove,
+}: {
+  contact: TenantContact;
+  language: 'he' | 'en';
+  canManage: boolean;
+  tenantName: string;
+  contactFields: ContactField[];
+  mirrorDefFor: (f: ContactField) => WalletProfileFieldDef | undefined;
+  onInvite: (email: string) => void;
+  onEditEmail?: (contact: TenantContact) => void;
+  onEditContact?: (contact: TenantContact) => void;
+  onRemove?: (contact: TenantContact) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const copy = COPY[language];
+  const filledFields = contactFields.filter((f) => !isEmptyValue(c.customFields?.[f.fieldId]));
+
+  return (
+    <article className="rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+      {/* Tappable header — always visible, toggles the details. */}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full cursor-pointer items-center justify-between gap-3 p-4 text-start"
+      >
+        <div className="min-w-0">
+          <p className="truncate font-medium text-slate-900 dark:text-white">{c.displayName || '-'}</p>
+          <p className="truncate text-xs text-slate-500">{c.email}</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS_CLASSES[c.status] ?? STATUS_CLASSES.inactive}`}>
+            {c.status}
+          </span>
+          <span className={`material-icons text-lg text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`}>
+            expand_more
+          </span>
+        </div>
+      </button>
+
+      {/* Expanded details */}
+      {open && (
+        <div className="border-t border-slate-100 px-4 pb-4 pt-3 dark:border-slate-800">
+          {c.phone && (
+            <p className="flex items-center gap-1.5 text-xs text-slate-500" dir="ltr">
+              <span>{c.phone}</span>
+              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${c.phoneVerified ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-400 dark:bg-slate-700'}`}>
+                {c.phoneVerified ? copy.phoneVerified : copy.phoneUnverified}
+              </span>
+            </p>
+          )}
+          {c.address && <p className="mt-1 text-xs text-slate-500">{c.address}</p>}
+          {filledFields.map((f) => {
+            const md = mirrorDefFor(f);
+            return (
+              <p key={f.fieldId} className="mt-1 flex flex-wrap items-center gap-1 text-xs text-slate-500">
+                <span className="font-medium text-slate-600 dark:text-slate-400" dir="auto">
+                  {md ? mirrorFieldLabel(md, language) : f.name}:
+                </span>
+                {renderCustomCell(f, c.customFields?.[f.fieldId], language, md)}
+              </p>
+            );
+          })}
+          <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
+            <span>{fmtDate(c.createdAt, language, '-')}</span>
+            {canManage && (
+              <button type="button" onClick={() => onInvite(c.email)} className="cursor-pointer font-medium text-primary hover:underline">
+                {copy.invitePrefix}{tenantName}
+              </button>
+            )}
+          </div>
+          {canManage && (onEditContact || NOT_ACCEPTED.includes(c.status)) && (
+            <div className="mt-2 flex items-center gap-3 border-t border-slate-100 pt-2 dark:border-slate-800">
+              {onEditContact && (
+                <button type="button" onClick={() => onEditContact(c)} className="cursor-pointer text-xs font-medium text-slate-500 hover:text-primary">{copy.editContact}</button>
+              )}
+              {NOT_ACCEPTED.includes(c.status) && onEditEmail && (
+                <button type="button" onClick={() => onEditEmail(c)} className="cursor-pointer text-xs font-medium text-slate-500 hover:text-primary">{copy.editEmail}</button>
+              )}
+              {NOT_ACCEPTED.includes(c.status) && onRemove && (
+                <button type="button" onClick={() => onRemove(c)} className="cursor-pointer text-xs font-medium text-red-500 hover:text-red-700">{copy.remove}</button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </article>
+  );
+}
+
+/**
  * Renders the contacts table (desktop) and mobile card list.
  * Input: contact list, loading state, language, and manage permission.
  * Output: responsive data display with per-row action menus.
@@ -464,82 +570,19 @@ export default function ContactsTable({
           </div>
         ))}
         {!loading && contacts.map((c) => (
-          <article key={c.tenantContactId} className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate font-medium text-slate-900 dark:text-white">{c.displayName || '-'}</p>
-                <p className="truncate text-xs text-slate-500">{c.email}</p>
-              </div>
-              <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS_CLASSES[c.status] ?? STATUS_CLASSES.inactive}`}>
-                {c.status}
-              </span>
-            </div>
-            {c.phone && (
-              <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500" dir="ltr">
-                <span>{c.phone}</span>
-                <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${c.phoneVerified ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-400 dark:bg-slate-700'}`}>
-                  {c.phoneVerified ? copy.phoneVerified : copy.phoneUnverified}
-                </span>
-              </p>
-            )}
-            {c.address && <p className="mt-1 text-xs text-slate-500">{c.address}</p>}
-            {contactFields
-              .filter((f) => !isEmptyValue(c.customFields?.[f.fieldId]))
-              .map((f) => {
-                const md = mirrorDefFor(f);
-                return (
-                  <p key={f.fieldId} className="mt-1 flex flex-wrap items-center gap-1 text-xs text-slate-500">
-                    <span className="font-medium text-slate-600 dark:text-slate-400" dir="auto">
-                      {md ? mirrorFieldLabel(md, language) : f.name}:
-                    </span>
-                    {renderCustomCell(f, c.customFields?.[f.fieldId], language, md)}
-                  </p>
-                );
-              })}
-            <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
-              <span>{fmtDate(c.createdAt, language, '-')}</span>
-              {canManage && (
-                <button
-                  type="button"
-                  onClick={() => handleInvite(c.email)}
-                  className="cursor-pointer font-medium text-primary hover:underline"
-                >
-                  {copy.invitePrefix}{tenantName}
-                </button>
-              )}
-            </div>
-            {canManage && (onEditContact || NOT_ACCEPTED.includes(c.status)) && (
-              <div className="mt-2 flex items-center gap-3 border-t border-slate-100 pt-2 dark:border-slate-800">
-                {onEditContact && (
-                  <button
-                    type="button"
-                    onClick={() => onEditContact(c)}
-                    className="cursor-pointer text-xs font-medium text-slate-500 hover:text-primary"
-                  >
-                    {copy.editContact}
-                  </button>
-                )}
-                {NOT_ACCEPTED.includes(c.status) && onEditEmail && (
-                  <button
-                    type="button"
-                    onClick={() => onEditEmail(c)}
-                    className="cursor-pointer text-xs font-medium text-slate-500 hover:text-primary"
-                  >
-                    {copy.editEmail}
-                  </button>
-                )}
-                {NOT_ACCEPTED.includes(c.status) && onRemove && (
-                  <button
-                    type="button"
-                    onClick={() => onRemove(c)}
-                    className="cursor-pointer text-xs font-medium text-red-500 hover:text-red-700"
-                  >
-                    {copy.remove}
-                  </button>
-                )}
-              </div>
-            )}
-          </article>
+          <MobileContactCard
+            key={c.tenantContactId}
+            contact={c}
+            language={language}
+            canManage={canManage}
+            tenantName={tenantName}
+            contactFields={contactFields}
+            mirrorDefFor={mirrorDefFor}
+            onInvite={handleInvite}
+            onEditEmail={onEditEmail}
+            onEditContact={onEditContact}
+            onRemove={onRemove}
+          />
         ))}
         {!loading && contacts.length === 0 && (
           <div className="py-8 text-center text-sm text-slate-500">{copy.empty}</div>

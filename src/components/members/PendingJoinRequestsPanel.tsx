@@ -54,7 +54,7 @@ const COPY = {
     searchPlaceholder: 'חפש לפי שם או מייל...',
     approve: 'אשר',
     deny: 'דחה',
-    viewAnswers: 'צפה בתשובות',
+    viewAnswers: 'צפה במידע שנמסר בתהליך ההרשמה',
     approveAll: 'אשר את כולם',
     denyAll: 'דחה את כולם',
     requestedAt: 'התקבל',
@@ -453,7 +453,7 @@ export default function PendingJoinRequestsPanel({
                       {copy.requestedAt}: {formatRequestedAt(req.createdAt, language)}
                     </div>
                   </div>
-                  <div className="flex flex-shrink-0 items-center gap-2">
+                  <div className={`flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap ${isHe ? 'justify-start' : 'justify-end'}`}>
                     {req.answersSnapshot && (
                       <button
                         type="button"
