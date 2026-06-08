@@ -5,8 +5,9 @@
  */
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { TenantContact, ContactField } from '../../lib/api';
+import type { TenantContact, ContactField, WalletProfileFieldDef } from '../../lib/api';
 import { renderCustomCell, isEmptyValue } from './customFieldsUtil';
+import { buildMirrorDefMap, mirrorFieldLabel } from './walletMirror';
 
 export interface ContactsTableProps {
   contacts: TenantContact[];
@@ -16,6 +17,8 @@ export interface ContactsTableProps {
   tenantName?: string;
   /** Tenant-defined custom columns, in display order. */
   contactFields: ContactField[];
+  /** Wallet mirror-field registry (for localized labels + read-only rendering). */
+  mirrorDefs?: WalletProfileFieldDef[];
   onEditEmail?: (contact: TenantContact) => void;
   onEditContact?: (contact: TenantContact) => void;
   onRemove?: (contact: TenantContact) => void;
@@ -43,6 +46,7 @@ const COPY = {
     deleteColumn: 'מחק עמודה',
     moveEarlier: 'הזז שמאלה',
     moveLater: 'הזז ימינה',
+    fromWallet: 'מהארנק',
     empty: 'אין אנשי קשר עדיין.',
     noAddress: 'לא צוין',
     noPhone: 'לא צוין',
@@ -69,6 +73,7 @@ const COPY = {
     deleteColumn: 'Delete column',
     moveEarlier: 'Move left',
     moveLater: 'Move right',
+    fromWallet: 'From wallet',
     empty: 'No contacts yet.',
     noAddress: 'Not provided',
     noPhone: 'Not provided',
@@ -308,6 +313,7 @@ export default function ContactsTable({
   canManage,
   tenantName = 'Tenant',
   contactFields,
+  mirrorDefs,
   onEditEmail,
   onEditContact,
   onRemove,
@@ -317,6 +323,12 @@ export default function ContactsTable({
 }: ContactsTableProps) {
   const navigate = useNavigate();
   const copy = COPY[language];
+
+  // Resolve a column's wallet mirror definition (for localized labels + read-only
+  // rendering). Returns undefined for ordinary admin-created columns.
+  const mirrorMap = buildMirrorDefMap(mirrorDefs ?? []);
+  const mirrorDefFor = (f: ContactField) =>
+    f.origin === 'wallet_profile' && f.sourceFieldKey ? mirrorMap.get(f.sourceFieldKey) : undefined;
 
   /** Navigates to the invite page with the email pre-filled. */
   const handleInvite = (email: string) => {
@@ -337,19 +349,33 @@ export default function ContactsTable({
               <th className="px-6 py-2.5 text-start">{copy.address}</th>
               <th className="px-6 py-2.5 text-start">{copy.lastActivity}</th>
               <th className="px-6 py-2.5 text-start">{copy.firstEntry}</th>
-              {contactFields.map((f, i) => (
-                <th key={f.fieldId} className="px-6 py-2.5 text-start">
-                  <ColumnHeaderMenu
-                    field={f}
-                    language={language}
-                    isFirst={i === 0}
-                    isLast={i === contactFields.length - 1}
-                    onRename={canManage ? onRenameColumn : undefined}
-                    onDelete={canManage ? onDeleteColumn : undefined}
-                    onMove={canManage ? onMoveColumn : undefined}
-                  />
-                </th>
-              ))}
+              {contactFields.map((f, i) => {
+                const md = mirrorDefFor(f);
+                if (md) {
+                  // Wallet mirror column: read-only, localized label + "From wallet" badge.
+                  return (
+                    <th key={f.fieldId} className="px-6 py-2.5 text-start">
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="max-w-[140px] truncate normal-case" dir="auto">{mirrorFieldLabel(md, language)}</span>
+                        <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[9px] font-semibold normal-case text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">{copy.fromWallet}</span>
+                      </span>
+                    </th>
+                  );
+                }
+                return (
+                  <th key={f.fieldId} className="px-6 py-2.5 text-start">
+                    <ColumnHeaderMenu
+                      field={f}
+                      language={language}
+                      isFirst={i === 0}
+                      isLast={i === contactFields.length - 1}
+                      onRename={canManage ? onRenameColumn : undefined}
+                      onDelete={canManage ? onDeleteColumn : undefined}
+                      onMove={canManage ? onMoveColumn : undefined}
+                    />
+                  </th>
+                );
+              })}
               <th className="w-12 px-6 py-2.5" />
             </tr>
           </thead>
@@ -407,7 +433,7 @@ export default function ContactsTable({
                 <td className="px-6 py-2.5 text-slate-500">{fmtDate(c.createdAt, language, '-')}</td>
                 {contactFields.map((f) => (
                   <td key={f.fieldId} className="max-w-[200px] truncate px-6 py-2.5">
-                    {renderCustomCell(f, c.customFields?.[f.fieldId], language)}
+                    {renderCustomCell(f, c.customFields?.[f.fieldId], language, mirrorDefFor(f))}
                   </td>
                 ))}
                 <td className="px-6 py-2.5 text-end">
@@ -459,12 +485,17 @@ export default function ContactsTable({
             {c.address && <p className="mt-1 text-xs text-slate-500">{c.address}</p>}
             {contactFields
               .filter((f) => !isEmptyValue(c.customFields?.[f.fieldId]))
-              .map((f) => (
-                <p key={f.fieldId} className="mt-1 flex flex-wrap items-center gap-1 text-xs text-slate-500">
-                  <span className="font-medium text-slate-600 dark:text-slate-400" dir="auto">{f.name}:</span>
-                  {renderCustomCell(f, c.customFields?.[f.fieldId], language)}
-                </p>
-              ))}
+              .map((f) => {
+                const md = mirrorDefFor(f);
+                return (
+                  <p key={f.fieldId} className="mt-1 flex flex-wrap items-center gap-1 text-xs text-slate-500">
+                    <span className="font-medium text-slate-600 dark:text-slate-400" dir="auto">
+                      {md ? mirrorFieldLabel(md, language) : f.name}:
+                    </span>
+                    {renderCustomCell(f, c.customFields?.[f.fieldId], language, md)}
+                  </p>
+                );
+              })}
             <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
               <span>{fmtDate(c.createdAt, language, '-')}</span>
               {canManage && (
