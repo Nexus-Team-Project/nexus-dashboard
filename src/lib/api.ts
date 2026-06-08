@@ -615,6 +615,36 @@ export interface ContactField {
   /** Allowed values for single_label / multi_label columns. */
   options?: string[];
   order: number;
+  /** 'manual' (default) or 'wallet_profile' for read-only mirror columns. */
+  origin?: 'manual' | 'wallet_profile';
+  /** Stable mirror-field key when origin === 'wallet_profile'. */
+  sourceFieldKey?: string;
+}
+
+/** One option label pair for a wallet mirror field. */
+export interface WalletMirrorOption {
+  value: string;
+  labelEn: string;
+  labelHe: string;
+}
+
+/** A wallet onboarding field that mirrors into contacts (from the backend registry). */
+export interface WalletProfileFieldDef {
+  sourceFieldKey: string;
+  profileKey: string;
+  columnType: 'multi_label' | 'single_label' | 'date' | 'free_text';
+  labelEn: string;
+  labelHe: string;
+  options?: WalletMirrorOption[];
+}
+
+/** A joiner's mirrorable onboarding answers, captured at request time. */
+export interface JoinAnswersSnapshot {
+  purpose?: string[];
+  lifeStage?: string;
+  gender?: string;
+  birthday?: string;
+  motivation?: string;
 }
 
 /** One custom-column filter sent to the contacts list endpoint. */
@@ -716,6 +746,11 @@ export const tenantContactFieldsApi = {
     request<{ fields: ContactField[] }>('PATCH', '/api/v1/tenant/contact-fields/reorder', { order }),
 };
 
+/** Read the wallet mirror-field registry (labels + options, both languages). */
+export const walletProfileFieldsApi = {
+  list: () => request<{ fields: WalletProfileFieldDef[] }>('GET', '/api/v1/wallet/profile-fields'),
+};
+
 export const tenantMemberInvitationsApi = {
   mine: () =>
     request<{ invitations: TenantMemberInvitationPreview[] }>('GET', '/api/v1/member-invitations/mine'),
@@ -746,6 +781,8 @@ export interface TenantJoinRequestItem {
   displayName: string | null;
   status: 'pending' | 'approved' | 'denied' | 'auto_accepted';
   createdAt: string;
+  /** Present when the joiner answered onboarding questions; null otherwise. */
+  answersSnapshot?: JoinAnswersSnapshot | null;
 }
 
 /** Organization logo upload/remove (Cloudinary, tenant-admin only). */
