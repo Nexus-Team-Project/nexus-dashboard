@@ -3,7 +3,8 @@
  * Used by the contacts table (read-only cells), the edit-contact modal (inputs),
  * and the CSV import mapper. Keeps per-type behavior in one place.
  */
-import type { ContactField } from '../../lib/api';
+import type { ContactField, WalletProfileFieldDef } from '../../lib/api';
+import { localizeMirrorValue } from './walletMirror';
 
 type Lang = 'he' | 'en';
 
@@ -17,22 +18,30 @@ export function isEmptyValue(value: unknown): boolean {
   );
 }
 
-/** Read-only cell content for a custom value (chips for labels, text otherwise). */
-export function renderCustomCell(field: ContactField, value: unknown, language: Lang): React.ReactNode {
+/** Read-only cell content for a custom value (chips for labels, text otherwise).
+ *  When `mirrorDef` is given (a wallet_profile column), label tokens are
+ *  localized to the admin's language via the registry. */
+export function renderCustomCell(
+  field: ContactField,
+  value: unknown,
+  language: Lang,
+  mirrorDef?: WalletProfileFieldDef,
+): React.ReactNode {
   if (isEmptyValue(value)) return <span className="text-slate-300 dark:text-slate-600">—</span>;
 
+  const chip = (text: string, key?: string) => (
+    <span key={key} className="inline-block rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">{text}</span>
+  );
+
   if (field.type === 'single_label') {
-    return <span className="inline-block rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">{String(value)}</span>;
+    const text = mirrorDef ? String(localizeMirrorValue(mirrorDef, value, language)) : String(value);
+    return chip(text);
   }
   if (field.type === 'multi_label') {
-    const arr = Array.isArray(value) ? value : [String(value)];
-    return (
-      <span className="flex flex-wrap gap-1">
-        {arr.map((v) => (
-          <span key={String(v)} className="inline-block rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">{String(v)}</span>
-        ))}
-      </span>
-    );
+    const arr = mirrorDef
+      ? (localizeMirrorValue(mirrorDef, value, language) as string[])
+      : (Array.isArray(value) ? value.map(String) : [String(value)]);
+    return <span className="flex flex-wrap gap-1">{arr.map((v) => chip(v, v))}</span>;
   }
   if (field.type === 'date') {
     const d = new Date(String(value));

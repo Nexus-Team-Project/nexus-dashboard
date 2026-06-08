@@ -170,7 +170,7 @@ export default function InviteCollaborators() {
       sessionStorage.removeItem('pendingInviteEmails');
       try {
         const emails: string[] = JSON.parse(stored);
-        if (emails.length) return emails.map(makeRow);
+        if (emails.length) return emails.map((e) => makeRow(e));
       } catch { /* ignore */ }
     }
     const q = new URLSearchParams(location.search).get('email');

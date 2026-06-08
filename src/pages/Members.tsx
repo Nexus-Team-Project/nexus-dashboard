@@ -11,6 +11,7 @@ import {
   tenantContactsApi,
   tenantContactFieldsApi,
   tenantMembersApi,
+  walletProfileFieldsApi,
   type TenantContact,
   type ContactField,
   type ContactCustomFilter,
@@ -19,6 +20,7 @@ import {
   type PaginationMeta,
   type ListContactsParams,
   type ListMembersParams,
+  type WalletProfileFieldDef,
 } from '../lib/api';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -207,6 +209,8 @@ export default function Members() {
 
   // Custom columns (field definitions) + their management modals.
   const [contactFields, setContactFields] = useState<ContactField[]>([]);
+  // Wallet mirror-field registry (for localizing mirror columns + join answers).
+  const [mirrorDefs, setMirrorDefs] = useState<WalletProfileFieldDef[]>([]);
   const [showAddColumn, setShowAddColumn] = useState(false);
   const [editContact, setEditContact] = useState<TenantContact | null>(null);
   const [renameField, setRenameField] = useState<ContactField | null>(null);
@@ -266,15 +270,31 @@ export default function Members() {
   useEffect(() => { void fetchContacts(contactsParams); }, [contactsParams, fetchContacts]);
   useEffect(() => { if (activeTab === 'members') void fetchMembers(membersParams); }, [activeTab, membersParams, fetchMembers]);
 
-  // Load the tenant's custom columns once (used by the table, filter, import).
+  // Load the tenant's custom columns (used by the table, filter, import). Also
+  // refetched after a join decision: approving a member can create new
+  // wallet_profile mirror columns on the backend, and without reloading the
+  // definitions the new answer values would have no column to render in until a
+  // full page refresh.
+  const loadContactFields = useCallback(async () => {
+    try {
+      const r = await tenantContactFieldsApi.list();
+      setContactFields(r.fields);
+    } catch (err) {
+      console.error('[members] load contact fields failed:', err);
+    }
+  }, []);
+
+  useEffect(() => { void loadContactFields(); }, [loadContactFields]);
+
+  // Load the wallet mirror-field registry once (labels + options, both languages).
   useEffect(() => {
     let active = true;
     void (async () => {
       try {
-        const r = await tenantContactFieldsApi.list();
-        if (active) setContactFields(r.fields);
+        const r = await walletProfileFieldsApi.list();
+        if (active) setMirrorDefs(r.fields);
       } catch (err) {
-        console.error('[members] load contact fields failed:', err);
+        console.error('[members] load wallet mirror fields failed:', err);
       }
     })();
     return () => { active = false; };
@@ -453,9 +473,11 @@ export default function Members() {
         <PendingJoinRequestsPanel
           language={language}
           tenantName={me?.context.tenantName ?? copy.workspaceFallback}
+          mirrorDefs={mirrorDefs}
           onDecisionMade={() => {
             void fetchContacts(contactsParams);
             void fetchMembers(membersParams);
+            void loadContactFields();
           }}
         />
       )}
@@ -665,6 +687,7 @@ export default function Members() {
               canManage={canManage}
               tenantName={me?.context.tenantName ?? undefined}
               contactFields={contactFields}
+              mirrorDefs={mirrorDefs}
               onEditEmail={canManage ? (c) => setEditEmailContact(c) : undefined}
               onEditContact={canManage ? (c) => setEditContact(c) : undefined}
               onRemove={canManage ? (c) => setRemoveContact(c) : undefined}

@@ -18,9 +18,11 @@ import { toast } from 'sonner';
 import {
   tenantJoinRequestsApi,
   type TenantJoinRequestItem,
+  type WalletProfileFieldDef,
 } from '../../lib/api';
 import ApproveJoinRequestModal from './ApproveJoinRequestModal';
 import DenyJoinRequestModal from './DenyJoinRequestModal';
+import JoinRequestAnswersModal from './JoinRequestAnswersModal';
 import ToggleSwitch from '../ToggleSwitch';
 
 interface PendingJoinRequestsPanelProps {
@@ -33,6 +35,8 @@ interface PendingJoinRequestsPanelProps {
    * approval writes to tenantContacts AND tenantMembersV2 in one go.
    */
   onDecisionMade?: () => void;
+  /** Wallet mirror-field registry, used to localize a request's answers. */
+  mirrorDefs?: WalletProfileFieldDef[];
 }
 
 /** When the pending count meets or exceeds this, the panel collapses on first load. */
@@ -50,6 +54,7 @@ const COPY = {
     searchPlaceholder: 'חפש לפי שם או מייל...',
     approve: 'אשר',
     deny: 'דחה',
+    viewAnswers: 'צפה במידע שנמסר בתהליך ההרשמה',
     approveAll: 'אשר את כולם',
     denyAll: 'דחה את כולם',
     requestedAt: 'התקבל',
@@ -75,6 +80,7 @@ const COPY = {
     searchPlaceholder: 'Search by name or email...',
     approve: 'Approve',
     deny: 'Deny',
+    viewAnswers: 'View answers',
     approveAll: 'Approve all',
     denyAll: 'Deny all',
     requestedAt: 'Requested',
@@ -116,12 +122,14 @@ type ModalState =
   | { kind: 'approve-one'; req: TenantJoinRequestItem }
   | { kind: 'approve-bulk'; requests: TenantJoinRequestItem[] }
   | { kind: 'deny-one'; req: TenantJoinRequestItem }
-  | { kind: 'deny-bulk'; requests: TenantJoinRequestItem[] };
+  | { kind: 'deny-bulk'; requests: TenantJoinRequestItem[] }
+  | { kind: 'view-answers'; req: TenantJoinRequestItem };
 
 export default function PendingJoinRequestsPanel({
   language,
   tenantName,
   onDecisionMade,
+  mirrorDefs,
 }: PendingJoinRequestsPanelProps) {
   const copy = COPY[language];
   const isHe = language === 'he';
@@ -445,11 +453,20 @@ export default function PendingJoinRequestsPanel({
                       {copy.requestedAt}: {formatRequestedAt(req.createdAt, language)}
                     </div>
                   </div>
-                  <div className="flex flex-shrink-0 items-center gap-2">
+                  <div className={`flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap ${isHe ? 'justify-start' : 'justify-end'}`}>
+                    {req.answersSnapshot && (
+                      <button
+                        type="button"
+                        onClick={() => setModal({ kind: 'view-answers', req })}
+                        className="cursor-pointer rounded-md border border-violet-200 bg-white px-3 py-1.5 text-xs font-semibold text-violet-700 transition-colors hover:bg-violet-50 dark:border-violet-900/40 dark:bg-slate-900 dark:text-violet-300 dark:hover:bg-violet-950/30"
+                      >
+                        {copy.viewAnswers}
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => setModal({ kind: 'approve-one', req })}
-                      className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:opacity-90"
+                      className="cursor-pointer rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:opacity-90"
                     >
                       {copy.approve}
                     </button>
@@ -504,6 +521,16 @@ export default function PendingJoinRequestsPanel({
           count={modal.requests.length}
           onClose={closeModal}
           onConfirm={(reason) => handleDenyBulk(modal.requests, reason)}
+        />
+      )}
+      {modal.kind === 'view-answers' && modal.req.answersSnapshot && (
+        <JoinRequestAnswersModal
+          language={language}
+          name={modal.req.displayName || modal.req.email}
+          email={modal.req.email}
+          answers={modal.req.answersSnapshot}
+          mirrorDefs={mirrorDefs ?? []}
+          onClose={closeModal}
         />
       )}
     </section>

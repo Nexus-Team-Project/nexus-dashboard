@@ -5,8 +5,9 @@
  */
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { TenantContact, ContactField } from '../../lib/api';
+import type { TenantContact, ContactField, WalletProfileFieldDef } from '../../lib/api';
 import { renderCustomCell, isEmptyValue } from './customFieldsUtil';
+import { buildMirrorDefMap, mirrorFieldLabel } from './walletMirror';
 
 export interface ContactsTableProps {
   contacts: TenantContact[];
@@ -16,6 +17,8 @@ export interface ContactsTableProps {
   tenantName?: string;
   /** Tenant-defined custom columns, in display order. */
   contactFields: ContactField[];
+  /** Wallet mirror-field registry (for localized labels + read-only rendering). */
+  mirrorDefs?: WalletProfileFieldDef[];
   onEditEmail?: (contact: TenantContact) => void;
   onEditContact?: (contact: TenantContact) => void;
   onRemove?: (contact: TenantContact) => void;
@@ -43,6 +46,7 @@ const COPY = {
     deleteColumn: 'מחק עמודה',
     moveEarlier: 'הזז שמאלה',
     moveLater: 'הזז ימינה',
+    fromWallet: 'מהארנק',
     empty: 'אין אנשי קשר עדיין.',
     noAddress: 'לא צוין',
     noPhone: 'לא צוין',
@@ -69,6 +73,7 @@ const COPY = {
     deleteColumn: 'Delete column',
     moveEarlier: 'Move left',
     moveLater: 'Move right',
+    fromWallet: 'From wallet',
     empty: 'No contacts yet.',
     noAddress: 'Not provided',
     noPhone: 'Not provided',
@@ -297,6 +302,112 @@ function ColumnHeaderMenu({
 }
 
 /**
+ * Mobile contact card. Collapsed by default (name + email + status) to keep the
+ * list scannable on small screens; tapping the header expands it to reveal
+ * phone, custom/wallet fields, dates, and the management actions. The desktop
+ * table renders all columns inline instead.
+ */
+function MobileContactCard({
+  contact: c,
+  language,
+  canManage,
+  tenantName,
+  contactFields,
+  mirrorDefFor,
+  onInvite,
+  onEditEmail,
+  onEditContact,
+  onRemove,
+}: {
+  contact: TenantContact;
+  language: 'he' | 'en';
+  canManage: boolean;
+  tenantName: string;
+  contactFields: ContactField[];
+  mirrorDefFor: (f: ContactField) => WalletProfileFieldDef | undefined;
+  onInvite: (email: string) => void;
+  onEditEmail?: (contact: TenantContact) => void;
+  onEditContact?: (contact: TenantContact) => void;
+  onRemove?: (contact: TenantContact) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const copy = COPY[language];
+  const filledFields = contactFields.filter((f) => !isEmptyValue(c.customFields?.[f.fieldId]));
+
+  return (
+    <article className="rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+      {/* Tappable header — always visible, toggles the details. */}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full cursor-pointer items-center justify-between gap-3 p-4 text-start"
+      >
+        <div className="min-w-0">
+          <p className="truncate font-medium text-slate-900 dark:text-white">{c.displayName || '-'}</p>
+          <p className="truncate text-xs text-slate-500">{c.email}</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS_CLASSES[c.status] ?? STATUS_CLASSES.inactive}`}>
+            {c.status}
+          </span>
+          <span className={`material-icons text-lg text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`}>
+            expand_more
+          </span>
+        </div>
+      </button>
+
+      {/* Expanded details */}
+      {open && (
+        <div className="border-t border-slate-100 px-4 pb-4 pt-3 dark:border-slate-800">
+          {c.phone && (
+            <p className="flex items-center gap-1.5 text-xs text-slate-500" dir="ltr">
+              <span>{c.phone}</span>
+              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${c.phoneVerified ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-400 dark:bg-slate-700'}`}>
+                {c.phoneVerified ? copy.phoneVerified : copy.phoneUnverified}
+              </span>
+            </p>
+          )}
+          {c.address && <p className="mt-1 text-xs text-slate-500">{c.address}</p>}
+          {filledFields.map((f) => {
+            const md = mirrorDefFor(f);
+            return (
+              <p key={f.fieldId} className="mt-1 flex flex-wrap items-center gap-1 text-xs text-slate-500">
+                <span className="font-medium text-slate-600 dark:text-slate-400" dir="auto">
+                  {md ? mirrorFieldLabel(md, language) : f.name}:
+                </span>
+                {renderCustomCell(f, c.customFields?.[f.fieldId], language, md)}
+              </p>
+            );
+          })}
+          <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
+            <span>{fmtDate(c.createdAt, language, '-')}</span>
+            {canManage && (
+              <button type="button" onClick={() => onInvite(c.email)} className="cursor-pointer font-medium text-primary hover:underline">
+                {copy.invitePrefix}{tenantName}
+              </button>
+            )}
+          </div>
+          {canManage && (onEditContact || NOT_ACCEPTED.includes(c.status)) && (
+            <div className="mt-2 flex items-center gap-3 border-t border-slate-100 pt-2 dark:border-slate-800">
+              {onEditContact && (
+                <button type="button" onClick={() => onEditContact(c)} className="cursor-pointer text-xs font-medium text-slate-500 hover:text-primary">{copy.editContact}</button>
+              )}
+              {NOT_ACCEPTED.includes(c.status) && onEditEmail && (
+                <button type="button" onClick={() => onEditEmail(c)} className="cursor-pointer text-xs font-medium text-slate-500 hover:text-primary">{copy.editEmail}</button>
+              )}
+              {NOT_ACCEPTED.includes(c.status) && onRemove && (
+                <button type="button" onClick={() => onRemove(c)} className="cursor-pointer text-xs font-medium text-red-500 hover:text-red-700">{copy.remove}</button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </article>
+  );
+}
+
+/**
  * Renders the contacts table (desktop) and mobile card list.
  * Input: contact list, loading state, language, and manage permission.
  * Output: responsive data display with per-row action menus.
@@ -308,6 +419,7 @@ export default function ContactsTable({
   canManage,
   tenantName = 'Tenant',
   contactFields,
+  mirrorDefs,
   onEditEmail,
   onEditContact,
   onRemove,
@@ -317,6 +429,12 @@ export default function ContactsTable({
 }: ContactsTableProps) {
   const navigate = useNavigate();
   const copy = COPY[language];
+
+  // Resolve a column's wallet mirror definition (for localized labels + read-only
+  // rendering). Returns undefined for ordinary admin-created columns.
+  const mirrorMap = buildMirrorDefMap(mirrorDefs ?? []);
+  const mirrorDefFor = (f: ContactField) =>
+    f.origin === 'wallet_profile' && f.sourceFieldKey ? mirrorMap.get(f.sourceFieldKey) : undefined;
 
   /** Navigates to the invite page with the email pre-filled. */
   const handleInvite = (email: string) => {
@@ -337,19 +455,33 @@ export default function ContactsTable({
               <th className="px-6 py-2.5 text-start">{copy.address}</th>
               <th className="px-6 py-2.5 text-start">{copy.lastActivity}</th>
               <th className="px-6 py-2.5 text-start">{copy.firstEntry}</th>
-              {contactFields.map((f, i) => (
-                <th key={f.fieldId} className="px-6 py-2.5 text-start">
-                  <ColumnHeaderMenu
-                    field={f}
-                    language={language}
-                    isFirst={i === 0}
-                    isLast={i === contactFields.length - 1}
-                    onRename={canManage ? onRenameColumn : undefined}
-                    onDelete={canManage ? onDeleteColumn : undefined}
-                    onMove={canManage ? onMoveColumn : undefined}
-                  />
-                </th>
-              ))}
+              {contactFields.map((f, i) => {
+                const md = mirrorDefFor(f);
+                if (md) {
+                  // Wallet mirror column: read-only, localized label + "From wallet" badge.
+                  return (
+                    <th key={f.fieldId} className="px-6 py-2.5 text-start">
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="max-w-[140px] truncate normal-case" dir="auto">{mirrorFieldLabel(md, language)}</span>
+                        <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[9px] font-semibold normal-case text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">{copy.fromWallet}</span>
+                      </span>
+                    </th>
+                  );
+                }
+                return (
+                  <th key={f.fieldId} className="px-6 py-2.5 text-start">
+                    <ColumnHeaderMenu
+                      field={f}
+                      language={language}
+                      isFirst={i === 0}
+                      isLast={i === contactFields.length - 1}
+                      onRename={canManage ? onRenameColumn : undefined}
+                      onDelete={canManage ? onDeleteColumn : undefined}
+                      onMove={canManage ? onMoveColumn : undefined}
+                    />
+                  </th>
+                );
+              })}
               <th className="w-12 px-6 py-2.5" />
             </tr>
           </thead>
@@ -407,7 +539,7 @@ export default function ContactsTable({
                 <td className="px-6 py-2.5 text-slate-500">{fmtDate(c.createdAt, language, '-')}</td>
                 {contactFields.map((f) => (
                   <td key={f.fieldId} className="max-w-[200px] truncate px-6 py-2.5">
-                    {renderCustomCell(f, c.customFields?.[f.fieldId], language)}
+                    {renderCustomCell(f, c.customFields?.[f.fieldId], language, mirrorDefFor(f))}
                   </td>
                 ))}
                 <td className="px-6 py-2.5 text-end">
@@ -438,77 +570,19 @@ export default function ContactsTable({
           </div>
         ))}
         {!loading && contacts.map((c) => (
-          <article key={c.tenantContactId} className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate font-medium text-slate-900 dark:text-white">{c.displayName || '-'}</p>
-                <p className="truncate text-xs text-slate-500">{c.email}</p>
-              </div>
-              <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS_CLASSES[c.status] ?? STATUS_CLASSES.inactive}`}>
-                {c.status}
-              </span>
-            </div>
-            {c.phone && (
-              <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500" dir="ltr">
-                <span>{c.phone}</span>
-                <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${c.phoneVerified ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-400 dark:bg-slate-700'}`}>
-                  {c.phoneVerified ? copy.phoneVerified : copy.phoneUnverified}
-                </span>
-              </p>
-            )}
-            {c.address && <p className="mt-1 text-xs text-slate-500">{c.address}</p>}
-            {contactFields
-              .filter((f) => !isEmptyValue(c.customFields?.[f.fieldId]))
-              .map((f) => (
-                <p key={f.fieldId} className="mt-1 flex flex-wrap items-center gap-1 text-xs text-slate-500">
-                  <span className="font-medium text-slate-600 dark:text-slate-400" dir="auto">{f.name}:</span>
-                  {renderCustomCell(f, c.customFields?.[f.fieldId], language)}
-                </p>
-              ))}
-            <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
-              <span>{fmtDate(c.createdAt, language, '-')}</span>
-              {canManage && (
-                <button
-                  type="button"
-                  onClick={() => handleInvite(c.email)}
-                  className="cursor-pointer font-medium text-primary hover:underline"
-                >
-                  {copy.invitePrefix}{tenantName}
-                </button>
-              )}
-            </div>
-            {canManage && (onEditContact || NOT_ACCEPTED.includes(c.status)) && (
-              <div className="mt-2 flex items-center gap-3 border-t border-slate-100 pt-2 dark:border-slate-800">
-                {onEditContact && (
-                  <button
-                    type="button"
-                    onClick={() => onEditContact(c)}
-                    className="cursor-pointer text-xs font-medium text-slate-500 hover:text-primary"
-                  >
-                    {copy.editContact}
-                  </button>
-                )}
-                {NOT_ACCEPTED.includes(c.status) && onEditEmail && (
-                  <button
-                    type="button"
-                    onClick={() => onEditEmail(c)}
-                    className="cursor-pointer text-xs font-medium text-slate-500 hover:text-primary"
-                  >
-                    {copy.editEmail}
-                  </button>
-                )}
-                {NOT_ACCEPTED.includes(c.status) && onRemove && (
-                  <button
-                    type="button"
-                    onClick={() => onRemove(c)}
-                    className="cursor-pointer text-xs font-medium text-red-500 hover:text-red-700"
-                  >
-                    {copy.remove}
-                  </button>
-                )}
-              </div>
-            )}
-          </article>
+          <MobileContactCard
+            key={c.tenantContactId}
+            contact={c}
+            language={language}
+            canManage={canManage}
+            tenantName={tenantName}
+            contactFields={contactFields}
+            mirrorDefFor={mirrorDefFor}
+            onInvite={handleInvite}
+            onEditEmail={onEditEmail}
+            onEditContact={onEditContact}
+            onRemove={onRemove}
+          />
         ))}
         {!loading && contacts.length === 0 && (
           <div className="py-8 text-center text-sm text-slate-500">{copy.empty}</div>
