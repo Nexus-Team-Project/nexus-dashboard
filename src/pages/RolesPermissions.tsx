@@ -1,186 +1,138 @@
-import { useState, useEffect } from 'react';
+/**
+ * Shows pending workspace invitations and the "Invite members" action.
+ * The member table has moved to the Members page (/users).
+ * Role definitions and permission details are shown on the Invite page.
+ */
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  tenantMembersApi,
+  tenantJoinRequestsApi,
+  type PendingInvitationItem,
+  type TenantJoinRequestItem,
+} from '../lib/api';
+import { getTenantRoleLabel } from '../lib/tenantRoles';
+import { useLanguage } from '../i18n/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
+import { PlanSummaryCard } from '../components/plan/PlanSummaryCard';
 
-interface Collaborator {
-  id: string;
-  name: string;
-  email: string;
-  avatar?: string;
-  initials: string;
-  avatarColor: string;
-  role: string;
-  joinedDate: string;
-  isCurrentUser?: boolean;
-}
+const COPY = {
+  he: {
+    settings: 'הגדרות',
+    title: 'תפקידים והרשאות',
+    body: 'ניהול הגישה לסביבת העבודה.',
+    invite: 'הזמן חברים',
+    pendingInvites: 'הזמנות ממתינות',
+    pendingHasMore: 'ועוד...',
+    invitePrompt: 'כדי להוסיף חברים לסביבת העבודה, לחץ על כפתור "הזמן חברים". הזמנות פתוחות יופיעו כאן.',
+    joinRequests: 'בקשות הצטרפות מארנק',
+    joinRequestsHint: 'משתמשים שביקשו להצטרף לארגון דרך הארנק. אישור יוסיף אותם כחברים.',
+    approve: 'אשר',
+    deny: 'דחה',
+    denyReason: 'סיבת דחייה (לא חובה)',
+    cancel: 'ביטול',
+  },
+  en: {
+    settings: 'Settings',
+    title: 'Roles and permissions',
+    body: 'Manage who has access to this workspace.',
+    invite: 'Invite members',
+    pendingInvites: 'Pending invitations',
+    pendingHasMore: 'and more…',
+    invitePrompt: 'To add members to this workspace, press the "Invite members" button above. Pending invitations will appear here.',
+    joinRequests: 'Wallet join requests',
+    joinRequestsHint: 'Users who asked to join your tenant from the wallet. Approve to add them as members.',
+    approve: 'Approve',
+    deny: 'Deny',
+    denyReason: 'Deny reason (optional)',
+    cancel: 'Cancel',
+  },
+} as const;
 
-const RolesPermissions = () => {
+/**
+ * Renders the plan summary card, invite button, and pending invitations panel.
+ * Input: none — reads tenant auth context from AuthContext.
+ * Output: header with invite action + amber pending invitations chips.
+ */
+export default function RolesPermissions() {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [roleFilter, setRoleFilter] = useState('all');
+  const { language, isRTL } = useLanguage();
+  const { me } = useAuth();
+  const copy = COPY[language];
+  const canInviteMembers = me?.authorization.canManageMembers === true;
 
-  // Simulate loading
+  const [pendingInvites, setPendingInvites] = useState<PendingInvitationItem[]>([]);
+  const [pendingHasMore, setPendingHasMore] = useState(false);
+  const [joinRequests, setJoinRequests] = useState<TenantJoinRequestItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actingId, setActingId] = useState<string | null>(null);
+
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 1500);
-    return () => clearTimeout(timer);
+    /** Loads pending invitations + join requests on mount. */
+    const load = async () => {
+      try {
+        const [pendingResult, joinResult] = await Promise.all([
+          tenantMembersApi.pendingInvitations(),
+          // Best-effort: tenants without the permission silently get []
+          tenantJoinRequestsApi.list().catch(() => ({ requests: [] })),
+        ]);
+        setPendingInvites(pendingResult.pendingInvitations);
+        setPendingHasMore(pendingResult.hasMore);
+        setJoinRequests(joinResult.requests);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load');
+      } finally {
+        setLoading(false);
+      }
+    };
+    void load();
   }, []);
 
-  const collaborators: Collaborator[] = [
-    {
-      id: '1',
-      name: 'מאיר עזורי',
-      email: 'mazuri0675@gmail.com',
-      initials: 'מ',
-      avatarColor: 'bg-green-700',
-      role: 'Admin (Co-Owner)',
-      joinedDate: 'Jun 13, 2024'
-    },
-    {
-      id: '2',
-      name: 'רז אשל',
-      email: 'razeshel123@gmail.com',
-      initials: 'ר',
-      avatarColor: 'bg-violet-600',
-      role: 'Admin (Co-Owner)',
-      joinedDate: 'Jun 11, 2024',
-      isCurrentUser: true
-    },
-    {
-      id: '3',
-      name: 'Adir Digmi',
-      email: 'adirdigmi@gmail.com',
-      initials: 'A',
-      avatarColor: 'bg-purple-600',
-      role: 'Admin (Co-Owner)',
-      joinedDate: 'Jul 24, 2025'
-    },
-    {
-      id: '4',
-      name: 'arikz',
-      email: 'arikz@yonipro.com',
-      initials: 'A',
-      avatarColor: 'bg-teal-600',
-      role: 'Marketing Manager',
-      joinedDate: 'Feb 1, 2026'
-    },
-    {
-      id: '5',
-      name: 'barsossover',
-      email: 'barsossover@nexusus.onmicrosoft.com',
-      initials: 'B',
-      avatarColor: 'bg-orange-500',
-      role: 'Marketing Manager',
-      joinedDate: 'Jan 25, 2026'
-    },
-    {
-      id: '6',
-      name: 'דניאל כהן',
-      email: 'daniel@example.com',
-      initials: 'ד',
-      avatarColor: 'bg-pink-600',
-      role: 'Designer',
-      joinedDate: 'Dec 15, 2025'
-    },
-    {
-      id: '7',
-      name: 'Sarah Miller',
-      email: 'sarah.m@example.com',
-      initials: 'S',
-      avatarColor: 'bg-indigo-600',
-      role: 'Content Editor',
-      joinedDate: 'Nov 8, 2025'
-    },
-    {
-      id: '8',
-      name: 'יוסי לוי',
-      email: 'yossi@example.com',
-      initials: 'י',
-      avatarColor: 'bg-cyan-600',
-      role: 'Developer',
-      joinedDate: 'Oct 22, 2025'
+  /** Approve a join request. Removes the row optimistically. */
+  const approveJoinRequest = async (id: string): Promise<void> => {
+    setActingId(id);
+    try {
+      await tenantJoinRequestsApi.approve(id);
+      setJoinRequests((rows) => rows.filter((r) => r.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to approve');
+    } finally {
+      setActingId(null);
     }
-  ];
+  };
 
-  const filteredCollaborators = collaborators.filter(collab => {
-    const matchesSearch = collab.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         collab.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRole = roleFilter === 'all' || collab.role === roleFilter;
-    return matchesSearch && matchesRole;
-  });
+  /** Deny a join request with an optional reason. */
+  const denyJoinRequest = async (id: string): Promise<void> => {
+    const reason = window.prompt(copy.denyReason) ?? undefined;
+    setActingId(id);
+    try {
+      await tenantJoinRequestsApi.deny(id, reason || undefined);
+      setJoinRequests((rows) => rows.filter((r) => r.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to deny');
+    } finally {
+      setActingId(null);
+    }
+  };
 
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto animate-pulse">
-        {/* Skeleton Navigation */}
-        <nav className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <div className="h-4 w-24 bg-slate-200 dark:bg-slate-700 rounded"></div>
-            <div className="h-4 w-32 bg-slate-200 dark:bg-slate-700 rounded"></div>
+      <div dir={isRTL ? 'rtl' : 'ltr'} className="mx-auto max-w-7xl space-y-6 animate-pulse">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div className="space-y-3">
+            <div className="h-3 w-24 rounded bg-slate-200 dark:bg-slate-700" />
+            <div className="h-8 w-56 rounded bg-slate-200 dark:bg-slate-700" />
+            <div className="h-4 w-80 rounded bg-slate-200 dark:bg-slate-700" />
           </div>
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-32 bg-slate-200 dark:bg-slate-700 rounded-full"></div>
-            <div className="h-10 w-40 bg-slate-200 dark:bg-slate-700 rounded-full"></div>
-          </div>
-        </nav>
-
-        {/* Skeleton Header */}
-        <div className="mb-8">
-          <div className="h-9 w-48 bg-slate-200 dark:bg-slate-700 rounded-lg mb-2"></div>
-          <div className="h-4 w-96 bg-slate-200 dark:bg-slate-700 rounded"></div>
+          <div className="h-10 w-36 rounded-lg bg-slate-200 dark:bg-slate-700" />
         </div>
-
-        {/* Skeleton Banner */}
-        <div className="bg-white dark:bg-card-dark rounded-xl p-6 mb-8 border border-slate-200 dark:border-slate-800">
-          <div className="h-5 w-64 bg-slate-200 dark:bg-slate-700 rounded mb-3"></div>
-          <div className="w-full max-w-md h-2 bg-slate-200 dark:bg-slate-700 rounded-full mb-3"></div>
-          <div className="h-3 w-80 bg-slate-200 dark:bg-slate-700 rounded"></div>
-        </div>
-
-        {/* Skeleton Filters */}
-        <div className="flex items-center gap-6 mb-6">
-          <div className="h-10 w-40 bg-slate-200 dark:bg-slate-700 rounded-lg"></div>
-          <div className="h-10 w-44 bg-slate-200 dark:bg-slate-700 rounded-lg"></div>
-          <div className="h-10 w-64 bg-slate-200 dark:bg-slate-700 rounded-lg ml-auto"></div>
-        </div>
-
-        {/* Skeleton Table */}
-        <div className="bg-white dark:bg-card-dark rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-          <div className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700 px-6 py-4">
-            <div className="flex gap-6">
-              <div className="h-4 w-24 bg-slate-200 dark:bg-slate-700 rounded"></div>
-              <div className="h-4 w-24 bg-slate-200 dark:bg-slate-700 rounded"></div>
-              <div className="h-4 w-24 bg-slate-200 dark:bg-slate-700 rounded"></div>
-            </div>
-          </div>
-          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-            <div key={i} className="border-b border-slate-200 dark:border-slate-800 px-6 py-5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-slate-200 dark:bg-slate-700 rounded-full"></div>
-                  <div>
-                    <div className="h-4 w-32 bg-slate-200 dark:bg-slate-700 rounded mb-2"></div>
-                    <div className="h-3 w-48 bg-slate-200 dark:bg-slate-700 rounded"></div>
-                  </div>
-                </div>
-                <div className="h-4 w-28 bg-slate-200 dark:bg-slate-700 rounded"></div>
-                <div className="h-4 w-24 bg-slate-200 dark:bg-slate-700 rounded"></div>
-                <div className="h-8 w-8 bg-slate-200 dark:bg-slate-700 rounded-full"></div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Skeleton Pagination */}
-        <div className="mt-6 flex items-center justify-between">
-          <div className="h-4 w-48 bg-slate-200 dark:bg-slate-700 rounded"></div>
-          <div className="flex items-center gap-2">
-            <div className="h-10 w-10 bg-slate-200 dark:bg-slate-700 rounded-lg"></div>
-            <div className="h-10 w-10 bg-slate-200 dark:bg-slate-700 rounded-lg"></div>
-            <div className="h-10 w-10 bg-slate-200 dark:bg-slate-700 rounded-lg"></div>
-            <div className="h-10 w-10 bg-slate-200 dark:bg-slate-700 rounded-lg"></div>
+        <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-card-dark space-y-4">
+          <div className="h-4 w-48 rounded bg-slate-200 dark:bg-slate-700" />
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-16 rounded-lg bg-slate-100 dark:bg-slate-800" />
+            ))}
           </div>
         </div>
       </div>
@@ -188,195 +140,122 @@ const RolesPermissions = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto">
-      {/* Navigation */}
-      <nav className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-          <button onClick={() => navigate('/settings')} className="hover:text-primary transition-colors">
-            הגדרות
-          </button>
-          <span className="material-icons text-sm">chevron_left</span>
-          <span className="font-medium text-slate-800 dark:text-slate-200">תפקידים והרשאות</span>
+    <div dir={isRTL ? 'rtl' : 'ltr'} className="mx-auto max-w-7xl space-y-6">
+      {/* Page header */}
+      <header className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div>
+          <nav className="mb-2 flex items-center gap-2 text-sm text-slate-500">
+            <button type="button" onClick={() => navigate('/settings')} className="cursor-pointer hover:text-primary">
+              {copy.settings}
+            </button>
+            <span className="material-icons text-sm">{isRTL ? 'chevron_left' : 'chevron_right'}</span>
+            <span className="font-medium text-slate-800 dark:text-slate-200">{copy.title}</span>
+          </nav>
+          <h1 className="text-3xl font-bold tracking-normal text-slate-950 dark:text-white">{copy.title}</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">{copy.body}</p>
         </div>
-        <div className="flex items-center gap-3">
-          <button className="flex items-center px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-full text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm">
-            <span className="material-icons text-lg ml-2">settings</span>
-            ניהול תפקידים
-          </button>
+        {canInviteMembers && (
           <button
+            type="button"
             onClick={() => navigate('/settings/roles-permissions/invite')}
-            className="flex items-center px-6 py-2 bg-primary text-white rounded-full text-sm font-semibold hover:opacity-90 transition-all shadow-md"
+            className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90"
           >
-            <span className="material-icons text-lg ml-2">add</span>
-            הזמן משתפי פעולה
+            <span className="material-icons text-lg">person_add</span>
+            {copy.invite}
           </button>
-        </div>
-      </nav>
-
-      {/* Header */}
-      <header className="mb-8">
-        <div className="flex items-center mb-1">
-          <button
-            onClick={() => navigate('/settings')}
-            className="ml-3 text-slate-400 hover:text-primary transition-colors"
-          >
-            <span className="material-icons text-2xl">arrow_forward</span>
-          </button>
-          <h1 className="text-3xl font-bold tracking-tight">תפקידים והרשאות</h1>
-        </div>
-        <p className="text-slate-500 dark:text-slate-400 text-sm mr-9">
-          ראה מי יכול לעבוד באתר זה ואילו תפקידים הוקצו להם. <a className="text-primary hover:underline" href="#">למד עוד</a>
-        </p>
+        )}
       </header>
 
-      {/* Collaborator Seats Banner */}
-      <section className="bg-white dark:bg-card-dark rounded-xl p-6 mb-8 shadow-sm border border-slate-100 dark:border-slate-800">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex-1">
-            <div className="flex items-center mb-3">
-              <h2 className="font-semibold text-slate-800 dark:text-white ml-2">נותרו 2 מקומות למשתפי פעולה</h2>
-              <span className="material-icons text-slate-400 text-base cursor-help" title="מבוסס על התוכנית הנוכחית שלך">info</span>
-            </div>
-            <div className="w-full max-w-md bg-slate-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden mb-3">
-              <div className="bg-amber-400 h-full rounded-full transition-all duration-300" style={{ width: '80%' }}></div>
-            </div>
-            <div className="flex items-center justify-between max-w-md text-xs font-medium text-slate-500 dark:text-slate-400">
-              <span>התוכנית הנוכחית שלך מאפשרת 10 מקומות למשתפי פעולה. כדי להוסיף עוד, שדרג את התוכנית שלך.</span>
-              <span className="mr-4 whitespace-nowrap">8/10</span>
-            </div>
-          </div>
-          <div>
-            <button className="px-6 py-2 border-2 border-purple-100 dark:border-purple-900/30 text-purple-600 dark:text-purple-400 font-semibold rounded-full hover:bg-purple-50 dark:hover:bg-purple-900/10 transition-colors">
-              שדרג תוכנית
-            </button>
-          </div>
-        </div>
-      </section>
+      {/* Plan + seat summary (tenant admins only) */}
+      {me?.context.isTenant && (
+        <PlanSummaryCard
+          plan={me.context.plan}
+          seats={me.context.seats}
+          isLoading={!me.context.plan}
+        />
+      )}
 
-      {/* Filters */}
-      <section className="flex flex-wrap items-center gap-6 mb-6">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center">
-            <label className="text-sm font-medium text-slate-500 dark:text-slate-400 ml-3">סטטוס</label>
-            <div className="relative min-w-[140px]">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full appearance-none bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 pl-10 text-sm focus:ring-primary focus:border-primary outline-none transition-all"
-              >
-                <option value="all">הכל</option>
-                <option value="active">פעיל</option>
-                <option value="pending">ממתין</option>
-              </select>
-              <span className="material-icons absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">expand_more</span>
-            </div>
-          </div>
-          <div className="flex items-center">
-            <label className="text-sm font-medium text-slate-500 dark:text-slate-400 ml-3">תפקיד</label>
-            <div className="relative min-w-[180px]">
-              <select
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
-                className="w-full appearance-none bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 pl-10 text-sm focus:ring-primary focus:border-primary outline-none transition-all"
-              >
-                <option value="all">הכל</option>
-                <option value="Admin (Co-Owner)">מנהל</option>
-                <option value="Marketing Manager">מנהל שיווק</option>
-                <option value="Designer">מעצב</option>
-                <option value="Content Editor">עורך תוכן</option>
-                <option value="Developer">מפתח</option>
-              </select>
-              <span className="material-icons absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">expand_more</span>
-            </div>
-          </div>
-        </div>
-        <div className="relative flex-grow max-w-md mr-auto">
-          <span className="material-icons absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
-          <input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pr-10 pl-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-primary focus:border-primary outline-none transition-all"
-            placeholder="חפש לפי אימייל או שם"
-            type="text"
-          />
-        </div>
-      </section>
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
+      )}
 
-      {/* Collaborators Table */}
-      <div className="bg-white dark:bg-card-dark rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
-        <table className="w-full text-right border-collapse">
-          <thead>
-            <tr className="bg-violet-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700">
-              <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                <div className="flex items-center cursor-pointer hover:text-primary transition-colors">
-                  שם
-                  <span className="material-icons text-sm mr-1 text-primary">arrow_upward</span>
-                </div>
-              </th>
-              <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">תפקידים</th>
-              <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">הצטרף ב</th>
-              <th className="px-6 py-4"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-            {filteredCollaborators.map(collab => (
-              <tr key={collab.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/20 transition-colors group">
-                <td className="px-6 py-5">
-                  <div className="flex items-center">
-                    <div className={`h-10 w-10 rounded-full ${collab.avatarColor} flex items-center justify-center text-white font-medium ml-4`}>
-                      {collab.initials}
-                    </div>
-                    <div>
-                      <div className="font-medium text-slate-900 dark:text-white">{collab.name}</div>
-                      <div className="text-sm text-slate-500 dark:text-slate-400">{collab.email}</div>
-                    </div>
+      {/* Invite prompt — shown when there are no pending invitations */}
+      {pendingInvites.length === 0 && (
+        <div className="flex flex-col items-center justify-center rounded-lg border border-slate-200 bg-white px-6 py-16 text-center shadow-sm dark:border-slate-800 dark:bg-card-dark">
+          <span className="material-icons mb-3 text-4xl text-slate-300 dark:text-slate-600">person_add</span>
+          <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm">{copy.invitePrompt}</p>
+        </div>
+      )}
+
+      {/* Plan #4: wallet join requests */}
+      {joinRequests.length > 0 && (
+        <section className="rounded-lg border border-violet-200 bg-violet-50 p-4 shadow-sm dark:border-violet-800/40 dark:bg-violet-900/20">
+          <h2 className="mb-1 text-sm font-semibold text-violet-800 dark:text-violet-200">
+            {copy.joinRequests} ({joinRequests.length})
+          </h2>
+          <p className="mb-3 text-xs text-violet-700/80 dark:text-violet-300/80">{copy.joinRequestsHint}</p>
+          <div className="space-y-2">
+            {joinRequests.map((r) => (
+              <div
+                key={r.id}
+                className="flex flex-col gap-2 rounded-lg border border-violet-200 bg-white p-3 dark:bg-violet-900/40 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
+                    {r.displayName ?? r.email}
                   </div>
-                </td>
-                <td className="px-6 py-5">
-                  <span className="text-sm text-slate-700 dark:text-slate-300">{collab.role}</span>
-                </td>
-                <td className="px-6 py-5">
-                  <span className="text-sm text-slate-500 dark:text-slate-400">הצטרף: {collab.joinedDate}</span>
-                </td>
-                <td className="px-6 py-5 text-left">
-                  {collab.isCurrentUser ? (
-                    <button className="inline-flex items-center px-4 py-1.5 text-xs font-medium text-primary border border-violet-100 dark:border-violet-900/30 rounded-full bg-violet-50 dark:bg-violet-900/20 hover:bg-violet-100 dark:hover:bg-violet-900/40 transition-all">
-                      <span className="material-icons text-sm ml-1">person_remove</span>
-                      עזוב אתר
-                    </button>
-                  ) : (
-                    <button className="p-2 text-slate-400 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-all">
-                      <span className="material-icons">more_horiz</span>
-                    </button>
+                  {r.displayName && (
+                    <div className="truncate text-xs text-slate-500 dark:text-slate-400">{r.email}</div>
                   )}
-                </td>
-              </tr>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { void approveJoinRequest(r.id); }}
+                    disabled={actingId === r.id}
+                    className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:opacity-90 disabled:opacity-40"
+                  >
+                    {copy.approve}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { void denyJoinRequest(r.id); }}
+                    disabled={actingId === r.id}
+                    className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                  >
+                    {copy.deny}
+                  </button>
+                </div>
+              </div>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </div>
+        </section>
+      )}
 
-      {/* Pagination */}
-      <div className="mt-6 flex items-center justify-between">
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          מציג 1-{filteredCollaborators.length} מתוך {collaborators.length} משתפי פעולה
-        </p>
-        <div className="flex items-center gap-2">
-          <button
-            className="p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-400 hover:text-primary disabled:opacity-50 transition-all"
-            disabled
-          >
-            <span className="material-icons">chevron_right</span>
-          </button>
-          <button className="px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg">1</button>
-          <button className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">2</button>
-          <button className="p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-400 hover:text-primary transition-all">
-            <span className="material-icons">chevron_left</span>
-          </button>
-        </div>
-      </div>
+      {/* Pending invitations panel */}
+      {pendingInvites.length > 0 && (
+        <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 shadow-sm dark:border-amber-800/40 dark:bg-amber-900/20">
+          <h2 className="mb-3 text-sm font-semibold text-amber-800 dark:text-amber-200">
+            {copy.pendingInvites} ({pendingInvites.length}{pendingHasMore ? '+' : ''})
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            {pendingInvites.map((inv) => (
+              <span
+                key={inv.invitationId || inv.email}
+                className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-white px-3 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
+              >
+                <span className="material-icons text-sm">mail</span>
+                {inv.email}
+                {inv.roles.length > 0 && <span className="text-amber-500">·</span>}
+                {inv.roles.map((r) => getTenantRoleLabel(r, language)).join(', ')}
+              </span>
+            ))}
+            {pendingHasMore && (
+              <span className="self-center text-xs text-amber-600">{copy.pendingHasMore}</span>
+            )}
+          </div>
+        </section>
+      )}
     </div>
   );
-};
-
-export default RolesPermissions;
+}

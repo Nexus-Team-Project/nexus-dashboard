@@ -1,74 +1,186 @@
-import { useState } from 'react';
+/**
+ * CSV column-mapping modal for tenant contact imports.
+ * Displays a two-column layout: CSV headers on the left mapped to Nexus
+ * system fields on the right. Auto-detects common header names.
+ * On confirm, calls the provided onImport callback with resolved rows.
+ * Preserves the existing visual design (modal shell, column rows, right illustration).
+ */
+import { useState, useMemo } from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
+import { normalizeIsraeliPhone } from '../lib/israeliPhone';
+import type { ContactField } from '../lib/api';
 
-interface ColumnMapping {
-  excelColumn: string;
-  systemColumn: string;
+/** System fields a CSV column can be mapped to. Status is lifecycle-managed, not imported. */
+type SystemField = 'Full Name' | 'Email Address' | 'Address' | 'Phone' | '';
+
+/** A mapping target is a system field, a custom-column fieldId, or '' (ignore). */
+interface ColumnMappingRow {
+  csvColumn: string;
+  /** '' | SystemField | custom fieldId ("cf_..."). */
+  target: string;
   sample: string;
   isMapped: boolean;
 }
 
-interface ColumnMappingProps {
-  onClose: () => void;
-  onComplete: () => void;
-  fileName?: string;
+/** A resolved contact row after column mapping is confirmed. Status is set by the server. */
+export interface ResolvedContactRow {
+  email: string;
+  displayName?: string;
+  address?: string;
+  /** Normalized Israeli mobile number ("05XXXXXXXX"). Absent when the source
+   *  row had no phone or the phone could not be normalized. */
+  phone?: string;
+  /** Raw custom-column values keyed by fieldId; the server coerces/validates
+   *  each per type and blanks anything invalid (the row still imports). */
+  customFields?: Record<string, unknown>;
 }
 
-const ColumnMapping = ({ onClose, onComplete }: ColumnMappingProps) => {
-  const { t } = useLanguage();
-  const [excludeFirstRow, setExcludeFirstRow] = useState(true);
-  const [mappings, setMappings] = useState<ColumnMapping[]>([
-    {
-      excelColumn: 'Full Name',
-      systemColumn: 'Person Name',
-      sample: 'Jane Doe, John Smith',
-      isMapped: true
-    },
-    {
-      excelColumn: 'Work Email',
-      systemColumn: '',
-      sample: 'office@example.com',
-      isMapped: false
-    },
-    {
-      excelColumn: 'Department',
-      systemColumn: 'Team / Group',
-      sample: 'Engineering, Sales',
-      isMapped: true
-    },
-    {
-      excelColumn: 'Start Date',
-      systemColumn: 'Timeline',
-      sample: '2023-01-15',
-      isMapped: true
-    }
-  ]);
+export interface ColumnMappingProps {
+  onClose: () => void;
+  /** Called with resolved rows when the user confirms the mapping. */
+  onImport: (rows: ResolvedContactRow[]) => void | Promise<void>;
+  fileName?: string;
+  /** Real CSV headers parsed from the uploaded file. */
+  csvHeaders: string[];
+  /** Real CSV data rows keyed by header name. */
+  csvRows: Record<string, string>[];
+  /** Tenant custom columns - added as mapping targets. */
+  contactFields: ContactField[];
+}
 
-  const systemColumns = [
-    'Person Name',
-    'Email Address',
-    'Contact Info',
-    'Team / Group',
-    'Timeline',
-    'User ID',
-    'Status',
-    'Address',
-    'Phone Number'
-  ];
+const SYSTEM_FIELDS: SystemField[] = ['Full Name', 'Email Address', 'Address', 'Phone', ''];
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+/**
+ * Auto-detects the best system field for a CSV header name.
+ * Input: raw header string.
+ * Output: best-matching system field, or '' (ignore).
+ */
+function autoDetect(header: string): SystemField {
+  const h = header.toLowerCase().trim();
+  if (/e[-_]?mail|mail address|כתובת.?אימייל|אימייל|מייל/.test(h)) return 'Email Address';
+  if (/\bname\b|full.?name|שם|שם.?מלא/.test(h)) return 'Full Name';
+  if (/phone|mobile|cell|tel(?!l)|נייד|טלפון|פלאפון/.test(h)) return 'Phone';
+  if (/address|כתובת/.test(h)) return 'Address';
+  return '';
+}
+
+/**
+ * Returns the first two non-empty values of a column as a sample string.
+ * Input: CSV rows and the header name.
+ * Output: comma-separated sample or a placeholder.
+ */
+function sampleValues(rows: Record<string, string>[], header: string): string {
+  const vals = rows.map((r) => r[header]).filter(Boolean).slice(0, 2);
+  return vals.join(', ') || '—';
+}
+
+/**
+ * Resolves mapped CSV rows into contact objects, skipping rows without a valid email.
+ * Input: mapping state and raw CSV rows.
+ * Output: validated contact rows ready for the API.
+ */
+function resolveRows(
+  mappings: ColumnMappingRow[],
+  csvRows: Record<string, string>[],
+  contactFields: ContactField[],
+): { rows: ResolvedContactRow[]; skipped: number } {
+  const emailCol = mappings.find((m) => m.target === 'Email Address')?.csvColumn;
+  const nameCol = mappings.find((m) => m.target === 'Full Name')?.csvColumn;
+  const addressCol = mappings.find((m) => m.target === 'Address')?.csvColumn;
+  const phoneCol = mappings.find((m) => m.target === 'Phone')?.csvColumn;
+
+  // Custom columns the user mapped: fieldId -> source CSV column.
+  const customCols = contactFields
+    .map((f) => ({ fieldId: f.fieldId, col: mappings.find((m) => m.target === f.fieldId)?.csvColumn }))
+    .filter((c): c is { fieldId: string; col: string } => !!c.col);
+
+  const seen = new Set<string>();
+  const rows: ResolvedContactRow[] = [];
+  let skipped = 0;
+
+  for (const row of csvRows) {
+    const email = emailCol ? (row[emailCol] ?? '').trim().toLowerCase() : '';
+    if (!email || !EMAIL_RE.test(email) || seen.has(email)) { skipped++; continue; }
+    seen.add(email);
+
+    // Phone is optional: only attach when the cell normalizes to a valid
+    // Israeli mobile. Invalid/blank phone cells silently drop the field so
+    // the row still imports, matching the behavior of address.
+    const rawPhone = phoneCol ? (row[phoneCol] ?? '').trim() : '';
+    const normalizedPhone = rawPhone ? normalizeIsraeliPhone(rawPhone) : null;
+
+    // Raw custom values (non-empty cells). The server coerces/validates per
+    // type and blanks anything invalid, so the row always imports.
+    const customFields: Record<string, unknown> = {};
+    for (const { fieldId, col } of customCols) {
+      const raw = (row[col] ?? '').trim();
+      if (raw) customFields[fieldId] = raw;
+    }
+
+    rows.push({
+      email,
+      ...(nameCol && row[nameCol] ? { displayName: row[nameCol].trim() } : {}),
+      ...(addressCol && row[addressCol] ? { address: row[addressCol].trim() } : {}),
+      ...(normalizedPhone ? { phone: normalizedPhone } : {}),
+      ...(Object.keys(customFields).length ? { customFields } : {}),
+    });
+  }
+  return { rows, skipped };
+}
+
+/**
+ * Renders the CSV column-mapping modal.
+ * Input: CSV headers + rows from the file, plus import and close callbacks.
+ * Output: full-screen modal with column mapping UI and confirmation button.
+ */
+const ColumnMapping = ({ onClose, onImport, fileName, csvHeaders, csvRows, contactFields }: ColumnMappingProps) => {
+  const { t } = useLanguage();
+  const [isImporting, setIsImporting] = useState(false);
+
+  // Wallet mirror columns (origin 'wallet_profile') are read-only and cannot be
+  // import targets - exclude them from auto-map, the dropdown, and resolution.
+  const mappableFields = contactFields.filter((f) => f.origin !== 'wallet_profile');
+
+  const [mappings, setMappings] = useState<ColumnMappingRow[]>(() =>
+    csvHeaders.map((header) => {
+      // Auto-map to a system field, else to a custom column whose name matches.
+      let target: string = autoDetect(header);
+      if (!target) {
+        const match = mappableFields.find((f) => f.name.trim().toLowerCase() === header.trim().toLowerCase());
+        if (match) target = match.fieldId;
+      }
+      return { csvColumn: header, target, sample: sampleValues(csvRows, header), isMapped: target !== '' };
+    }),
+  );
 
   const handleMappingChange = (index: number, value: string) => {
-    const newMappings = [...mappings];
-    newMappings[index].systemColumn = value;
-    newMappings[index].isMapped = value !== '';
-    setMappings(newMappings);
+    setMappings((prev) =>
+      prev.map((m, i) => (i === index ? { ...m, target: value, isMapped: value !== '' } : m)),
+    );
   };
 
-  const unmappedCount = mappings.filter(m => !m.isMapped).length;
+  const unmappedCount = mappings.filter((m) => !m.isMapped).length;
+  const emailMapped = mappings.some((m) => m.target === 'Email Address');
+
+  const { rows: previewRows, skipped } = useMemo(() => resolveRows(mappings, csvRows, mappableFields), [mappings, csvRows, mappableFields]);
+
+  const handleConfirm = async () => {
+    if (!emailMapped || previewRows.length === 0) return;
+    setIsImporting(true);
+    try {
+      await onImport(previewRows);
+    } finally {
+      setIsImporting(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black/60 dark:bg-black/80 z-50 overflow-hidden backdrop-blur-sm">
       <div className="h-full flex items-center justify-center p-4 lg:p-8">
         <div className="w-full max-w-6xl bg-white dark:bg-slate-900 shadow-2xl rounded-2xl flex flex-col md:flex-row overflow-hidden border border-slate-200 dark:border-slate-800 max-h-[90vh] animate-in fade-in zoom-in duration-300">
+
           {/* Main Content */}
           <div className="flex-1 p-8 lg:p-12 flex flex-col relative overflow-y-auto custom-scrollbar">
             {/* Header */}
@@ -76,12 +188,14 @@ const ColumnMapping = ({ onClose, onComplete }: ColumnMappingProps) => {
               <div className="flex items-center gap-2 text-slate-400">
                 <span className="material-icons text-lg">table_view</span>
                 <span className="material-icons text-sm rtl:rotate-180">chevron_left</span>
-                <span className="text-xs font-medium uppercase tracking-wider">{t('cm_importProcess')}</span>
+                <span className="text-xs font-medium uppercase tracking-wider">
+                  {fileName ?? t('cm_importProcess')}
+                </span>
               </div>
               <div className="flex items-center gap-6">
                 <button
                   onClick={onClose}
-                  className="flex items-center gap-1 text-sm text-slate-500 hover:text-primary transition-colors"
+                  className="flex items-center gap-1 text-sm text-slate-500 hover:text-primary transition-colors cursor-pointer"
                 >
                   <span className="material-icons text-base">close</span>
                   <span>{t('cm_close')}</span>
@@ -93,26 +207,15 @@ const ColumnMapping = ({ onClose, onComplete }: ColumnMappingProps) => {
             </div>
 
             <h1 className="text-3xl font-semibold mb-2 tracking-tight">{t('cm_columnMappingTitle')}</h1>
-            <p className="text-slate-500 dark:text-slate-400 mb-8">
-              {t('cm_columnMappingDesc')}
-            </p>
+            <p className="text-slate-500 dark:text-slate-400 mb-8">{t('cm_columnMappingDesc')}</p>
 
-            {/* Exclude First Row Checkbox */}
-            <div className="flex items-center gap-3 mb-10">
-              <input
-                checked={excludeFirstRow}
-                onChange={(e) => setExcludeFirstRow(e.target.checked)}
-                className="w-5 h-5 rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary transition-all cursor-pointer"
-                id="exclude-row"
-                type="checkbox"
-              />
-              <label
-                className="text-sm font-medium text-slate-600 dark:text-slate-300 cursor-pointer"
-                htmlFor="exclude-row"
-              >
-                {t('cm_excludeFirstRow')}
-              </label>
-            </div>
+            {/* Skip email warning */}
+            {!emailMapped && (
+              <div className="mb-6 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-400">
+                <span className="material-icons text-base">error_outline</span>
+                Map at least one column to Email Address before importing.
+              </div>
+            )}
 
             {/* Column Mappings */}
             <div className="flex-1 overflow-y-auto custom-scrollbar ps-4 -ms-4">
@@ -124,7 +227,7 @@ const ColumnMapping = ({ onClose, onComplete }: ColumnMappingProps) => {
               <div className="space-y-4">
                 {mappings.map((mapping, index) => (
                   <div
-                    key={index}
+                    key={mapping.csvColumn}
                     className={`group flex items-center gap-6 p-4 rounded-xl border transition-all duration-200 ${
                       mapping.isMapped
                         ? 'border-slate-200 dark:border-slate-800 hover:border-primary/30 dark:hover:border-primary/50 bg-white dark:bg-slate-900/50'
@@ -133,32 +236,38 @@ const ColumnMapping = ({ onClose, onComplete }: ColumnMappingProps) => {
                   >
                     <div className="flex-1 flex flex-col">
                       <span className="font-medium text-slate-800 dark:text-slate-200">
-                        {mapping.excelColumn}
+                        {mapping.csvColumn}
                       </span>
                       <span className="text-xs text-slate-400">{t('cm_example')}: {mapping.sample}</span>
                     </div>
-                    <span className="material-icons text-slate-300 dark:text-slate-600">
-                      arrow_back
-                    </span>
+                    <span className="material-icons text-slate-300 dark:text-slate-600">arrow_back</span>
                     <div className="flex-1">
                       <div className="relative">
                         <select
-                          value={mapping.systemColumn}
+                          value={mapping.target}
                           onChange={(e) => handleMappingChange(index, e.target.value)}
                           className={`w-full bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-primary/40 focus:border-primary py-3 px-4 pr-10 transition-all cursor-pointer hover:shadow-md ${
                             !mapping.isMapped ? 'text-slate-400 italic' : 'text-slate-900 dark:text-white font-medium'
                           }`}
-                          style={{
-                            appearance: 'none',
-                            backgroundImage: 'none'
-                          }}
+                          style={{ appearance: 'none', backgroundImage: 'none' }}
                         >
-                          <option value="" className="text-slate-400">{t('cm_chooseColumn')}</option>
-                          {systemColumns.map((col) => (
-                            <option key={col} value={col} className="text-slate-900 dark:text-white font-normal">
-                              {col}
-                            </option>
-                          ))}
+                          <option value="">{t('cm_chooseColumn')}</option>
+                          {SYSTEM_FIELDS.filter((f) => f !== '').map((field) => {
+                            const claimedByOther = mappings.some((m, i) => i !== index && m.target === field);
+                            return (
+                              <option key={field} value={field} disabled={claimedByOther}>
+                                {field}{claimedByOther ? ' ✓' : ''}
+                              </option>
+                            );
+                          })}
+                          {mappableFields.map((f) => {
+                            const claimedByOther = mappings.some((m, i) => i !== index && m.target === f.fieldId);
+                            return (
+                              <option key={f.fieldId} value={f.fieldId} disabled={claimedByOther}>
+                                {f.name}{claimedByOther ? ' ✓' : ''}
+                              </option>
+                            );
+                          })}
                         </select>
                         <span className="material-icons absolute end-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-lg">
                           expand_more
@@ -172,68 +281,67 @@ const ColumnMapping = ({ onClose, onComplete }: ColumnMappingProps) => {
 
             {/* Footer */}
             <div className="mt-12 pt-8 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center">
-              {unmappedCount > 0 ? (
-                <div className="flex items-center text-amber-600 dark:text-amber-500 gap-2">
-                  <span className="material-icons text-lg">warning_amber</span>
-                  <span className="text-sm font-medium">
-                    {unmappedCount} {t('cm_unmappedWarning')}
-                  </span>
-                </div>
-              ) : (
-                <div className="flex items-center text-green-600 dark:text-green-500 gap-2">
-                  <span className="material-icons text-lg">check_circle</span>
-                  <span className="text-sm font-medium">{t('cm_allMapped')}</span>
-                </div>
-              )}
+              <div className="flex flex-col gap-1">
+                {unmappedCount > 0 ? (
+                  <div className="flex items-center text-amber-600 dark:text-amber-500 gap-2">
+                    <span className="material-icons text-lg">warning_amber</span>
+                    <span className="text-sm font-medium">
+                      {unmappedCount} {t('cm_unmappedWarning')}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center text-green-600 dark:text-green-500 gap-2">
+                    <span className="material-icons text-lg">check_circle</span>
+                    <span className="text-sm font-medium">{t('cm_allMapped')}</span>
+                  </div>
+                )}
+                {skipped > 0 && (
+                  <span className="text-xs text-slate-400">{skipped} rows will be skipped (invalid email)</span>
+                )}
+                {emailMapped && previewRows.length > 0 && (
+                  <span className="text-xs text-slate-500">{previewRows.length} contacts ready to import</span>
+                )}
+              </div>
               <div className="flex items-center gap-4">
                 <button
                   onClick={onClose}
-                  className="px-6 py-2.5 font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
+                  className="px-6 py-2.5 font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors cursor-pointer"
                 >
                   {t('cm_back')}
                 </button>
                 <button
-                  onClick={onComplete}
-                  className="bg-primary text-white px-10 py-2.5 font-semibold rounded-lg shadow-lg shadow-primary/20 hover:bg-violet-700 transition-all active:scale-95"
+                  onClick={() => void handleConfirm()}
+                  disabled={!emailMapped || previewRows.length === 0 || isImporting}
+                  className="bg-primary text-white px-10 py-2.5 font-semibold rounded-lg shadow-lg shadow-primary/20 hover:opacity-90 transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
                 >
-                  {t('cm_next')}
+                  {isImporting ? 'Importing...' : t('cm_next')}
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Right Side - Visual Illustration */}
+          {/* Right Side — Visual Illustration (unchanged from original) */}
           <div className="hidden md:flex w-2/5 bg-slate-50 dark:bg-slate-900/40 items-center justify-center p-12 border-e border-slate-200 dark:border-slate-800">
             <div className="relative w-full max-w-sm flex flex-col items-center">
               <div className="w-full space-y-8">
-                {/* Excel File Visual */}
                 <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl p-4 border border-slate-200 dark:border-slate-800 transform -rotate-1">
                   <div className="flex items-center gap-2 mb-3">
-                    <div className="w-6 h-6 bg-green-600 rounded flex items-center justify-center text-[10px] text-white font-bold">
-                      X
-                    </div>
+                    <div className="w-6 h-6 bg-green-600 rounded flex items-center justify-center text-[10px] text-white font-bold">X</div>
                     <div className="h-2 w-20 bg-slate-100 dark:bg-slate-700 rounded"></div>
                   </div>
                   <div className="space-y-2">
                     <div className="grid grid-cols-4 gap-2">
-                      <div className="h-1.5 bg-slate-100 dark:bg-slate-700 rounded"></div>
-                      <div className="h-1.5 bg-slate-100 dark:bg-slate-700 rounded"></div>
-                      <div className="h-1.5 bg-slate-100 dark:bg-slate-700 rounded"></div>
-                      <div className="h-1.5 bg-slate-100 dark:bg-slate-700 rounded"></div>
+                      {[0,1,2,3].map((i) => <div key={i} className="h-1.5 bg-slate-100 dark:bg-slate-700 rounded"></div>)}
                     </div>
                     <div className="h-1 bg-slate-50 dark:bg-slate-800 rounded w-full"></div>
                     <div className="h-1 bg-slate-50 dark:bg-slate-800 rounded w-3/4"></div>
                   </div>
                 </div>
-
-                {/* Arrow Down */}
                 <div className="flex justify-center">
                   <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-white shadow-lg">
                     <span className="material-icons">south</span>
                   </div>
                 </div>
-
-                {/* System Board Visual */}
                 <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl p-4 border border-slate-200 dark:border-slate-800 transform rotate-1">
                   <div className="flex items-center gap-2 mb-4">
                     <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center text-[10px] text-white font-bold">
@@ -242,29 +350,18 @@ const ColumnMapping = ({ onClose, onComplete }: ColumnMappingProps) => {
                     <div className="h-2 w-24 bg-slate-100 dark:bg-slate-700 rounded"></div>
                   </div>
                   <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-green-400 rounded-sm"></div>
-                      <div className="h-2 w-full bg-slate-50 dark:bg-slate-900 rounded"></div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-purple-400 rounded-sm"></div>
-                      <div className="h-2 w-full bg-slate-50 dark:bg-slate-900 rounded"></div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-amber-400 rounded-sm"></div>
-                      <div className="h-2 w-full bg-slate-50 dark:bg-slate-900 rounded"></div>
-                    </div>
+                    {['bg-green-400','bg-purple-400','bg-amber-400'].map((c) => (
+                      <div key={c} className="flex items-center gap-2">
+                        <div className={`w-3 h-3 ${c} rounded-sm`}></div>
+                        <div className="h-2 w-full bg-slate-50 dark:bg-slate-900 rounded"></div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
-
               <div className="mt-12 text-center">
-                <h3 className="text-lg font-medium text-slate-800 dark:text-slate-200">
-                  {t('cm_seamlessIntegration')}
-                </h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 max-w-xs">
-                  {t('cm_autoMatchDesc')}
-                </p>
+                <h3 className="text-lg font-medium text-slate-800 dark:text-slate-200">{t('cm_seamlessIntegration')}</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 max-w-xs">{t('cm_autoMatchDesc')}</p>
               </div>
             </div>
           </div>

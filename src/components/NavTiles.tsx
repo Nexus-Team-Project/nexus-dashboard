@@ -1,12 +1,19 @@
+/**
+ * Renders quick dashboard navigation tiles and hides member links unless the
+ * backend says the user can view tenant members.
+ */
 import { NavLink } from 'react-router-dom';
 import { useLanguage } from '../i18n/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const NavTiles = () => {
   const { t } = useLanguage();
+  const { me } = useAuth();
+  const canViewMembers = me?.authorization.canViewMembers === true || me?.authorization.canManageMembers === true;
 
   const navItems = [
     { to: '/', icon: 'dashboard', label: t('dashboard') },
-    { to: '/users', icon: 'people_alt', label: t('users') },
+    ...(canViewMembers ? [{ to: '/users', icon: 'people_alt', label: t('users') }] : []),
     { to: '/content', icon: 'article', label: t('content') },
     { to: '/reports', icon: 'assessment', label: t('sb_reports') },
     { to: '/marketing', icon: 'campaign', label: t('marketing') },
@@ -29,7 +36,7 @@ const NavTiles = () => {
                 : 'bg-white dark:bg-card-dark text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'
             }`
           }
-          end={item.to === '/'}
+          end={item.to === '/' || item.to === '/settings'}
         >
           <span className="material-icons mb-1">{item.icon}</span>
           <span className="text-[10px] font-medium uppercase tracking-wider text-center">{item.label}</span>

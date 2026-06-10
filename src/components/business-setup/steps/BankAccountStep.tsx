@@ -29,7 +29,7 @@ const BankAccountStep: React.FC<StepProps> = ({ data, onChange }) => {
       <div className="flex gap-2.5 rounded-lg border border-indigo-100 bg-indigo-50/50 px-4 py-3">
         <span className="text-base leading-none mt-0.5" aria-hidden="true">&#128161;</span>
         <p className="text-[13px] text-slate-600 leading-relaxed">
-          חשבון בנק נדרש מספקים בלבד &mdash; דייר אינו מקבל תשלומים דרך המערכת.
+          חשבון בנק נדרש מספקים בלבד &mdash; ארגון אינו מקבל תשלומים דרך המערכת.
         </p>
       </div>
 

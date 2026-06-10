@@ -1098,13 +1098,15 @@ const Users = () => {
             setShowColumnMapping(false);
             setUploadedFile(null);
           }}
-          onComplete={() => {
+          onImport={() => {
             setShowColumnMapping(false);
             setUploadedFile(null);
-            // Show success message or redirect
             alert(t('u_alert_importSuccess'));
           }}
           fileName={uploadedFile?.name}
+          csvHeaders={[]}
+          csvRows={[]}
+          contactFields={[]}
         />
       )}
 

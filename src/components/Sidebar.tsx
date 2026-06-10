@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../i18n/LanguageContext';
+import type { TranslationKey } from '../i18n/translations';
 import { useRecentPages, PAGE_META } from '../hooks/useRecentPages';
 import { useDevMode } from '../contexts/DevModeContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -14,6 +15,8 @@ interface SidebarProps {
   onLogout: () => void;
   state: SidebarState;
   onStateChange: (state: SidebarState) => void;
+  isMobile?: boolean;
+  onNavigate?: () => void;
 }
 
 interface NavItem {
@@ -25,7 +28,7 @@ interface NavItem {
   moreButton?: boolean;
 }
 
-const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
+const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: SidebarProps) => {
   const { t, isRTL } = useLanguage();
   const navigate = useNavigate();
   const [expandedMenus, setExpandedMenus] = useState<string[]>(['products']);
@@ -37,11 +40,21 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
   const { isDevMode, toggleDevMode } = useDevMode();
   const { me } = useAuth();
   const canSeeDevMode = me?.authorization.canSeeDevMode === true;
+  const canViewMembers = me?.authorization.canViewMembers === true || me?.authorization.canManageMembers === true;
+  /** True when the user holds the supply_manager role or is a platform admin. */
+  const canManageSupply = me?.authorization.canManageSupply === true || me?.authorization.isPlatformAdmin === true;
+  /** True once the tenant has activated Benefits Catalog. Platform admins bypass this gate. */
+  const catalogServiceActive = me?.authorization.catalogServiceActive === true;
+  /** Show "Create Offer" link only after catalog service is active, or always for platform admins. */
+  const showCreateOffer = me?.authorization.isPlatformAdmin === true || (canManageSupply && catalogServiceActive);
 
   const DEFAULT_SHORTCUTS_COUNT = 5;
+  const permittedRecentPages = recentPages.filter((page) =>
+    canViewMembers || (page.path !== '/users' && page.path !== '/settings/roles-permissions')
+  );
   const visibleShortcuts = shortcutsExpanded
-    ? recentPages
-    : recentPages.slice(0, DEFAULT_SHORTCUTS_COUNT);
+    ? permittedRecentPages
+    : permittedRecentPages.slice(0, DEFAULT_SHORTCUTS_COUNT);
 
   const toggleSubmenu = (label: string) => {
     setExpandedMenus((prev) =>
@@ -98,7 +111,7 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
   // Main navigation items (before Products section)
   const mainNavItems: NavItem[] = [
     { to: '/', icon: 'home', label: t('dashboard') },
-    { to: '/users', icon: 'people_alt', label: t('users') },
+    ...(canViewMembers ? [{ to: '/users', icon: 'people_alt', label: t('users') }] : []),
     { to: '/transactions', icon: 'receipt_long', label: t('transactions') },
     { to: '/product-catalog', icon: 'inventory_2', label: t('productCatalog') },
     { to: '/balances', icon: 'account_balance_wallet', label: t('balances') },
@@ -167,6 +180,7 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
     <NavLink
       key={item.to}
       to={item.to!}
+      onClick={onNavigate}
       className={({ isActive }) =>
         `flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 ${
           isCollapsed ? 'justify-center' : ''
@@ -190,62 +204,15 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
     </NavLink>
   );
 
-  const renderSubmenu = (item: NavItem) => (
-    <div key={item.label}>
-      <button
-        onClick={() => toggleSubmenu(item.label)}
-        className={`w-full flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 text-[#676879] hover:bg-slate-200 ${
-          isCollapsed ? 'justify-center' : ''
-        }`}
-        title={isCollapsed ? item.label : undefined}
-      >
-        <span className="material-symbols-rounded !text-[16px]">{item.icon}</span>
-        {isOpen && (
-          <>
-            <span className="text-[13px] flex-1 text-start">{item.label}</span>
-            <span
-              className={`material-symbols-rounded !text-sm transition-transform ${
-                expandedMenus.includes(item.label) ? 'rotate-90' : ''
-              }`}
-            >
-              chevron_right
-            </span>
-          </>
-        )}
-      </button>
-      {isOpen && expandedMenus.includes(item.label) && item.submenu && (
-        <div className="ms-9 mt-0.5 space-y-0.5">
-          {item.submenu.map((subItem) => (
-            <NavLink
-              key={subItem.to}
-              to={subItem.to}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-1.5 rounded-md transition-all duration-150 text-[13px] ${
-                  isActive
-                    ? 'hover:bg-violet-50 text-primary font-medium'
-                    : 'text-[#676879] hover:bg-slate-200'
-                }`
-              }
-            >
-              {subItem.label}
-            </NavLink>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-
-  const isProductsExpanded = expandedMenus.includes('products');
-
   return (
     <aside
       style={isOpen ? { width: `${sidebarWidth}px` } : undefined}
-      className={`bg-gradient-to-b from-[#fdfeff] to-[#edf1fc] dark:bg-background-dark h-[calc(100vh-48px)] sticky top-[48px] flex flex-col shrink-0 z-40 relative group/sidebar border-e border-slate-200 rounded-tr-xl rounded-br-xl ${
+      className={`bg-gradient-to-b from-[#fdfeff] to-[#edf1fc] dark:bg-background-dark ${isMobile ? 'h-full rounded-none shadow-xl' : 'h-[calc(100vh-48px)] sticky top-[48px] rounded-tr-xl rounded-br-xl'} flex flex-col shrink-0 z-40 relative group/sidebar border-e border-slate-200 ${
         isOpen ? '' : 'w-16 transition-all duration-300'
       } ${isResizing ? '' : 'transition-all duration-300'}`}
     >
       {/* Resize Handle */}
-      {isOpen && (
+      {isOpen && !isMobile && (
         <div
           onMouseDown={handleResizeStart}
           className="absolute top-0 end-0 w-3 h-full cursor-ew-resize z-20 group translate-x-1"
@@ -260,6 +227,7 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
 
 
       {/* Toggle Button — z-30 so it sits ABOVE the resize handle (z-20) */}
+      {!isMobile && (
       <button
         onClick={cycleState}
         className="!absolute top-6 w-6 h-6 bg-white rounded-full border border-slate-200 shadow-sm flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all z-30 opacity-0 group-hover/sidebar:opacity-100"
@@ -268,6 +236,7 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
       >
         <span className="material-symbols-rounded !text-sm">{getToggleIcon()}</span>
       </button>
+      )}
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-2 space-y-0.5 overflow-y-auto no-scrollbar">
@@ -282,7 +251,7 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
                 <span className="text-[11px] font-semibold text-[#676879] uppercase tracking-wide">
                   {t('shortcuts')}
                 </span>
-                {recentPages.length > DEFAULT_SHORTCUTS_COUNT && (
+                {permittedRecentPages.length > DEFAULT_SHORTCUTS_COUNT && (
                   <button
                     onClick={() => setShortcutsExpanded(!shortcutsExpanded)}
                     className="text-[11px] text-primary hover:text-primary/80 transition-colors"
@@ -307,6 +276,8 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
                   <div key={page.path} className="group/shortcut">
                     <NavLink
                       to={page.path}
+                      end
+                      onClick={onNavigate}
                       className={({ isActive }) =>
                         `flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 text-[13px] ${
                           isCollapsed ? 'justify-center' : ''
@@ -316,7 +287,7 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
                             : 'text-[#676879] hover:bg-slate-200'
                         }`
                       }
-                      title={isCollapsed ? t(meta.labelKey as any) : undefined}
+                      title={isCollapsed ? t(meta.labelKey as TranslationKey) : undefined}
                     >
                       {({ isActive }) => (
                         <>
@@ -324,7 +295,7 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
                             {meta.icon}
                           </span>
                           {isOpen && (
-                            <span className="flex-1 truncate">{t(meta.labelKey as any)}</span>
+                            <span className="flex-1 truncate">{t(meta.labelKey as TranslationKey)}</span>
                           )}
                           {isOpen && (
                             <span
@@ -380,6 +351,7 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
               <NavLink
                 key={item.to}
                 to={item.to}
+                onClick={onNavigate}
                 className={({ isActive }) =>
                   `flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 text-[13px] ${
                     isCollapsed ? 'justify-center' : ''
@@ -429,6 +401,7 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
                         <NavLink
                           key={sub.to}
                           to={sub.to}
+                          onClick={onNavigate}
                           className={({ isActive }) =>
                             `flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 text-[13px] ${
                               isActive
@@ -454,6 +427,7 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
                 <NavLink
                   key={item.to}
                   to={item.to}
+                  onClick={onNavigate}
                   className={({ isActive }) =>
                     `flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 text-[13px] ${
                       isCollapsed ? 'justify-center' : ''
@@ -477,13 +451,6 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
               )
             ))}
 
-            {/* New Product button */}
-            {isOpen && (
-              <button onClick={() => navigate('/projects')} className="w-full flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 text-[13px] text-[#676879] hover:bg-slate-200 mt-0.5">
-                <span className="material-symbols-rounded !text-[16px]">add</span>
-                <span>{t('sb_createProduct')}</span>
-              </button>
-            )}
           </div>
         </div>
 
@@ -514,6 +481,7 @@ const Sidebar = ({ onLogout, state, onStateChange }: SidebarProps) => {
           {isDevMode && (
             <NavLink
               to="/dev"
+              onClick={onNavigate}
               className={({ isActive }) =>
                 `flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 mt-1 ${
                   isCollapsed ? 'justify-center' : ''

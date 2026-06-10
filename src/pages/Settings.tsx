@@ -1,7 +1,13 @@
+/**
+ * Renders dashboard settings tiles and hides tenant member settings unless the
+ * backend grants the current user member-view permission.
+ */
 import { useState, useEffect } from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useNavigate } from 'react-router-dom';
 import type { Language } from '../i18n/translations';
+import { useAuth } from '../contexts/AuthContext';
+import { cn } from '../lib/utils';
 
 interface SettingsTile {
   id: string;
@@ -10,12 +16,17 @@ interface SettingsTile {
   icon: string;
   color: string;
   path: string;
+  /** When true, the tile is disabled, grayed out, and shows a "coming soon" badge. */
+  comingSoon?: boolean;
 }
 
 const Settings = () => {
   const [loading, setLoading] = useState(true);
   const { t, language, setLanguage } = useLanguage();
   const navigate = useNavigate();
+  const { me } = useAuth();
+  const canViewMembers = me?.authorization.canViewMembers === true || me?.authorization.canManageMembers === true;
+  const canManageMembers = me?.authorization.canManageMembers === true;
 
   // Simulate loading
   useEffect(() => {
@@ -26,21 +37,22 @@ const Settings = () => {
   }, []);
 
   const settingsTiles: SettingsTile[] = [
-    {
+    ...(canViewMembers ? [{
       id: 'roles',
       title: 'תפקידים והרשאות',
       description: 'נהל תפקידי משתמשים והרשאות גישה למערכת',
       icon: 'shield',
       color: 'bg-gradient-to-br from-violet-500 to-violet-600',
       path: '/settings/roles-permissions'
-    },
+    }] : []),
     {
       id: 'general',
       title: 'הגדרות כלליות',
       description: 'שם האתר, תיאור, שפה והגדרות בסיסיות',
       icon: 'tune',
       color: 'bg-gradient-to-br from-purple-500 to-purple-600',
-      path: '/settings/general'
+      path: '/settings/general',
+      comingSoon: true
     },
     {
       id: 'notifications',
@@ -48,7 +60,8 @@ const Settings = () => {
       description: 'הגדר העדפות התראות אימייל ו-push',
       icon: 'notifications',
       color: 'bg-gradient-to-br from-green-500 to-green-600',
-      path: '/settings/notifications'
+      path: '/settings/notifications',
+      comingSoon: true
     },
     {
       id: 'security',
@@ -56,23 +69,33 @@ const Settings = () => {
       description: 'סיסמאות, אימות דו-שלבי ומכשירים מחוברים',
       icon: 'security',
       color: 'bg-gradient-to-br from-orange-500 to-orange-600',
-      path: '/settings/security'
+      path: '/settings/security',
+      comingSoon: true
     },
     {
       id: 'appearance',
       title: 'מראה וממשק',
-      description: 'ערכות נושא, צבעים ועיצוב הממשק',
+      description: 'צבע הארגון ולוגו הארגון',
       icon: 'palette',
       color: 'bg-gradient-to-br from-pink-500 to-pink-600',
       path: '/settings/appearance'
     },
+    ...(canManageMembers ? [{
+      id: 'join-requests',
+      title: 'בקשות הצטרפות',
+      description: 'נהל בקשות הצטרפות של חברים מהארנק',
+      icon: 'how_to_reg',
+      color: 'bg-gradient-to-br from-teal-500 to-teal-600',
+      path: '/settings/join-requests'
+    }] : []),
     {
       id: 'integrations',
       title: 'אינטגרציות',
       description: 'חיבורים לשירותים חיצוניים ו-APIs',
       icon: 'extension',
       color: 'bg-gradient-to-br from-cyan-500 to-cyan-600',
-      path: '/settings/integrations'
+      path: '/settings/integrations',
+      comingSoon: true
     },
     {
       id: 'billing',
@@ -80,7 +103,8 @@ const Settings = () => {
       description: 'ניהול מנויים, תשלומים והיסטוריית חשבוניות',
       icon: 'credit_card',
       color: 'bg-gradient-to-br from-yellow-500 to-yellow-600',
-      path: '/settings/billing'
+      path: '/settings/billing',
+      comingSoon: true
     },
     {
       id: 'advanced',
@@ -88,7 +112,8 @@ const Settings = () => {
       description: 'הגדרות מתקדמות למשתמשים מנוסים',
       icon: 'settings_suggest',
       color: 'bg-gradient-to-br from-slate-600 to-slate-700',
-      path: '/settings/advanced'
+      path: '/settings/advanced',
+      comingSoon: true
     }
   ];
 
@@ -129,22 +154,47 @@ const Settings = () => {
         {settingsTiles.map(tile => (
           <button
             key={tile.id}
-            onClick={() => navigate(tile.path)}
-            className="group bg-white dark:bg-card-dark rounded-3xl border border-slate-100 dark:border-slate-800 p-6 hover:shadow-xl hover:shadow-slate-900/5 dark:hover:shadow-slate-900/20 hover:-translate-y-1 transition-all duration-300 text-start"
+            type="button"
+            onClick={() => { if (!tile.comingSoon) navigate(tile.path); }}
+            disabled={tile.comingSoon}
+            aria-disabled={tile.comingSoon}
+            className={cn(
+              'group relative bg-white dark:bg-card-dark rounded-3xl border border-slate-100 dark:border-slate-800 p-6 text-start transition-all duration-300',
+              tile.comingSoon
+                ? 'opacity-60 cursor-not-allowed'
+                : 'hover:shadow-xl hover:shadow-slate-900/5 dark:hover:shadow-slate-900/20 hover:-translate-y-1',
+            )}
           >
-            <div className={`w-14 h-14 ${tile.color} rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg`}>
+            {tile.comingSoon && (
+              <span className="absolute top-4 end-4 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                {language === 'he' ? 'בקרוב' : 'Coming soon'}
+              </span>
+            )}
+            <div className={cn(
+              'w-14 h-14 rounded-2xl flex items-center justify-center mb-4 shadow-lg transition-transform duration-300',
+              tile.comingSoon
+                ? 'bg-gradient-to-br from-slate-300 to-slate-400 dark:from-slate-600 dark:to-slate-700'
+                : `${tile.color} group-hover:scale-110`,
+            )}>
               <span className="material-icons text-white text-2xl">{tile.icon}</span>
             </div>
-            <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-2 group-hover:text-primary transition-colors">
+            <h3 className={cn(
+              'font-bold text-lg mb-2 transition-colors',
+              tile.comingSoon
+                ? 'text-slate-500 dark:text-slate-400'
+                : 'text-slate-900 dark:text-white group-hover:text-primary',
+            )}>
               {tile.title}
             </h3>
             <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
               {tile.description}
             </p>
-            <div className="mt-4 flex items-center text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-              <span className="text-sm font-medium">פתח</span>
-              <span className="material-icons text-sm ml-1">arrow_back</span>
-            </div>
+            {!tile.comingSoon && (
+              <div className="mt-4 flex items-center text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                <span className="text-sm font-medium">פתח</span>
+                <span className="material-icons text-sm ml-1">arrow_back</span>
+              </div>
+            )}
           </button>
         ))}
       </div>
@@ -180,6 +230,7 @@ const Settings = () => {
           </div>
         </div>
       </div>
+
     </>
   );
 };

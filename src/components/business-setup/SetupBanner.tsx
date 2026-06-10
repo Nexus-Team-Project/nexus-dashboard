@@ -26,11 +26,11 @@ export default function SetupBanner() {
 
   return (
     <div className="w-full bg-gradient-to-l from-orange-600 via-amber-600 to-orange-600 text-white pb-2">
-      <div className="flex items-center justify-between px-5 py-1.5 text-[13px]">
-        {/* Start side — label */}
-        <div className="flex items-center gap-2">
-          <span className="font-bold tracking-wide bg-white/20 px-2 py-0.5 rounded text-[11px]">{t('sbn_testEnv')}</span>
-          <span className="font-medium">{t('sbn_testEnvMsg')}</span>
+      <div className="flex items-center justify-between px-5 py-1.5 text-[13px] gap-3">
+        {/* Start side — label + message (message hidden on small screens to prevent overflow) */}
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="font-bold tracking-wide bg-white/20 px-2 py-0.5 rounded text-[11px] shrink-0">{t('sbn_testEnv')}</span>
+          <span className="font-medium hidden sm:block truncate">{t('sbn_testEnvMsg')}</span>
         </div>
 
         {/* End side — CTA */}
@@ -38,7 +38,7 @@ export default function SetupBanner() {
           onClick={() => navigate('/business-setup')}
           className="flex items-center gap-1.5 font-semibold hover:underline underline-offset-2 shrink-0 transition-opacity hover:opacity-90"
         >
-          <span>{t('sbn_verifyBusiness')}</span>
+          <span className="whitespace-nowrap">{t('sbn_verifyBusiness')}</span>
           <span className="material-symbols-rounded !text-[16px]">north_east</span>
         </button>
       </div>
