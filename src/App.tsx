@@ -209,6 +209,16 @@ function AppRoutes() {
 
   if (!me) return <AuthLoadingScreen />;
 
+  // During the SSO handoff the browser sits briefly on /auth/callback while
+  // AuthContext swaps in the real redirect path (replaceState + popstate). That
+  // path-swap and the isLoading flip race each other; if isLoading clears first
+  // the authenticated tree would render against the stale /auth/callback path
+  // and flash the workspace-setup wizard for a user who is actually mid
+  // invite-accept. Keep showing the loading screen until the redirect lands.
+  if (location.pathname === '/auth/callback') {
+    return <AuthLoadingScreen />;
+  }
+
   // The invite-accept page must always render standalone — never behind the forced
   // workspace-setup wizard. It accepts the token, then routes the user onward
   // (members → Nexus Wallet, staff roles → dashboard). Without this guard the forced
