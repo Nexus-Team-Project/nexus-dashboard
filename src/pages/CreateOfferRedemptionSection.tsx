@@ -132,26 +132,30 @@ const CreateOfferRedemptionSection = ({
         />
       )}
 
-      {/* Implementation link - URL where members redeem the offer */}
-      <div className="mb-4">
-        <label
-          htmlFor="offer-impl-link"
-          className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300"
-        >
-          {t('co_fieldImplLink')}
-          <span className="font-normal text-slate-400 ms-1 me-0.5">{t('co_optional')}</span>
-          <FieldTooltip fieldKey="implementationLink" />
-        </label>
-        <input
-          id="offer-impl-link"
-          type="url"
-          value={implementationLink}
-          onChange={(e) => setImplementationLink(e.target.value)}
-          placeholder="https://..."
-          disabled={isSubmitting}
-          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-colors focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white disabled:cursor-not-allowed disabled:opacity-60"
-        />
-      </div>
+      {/* Implementation link - URL where members redeem the offer. Not shown for
+          vouchers: they redeem via their inventory (barcodes/links), not a
+          single offer-level link. */}
+      {executionType !== 'voucher' && (
+        <div className="mb-4">
+          <label
+            htmlFor="offer-impl-link"
+            className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300"
+          >
+            {t('co_fieldImplLink')}
+            <span className="font-normal text-slate-400 ms-1 me-0.5">{t('co_optional')}</span>
+            <FieldTooltip fieldKey="implementationLink" />
+          </label>
+          <input
+            id="offer-impl-link"
+            type="url"
+            value={implementationLink}
+            onChange={(e) => setImplementationLink(e.target.value)}
+            placeholder="https://..."
+            disabled={isSubmitting}
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-colors focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white disabled:cursor-not-allowed disabled:opacity-60"
+          />
+        </div>
+      )}
 
       {/* Implementation instructions - step-by-step guide for members */}
       <div className="mb-4">

@@ -1605,18 +1605,6 @@ const BenefitsPartnerships = () => {
                 </div>
               )}
 
-              {/* How to Use */}
-              <div className="bg-violet-50 dark:bg-violet-900/20 border border-violet-100 dark:border-violet-900/30 rounded-xl p-4">
-                <div className="flex items-start gap-3">
-                  <span className="material-icons text-violet-600 dark:text-violet-400 text-xl">info</span>
-                  <div className="text-sm text-violet-700 dark:text-violet-300">
-                    <p className="font-semibold mb-1">איך משתמשים בהטבה?</p>
-                    <a href={selectedBenefit.implementationLink} target="_blank" rel="noopener noreferrer" className="underline hover:no-underline">
-                      לחץ כאן למימוש ההטבה
-                    </a>
-                  </div>
-                </div>
-              </div>
             </div>
 
             {/* Modal Footer */}

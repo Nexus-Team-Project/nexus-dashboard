@@ -201,7 +201,8 @@ const EditOffer = () => {
         if (faceValue) fd.append('face_value', faceValue);
         if (nexusCost) fd.append('nexus_cost', nexusCost);
       }
-      fd.append('implementationLink', implementationLink.trim());
+      // Vouchers no longer carry an offer-level implementation link.
+      if (executionType !== 'voucher') fd.append('implementationLink', implementationLink.trim());
       fd.append('implementationInstructions', implementationInstructions.trim());
       if (executionType === 'voucher') {
         // Voucher: send the validity duration (empty -> backend clears it);
