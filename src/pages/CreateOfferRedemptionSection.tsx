@@ -123,6 +123,15 @@ const CreateOfferRedemptionSection = ({
         {t('co_sectionRedemption')}
       </h2>
 
+      {/* Combine-with-promotions: mandatory voucher choice, kept near the top. */}
+      {executionType === 'voucher' && (
+        <VoucherStackToggle
+          value={voucherStackable}
+          onChange={setVoucherStackable}
+          disabled={isSubmitting}
+        />
+      )}
+
       {/* Implementation link - URL where members redeem the offer */}
       <div className="mb-4">
         <label
@@ -167,8 +176,8 @@ const CreateOfferRedemptionSection = ({
 
       {executionType === 'voucher' ? (
         /* Voucher: purchase-anchored validity duration (amount + unit) instead
-           of absolute dates, plus the mandatory combine-with-promotions choice. */
-        <>
+           of absolute dates. (The combine-with-promotions toggle sits at the
+           top of this card.) */
         <div className="mb-4">
           <label
             htmlFor="offer-voucher-validity"
@@ -207,12 +216,6 @@ const CreateOfferRedemptionSection = ({
           </div>
           <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">{t('co_voucherValidityHint')}</p>
         </div>
-        <VoucherStackToggle
-          value={voucherStackable}
-          onChange={setVoucherStackable}
-          disabled={isSubmitting}
-        />
-        </>
       ) : (
         /* Non-voucher: absolute valid-from / valid-until date range picker.
            Stacks on mobile, two columns on sm+ screens. */

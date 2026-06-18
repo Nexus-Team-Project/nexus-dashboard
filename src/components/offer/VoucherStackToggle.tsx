@@ -39,7 +39,7 @@ export default function VoucherStackToggle({ value, onChange, disabled = false }
   ];
 
   return (
-    <div className="mt-4">
+    <div className="mb-4">
       <span className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
         {t('co_fieldVoucherStackable')} <span className="text-red-500 ms-0.5" aria-hidden="true">*</span>
         <FieldTooltip fieldKey="voucherStackable" />
