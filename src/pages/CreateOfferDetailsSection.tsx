@@ -50,6 +50,10 @@ interface DetailsSectionProps {
   nexusCost: string;
   /** Setter for nexusCost. */
   setNexusCost: (v: string) => void;
+  /** Optional voucher SKU / internal company code. */
+  sku: string;
+  /** Setter for sku. */
+  setSku: (v: string) => void;
   /** Whether the parent form is submitting - disables all inputs. */
   isSubmitting: boolean;
   /**
@@ -85,6 +89,8 @@ const CreateOfferDetailsSection = ({
   setFaceValue,
   nexusCost,
   setNexusCost,
+  sku,
+  setSku,
   isSubmitting,
   pricingLocked = false,
 }: DetailsSectionProps) => {
@@ -177,6 +183,8 @@ const CreateOfferDetailsSection = ({
             setFaceValue={setFaceValue}
             nexusCost={nexusCost}
             setNexusCost={setNexusCost}
+            sku={sku}
+            setSku={setSku}
             isSubmitting={isSubmitting}
             pricingLocked={pricingLocked}
           />

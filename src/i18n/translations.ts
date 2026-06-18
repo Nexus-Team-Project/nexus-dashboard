@@ -845,6 +845,9 @@ export const translations = {
     co_voucherBgModeImage: 'Image',
     co_voucherBgModeColor: 'Color',
     co_voucherBgHint: 'Pick an image or a background color for the voucher card. Leave both empty to use your organization’s logo and brand color.',
+    co_fieldSku: 'SKU',
+    co_skuPlaceholder: 'e.g. SUMMER-2026',
+    co_errSku: 'SKU must be 4–20 characters using only uppercase letters, numbers, hyphens, or underscores.',
     co_fieldTerms: 'Terms & Conditions',
     co_termsPlaceholder: 'e.g. Not combinable with other offers...',
     co_fieldTags: 'Tags',
@@ -902,6 +905,7 @@ export const translations = {
     om_voucherStackableLabel: 'Combine with promotions',
     om_voucherStackableYes: 'Yes',
     om_voucherStackableNo: 'No',
+    om_skuLabel: 'SKU',
     om_termsTitle: 'Terms & conditions',
     om_redemptionInstructions: 'How to redeem',
     om_redemptionLink: 'Open redemption link',
@@ -1038,6 +1042,12 @@ export const translations = {
     fi_voucherBackground_short: 'An image or a solid color for the voucher card background.',
     fi_voucherBackground_detail: 'Give the voucher card a cover image, or pick a solid background color instead. Both are optional — if you leave both empty, the card uses your organization’s logo and brand color automatically.',
     fi_voucherBackground_example: 'Upload a branded artwork, or pick your brand color (e.g. #635bff) for a clean solid card.',
+
+    // ── sku ──
+    fi_sku_label: 'SKU',
+    fi_sku_short: 'Adding a SKU code is optional and should only be used if you have an internal company code. If you do not have one leave this field blank',
+    fi_sku_detail: 'Adding a SKU code is optional and should only be used if you have an internal company code. If you do not have one leave this field blank',
+    fi_sku_example: 'e.g. SUMMER-2026 or GIFT_100. Allowed: uppercase letters, numbers, hyphens, underscores; 4–20 characters.',
 
     // ── terms ──
     fi_terms_label: 'Terms & Conditions',
@@ -2012,6 +2022,9 @@ export const translations = {
     co_voucherBgModeImage: 'תמונה',
     co_voucherBgModeColor: 'צבע',
     co_voucherBgHint: 'בחרו תמונה או צבע רקע לכרטיס השובר. השאירו את שניהם ריקים כדי להשתמש בלוגו ובצבע המותג של הארגון שלכם.',
+    co_fieldSku: 'מק"ט (SKU)',
+    co_skuPlaceholder: 'לדוגמה: SUMMER-2026',
+    co_errSku: 'מק"ט חייב להכיל 4–20 תווים, ורק אותיות גדולות באנגלית, מספרים, מקפים או קווים תחתונים.',
     co_fieldTerms: 'תנאים והגבלות',
     co_termsPlaceholder: 'לדוגמה: אינו ניתן לשילוב עם מבצעים אחרים...',
     co_fieldTags: 'תגיות',
@@ -2069,6 +2082,7 @@ export const translations = {
     om_voucherStackableLabel: 'כפל מבצעים',
     om_voucherStackableYes: 'כן',
     om_voucherStackableNo: 'לא',
+    om_skuLabel: 'מק"ט',
     om_termsTitle: 'תקנון ותנאים',
     om_redemptionInstructions: 'אופן המימוש',
     om_redemptionLink: 'פתח קישור למימוש',
@@ -2206,6 +2220,12 @@ export const translations = {
     fi_voucherBackground_short: 'תמונה או צבע אחיד לרקע כרטיס השובר.',
     fi_voucherBackground_detail: 'תנו לכרטיס השובר תמונת רקע, או בחרו במקום זאת צבע רקע אחיד. שניהם אופציונליים — אם תשאירו את שניהם ריקים, הכרטיס ישתמש אוטומטית בלוגו ובצבע המותג של הארגון שלכם.',
     fi_voucherBackground_example: 'העלו עיצוב ממותג, או בחרו את צבע המותג שלכם (למשל ‎#635bff‎) לכרטיס אחיד ונקי.',
+
+    // ── sku ──
+    fi_sku_label: 'מק"ט (SKU)',
+    fi_sku_short: 'הוספת קוד מק"ט היא רשות, ויש להשתמש בה רק אם יש לכם קוד פנימי בחברה. אם אין לכם, השאירו שדה זה ריק',
+    fi_sku_detail: 'הוספת קוד מק"ט היא רשות, ויש להשתמש בה רק אם יש לכם קוד פנימי בחברה. אם אין לכם, השאירו שדה זה ריק',
+    fi_sku_example: 'לדוגמה: SUMMER-2026 או GIFT_100. מותר: אותיות גדולות באנגלית, מספרים, מקפים וקווים תחתונים; 4–20 תווים.',
 
     // ── terms ──
     fi_terms_label: 'תנאים והגבלות',

@@ -56,6 +56,8 @@ const EditOffer = () => {
   const [stockLimit, setStockLimit] = useState('');
   const [faceValue, setFaceValue] = useState('');
   const [nexusCost, setNexusCost] = useState('');
+  // Optional voucher SKU / internal company code (voucher-only).
+  const [sku, setSku] = useState('');
   const [implementationLink, setImplementationLink] = useState('');
   const [implementationInstructions, setImplementationInstructions] = useState('');
   const [validFrom, setValidFrom] = useState('');
@@ -93,6 +95,7 @@ const EditOffer = () => {
         setStockLimit(detail.stockLimit !== null && detail.stockLimit !== undefined ? String(detail.stockLimit) : '');
         setFaceValue(detail.face_value ? String(detail.face_value) : '');
         setNexusCost(detail.nexus_cost ? String(detail.nexus_cost) : '');
+        setSku(detail.sku ?? '');
         setImplementationLink(detail.implementationLink ?? '');
         setImplementationInstructions(detail.implementationInstructions ?? '');
         setValidFrom(detail.validFrom ? detail.validFrom.slice(0, 10) : '');
@@ -176,6 +179,7 @@ const EditOffer = () => {
         }
       }
       if (voucherStackable === '') { setError(t('co_voucherStackableRequired')); return; }
+      if (sku.trim() !== '' && !/^[A-Z0-9_-]{4,20}$/.test(sku.trim())) { setError(t('co_errSku')); return; }
     }
     setIsSubmitting(true);
     setError(null);
@@ -209,6 +213,8 @@ const EditOffer = () => {
         fd.append('voucherStackable', voucherStackable === 'yes' ? 'true' : 'false');
         // Color only in color mode; image mode sends '' so the backend clears any stored color.
         fd.append('voucherBackgroundColor', bgMode === 'color' && voucherBackgroundColor ? voucherBackgroundColor : '');
+        // SKU: send trimmed value, or '' to clear it on the backend.
+        fd.append('sku', sku.trim());
       } else {
         fd.append('validFrom', validFrom || '');
         fd.append('validUntil', validUntil || '');
@@ -297,6 +303,7 @@ const EditOffer = () => {
         stockLimit={stockLimit} setStockLimit={setStockLimit}
         faceValue={faceValue} setFaceValue={setFaceValue}
         nexusCost={nexusCost} setNexusCost={setNexusCost}
+        sku={sku} setSku={setSku}
         isSubmitting={isSubmitting}
         pricingLocked={pricingLocked}
       />

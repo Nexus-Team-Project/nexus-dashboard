@@ -118,8 +118,11 @@ function OfferDetails({ offer }: { offer: CatalogItem }) {
       ? (offer.voucherStackable ? t('om_voucherStackableYes') : t('om_voucherStackableNo'))
       : '';
 
+  // Voucher SKU / internal code, shown only when present.
+  const skuText = offer.executionType === 'voucher' && offer.sku ? offer.sku : '';
+
   // Bail when nothing optional exists so the layout stays compact.
-  if (!validFrom && !validUntil && !validityText && !stackableText && !typeLabel && !hasInstructions && !hasTerms && !hasLink && !hasTags) {
+  if (!validFrom && !validUntil && !validityText && !stackableText && !skuText && !typeLabel && !hasInstructions && !hasTerms && !hasLink && !hasTags) {
     return null;
   }
 
@@ -158,6 +161,12 @@ function OfferDetails({ offer }: { offer: CatalogItem }) {
           <div className="flex flex-col items-start gap-0.5">
             <dt className="text-white/40">{t('om_voucherStackableLabel')}</dt>
             <dd className="font-medium text-white/85">{stackableText}</dd>
+          </div>
+        )}
+        {skuText && (
+          <div className="flex flex-col items-start gap-0.5">
+            <dt className="text-white/40">{t('om_skuLabel')}</dt>
+            <dd className="font-medium text-white/85" dir="ltr">{skuText}</dd>
           </div>
         )}
       </dl>
