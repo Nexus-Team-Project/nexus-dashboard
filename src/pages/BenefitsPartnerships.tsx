@@ -230,8 +230,14 @@ const BenefitsPartnerships = () => {
         return;
       }
 
-      // Block adoption until the tenant has completed business setup.
-      if (!me?.authorization.businessSetupComplete) {
+      // Block adoption until the tenant has completed business setup, EXCEPT
+      // for the tenant's own offers. A tenant can always (re-)adopt an offer it
+      // created itself (e.g. toggling a tenant_only offer back on after
+      // unadopting it) regardless of setup status. Mirrors the backend rule in
+      // offers.routes.ts POST /:offerId/adopt (own-offer skips the check).
+      const isOwnOffer =
+        !!me?.context?.tenantId && target?.createdByTenantId === me.context.tenantId;
+      if (!isOwnOffer && !me?.authorization.businessSetupComplete) {
         toast.error(
           language === 'he'
             ? 'יש להשלים את הגדרת העסק לפני אימוץ הצעות'
