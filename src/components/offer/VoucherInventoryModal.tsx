@@ -23,21 +23,29 @@ type Tab = 'image' | 'links' | 'barcodes';
 interface VoucherInventoryModalProps {
   /** Disables actions while the parent is publishing. */
   busy?: boolean;
+  /**
+   * Existing link values to pre-fill the Insert-links tab (used on Edit so the
+   * voucher's current links are shown). When provided non-empty, the popup
+   * opens on the links tab. Defaults to a single empty row.
+   */
+  initialLinks?: string[];
   /** Publish with the chosen inventory (barcodes or links). */
   onConfirm: (inventory: OfferInventoryInput) => void;
   /** Publish with no inventory. */
   onSkip: () => void;
-  /** Dismiss the popup without publishing (backdrop / Escape / X). */
+  /** Dismiss the popup without publishing (X button only). */
   onCancel: () => void;
 }
 
 const MAX = 10000;
 
-export default function VoucherInventoryModal({ busy = false, onConfirm, onSkip, onCancel }: VoucherInventoryModalProps) {
+export default function VoucherInventoryModal({ busy = false, initialLinks, onConfirm, onSkip, onCancel }: VoucherInventoryModalProps) {
   const { t } = useLanguage();
-  const [tab, setTab] = useState<Tab>('barcodes');
+  const hasInitialLinks = !!initialLinks && initialLinks.length > 0;
+  const [tab, setTab] = useState<Tab>(hasInitialLinks ? 'links' : 'barcodes');
   const [quantity, setQuantity] = useState('1');
-  const [links, setLinks] = useState<string[]>(['']);
+  // Seed existing links (+ a trailing empty row for adding more) on Edit.
+  const [links, setLinks] = useState<string[]>(hasInitialLinks ? [...initialLinks!, ''] : ['']);
   const [error, setError] = useState<string | null>(null);
 
   // Body-scroll lock while the popup is open. The popup intentionally does NOT

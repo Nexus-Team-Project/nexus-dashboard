@@ -16,7 +16,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
-import { getOfferDetails, updateOfferApi, addOfferInventory, type CatalogItem, type OfferInventoryInput } from '../lib/api';
+import { getOfferDetails, updateOfferApi, addOfferInventory, getOfferInventory, type CatalogItem, type OfferInventoryInput } from '../lib/api';
 import CreateOfferDetailsSection from './CreateOfferDetailsSection';
 import CreateOfferRedemptionSection from './CreateOfferRedemptionSection';
 import OfferFormLayout from '../components/offer/OfferFormLayout';
@@ -79,6 +79,7 @@ const EditOffer = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   // For vouchers, Save opens the inventory popup so admins can add more stock.
   const [showInventoryModal, setShowInventoryModal] = useState(false);
+  const [existingLinks, setExistingLinks] = useState<string[]>([]); // pre-fills the popup links tab on edit
 
   // ─── Load offer detail ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -123,6 +124,10 @@ const EditOffer = () => {
         // a stored color exists; else default to image (empty -> tenant fallback).
         setVoucherBackgroundColor(detail.voucherBackgroundColor ?? '');
         setBgMode(urls.length > 0 ? 'image' : (detail.voucherBackgroundColor ? 'color' : 'image'));
+        // Load existing link inventory so the popup can pre-fill it (voucher-only, non-fatal).
+        if ((detail.executionType ?? 'voucher') === 'voucher') {
+          try { const inv = await getOfferInventory(offerId); if (!cancelled) setExistingLinks(inv.links); } catch { /* ignore */ }
+        }
       } catch (err) {
         if (cancelled) return;
         setLoadError(err instanceof Error ? err.message : t('of_loadFailed'));
@@ -140,17 +145,13 @@ const EditOffer = () => {
     return first.kind === 'existing' ? first.url : first.previewUrl;
   }, [gallery]);
 
-  /** Seed/fallback color for the picker + hero when the voucher uses a color. */
+  // Seed/fallback color for the picker; solid hero color in color mode w/o image.
   const defaultBrandColor = me?.context?.tenantBrandColor ?? '#635bff';
-  /** Solid hero color when a voucher is in color mode with no image. */
   const coverColor = executionType === 'voucher' && bgMode === 'color' && !coverUrl
     ? (voucherBackgroundColor || defaultBrandColor)
     : undefined;
 
-  /**
-   * Wraps setExecutionType: switching TO voucher trims the gallery to its
-   * single cover image and revokes any dropped new-file preview URLs.
-   */
+  /** Switching TO voucher trims the gallery to one cover image (revoking dropped previews). */
   const handleExecutionTypeChange = (next: string) => {
     setExecutionType(next);
     if (next === 'voucher') {
@@ -336,6 +337,7 @@ const EditOffer = () => {
       {showInventoryModal && (
         <VoucherInventoryModal
           busy={isSubmitting}
+          initialLinks={existingLinks}
           onConfirm={(inventory) => { void finalizeSave(inventory); }}
           onSkip={() => { void finalizeSave(null); }}
           onCancel={() => setShowInventoryModal(false)}
