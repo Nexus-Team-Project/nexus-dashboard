@@ -37,6 +37,10 @@ interface VoucherPricingSectionProps {
   nexusCost: string;
   /** Setter for nexusCost. */
   setNexusCost: (v: string) => void;
+  /** Optional voucher SKU / internal company code (form input). */
+  sku: string;
+  /** Setter for sku. */
+  setSku: (v: string) => void;
   /** Whether the parent form is submitting - disables all inputs. */
   isSubmitting: boolean;
   /**
@@ -62,6 +66,8 @@ const VoucherPricingSection = ({
   setFaceValue,
   nexusCost,
   setNexusCost,
+  sku,
+  setSku,
   isSubmitting,
   pricingLocked = false,
 }: VoucherPricingSectionProps) => {
@@ -170,6 +176,29 @@ const VoucherPricingSection = ({
           </span>
         </div>
       )}
+
+      {/* SKU - optional internal company code (voucher-only). Always editable. */}
+      <div>
+        <label
+          htmlFor="offer-sku"
+          className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300"
+        >
+          {t('co_fieldSku')}
+          <span className="font-normal text-slate-400">{t('co_optional')}</span>
+          <FieldTooltip fieldKey="sku" />
+        </label>
+        <input
+          id="offer-sku"
+          type="text"
+          value={sku}
+          onChange={(e) => setSku(e.target.value)}
+          placeholder={t('co_skuPlaceholder')}
+          maxLength={20}
+          disabled={isSubmitting}
+          dir="ltr"
+          className={inputCls}
+        />
+      </div>
     </>
   );
 };

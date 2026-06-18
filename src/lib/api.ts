@@ -998,6 +998,8 @@ export interface CatalogItem {
   voucherStackable?: boolean | null;
   /** Voucher card background color ("#rrggbb"). Voucher-only; null otherwise. */
   voucherBackgroundColor?: string | null;
+  /** Voucher SKU / internal company code. Voucher-only; null otherwise. */
+  sku?: string | null;
   /** Terms and conditions text. */
   terms?: string;
   /** Display tags set by the offer creator. */
@@ -1073,6 +1075,8 @@ export interface NexusOffer {
   voucherStackable?: boolean | null;
   /** Voucher card background color ("#rrggbb"). Voucher-only; null otherwise. */
   voucherBackgroundColor?: string | null;
+  /** Voucher SKU / internal company code. Voucher-only; null otherwise. */
+  sku?: string | null;
   terms?: string;
   tags?: string[];
   /** Voucher face value - nominal value printed on the voucher (voucher executionType only). */

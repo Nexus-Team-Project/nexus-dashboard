@@ -47,6 +47,8 @@ const CreateOffer = () => {
   const [stockLimit, setStockLimit] = useState('');
   const [faceValue, setFaceValue] = useState('');
   const [nexusCost, setNexusCost] = useState('');
+  // Optional voucher SKU / internal company code (voucher-only).
+  const [sku, setSku] = useState('');
   const [visibility, setVisibility] = useState<OfferVisibility>('ecosystem');
   const [implementationLink, setImplementationLink] = useState('');
   const [implementationInstructions, setImplementationInstructions] = useState('');
@@ -138,6 +140,8 @@ const CreateOffer = () => {
       }
       // Combine-with-promotions is a mandatory, no-default choice.
       if (voucherStackable === '') { setError(t('co_voucherStackableRequired')); return; }
+      // SKU is optional; when provided it must match the 4-20 uppercase rule.
+      if (sku.trim() !== '' && !/^[A-Z0-9_-]{4,20}$/.test(sku.trim())) { setError(t('co_errSku')); return; }
     }
 
     setIsSubmitting(true);
@@ -173,6 +177,7 @@ const CreateOffer = () => {
         if (bgMode === 'color' && voucherBackgroundColor) {
           fd.append('voucherBackgroundColor', voucherBackgroundColor);
         }
+        if (sku.trim() !== '') fd.append('sku', sku.trim());
       } else {
         if (validFrom) fd.append('validFrom', validFrom);
         if (validUntil) fd.append('validUntil', validUntil);
@@ -242,6 +247,7 @@ const CreateOffer = () => {
         stockLimit={stockLimit} setStockLimit={setStockLimit}
         faceValue={faceValue} setFaceValue={setFaceValue}
         nexusCost={nexusCost} setNexusCost={setNexusCost}
+        sku={sku} setSku={setSku}
         isSubmitting={isSubmitting}
       />
       <CreateOfferRedemptionSection
