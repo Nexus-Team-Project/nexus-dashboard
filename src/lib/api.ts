@@ -988,8 +988,12 @@ export interface CatalogItem {
   implementationInstructions?: string;
   /** Date the offer becomes visible to members (ISO string). null = immediately. */
   validFrom?: string | null;
-  /** Offer expiry date as ISO string (serialised from backend Date). */
+  /** Offer expiry date as ISO string (serialised from backend Date). Always null for vouchers. */
   validUntil?: string | null;
+  /** Voucher redemption window amount (with voucherValidityUnit). null = never expires. Voucher-only. */
+  voucherValidityValue?: number | null;
+  /** Voucher redemption window unit. null = never expires. Voucher-only. */
+  voucherValidityUnit?: 'days' | 'months' | 'years' | null;
   /** Terms and conditions text. */
   terms?: string;
   /** Display tags set by the offer creator. */
@@ -1055,7 +1059,12 @@ export interface NexusOffer {
   implementationInstructions?: string;
   /** Date the offer becomes visible to members (ISO string). null = immediately. */
   validFrom?: string | null;
+  /** Offer expiry date. Always null for vouchers (they use voucherValidity* instead). */
   validUntil?: string | null;
+  /** Voucher redemption window amount (with voucherValidityUnit). null = never expires. Voucher-only. */
+  voucherValidityValue?: number | null;
+  /** Voucher redemption window unit. null = never expires. Voucher-only. */
+  voucherValidityUnit?: 'days' | 'months' | 'years' | null;
   terms?: string;
   tags?: string[];
   /** Voucher face value - nominal value printed on the voucher (voucher executionType only). */

@@ -18,6 +18,7 @@ export type FieldInfoKey =
   | 'implementationInstructions'
   | 'validFrom'
   | 'validUntil'
+  | 'voucherValidity'
   | 'terms'
   | 'tags'
   | 'faceValue'

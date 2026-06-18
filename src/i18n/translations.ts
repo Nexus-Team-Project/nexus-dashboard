@@ -832,6 +832,12 @@ export const translations = {
     co_implInstructionsPlaceholder: 'Step-by-step guide for members...',
     co_fieldValidFrom: 'Valid From',
     co_fieldValidUntil: 'Valid Until',
+    co_fieldVoucherValidity: 'Validity Limit',
+    co_voucherValidityPlaceholder: 'e.g. 2',
+    co_validityUnitDays: 'Days',
+    co_validityUnitMonths: 'Months',
+    co_validityUnitYears: 'Years',
+    co_voucherValidityHint: 'Counted from the moment the customer buys the voucher. Leave blank for no expiry.',
     co_fieldTerms: 'Terms & Conditions',
     co_termsPlaceholder: 'e.g. Not combinable with other offers...',
     co_fieldTags: 'Tags',
@@ -1002,6 +1008,12 @@ export const translations = {
     fi_validUntil_short: 'Date after which the offer is no longer available.',
     fi_validUntil_detail: 'After this date the offer is automatically hidden from all member catalogs. Useful for seasonal promotions or time-limited deals. Leave blank for an offer with no expiry. Members can see the expiry date on the offer card.',
     fi_validUntil_example: 'A summer promotion running until August 31. A holiday special ending December 26.',
+
+    // ── voucherValidity ──
+    fi_voucherValidity_label: 'Validity Limit',
+    fi_voucherValidity_short: 'How long the voucher stays redeemable after a customer buys it.',
+    fi_voucherValidity_detail: 'A voucher does not expire on a fixed calendar date — instead it stays valid for this long counted from the moment a customer purchases it. Enter an amount and choose a unit (days, months, or years). Leave the amount blank for a voucher that never expires.',
+    fi_voucherValidity_example: 'A gift voucher valid for 2 years from purchase. A welcome voucher valid for 90 days from purchase.',
 
     // ── terms ──
     fi_terms_label: 'Terms & Conditions',
@@ -1963,6 +1975,12 @@ export const translations = {
     co_implInstructionsPlaceholder: 'הדרכה שלב-אחר-שלב לחברים...',
     co_fieldValidFrom: 'בתוקף מ-',
     co_fieldValidUntil: 'בתוקף עד',
+    co_fieldVoucherValidity: 'מגבלת תוקף',
+    co_voucherValidityPlaceholder: 'לדוגמה: 2',
+    co_validityUnitDays: 'ימים',
+    co_validityUnitMonths: 'חודשים',
+    co_validityUnitYears: 'שנים',
+    co_voucherValidityHint: 'נספר מרגע רכישת השובר על ידי הלקוח. השאר ריק לשובר ללא תפוגה.',
     co_fieldTerms: 'תנאים והגבלות',
     co_termsPlaceholder: 'לדוגמה: אינו ניתן לשילוב עם מבצעים אחרים...',
     co_fieldTags: 'תגיות',
@@ -2134,6 +2152,12 @@ export const translations = {
     fi_validUntil_short: 'תאריך שאחריו ההצעה אינה זמינה עוד.',
     fi_validUntil_detail: 'לאחר תאריך זה ההצעה מוסתרת אוטומטית מכל קטלוגי החברים. שימושי לקידומים עונתיים או עסקאות מוגבלות בזמן. השאר ריק להצעה ללא תאריך תפוגה.',
     fi_validUntil_example: 'קידום קיץ הנגמר ב-31 באוגוסט. מבצע חגים המסתיים ב-26 בדצמבר.',
+
+    // ── voucherValidity ──
+    fi_voucherValidity_label: 'מגבלת תוקף',
+    fi_voucherValidity_short: 'למשך כמה זמן השובר ניתן למימוש לאחר שהלקוח רוכש אותו.',
+    fi_voucherValidity_detail: 'שובר אינו פג בתאריך קבוע בלוח השנה — אלא נשאר בתוקף למשך פרק הזמן הזה החל מרגע הרכישה על ידי הלקוח. הזן כמות ובחר יחידת זמן (ימים, חודשים או שנים). השאר את הכמות ריקה לשובר שאינו פג לעולם.',
+    fi_voucherValidity_example: 'שובר מתנה בתוקף ל-2 שנים מרגע הרכישה. שובר הצטרפות בתוקף ל-90 ימים מרגע הרכישה.',
 
     // ── terms ──
     fi_terms_label: 'תנאים והגבלות',
