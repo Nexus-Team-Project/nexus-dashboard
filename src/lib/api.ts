@@ -1307,6 +1307,35 @@ export async function updateOfferApi(
   return res.offer;
 }
 
+/** Payload for adding voucher inventory: a barcode quantity OR a list of links. */
+export interface OfferInventoryInput {
+  kind: 'barcode' | 'link';
+  /** Required when kind === 'barcode'. */
+  quantity?: number;
+  /** Required when kind === 'link'. */
+  links?: string[];
+}
+
+/** Result of an inventory call: units created + the offer's new stock total. */
+export interface OfferInventoryResult {
+  created: number;
+  stockLimit: number;
+}
+
+/**
+ * Appends redeemable inventory (mock barcodes or real links) to a voucher offer.
+ * Matches POST /api/v1/offers/:offerId/inventory (admin-gated, voucher-only).
+ *
+ * Input: offerId, and an OfferInventoryInput (barcode quantity or link list).
+ * Output: { created, stockLimit }. Throws on validation / authorization failure.
+ */
+export async function addOfferInventory(
+  offerId: string,
+  input: OfferInventoryInput,
+): Promise<OfferInventoryResult> {
+  return request<OfferInventoryResult>('POST', `/api/v1/offers/${offerId}/inventory`, input);
+}
+
 /**
  * Requests the backend to transition the tenant's catalog from sandbox to live.
  * Matches POST /api/v1/tenant/go-live.

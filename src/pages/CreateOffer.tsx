@@ -17,14 +17,15 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
-import { createOfferApi, OFFER_CATEGORIES } from '../lib/api';
+import { createOfferApi, addOfferInventory, OFFER_CATEGORIES, type OfferInventoryInput } from '../lib/api';
 import CreateOfferDetailsSection from './CreateOfferDetailsSection';
 import CreateOfferRedemptionSection from './CreateOfferRedemptionSection';
-import FieldTooltip from '../components/FieldTooltip';
 import OfferFormLayout from '../components/offer/OfferFormLayout';
 import OfferImageGallery, { type GalleryItem } from '../components/offer/OfferImageGallery';
 import OfferTypeField from '../components/offer/OfferTypeField';
 import VoucherBackgroundField, { type BgMode } from '../components/offer/VoucherBackgroundField';
+import OfferVisibilityCard from '../components/offer/OfferVisibilityCard';
+import VoucherInventoryModal from '../components/offer/VoucherInventoryModal';
 
 /** Visibility options for a platform offer. */
 type OfferVisibility = 'ecosystem' | 'tenant_only';
@@ -69,6 +70,8 @@ const CreateOffer = () => {
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // For vouchers, Publish opens the inventory popup instead of submitting.
+  const [showInventoryModal, setShowInventoryModal] = useState(false);
 
   // Force tenant_only when business setup is not complete (UX only — backend
   // also enforces this gate, see offers.routes.ts ecosystem guard).
@@ -109,89 +112,97 @@ const CreateOffer = () => {
     }
   };
 
-  /**
-   * Validates the form, builds multipart FormData (images[] + JSON fields),
-   * POSTs to /api/v1/offers, and navigates back to the catalog on success.
-   */
-  const handleSubmit = async () => {
-    if (!title.trim()) { setError(t('co_errTitleRequired')); return; }
+  /** Runs all field validations; sets an error + returns false on the first failure. */
+  const validate = (): boolean => {
+    if (!title.trim()) { setError(t('co_errTitleRequired')); return false; }
     if (marketPrice && (isNaN(Number(marketPrice)) || Number(marketPrice) <= 0)) {
-      setError(t('co_errMarketPrice')); return;
+      setError(t('co_errMarketPrice')); return false;
     }
     if (validFrom && validUntil && new Date(validFrom) >= new Date(validUntil)) {
       setError(language === 'he' ? 'תאריך ההשקה חייב להיות לפני תאריך התפוגה' : 'Launch date must be before the expiry date');
-      return;
+      return false;
     }
     if (executionType === 'voucher') {
       const fv = Number(faceValue);
       const nc = Number(nexusCost);
       if (!faceValue || isNaN(fv) || fv <= 0) {
-        setError(language === 'he' ? 'יש להזין שווי שובר תקין וחיובי' : 'Face value must be a positive number'); return;
+        setError(language === 'he' ? 'יש להזין שווי שובר תקין וחיובי' : 'Face value must be a positive number'); return false;
       }
       if (!nexusCost || isNaN(nc) || nc <= 0 || nc >= fv) {
-        setError(language === 'he' ? 'מחיר NEXUS חייב להיות חיובי ופחות מהשווי' : 'Nexus price must be positive and less than face value'); return;
+        setError(language === 'he' ? 'מחיר NEXUS חייב להיות חיובי ופחות מהשווי' : 'Nexus price must be positive and less than face value'); return false;
       }
-      // Validity is optional (empty = never expires); when set it must be a positive integer.
       if (voucherValidityValue.trim() !== '') {
         const vv = Number(voucherValidityValue);
         if (!Number.isInteger(vv) || vv <= 0) {
-          setError(language === 'he' ? 'מגבלת התוקף חייבת להיות מספר שלם חיובי' : 'Validity limit must be a positive whole number'); return;
+          setError(language === 'he' ? 'מגבלת התוקף חייבת להיות מספר שלם חיובי' : 'Validity limit must be a positive whole number'); return false;
         }
       }
-      // Combine-with-promotions is a mandatory, no-default choice.
-      if (voucherStackable === '') { setError(t('co_voucherStackableRequired')); return; }
-      // SKU is optional; when provided it must match the 4-20 uppercase rule.
-      if (sku.trim() !== '' && !/^[A-Z0-9_-]{4,20}$/.test(sku.trim())) { setError(t('co_errSku')); return; }
+      if (voucherStackable === '') { setError(t('co_voucherStackableRequired')); return false; }
+      if (sku.trim() !== '' && !/^[A-Z0-9_-]{4,20}$/.test(sku.trim())) { setError(t('co_errSku')); return false; }
     }
+    return true;
+  };
 
+  /** Builds the multipart FormData payload from the current form state. */
+  const buildFormData = (): FormData => {
+    const fd = new FormData();
+    fd.append('title', title.trim());
+    fd.append('description', description.trim());
+    fd.append('category', category);
+    if (marketPrice && Number(marketPrice) > 0) fd.append('market_price', marketPrice);
+    fd.append('visibility', isPlatformAdmin ? 'ecosystem' : visibility);
+    fd.append('executionType', executionType);
+    if (executionType !== 'voucher' && stockLimit && Number(stockLimit) > 0) fd.append('stockLimit', stockLimit);
+    if (executionType === 'voucher') {
+      fd.append('face_value', faceValue);
+      fd.append('nexus_cost', nexusCost);
+    }
+    gallery.forEach((item) => { if (item.kind === 'new') fd.append('images', item.file); });
+    if (implementationLink.trim()) fd.append('implementationLink', implementationLink.trim());
+    if (implementationInstructions.trim()) fd.append('implementationInstructions', implementationInstructions.trim());
+    if (executionType === 'voucher') {
+      if (voucherValidityValue.trim() !== '') {
+        fd.append('voucherValidityValue', voucherValidityValue.trim());
+        fd.append('voucherValidityUnit', voucherValidityUnit);
+      }
+      fd.append('voucherStackable', voucherStackable === 'yes' ? 'true' : 'false');
+      if (bgMode === 'color' && voucherBackgroundColor) fd.append('voucherBackgroundColor', voucherBackgroundColor);
+      if (sku.trim() !== '') fd.append('sku', sku.trim());
+    } else {
+      if (validFrom) fd.append('validFrom', validFrom);
+      if (validUntil) fd.append('validUntil', validUntil);
+    }
+    if (terms.trim()) fd.append('terms', terms.trim());
+    if (tags.length > 0) fd.append('tags', JSON.stringify(tags));
+    return fd;
+  };
+
+  /**
+   * Creates the offer, then (when `inventory` is provided) adds it to the new
+   * offer, and navigates back to the catalog. Used by the inventory popup's
+   * Insert (inventory) and Skip (null) actions, and directly for non-vouchers.
+   */
+  const finalizePublish = async (inventory: OfferInventoryInput | null) => {
     setIsSubmitting(true);
     setError(null);
     try {
-      const fd = new FormData();
-      fd.append('title', title.trim());
-      fd.append('description', description.trim());
-      fd.append('category', category);
-      if (marketPrice && Number(marketPrice) > 0) fd.append('market_price', marketPrice);
-      fd.append('visibility', isPlatformAdmin ? 'ecosystem' : visibility);
-      fd.append('executionType', executionType);
-      // Stock limit is a non-voucher field only; vouchers never send it.
-      if (executionType !== 'voucher' && stockLimit && Number(stockLimit) > 0) fd.append('stockLimit', stockLimit);
-      if (executionType === 'voucher') {
-        fd.append('face_value', faceValue);
-        fd.append('nexus_cost', nexusCost);
-      }
-      // New files: append every blob under the same `images` field name.
-      gallery.forEach((item) => {
-        if (item.kind === 'new') fd.append('images', item.file);
-      });
-      if (implementationLink.trim()) fd.append('implementationLink', implementationLink.trim());
-      if (implementationInstructions.trim()) fd.append('implementationInstructions', implementationInstructions.trim());
-      if (executionType === 'voucher') {
-        // Voucher: purchase-anchored validity duration, no absolute dates.
-        if (voucherValidityValue.trim() !== '') {
-          fd.append('voucherValidityValue', voucherValidityValue.trim());
-          fd.append('voucherValidityUnit', voucherValidityUnit);
-        }
-        fd.append('voucherStackable', voucherStackable === 'yes' ? 'true' : 'false');
-        // Background color only when in color mode (image mode leaves it unset).
-        if (bgMode === 'color' && voucherBackgroundColor) {
-          fd.append('voucherBackgroundColor', voucherBackgroundColor);
-        }
-        if (sku.trim() !== '') fd.append('sku', sku.trim());
-      } else {
-        if (validFrom) fd.append('validFrom', validFrom);
-        if (validUntil) fd.append('validUntil', validUntil);
-      }
-      if (terms.trim()) fd.append('terms', terms.trim());
-      if (tags.length > 0) fd.append('tags', JSON.stringify(tags));
-
-      await createOfferApi(fd);
+      const offer = await createOfferApi(buildFormData());
+      if (inventory) await addOfferInventory(offer.offerId, inventory);
       navigate('/benefits-partnerships');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t('co_errPublish'));
+      setShowInventoryModal(false);
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  /** Save/Publish entry point: vouchers open the inventory popup; others publish now. */
+  const handleSave = () => {
+    if (!validate()) return;
+    setError(null);
+    if (executionType === 'voucher') { setShowInventoryModal(true); return; }
+    void finalizePublish(null);
   };
 
   // Service-inactive gate retained from the previous version (defence-in-depth).
@@ -268,73 +279,40 @@ const CreateOffer = () => {
   );
 
   const rightColumn = (
-    <>
-      {!isPlatformAdmin && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-slate-800">
-            {t('co_sectionVisibility')}
-            <FieldTooltip fieldKey="visibility" />
-          </h2>
-          <fieldset>
-            <legend className="sr-only">{t('co_visibilityLegend')}</legend>
-            <div className="space-y-4">
-              <label className={`flex items-start gap-3 ${!businessSetupComplete ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
-                <input
-                  type="radio" name="visibility" value="ecosystem"
-                  checked={visibility === 'ecosystem'}
-                  onChange={() => businessSetupComplete && setVisibility('ecosystem')}
-                  disabled={isSubmitting || !businessSetupComplete}
-                  className="mt-0.5 accent-primary"
-                />
-                <span>
-                  <span className="block text-sm font-medium text-slate-700">{t('co_visAllTenants')}</span>
-                  <span className="mt-0.5 block text-xs text-amber-600">
-                    {businessSetupComplete
-                      ? t('co_visEcosystemApproval')
-                      : (language === 'he' ? 'יש להשלים הגדרת עסק כדי לפרסם לכל הפלטפורמה' : 'Complete business setup to publish to the full platform')}
-                  </span>
-                </span>
-              </label>
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="radio" name="visibility" value="tenant_only"
-                  checked={visibility === 'tenant_only'}
-                  onChange={() => setVisibility('tenant_only')}
-                  disabled={isSubmitting}
-                  className="mt-0.5 accent-primary"
-                />
-                <span>
-                  <span className="block text-sm font-medium text-slate-700">{t('co_visMyTenantOnly')}</span>
-                  <span className="mt-0.5 block text-xs text-green-600">{t('co_visMyTenantNoApproval')}</span>
-                </span>
-              </label>
-            </div>
-          </fieldset>
-        </section>
-      )}
-      {isPlatformAdmin && (
-        <section className="rounded-2xl border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-700">
-          {t('co_platformNote')}
-        </section>
-      )}
-    </>
+    <OfferVisibilityCard
+      isPlatformAdmin={isPlatformAdmin}
+      businessSetupComplete={businessSetupComplete}
+      visibility={visibility}
+      setVisibility={setVisibility}
+      isSubmitting={isSubmitting}
+    />
   );
 
   return (
-    <OfferFormLayout
-      title={t('of_pageTitleCreate')}
-      businessName={me?.context?.tenantName ?? undefined}
-      coverUrl={coverUrl}
-      coverColor={coverColor}
-      saveLabel={t('of_saveCreate')}
-      cancelLabel={t('of_cancel')}
-      onSave={() => { void handleSubmit(); }}
-      onCancel={() => navigate('/benefits-partnerships')}
-      isSubmitting={isSubmitting}
-      error={error}
-      leftColumn={leftColumn}
-      rightColumn={rightColumn}
-    />
+    <>
+      <OfferFormLayout
+        title={t('of_pageTitleCreate')}
+        businessName={me?.context?.tenantName ?? undefined}
+        coverUrl={coverUrl}
+        coverColor={coverColor}
+        saveLabel={t('of_saveCreate')}
+        cancelLabel={t('of_cancel')}
+        onSave={handleSave}
+        onCancel={() => navigate('/benefits-partnerships')}
+        isSubmitting={isSubmitting}
+        error={error}
+        leftColumn={leftColumn}
+        rightColumn={rightColumn}
+      />
+      {showInventoryModal && (
+        <VoucherInventoryModal
+          busy={isSubmitting}
+          onConfirm={(inventory) => { void finalizePublish(inventory); }}
+          onSkip={() => { void finalizePublish(null); }}
+          onCancel={() => setShowInventoryModal(false)}
+        />
+      )}
+    </>
   );
 };
 

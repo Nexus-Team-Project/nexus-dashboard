@@ -16,13 +16,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
-import { getOfferDetails, updateOfferApi, type CatalogItem } from '../lib/api';
+import { getOfferDetails, updateOfferApi, addOfferInventory, type CatalogItem, type OfferInventoryInput } from '../lib/api';
 import CreateOfferDetailsSection from './CreateOfferDetailsSection';
 import CreateOfferRedemptionSection from './CreateOfferRedemptionSection';
 import OfferFormLayout from '../components/offer/OfferFormLayout';
 import OfferImageGallery, { type GalleryItem } from '../components/offer/OfferImageGallery';
 import OfferTypeField from '../components/offer/OfferTypeField';
 import VoucherBackgroundField, { type BgMode } from '../components/offer/VoucherBackgroundField';
+import VoucherInventoryModal from '../components/offer/VoucherInventoryModal';
+import { OfferFormSkeleton, OfferFormErrorState } from '../components/offer/OfferFormStates';
 
 /**
  * Renders the edit form for a single offer. The gallery merges existing
@@ -75,6 +77,8 @@ const EditOffer = () => {
   const [tags, setTags] = useState<string[]>([]);
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // For vouchers, Save opens the inventory popup so admins can add more stock.
+  const [showInventoryModal, setShowInventoryModal] = useState(false);
 
   // ─── Load offer detail ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -163,24 +167,31 @@ const EditOffer = () => {
    * always sent (even empty) so the backend reconciles the gallery against
    * the previous state and drops orphaned Cloudinary images.
    */
-  const handleSubmit = async () => {
-    if (!offerId) return;
-    if (!title.trim()) { setError(t('co_errTitleRequired')); return; }
+  /** Runs all field validations; sets an error + returns false on the first failure. */
+  const validate = (): boolean => {
+    if (!offerId) return false;
+    if (!title.trim()) { setError(t('co_errTitleRequired')); return false; }
     if (validFrom && validUntil && new Date(validFrom) >= new Date(validUntil)) {
       setError(language === 'he' ? 'תאריך ההשקה חייב להיות לפני תאריך התפוגה' : 'Launch date must be before the expiry date');
-      return;
+      return false;
     }
     if (executionType === 'voucher') {
       if (voucherValidityValue.trim() !== '') {
         const vv = Number(voucherValidityValue);
         if (!Number.isInteger(vv) || vv <= 0) {
           setError(language === 'he' ? 'מגבלת התוקף חייבת להיות מספר שלם חיובי' : 'Validity limit must be a positive whole number');
-          return;
+          return false;
         }
       }
-      if (voucherStackable === '') { setError(t('co_voucherStackableRequired')); return; }
-      if (sku.trim() !== '' && !/^[A-Z0-9_-]{4,20}$/.test(sku.trim())) { setError(t('co_errSku')); return; }
+      if (voucherStackable === '') { setError(t('co_voucherStackableRequired')); return false; }
+      if (sku.trim() !== '' && !/^[A-Z0-9_-]{4,20}$/.test(sku.trim())) { setError(t('co_errSku')); return false; }
     }
+    return true;
+  };
+
+  /** PATCHes the offer, optionally appends inventory, then navigates back. */
+  const finalizeSave = async (inventory: OfferInventoryInput | null) => {
+    if (!offerId) return;
     setIsSubmitting(true);
     setError(null);
     try {
@@ -229,48 +240,26 @@ const EditOffer = () => {
       gallery.forEach((g) => { if (g.kind === 'new') fd.append('images', g.file); });
 
       await updateOfferApi(offerId, fd);
+      if (inventory) await addOfferInventory(offerId, inventory);
       navigate('/benefits-partnerships');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t('co_errPublish'));
+      setShowInventoryModal(false);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 animate-pulse">
-        <div className="h-[250px] bg-slate-200" />
-        <div className="px-4 sm:px-8 -mt-16 pb-12 grid grid-cols-12 gap-6">
-          <div className="col-span-12 lg:col-span-8 space-y-6">
-            <div className="h-64 rounded-2xl bg-white border border-slate-200" />
-            <div className="h-80 rounded-2xl bg-white border border-slate-200" />
-          </div>
-          <div className="col-span-12 lg:col-span-4 space-y-6">
-            <div className="h-40 rounded-2xl bg-white border border-slate-200" />
-            <div className="h-32 rounded-2xl bg-white border border-slate-200" />
-          </div>
-        </div>
-      </div>
-    );
-  }
+  /** Save entry point: vouchers open the inventory popup (to add more); others save now. */
+  const handleSave = () => {
+    if (!validate()) return;
+    setError(null);
+    if (executionType === 'voucher') { setShowInventoryModal(true); return; }
+    void finalizeSave(null);
+  };
 
-  if (loadError) {
-    return (
-      <div className="mx-auto max-w-3xl p-8">
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-10 text-center shadow-sm">
-          <p className="text-sm text-red-700 mb-6">{loadError}</p>
-          <button
-            type="button"
-            onClick={() => navigate('/benefits-partnerships')}
-            className="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90"
-          >
-            {t('of_backToCatalog')}
-          </button>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <OfferFormSkeleton />;
+  if (loadError) return <OfferFormErrorState message={loadError} onBack={() => navigate('/benefits-partnerships')} />;
 
   const leftColumn = (
     <>
@@ -328,21 +317,31 @@ const EditOffer = () => {
   const rightColumn = null;
 
   return (
-    <OfferFormLayout
-      title={t('of_pageTitleEdit')}
-      businessName={me?.context?.tenantName ?? undefined}
-      coverUrl={coverUrl}
-      coverColor={coverColor}
-      saveLabel={offer?.approval_status === 'denied' ? t('of_saveResubmit') : t('of_saveUpdate')}
-      cancelLabel={t('of_cancel')}
-      onSave={() => { void handleSubmit(); }}
-      onCancel={() => navigate('/benefits-partnerships')}
-      isSubmitting={isSubmitting}
-      error={error}
-      denialReason={offer?.approval_status === 'denied' ? (offer?.denial_reason ?? null) : null}
-      leftColumn={leftColumn}
-      rightColumn={rightColumn}
-    />
+    <>
+      <OfferFormLayout
+        title={t('of_pageTitleEdit')}
+        businessName={me?.context?.tenantName ?? undefined}
+        coverUrl={coverUrl}
+        coverColor={coverColor}
+        saveLabel={offer?.approval_status === 'denied' ? t('of_saveResubmit') : t('of_saveUpdate')}
+        cancelLabel={t('of_cancel')}
+        onSave={handleSave}
+        onCancel={() => navigate('/benefits-partnerships')}
+        isSubmitting={isSubmitting}
+        error={error}
+        denialReason={offer?.approval_status === 'denied' ? (offer?.denial_reason ?? null) : null}
+        leftColumn={leftColumn}
+        rightColumn={rightColumn}
+      />
+      {showInventoryModal && (
+        <VoucherInventoryModal
+          busy={isSubmitting}
+          onConfirm={(inventory) => { void finalizeSave(inventory); }}
+          onSkip={() => { void finalizeSave(null); }}
+          onCancel={() => setShowInventoryModal(false)}
+        />
+      )}
+    </>
   );
 };
 
