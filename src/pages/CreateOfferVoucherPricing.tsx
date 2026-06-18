@@ -2,10 +2,12 @@
  * CreateOfferVoucherPricing - voucher-specific pricing section for the
  * CreateOffer / EditOffer forms.
  *
- * Renders two pricing inputs plus stock limit:
+ * Renders two pricing inputs:
  *   1. Face Value          - nominal value of the voucher
  *   2. Nexus Price         - wholesale cost NEXUS pays the supplier
- *   3. Stock Limit         - optional cap on issued vouchers
+ *
+ * Vouchers no longer carry a supplier-facing stock-limit input (removed
+ * 2026-06; the backend stockLimit field is retained, defaulting to unlimited).
  *
  * The per-tenant member price is no longer chosen on this form. Each
  * adopting tenant sets it from the BenefitsPartnerships table view via
@@ -35,10 +37,6 @@ interface VoucherPricingSectionProps {
   nexusCost: string;
   /** Setter for nexusCost. */
   setNexusCost: (v: string) => void;
-  /** Stock limit as string (form input); empty = unlimited. */
-  stockLimit: string;
-  /** Setter for stockLimit. */
-  setStockLimit: (v: string) => void;
   /** Whether the parent form is submitting - disables all inputs. */
   isSubmitting: boolean;
   /**
@@ -64,8 +62,6 @@ const VoucherPricingSection = ({
   setFaceValue,
   nexusCost,
   setNexusCost,
-  stockLimit,
-  setStockLimit,
   isSubmitting,
   pricingLocked = false,
 }: VoucherPricingSectionProps) => {
@@ -174,30 +170,6 @@ const VoucherPricingSection = ({
           </span>
         </div>
       )}
-
-      {/* Stock Limit - kept together with voucher pricing for logical grouping */}
-      <div className="mt-4">
-        <label
-          htmlFor="offer-stock-limit"
-          className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300"
-        >
-          {t('co_fieldStockLimit')}
-          <span className="font-normal text-slate-400">{t('co_optional')}</span>
-          <FieldTooltip fieldKey="stockLimit" />
-        </label>
-        <input
-          id="offer-stock-limit"
-          type="number"
-          min="1"
-          step="1"
-          value={stockLimit}
-          onChange={(e) => setStockLimit(e.target.value)}
-          onWheel={(e) => e.currentTarget.blur()}
-          placeholder={t('co_stockLimitPlaceholder')}
-          disabled={isSubmitting}
-          className={inputCls}
-        />
-      </div>
     </>
   );
 };

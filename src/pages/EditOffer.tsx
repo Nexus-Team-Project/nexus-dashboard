@@ -21,6 +21,7 @@ import CreateOfferDetailsSection from './CreateOfferDetailsSection';
 import CreateOfferRedemptionSection from './CreateOfferRedemptionSection';
 import OfferFormLayout from '../components/offer/OfferFormLayout';
 import OfferImageGallery, { type GalleryItem } from '../components/offer/OfferImageGallery';
+import OfferTypeField from '../components/offer/OfferTypeField';
 
 /**
  * Renders the edit form for a single offer. The gallery merges existing
@@ -58,6 +59,9 @@ const EditOffer = () => {
   const [implementationInstructions, setImplementationInstructions] = useState('');
   const [validFrom, setValidFrom] = useState('');
   const [validUntil, setValidUntil] = useState('');
+  // Voucher-only purchase-anchored validity duration (empty value = never expires).
+  const [voucherValidityValue, setVoucherValidityValue] = useState('');
+  const [voucherValidityUnit, setVoucherValidityUnit] = useState('years');
   const [terms, setTerms] = useState('');
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState<string[]>([]);
@@ -87,6 +91,12 @@ const EditOffer = () => {
         setImplementationInstructions(detail.implementationInstructions ?? '');
         setValidFrom(detail.validFrom ? detail.validFrom.slice(0, 10) : '');
         setValidUntil(detail.validUntil ? detail.validUntil.slice(0, 10) : '');
+        // Legacy vouchers load with empty validity (treated as never-expires);
+        // their stale validUntil is normalized to null on save by the backend.
+        setVoucherValidityValue(
+          detail.voucherValidityValue != null ? String(detail.voucherValidityValue) : '',
+        );
+        setVoucherValidityUnit(detail.voucherValidityUnit ?? 'years');
         setTerms(detail.terms ?? '');
         setTags(detail.tags ?? []);
         const urls = (detail.imageUrls && detail.imageUrls.length > 0)
@@ -111,6 +121,21 @@ const EditOffer = () => {
   }, [gallery]);
 
   /**
+   * Wraps setExecutionType: switching TO voucher trims the gallery to its
+   * single cover image and revokes any dropped new-file preview URLs.
+   */
+  const handleExecutionTypeChange = (next: string) => {
+    setExecutionType(next);
+    if (next === 'voucher') {
+      setGallery((prev) => {
+        if (prev.length <= 1) return prev;
+        prev.slice(1).forEach((it) => { if (it.kind === 'new') URL.revokeObjectURL(it.previewUrl); });
+        return prev.slice(0, 1);
+      });
+    }
+  };
+
+  /**
    * Builds the FormData payload and PATCHes the offer. `keptImageUrls` is
    * always sent (even empty) so the backend reconciles the gallery against
    * the previous state and drops orphaned Cloudinary images.
@@ -122,6 +147,13 @@ const EditOffer = () => {
       setError(language === 'he' ? 'תאריך ההשקה חייב להיות לפני תאריך התפוגה' : 'Launch date must be before the expiry date');
       return;
     }
+    if (executionType === 'voucher' && voucherValidityValue.trim() !== '') {
+      const vv = Number(voucherValidityValue);
+      if (!Number.isInteger(vv) || vv <= 0) {
+        setError(language === 'he' ? 'מגבלת התוקף חייבת להיות מספר שלם חיובי' : 'Validity limit must be a positive whole number');
+        return;
+      }
+    }
     setIsSubmitting(true);
     setError(null);
     try {
@@ -131,7 +163,10 @@ const EditOffer = () => {
       // Note: category cannot currently change via PATCH (omitted intentionally).
       fd.append('executionType', executionType);
       if (marketPrice && Number(marketPrice) > 0) fd.append('market_price', marketPrice);
-      fd.append('stockLimit', stockLimit && Number(stockLimit) > 0 ? stockLimit : '');
+      // Stock limit is a non-voucher field only; vouchers never send it.
+      if (executionType !== 'voucher') {
+        fd.append('stockLimit', stockLimit && Number(stockLimit) > 0 ? stockLimit : '');
+      }
       // Voucher pricing is locked for non-platform-admin callers. Skip the
       // fields entirely so the backend update payload doesn't try to change
       // them; the server also rejects the change defensively.
@@ -141,8 +176,17 @@ const EditOffer = () => {
       }
       fd.append('implementationLink', implementationLink.trim());
       fd.append('implementationInstructions', implementationInstructions.trim());
-      fd.append('validFrom', validFrom || '');
-      fd.append('validUntil', validUntil || '');
+      if (executionType === 'voucher') {
+        // Voucher: send the validity duration (empty -> backend clears it);
+        // never send absolute dates. The backend also nulls validFrom/validUntil
+        // for vouchers, normalizing any legacy values.
+        const hasValidity = voucherValidityValue.trim() !== '';
+        fd.append('voucherValidityValue', hasValidity ? voucherValidityValue.trim() : '');
+        fd.append('voucherValidityUnit', hasValidity ? voucherValidityUnit : '');
+      } else {
+        fd.append('validFrom', validFrom || '');
+        fd.append('validUntil', validUntil || '');
+      }
       fd.append('terms', terms.trim());
       fd.append('tags', JSON.stringify(tags));
 
@@ -197,12 +241,22 @@ const EditOffer = () => {
 
   const leftColumn = (
     <>
-      <OfferImageGallery value={gallery} onChange={setGallery} disabled={isSubmitting} />
+      <OfferTypeField
+        value={executionType}
+        onChange={handleExecutionTypeChange}
+        disabled={isSubmitting}
+      />
+      <OfferImageGallery
+        value={gallery}
+        onChange={setGallery}
+        maxImages={executionType === 'voucher' ? 1 : 6}
+        disabled={isSubmitting}
+      />
       <CreateOfferDetailsSection
         title={title} setTitle={setTitle}
         description={description} setDescription={setDescription}
         category={category} setCategory={setCategory}
-        executionType={executionType} setExecutionType={setExecutionType}
+        executionType={executionType}
         marketPrice={marketPrice} setMarketPrice={setMarketPrice}
         stockLimit={stockLimit} setStockLimit={setStockLimit}
         faceValue={faceValue} setFaceValue={setFaceValue}
@@ -215,6 +269,9 @@ const EditOffer = () => {
         implementationInstructions={implementationInstructions} setImplementationInstructions={setImplementationInstructions}
         validFrom={validFrom} setValidFrom={setValidFrom}
         validUntil={validUntil} setValidUntil={setValidUntil}
+        executionType={executionType}
+        voucherValidityValue={voucherValidityValue} setVoucherValidityValue={setVoucherValidityValue}
+        voucherValidityUnit={voucherValidityUnit} setVoucherValidityUnit={setVoucherValidityUnit}
         terms={terms} setTerms={setTerms}
         tagInput={tagInput} setTagInput={setTagInput}
         tags={tags} setTags={setTags}

@@ -99,8 +99,20 @@ function OfferDetails({ offer }: { offer: CatalogItem }) {
   const tags = (offer.tags ?? []).filter(Boolean);
   const hasTags = tags.length > 0;
 
+  // Voucher redemption window (amount + unit), shown only for vouchers that
+  // carry a validity duration. Reads e.g. "2 years from purchase".
+  const UNIT_KEYS = { days: 'co_validityUnitDays', months: 'co_validityUnitMonths', years: 'co_validityUnitYears' } as const;
+  const hasValidity =
+    offer.executionType === 'voucher'
+    && offer.voucherValidityValue != null
+    && offer.voucherValidityValue > 0
+    && !!offer.voucherValidityUnit;
+  const validityText = hasValidity
+    ? `${offer.voucherValidityValue} ${t(UNIT_KEYS[offer.voucherValidityUnit as keyof typeof UNIT_KEYS])} ${t('om_voucherValidityFromPurchase')}`
+    : '';
+
   // Bail when nothing optional exists so the layout stays compact.
-  if (!validFrom && !validUntil && !typeLabel && !hasInstructions && !hasTerms && !hasLink && !hasTags) {
+  if (!validFrom && !validUntil && !validityText && !typeLabel && !hasInstructions && !hasTerms && !hasLink && !hasTags) {
     return null;
   }
 
@@ -127,6 +139,12 @@ function OfferDetails({ offer }: { offer: CatalogItem }) {
           <div className="flex flex-col items-start gap-0.5">
             <dt className="text-white/40">{t('om_validUntil')}</dt>
             <dd className="font-medium text-white/85">{validUntil}</dd>
+          </div>
+        )}
+        {validityText && (
+          <div className="flex flex-col items-start gap-0.5">
+            <dt className="text-white/40">{t('om_voucherValidityLabel')}</dt>
+            <dd className="font-medium text-white/85">{validityText}</dd>
           </div>
         )}
       </dl>

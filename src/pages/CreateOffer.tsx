@@ -23,6 +23,7 @@ import CreateOfferRedemptionSection from './CreateOfferRedemptionSection';
 import FieldTooltip from '../components/FieldTooltip';
 import OfferFormLayout from '../components/offer/OfferFormLayout';
 import OfferImageGallery, { type GalleryItem } from '../components/offer/OfferImageGallery';
+import OfferTypeField from '../components/offer/OfferTypeField';
 
 /** Visibility options for a platform offer. */
 type OfferVisibility = 'ecosystem' | 'tenant_only';
@@ -50,6 +51,10 @@ const CreateOffer = () => {
   const [implementationInstructions, setImplementationInstructions] = useState('');
   const [validFrom, setValidFrom] = useState('');
   const [validUntil, setValidUntil] = useState('');
+  // Voucher-only purchase-anchored validity duration. Unit defaults to 'years'
+  // (matches the common "valid for N years" case); empty value = never expires.
+  const [voucherValidityValue, setVoucherValidityValue] = useState('');
+  const [voucherValidityUnit, setVoucherValidityUnit] = useState('years');
   const [terms, setTerms] = useState('');
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState<string[]>([]);
@@ -74,6 +79,22 @@ const CreateOffer = () => {
   }, [gallery]);
 
   /**
+   * Wraps setExecutionType: when switching TO voucher, a voucher carries a
+   * single card image, so trim the gallery to its cover (index 0) and revoke
+   * any dropped new-file preview URLs to avoid blob leaks.
+   */
+  const handleExecutionTypeChange = (next: string) => {
+    setExecutionType(next);
+    if (next === 'voucher') {
+      setGallery((prev) => {
+        if (prev.length <= 1) return prev;
+        prev.slice(1).forEach((it) => { if (it.kind === 'new') URL.revokeObjectURL(it.previewUrl); });
+        return prev.slice(0, 1);
+      });
+    }
+  };
+
+  /**
    * Validates the form, builds multipart FormData (images[] + JSON fields),
    * POSTs to /api/v1/offers, and navigates back to the catalog on success.
    */
@@ -95,6 +116,13 @@ const CreateOffer = () => {
       if (!nexusCost || isNaN(nc) || nc <= 0 || nc >= fv) {
         setError(language === 'he' ? 'מחיר NEXUS חייב להיות חיובי ופחות מהשווי' : 'Nexus price must be positive and less than face value'); return;
       }
+      // Validity is optional (empty = never expires); when set it must be a positive integer.
+      if (voucherValidityValue.trim() !== '') {
+        const vv = Number(voucherValidityValue);
+        if (!Number.isInteger(vv) || vv <= 0) {
+          setError(language === 'he' ? 'מגבלת התוקף חייבת להיות מספר שלם חיובי' : 'Validity limit must be a positive whole number'); return;
+        }
+      }
     }
 
     setIsSubmitting(true);
@@ -107,7 +135,8 @@ const CreateOffer = () => {
       if (marketPrice && Number(marketPrice) > 0) fd.append('market_price', marketPrice);
       fd.append('visibility', isPlatformAdmin ? 'ecosystem' : visibility);
       fd.append('executionType', executionType);
-      if (stockLimit && Number(stockLimit) > 0) fd.append('stockLimit', stockLimit);
+      // Stock limit is a non-voucher field only; vouchers never send it.
+      if (executionType !== 'voucher' && stockLimit && Number(stockLimit) > 0) fd.append('stockLimit', stockLimit);
       if (executionType === 'voucher') {
         fd.append('face_value', faceValue);
         fd.append('nexus_cost', nexusCost);
@@ -118,8 +147,16 @@ const CreateOffer = () => {
       });
       if (implementationLink.trim()) fd.append('implementationLink', implementationLink.trim());
       if (implementationInstructions.trim()) fd.append('implementationInstructions', implementationInstructions.trim());
-      if (validFrom) fd.append('validFrom', validFrom);
-      if (validUntil) fd.append('validUntil', validUntil);
+      if (executionType === 'voucher') {
+        // Voucher: purchase-anchored validity duration, no absolute dates.
+        if (voucherValidityValue.trim() !== '') {
+          fd.append('voucherValidityValue', voucherValidityValue.trim());
+          fd.append('voucherValidityUnit', voucherValidityUnit);
+        }
+      } else {
+        if (validFrom) fd.append('validFrom', validFrom);
+        if (validUntil) fd.append('validUntil', validUntil);
+      }
       if (terms.trim()) fd.append('terms', terms.trim());
       if (tags.length > 0) fd.append('tags', JSON.stringify(tags));
 
@@ -155,12 +192,22 @@ const CreateOffer = () => {
 
   const leftColumn = (
     <>
-      <OfferImageGallery value={gallery} onChange={setGallery} disabled={isSubmitting} />
+      <OfferTypeField
+        value={executionType}
+        onChange={handleExecutionTypeChange}
+        disabled={isSubmitting}
+      />
+      <OfferImageGallery
+        value={gallery}
+        onChange={setGallery}
+        maxImages={executionType === 'voucher' ? 1 : 6}
+        disabled={isSubmitting}
+      />
       <CreateOfferDetailsSection
         title={title} setTitle={setTitle}
         description={description} setDescription={setDescription}
         category={category} setCategory={setCategory}
-        executionType={executionType} setExecutionType={setExecutionType}
+        executionType={executionType}
         marketPrice={marketPrice} setMarketPrice={setMarketPrice}
         stockLimit={stockLimit} setStockLimit={setStockLimit}
         faceValue={faceValue} setFaceValue={setFaceValue}
@@ -172,6 +219,9 @@ const CreateOffer = () => {
         implementationInstructions={implementationInstructions} setImplementationInstructions={setImplementationInstructions}
         validFrom={validFrom} setValidFrom={setValidFrom}
         validUntil={validUntil} setValidUntil={setValidUntil}
+        executionType={executionType}
+        voucherValidityValue={voucherValidityValue} setVoucherValidityValue={setVoucherValidityValue}
+        voucherValidityUnit={voucherValidityUnit} setVoucherValidityUnit={setVoucherValidityUnit}
         terms={terms} setTerms={setTerms}
         tagInput={tagInput} setTagInput={setTagInput}
         tags={tags} setTags={setTags}

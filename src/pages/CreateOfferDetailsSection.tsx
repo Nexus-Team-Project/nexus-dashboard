@@ -7,7 +7,7 @@
  * props, so the parent remains the single source of truth for the form payload.
  */
 import { useLanguage } from '../i18n/LanguageContext';
-import { OFFER_CATEGORIES, EXECUTION_TYPE_LABELS } from '../lib/api';
+import { OFFER_CATEGORIES } from '../lib/api';
 import RichTextEditor from '../components/RichTextEditor';
 import FieldTooltip from '../components/FieldTooltip';
 import VoucherPricingSection from './CreateOfferVoucherPricing';
@@ -31,10 +31,9 @@ interface DetailsSectionProps {
   category: string;
   /** Setter for category. */
   setCategory: (v: string) => void;
-  /** Execution/delivery type (e.g. voucher, link). */
+  /** Execution/delivery type (e.g. voucher, link). Selected via OfferTypeField;
+   *  here it only drives the voucher vs non-voucher pricing branch. */
   executionType: string;
-  /** Setter for executionType. */
-  setExecutionType: (v: string) => void;
   /** Optional market price for display purposes. */
   marketPrice: string;
   /** Setter for marketPrice. */
@@ -78,7 +77,6 @@ const CreateOfferDetailsSection = ({
   category,
   setCategory,
   executionType,
-  setExecutionType,
   marketPrice,
   setMarketPrice,
   stockLimit,
@@ -99,6 +97,9 @@ const CreateOfferDetailsSection = ({
         <h2 className="mb-4 text-base font-semibold text-slate-800 dark:text-white">
           {t('co_sectionOfferDetails')}
         </h2>
+
+        {/* Offer type lives in its own card above the gallery (OfferTypeField),
+            so it is the first decision on the form. */}
 
         {/* Title - required */}
         <div className="mb-4">
@@ -138,8 +139,8 @@ const CreateOfferDetailsSection = ({
           />
         </div>
 
-        {/* Category */}
-        <div className="mb-4">
+        {/* Category - last field in the details card. */}
+        <div>
           <label
             htmlFor="offer-category"
             className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300"
@@ -161,30 +162,6 @@ const CreateOfferDetailsSection = ({
             ))}
           </select>
         </div>
-
-        {/* Execution type - how the offer is delivered to the member */}
-        <div>
-          <label
-            htmlFor="offer-execution-type"
-            className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300"
-          >
-            {t('co_fieldOfferType')} <span className="text-red-500 ms-0.5" aria-hidden="true">*</span>
-            <FieldTooltip fieldKey="executionType" />
-          </label>
-          <select
-            id="offer-execution-type"
-            value={executionType}
-            onChange={(e) => setExecutionType(e.target.value)}
-            disabled={isSubmitting}
-            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-colors focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {Object.entries(EXECUTION_TYPE_LABELS).map(([value, { label, labelHe, icon }]) => (
-              <option key={value} value={value}>
-                {icon} {language === 'he' ? labelHe : label}
-              </option>
-            ))}
-          </select>
-        </div>
       </section>
 
       {/* Pricing card */}
@@ -200,8 +177,6 @@ const CreateOfferDetailsSection = ({
             setFaceValue={setFaceValue}
             nexusCost={nexusCost}
             setNexusCost={setNexusCost}
-            stockLimit={stockLimit}
-            setStockLimit={setStockLimit}
             isSubmitting={isSubmitting}
             pricingLocked={pricingLocked}
           />
