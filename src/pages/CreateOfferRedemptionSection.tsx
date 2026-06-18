@@ -8,6 +8,7 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
 import FieldTooltip from '../components/FieldTooltip';
+import VoucherStackToggle, { type StackChoice } from '../components/offer/VoucherStackToggle';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -47,6 +48,10 @@ interface RedemptionSectionProps {
   voucherValidityUnit: string;
   /** Setter for voucherValidityUnit. */
   setVoucherValidityUnit: (v: string) => void;
+  /** Mandatory combine-with-promotions choice ('' | 'yes' | 'no'). Voucher-only. */
+  voucherStackable: StackChoice;
+  /** Setter for voucherStackable. */
+  setVoucherStackable: (v: StackChoice) => void;
   /** Terms and conditions text. */
   terms: string;
   /** Setter for terms. */
@@ -86,6 +91,8 @@ const CreateOfferRedemptionSection = ({
   setVoucherValidityValue,
   voucherValidityUnit,
   setVoucherValidityUnit,
+  voucherStackable,
+  setVoucherStackable,
   terms,
   setTerms,
   tagInput,
@@ -160,7 +167,8 @@ const CreateOfferRedemptionSection = ({
 
       {executionType === 'voucher' ? (
         /* Voucher: purchase-anchored validity duration (amount + unit) instead
-           of absolute dates. Empty amount = the voucher never expires. */
+           of absolute dates, plus the mandatory combine-with-promotions choice. */
+        <>
         <div className="mb-4">
           <label
             htmlFor="offer-voucher-validity"
@@ -199,6 +207,12 @@ const CreateOfferRedemptionSection = ({
           </div>
           <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">{t('co_voucherValidityHint')}</p>
         </div>
+        <VoucherStackToggle
+          value={voucherStackable}
+          onChange={setVoucherStackable}
+          disabled={isSubmitting}
+        />
+        </>
       ) : (
         /* Non-voucher: absolute valid-from / valid-until date range picker.
            Stacks on mobile, two columns on sm+ screens. */

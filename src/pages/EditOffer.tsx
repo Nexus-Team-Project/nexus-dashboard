@@ -22,6 +22,7 @@ import CreateOfferRedemptionSection from './CreateOfferRedemptionSection';
 import OfferFormLayout from '../components/offer/OfferFormLayout';
 import OfferImageGallery, { type GalleryItem } from '../components/offer/OfferImageGallery';
 import OfferTypeField from '../components/offer/OfferTypeField';
+import VoucherBackgroundField, { type BgMode } from '../components/offer/VoucherBackgroundField';
 
 /**
  * Renders the edit form for a single offer. The gallery merges existing
@@ -62,6 +63,11 @@ const EditOffer = () => {
   // Voucher-only purchase-anchored validity duration (empty value = never expires).
   const [voucherValidityValue, setVoucherValidityValue] = useState('');
   const [voucherValidityUnit, setVoucherValidityUnit] = useState('years');
+  // Mandatory combine-with-promotions choice; legacy vouchers load as '' (must re-choose).
+  const [voucherStackable, setVoucherStackable] = useState<'' | 'yes' | 'no'>('');
+  // Voucher background mode + color (voucher-only).
+  const [bgMode, setBgMode] = useState<BgMode>('image');
+  const [voucherBackgroundColor, setVoucherBackgroundColor] = useState('');
   const [terms, setTerms] = useState('');
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState<string[]>([]);
@@ -97,12 +103,19 @@ const EditOffer = () => {
           detail.voucherValidityValue != null ? String(detail.voucherValidityValue) : '',
         );
         setVoucherValidityUnit(detail.voucherValidityUnit ?? 'years');
+        setVoucherStackable(
+          detail.voucherStackable === true ? 'yes' : detail.voucherStackable === false ? 'no' : '',
+        );
         setTerms(detail.terms ?? '');
         setTags(detail.tags ?? []);
         const urls = (detail.imageUrls && detail.imageUrls.length > 0)
           ? detail.imageUrls
           : (detail.imageUrl ? [detail.imageUrl] : []);
         setGallery(urls.map((u) => ({ kind: 'existing' as const, url: u })));
+        // Voucher background mode: image when there is a cover; else color when
+        // a stored color exists; else default to image (empty -> tenant fallback).
+        setVoucherBackgroundColor(detail.voucherBackgroundColor ?? '');
+        setBgMode(urls.length > 0 ? 'image' : (detail.voucherBackgroundColor ? 'color' : 'image'));
       } catch (err) {
         if (cancelled) return;
         setLoadError(err instanceof Error ? err.message : t('of_loadFailed'));
@@ -119,6 +132,13 @@ const EditOffer = () => {
     if (!first) return undefined;
     return first.kind === 'existing' ? first.url : first.previewUrl;
   }, [gallery]);
+
+  /** Seed/fallback color for the picker + hero when the voucher uses a color. */
+  const defaultBrandColor = me?.context?.tenantBrandColor ?? '#635bff';
+  /** Solid hero color when a voucher is in color mode with no image. */
+  const coverColor = executionType === 'voucher' && bgMode === 'color' && !coverUrl
+    ? (voucherBackgroundColor || defaultBrandColor)
+    : undefined;
 
   /**
    * Wraps setExecutionType: switching TO voucher trims the gallery to its
@@ -147,12 +167,15 @@ const EditOffer = () => {
       setError(language === 'he' ? 'תאריך ההשקה חייב להיות לפני תאריך התפוגה' : 'Launch date must be before the expiry date');
       return;
     }
-    if (executionType === 'voucher' && voucherValidityValue.trim() !== '') {
-      const vv = Number(voucherValidityValue);
-      if (!Number.isInteger(vv) || vv <= 0) {
-        setError(language === 'he' ? 'מגבלת התוקף חייבת להיות מספר שלם חיובי' : 'Validity limit must be a positive whole number');
-        return;
+    if (executionType === 'voucher') {
+      if (voucherValidityValue.trim() !== '') {
+        const vv = Number(voucherValidityValue);
+        if (!Number.isInteger(vv) || vv <= 0) {
+          setError(language === 'he' ? 'מגבלת התוקף חייבת להיות מספר שלם חיובי' : 'Validity limit must be a positive whole number');
+          return;
+        }
       }
+      if (voucherStackable === '') { setError(t('co_voucherStackableRequired')); return; }
     }
     setIsSubmitting(true);
     setError(null);
@@ -183,6 +206,9 @@ const EditOffer = () => {
         const hasValidity = voucherValidityValue.trim() !== '';
         fd.append('voucherValidityValue', hasValidity ? voucherValidityValue.trim() : '');
         fd.append('voucherValidityUnit', hasValidity ? voucherValidityUnit : '');
+        fd.append('voucherStackable', voucherStackable === 'yes' ? 'true' : 'false');
+        // Color only in color mode; image mode sends '' so the backend clears any stored color.
+        fd.append('voucherBackgroundColor', bgMode === 'color' && voucherBackgroundColor ? voucherBackgroundColor : '');
       } else {
         fd.append('validFrom', validFrom || '');
         fd.append('validUntil', validUntil || '');
@@ -246,12 +272,22 @@ const EditOffer = () => {
         onChange={handleExecutionTypeChange}
         disabled={isSubmitting}
       />
-      <OfferImageGallery
-        value={gallery}
-        onChange={setGallery}
-        maxImages={executionType === 'voucher' ? 1 : 6}
-        disabled={isSubmitting}
-      />
+      {executionType === 'voucher' ? (
+        <VoucherBackgroundField
+          mode={bgMode} setMode={setBgMode}
+          gallery={gallery} setGallery={setGallery}
+          color={voucherBackgroundColor} setColor={setVoucherBackgroundColor}
+          defaultColor={defaultBrandColor}
+          disabled={isSubmitting}
+        />
+      ) : (
+        <OfferImageGallery
+          value={gallery}
+          onChange={setGallery}
+          maxImages={6}
+          disabled={isSubmitting}
+        />
+      )}
       <CreateOfferDetailsSection
         title={title} setTitle={setTitle}
         description={description} setDescription={setDescription}
@@ -272,6 +308,7 @@ const EditOffer = () => {
         executionType={executionType}
         voucherValidityValue={voucherValidityValue} setVoucherValidityValue={setVoucherValidityValue}
         voucherValidityUnit={voucherValidityUnit} setVoucherValidityUnit={setVoucherValidityUnit}
+        voucherStackable={voucherStackable} setVoucherStackable={setVoucherStackable}
         terms={terms} setTerms={setTerms}
         tagInput={tagInput} setTagInput={setTagInput}
         tags={tags} setTags={setTags}
@@ -287,6 +324,7 @@ const EditOffer = () => {
       title={t('of_pageTitleEdit')}
       businessName={me?.context?.tenantName ?? undefined}
       coverUrl={coverUrl}
+      coverColor={coverColor}
       saveLabel={offer?.approval_status === 'denied' ? t('of_saveResubmit') : t('of_saveUpdate')}
       cancelLabel={t('of_cancel')}
       onSave={() => { void handleSubmit(); }}

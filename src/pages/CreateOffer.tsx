@@ -24,6 +24,7 @@ import FieldTooltip from '../components/FieldTooltip';
 import OfferFormLayout from '../components/offer/OfferFormLayout';
 import OfferImageGallery, { type GalleryItem } from '../components/offer/OfferImageGallery';
 import OfferTypeField from '../components/offer/OfferTypeField';
+import VoucherBackgroundField, { type BgMode } from '../components/offer/VoucherBackgroundField';
 
 /** Visibility options for a platform offer. */
 type OfferVisibility = 'ecosystem' | 'tenant_only';
@@ -55,6 +56,11 @@ const CreateOffer = () => {
   // (matches the common "valid for N years" case); empty value = never expires.
   const [voucherValidityValue, setVoucherValidityValue] = useState('');
   const [voucherValidityUnit, setVoucherValidityUnit] = useState('years');
+  // Mandatory combine-with-promotions choice ('' = not chosen, blocks submit). Voucher-only.
+  const [voucherStackable, setVoucherStackable] = useState<'' | 'yes' | 'no'>('');
+  // Voucher background: 'image' uses the gallery, 'color' uses a solid color. Voucher-only.
+  const [bgMode, setBgMode] = useState<BgMode>('image');
+  const [voucherBackgroundColor, setVoucherBackgroundColor] = useState('');
   const [terms, setTerms] = useState('');
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState<string[]>([]);
@@ -77,6 +83,13 @@ const CreateOffer = () => {
     if (!first) return undefined;
     return first.kind === 'existing' ? first.url : first.previewUrl;
   }, [gallery]);
+
+  /** Seed/fallback color for the picker + hero when the voucher uses a color. */
+  const defaultBrandColor = me?.context?.tenantBrandColor ?? '#635bff';
+  /** Solid hero color when a voucher is in color mode with no image. */
+  const coverColor = executionType === 'voucher' && bgMode === 'color' && !coverUrl
+    ? (voucherBackgroundColor || defaultBrandColor)
+    : undefined;
 
   /**
    * Wraps setExecutionType: when switching TO voucher, a voucher carries a
@@ -123,6 +136,8 @@ const CreateOffer = () => {
           setError(language === 'he' ? 'מגבלת התוקף חייבת להיות מספר שלם חיובי' : 'Validity limit must be a positive whole number'); return;
         }
       }
+      // Combine-with-promotions is a mandatory, no-default choice.
+      if (voucherStackable === '') { setError(t('co_voucherStackableRequired')); return; }
     }
 
     setIsSubmitting(true);
@@ -152,6 +167,11 @@ const CreateOffer = () => {
         if (voucherValidityValue.trim() !== '') {
           fd.append('voucherValidityValue', voucherValidityValue.trim());
           fd.append('voucherValidityUnit', voucherValidityUnit);
+        }
+        fd.append('voucherStackable', voucherStackable === 'yes' ? 'true' : 'false');
+        // Background color only when in color mode (image mode leaves it unset).
+        if (bgMode === 'color' && voucherBackgroundColor) {
+          fd.append('voucherBackgroundColor', voucherBackgroundColor);
         }
       } else {
         if (validFrom) fd.append('validFrom', validFrom);
@@ -197,12 +217,22 @@ const CreateOffer = () => {
         onChange={handleExecutionTypeChange}
         disabled={isSubmitting}
       />
-      <OfferImageGallery
-        value={gallery}
-        onChange={setGallery}
-        maxImages={executionType === 'voucher' ? 1 : 6}
-        disabled={isSubmitting}
-      />
+      {executionType === 'voucher' ? (
+        <VoucherBackgroundField
+          mode={bgMode} setMode={setBgMode}
+          gallery={gallery} setGallery={setGallery}
+          color={voucherBackgroundColor} setColor={setVoucherBackgroundColor}
+          defaultColor={defaultBrandColor}
+          disabled={isSubmitting}
+        />
+      ) : (
+        <OfferImageGallery
+          value={gallery}
+          onChange={setGallery}
+          maxImages={6}
+          disabled={isSubmitting}
+        />
+      )}
       <CreateOfferDetailsSection
         title={title} setTitle={setTitle}
         description={description} setDescription={setDescription}
@@ -222,6 +252,7 @@ const CreateOffer = () => {
         executionType={executionType}
         voucherValidityValue={voucherValidityValue} setVoucherValidityValue={setVoucherValidityValue}
         voucherValidityUnit={voucherValidityUnit} setVoucherValidityUnit={setVoucherValidityUnit}
+        voucherStackable={voucherStackable} setVoucherStackable={setVoucherStackable}
         terms={terms} setTerms={setTerms}
         tagInput={tagInput} setTagInput={setTagInput}
         tags={tags} setTags={setTags}
@@ -288,6 +319,7 @@ const CreateOffer = () => {
       title={t('of_pageTitleCreate')}
       businessName={me?.context?.tenantName ?? undefined}
       coverUrl={coverUrl}
+      coverColor={coverColor}
       saveLabel={t('of_saveCreate')}
       cancelLabel={t('of_cancel')}
       onSave={() => { void handleSubmit(); }}
