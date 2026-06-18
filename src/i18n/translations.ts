@@ -838,6 +838,13 @@ export const translations = {
     co_validityUnitMonths: 'Months',
     co_validityUnitYears: 'Years',
     co_voucherValidityHint: 'Counted from the moment the customer buys the voucher. Leave blank for no expiry.',
+    co_fieldVoucherStackable: 'Combine with other promotions',
+    co_voucherStackableYes: 'Yes',
+    co_voucherStackableNo: 'No',
+    co_voucherStackableRequired: 'Please choose whether this voucher can be combined with other promotions.',
+    co_voucherBgModeImage: 'Image',
+    co_voucherBgModeColor: 'Color',
+    co_voucherBgHint: 'Pick an image or a background color for the voucher card. Leave both empty to use your organization’s logo and brand color.',
     co_fieldTerms: 'Terms & Conditions',
     co_termsPlaceholder: 'e.g. Not combinable with other offers...',
     co_fieldTags: 'Tags',
@@ -892,6 +899,9 @@ export const translations = {
     om_validUntil: 'Valid until',
     om_voucherValidityLabel: 'Validity',
     om_voucherValidityFromPurchase: 'from purchase',
+    om_voucherStackableLabel: 'Combine with promotions',
+    om_voucherStackableYes: 'Yes',
+    om_voucherStackableNo: 'No',
     om_termsTitle: 'Terms & conditions',
     om_redemptionInstructions: 'How to redeem',
     om_redemptionLink: 'Open redemption link',
@@ -1016,6 +1026,18 @@ export const translations = {
     fi_voucherValidity_short: 'How long the voucher stays redeemable after a customer buys it.',
     fi_voucherValidity_detail: 'A voucher does not expire on a fixed calendar date — instead it stays valid for this long counted from the moment a customer purchases it. Enter an amount and choose a unit (days, months, or years). Leave the amount blank for a voucher that never expires.',
     fi_voucherValidity_example: 'A gift voucher valid for 2 years from purchase. A welcome voucher valid for 90 days from purchase.',
+
+    // ── voucherStackable ──
+    fi_voucherStackable_label: 'Combine with other promotions',
+    fi_voucherStackable_short: 'Whether this voucher can be used together with other promotions.',
+    fi_voucherStackable_detail: 'Choose Yes if a customer may apply this voucher on top of other active promotions or discounts, or No if it must be used on its own. This is a required choice for vouchers — there is no default.',
+    fi_voucherStackable_example: 'Yes: a ₪20 voucher that still works during a 10%-off sale. No: a launch voucher that cannot be combined with any other deal.',
+
+    // ── voucherBackground ──
+    fi_voucherBackground_label: 'Voucher card background',
+    fi_voucherBackground_short: 'An image or a solid color for the voucher card background.',
+    fi_voucherBackground_detail: 'Give the voucher card a cover image, or pick a solid background color instead. Both are optional — if you leave both empty, the card uses your organization’s logo and brand color automatically.',
+    fi_voucherBackground_example: 'Upload a branded artwork, or pick your brand color (e.g. #635bff) for a clean solid card.',
 
     // ── terms ──
     fi_terms_label: 'Terms & Conditions',
@@ -1983,6 +2005,13 @@ export const translations = {
     co_validityUnitMonths: 'חודשים',
     co_validityUnitYears: 'שנים',
     co_voucherValidityHint: 'נספר מרגע רכישת השובר על ידי הלקוח. השאר ריק לשובר ללא תפוגה.',
+    co_fieldVoucherStackable: 'כפל מבצעים',
+    co_voucherStackableYes: 'כן',
+    co_voucherStackableNo: 'לא',
+    co_voucherStackableRequired: 'יש לבחור האם ניתן לכפל שובר זה עם מבצעים אחרים.',
+    co_voucherBgModeImage: 'תמונה',
+    co_voucherBgModeColor: 'צבע',
+    co_voucherBgHint: 'בחרו תמונה או צבע רקע לכרטיס השובר. השאירו את שניהם ריקים כדי להשתמש בלוגו ובצבע המותג של הארגון שלכם.',
     co_fieldTerms: 'תנאים והגבלות',
     co_termsPlaceholder: 'לדוגמה: אינו ניתן לשילוב עם מבצעים אחרים...',
     co_fieldTags: 'תגיות',
@@ -2037,6 +2066,9 @@ export const translations = {
     om_validUntil: 'בתוקף עד',
     om_voucherValidityLabel: 'תוקף',
     om_voucherValidityFromPurchase: 'מרגע הרכישה',
+    om_voucherStackableLabel: 'כפל מבצעים',
+    om_voucherStackableYes: 'כן',
+    om_voucherStackableNo: 'לא',
     om_termsTitle: 'תקנון ותנאים',
     om_redemptionInstructions: 'אופן המימוש',
     om_redemptionLink: 'פתח קישור למימוש',
@@ -2162,6 +2194,18 @@ export const translations = {
     fi_voucherValidity_short: 'למשך כמה זמן השובר ניתן למימוש לאחר שהלקוח רוכש אותו.',
     fi_voucherValidity_detail: 'שובר אינו פג בתאריך קבוע בלוח השנה — אלא נשאר בתוקף למשך פרק הזמן הזה החל מרגע הרכישה על ידי הלקוח. הזן כמות ובחר יחידת זמן (ימים, חודשים או שנים). השאר את הכמות ריקה לשובר שאינו פג לעולם.',
     fi_voucherValidity_example: 'שובר מתנה בתוקף ל-2 שנים מרגע הרכישה. שובר הצטרפות בתוקף ל-90 ימים מרגע הרכישה.',
+
+    // ── voucherStackable ──
+    fi_voucherStackable_label: 'כפל מבצעים',
+    fi_voucherStackable_short: 'האם ניתן להשתמש בשובר זה יחד עם מבצעים אחרים.',
+    fi_voucherStackable_detail: 'בחרו "כן" אם הלקוח יכול להשתמש בשובר זה בנוסף למבצעים או הנחות פעילים אחרים, או "לא" אם יש להשתמש בו בנפרד. זוהי בחירת חובה עבור שוברים — אין ברירת מחדל.',
+    fi_voucherStackable_example: 'כן: שובר ₪20 שעובד גם במהלך מבצע 10% הנחה. לא: שובר השקה שאי אפשר לכפל עם שום מבצע אחר.',
+
+    // ── voucherBackground ──
+    fi_voucherBackground_label: 'רקע כרטיס השובר',
+    fi_voucherBackground_short: 'תמונה או צבע אחיד לרקע כרטיס השובר.',
+    fi_voucherBackground_detail: 'תנו לכרטיס השובר תמונת רקע, או בחרו במקום זאת צבע רקע אחיד. שניהם אופציונליים — אם תשאירו את שניהם ריקים, הכרטיס ישתמש אוטומטית בלוגו ובצבע המותג של הארגון שלכם.',
+    fi_voucherBackground_example: 'העלו עיצוב ממותג, או בחרו את צבע המותג שלכם (למשל ‎#635bff‎) לכרטיס אחיד ונקי.',
 
     // ── terms ──
     fi_terms_label: 'תנאים והגבלות',
