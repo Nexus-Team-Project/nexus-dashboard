@@ -8,6 +8,7 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
 import FieldTooltip from '../components/FieldTooltip';
+import VoucherStackToggle, { type StackChoice } from '../components/offer/VoucherStackToggle';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -47,6 +48,10 @@ interface RedemptionSectionProps {
   voucherValidityUnit: string;
   /** Setter for voucherValidityUnit. */
   setVoucherValidityUnit: (v: string) => void;
+  /** Mandatory combine-with-promotions choice ('' | 'yes' | 'no'). Voucher-only. */
+  voucherStackable: StackChoice;
+  /** Setter for voucherStackable. */
+  setVoucherStackable: (v: StackChoice) => void;
   /** Terms and conditions text. */
   terms: string;
   /** Setter for terms. */
@@ -86,6 +91,8 @@ const CreateOfferRedemptionSection = ({
   setVoucherValidityValue,
   voucherValidityUnit,
   setVoucherValidityUnit,
+  voucherStackable,
+  setVoucherStackable,
   terms,
   setTerms,
   tagInput,
@@ -115,6 +122,15 @@ const CreateOfferRedemptionSection = ({
       <h2 className="mb-4 text-base font-semibold text-slate-800 dark:text-white">
         {t('co_sectionRedemption')}
       </h2>
+
+      {/* Combine-with-promotions: mandatory voucher choice, kept near the top. */}
+      {executionType === 'voucher' && (
+        <VoucherStackToggle
+          value={voucherStackable}
+          onChange={setVoucherStackable}
+          disabled={isSubmitting}
+        />
+      )}
 
       {/* Implementation link - URL where members redeem the offer */}
       <div className="mb-4">
@@ -160,7 +176,8 @@ const CreateOfferRedemptionSection = ({
 
       {executionType === 'voucher' ? (
         /* Voucher: purchase-anchored validity duration (amount + unit) instead
-           of absolute dates. Empty amount = the voucher never expires. */
+           of absolute dates. (The combine-with-promotions toggle sits at the
+           top of this card.) */
         <div className="mb-4">
           <label
             htmlFor="offer-voucher-validity"

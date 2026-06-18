@@ -994,6 +994,10 @@ export interface CatalogItem {
   voucherValidityValue?: number | null;
   /** Voucher redemption window unit. null = never expires. Voucher-only. */
   voucherValidityUnit?: 'days' | 'months' | 'years' | null;
+  /** Whether the voucher may be combined with other promotions. Voucher-only; null otherwise. */
+  voucherStackable?: boolean | null;
+  /** Voucher card background color ("#rrggbb"). Voucher-only; null otherwise. */
+  voucherBackgroundColor?: string | null;
   /** Terms and conditions text. */
   terms?: string;
   /** Display tags set by the offer creator. */
@@ -1065,6 +1069,10 @@ export interface NexusOffer {
   voucherValidityValue?: number | null;
   /** Voucher redemption window unit. null = never expires. Voucher-only. */
   voucherValidityUnit?: 'days' | 'months' | 'years' | null;
+  /** Whether the voucher may be combined with other promotions. Voucher-only; null otherwise. */
+  voucherStackable?: boolean | null;
+  /** Voucher card background color ("#rrggbb"). Voucher-only; null otherwise. */
+  voucherBackgroundColor?: string | null;
   terms?: string;
   tags?: string[];
   /** Voucher face value - nominal value printed on the voucher (voucher executionType only). */

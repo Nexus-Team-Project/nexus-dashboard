@@ -111,8 +111,15 @@ function OfferDetails({ offer }: { offer: CatalogItem }) {
     ? `${offer.voucherValidityValue} ${t(UNIT_KEYS[offer.voucherValidityUnit as keyof typeof UNIT_KEYS])} ${t('om_voucherValidityFromPurchase')}`
     : '';
 
+  // Combine-with-promotions (כפל מבצעים), shown only for vouchers that carry an
+  // explicit choice. Reads "Yes" / "No".
+  const stackableText =
+    offer.executionType === 'voucher' && typeof offer.voucherStackable === 'boolean'
+      ? (offer.voucherStackable ? t('om_voucherStackableYes') : t('om_voucherStackableNo'))
+      : '';
+
   // Bail when nothing optional exists so the layout stays compact.
-  if (!validFrom && !validUntil && !validityText && !typeLabel && !hasInstructions && !hasTerms && !hasLink && !hasTags) {
+  if (!validFrom && !validUntil && !validityText && !stackableText && !typeLabel && !hasInstructions && !hasTerms && !hasLink && !hasTags) {
     return null;
   }
 
@@ -145,6 +152,12 @@ function OfferDetails({ offer }: { offer: CatalogItem }) {
           <div className="flex flex-col items-start gap-0.5">
             <dt className="text-white/40">{t('om_voucherValidityLabel')}</dt>
             <dd className="font-medium text-white/85">{validityText}</dd>
+          </div>
+        )}
+        {stackableText && (
+          <div className="flex flex-col items-start gap-0.5">
+            <dt className="text-white/40">{t('om_voucherStackableLabel')}</dt>
+            <dd className="font-medium text-white/85">{stackableText}</dd>
           </div>
         )}
       </dl>
@@ -305,6 +318,18 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
               ? offer.imageUrls
               : (offer.imageUrl ? [offer.imageUrl] : []);
             if (images.length === 0) {
+              // Voucher with a chosen background color (and no image): show the
+              // solid color as the hero. Image always wins when present; the
+              // tenant logo+color fallback is a member-app (wallet) concern.
+              if (offer.executionType === 'voucher' && offer.voucherBackgroundColor) {
+                return (
+                  <div
+                    aria-hidden
+                    className="h-full w-full"
+                    style={{ background: offer.voucherBackgroundColor }}
+                  />
+                );
+              }
               return (
                 <div
                   className="h-full w-full flex items-center justify-center text-6xl"

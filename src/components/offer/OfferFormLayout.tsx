@@ -35,6 +35,12 @@ interface OfferFormLayoutProps {
    * thumbnail. Falls back to a generic gradient when undefined.
    */
   coverUrl?: string;
+  /**
+   * Optional solid cover color ("#rrggbb") used for the banner + thumbnail when
+   * there is no `coverUrl` (e.g. a voucher whose background is a color). Ignored
+   * when `coverUrl` is set. Falls back to the default image when both are unset.
+   */
+  coverColor?: string;
   /** Save button label. */
   saveLabel: string;
   /** Cancel button label. */
@@ -63,6 +69,7 @@ export default function OfferFormLayout({
   title,
   businessName,
   coverUrl,
+  coverColor,
   saveLabel,
   cancelLabel,
   onSave,
@@ -82,11 +89,13 @@ export default function OfferFormLayout({
         <div
           aria-hidden
           className="absolute inset-0 bg-cover bg-center"
-          style={{
-            backgroundImage: `url(${coverUrl ?? DEFAULT_ORGANIZATION_IMAGE_URL})`,
-            filter: 'blur(8px)',
-            transform: 'scale(1.1)',
-          }}
+          style={
+            coverUrl
+              ? { backgroundImage: `url(${coverUrl})`, filter: 'blur(8px)', transform: 'scale(1.1)' }
+              : coverColor
+                ? { backgroundColor: coverColor }
+                : { backgroundImage: `url(${DEFAULT_ORGANIZATION_IMAGE_URL})`, filter: 'blur(8px)', transform: 'scale(1.1)' }
+          }
         />
         <div
           aria-hidden
@@ -153,11 +162,15 @@ export default function OfferFormLayout({
               <p className="text-white/90 text-sm drop-shadow truncate">{title}</p>
             </div>
             <div className="w-16 h-16 lg:w-20 lg:h-20 shrink-0 bg-white rounded-2xl shadow-2xl overflow-hidden border-4 border-white flex items-center justify-center">
-              <img
-                src={coverUrl ?? DEFAULT_ORGANIZATION_IMAGE_URL}
-                alt=""
-                className="w-full h-full object-contain"
-              />
+              {!coverUrl && coverColor ? (
+                <div aria-hidden className="w-full h-full" style={{ backgroundColor: coverColor }} />
+              ) : (
+                <img
+                  src={coverUrl ?? DEFAULT_ORGANIZATION_IMAGE_URL}
+                  alt=""
+                  className="w-full h-full object-contain"
+                />
+              )}
             </div>
           </div>
         </div>
