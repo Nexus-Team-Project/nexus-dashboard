@@ -320,6 +320,12 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
         {/* ── Hero image carousel with bottom gradient fade ────────── */}
         <div className="relative h-52 w-full shrink-0 overflow-hidden">
           {(() => {
+            // Color-mode vouchers win over any stored image: a color voucher
+            // keeps the default placeholder as imageUrl, so the color must be
+            // checked first or the placeholder would mask it.
+            if (offer.executionType === 'voucher' && offer.voucherBackgroundColor) {
+              return <div aria-hidden className="h-full w-full" style={{ background: offer.voucherBackgroundColor }} />;
+            }
             // Prefer the multi-image gallery; fall back to legacy single
             // imageUrl so older offers (pre-gallery) keep rendering. Empty
             // gallery falls through to the gift emoji placeholder.
@@ -327,18 +333,7 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
               ? offer.imageUrls
               : (offer.imageUrl ? [offer.imageUrl] : []);
             if (images.length === 0) {
-              // Voucher with a chosen background color (and no image): show the
-              // solid color as the hero. Image always wins when present; the
-              // tenant logo+color fallback is a member-app (wallet) concern.
-              if (offer.executionType === 'voucher' && offer.voucherBackgroundColor) {
-                return (
-                  <div
-                    aria-hidden
-                    className="h-full w-full"
-                    style={{ background: offer.voucherBackgroundColor }}
-                  />
-                );
-              }
+              // No image + no color: gift placeholder (tenant fallback is wallet-side).
               return (
                 <div
                   className="h-full w-full flex items-center justify-center text-6xl"

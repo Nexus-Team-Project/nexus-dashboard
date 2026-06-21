@@ -36,6 +36,7 @@ import FieldTooltip from '../components/FieldTooltip';
 import { countActiveCatalogFilters } from '../components/catalog/catalogFilters';
 import VoucherPricePopover from '../components/catalog/VoucherPricePopover';
 import OfferTypeBadge from '../components/catalog/OfferTypeBadge';
+import VoucherColorTile from '../components/offer/VoucherColorTile';
 
 interface Benefit {
   id: string;
@@ -1212,7 +1213,9 @@ const BenefitsPartnerships = () => {
                             {t('badge_combinable')}
                           </span>
                         )}
-                        {benefit.backgroundImage ? (
+                        {catalogItem?.executionType === 'voucher' && catalogItem?.voucherBackgroundColor ? (
+                          <VoucherColorTile color={catalogItem.voucherBackgroundColor} className="w-full h-full" />
+                        ) : benefit.backgroundImage ? (
                           <>
                             <img
                               src={benefit.backgroundImage}
@@ -1356,7 +1359,9 @@ const BenefitsPartnerships = () => {
                             {t('badge_combinable')}
                           </span>
                         )}
-                        {benefit.backgroundImage ? (
+                        {catalogItem?.executionType === 'voucher' && catalogItem?.voucherBackgroundColor ? (
+                          <VoucherColorTile color={catalogItem.voucherBackgroundColor} className="w-full h-32" />
+                        ) : benefit.backgroundImage ? (
                           <img
                             src={benefit.backgroundImage}
                             alt={benefit.title}

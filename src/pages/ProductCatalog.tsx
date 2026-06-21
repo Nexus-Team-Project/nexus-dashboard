@@ -20,6 +20,7 @@ import {
 import RichTextDisplay from '../components/RichTextDisplay';
 import OfferModal from '../components/catalog/OfferModal';
 import FieldTooltip from '../components/FieldTooltip';
+import VoucherColorTile from '../components/offer/VoucherColorTile';
 
 // ----------------------------------------------------------------
 // Types
@@ -219,9 +220,11 @@ const ProductCatalog = () => {
         onKeyDown={(e) => { if (e.key === 'Enter') setDetailOffer(item); }}
         aria-label={`Open details: ${item.title}`}
       >
-        {/* Offer image + overlay badges */}
+        {/* Offer image + overlay badges. Color-only vouchers render a color tile. */}
         <div className="relative">
-          {item.imageUrl ? (
+          {item.executionType === 'voucher' && item.voucherBackgroundColor ? (
+            <VoucherColorTile color={item.voucherBackgroundColor} className="w-full h-36" />
+          ) : item.imageUrl ? (
             <img
               src={item.imageUrl}
               alt={item.title}
