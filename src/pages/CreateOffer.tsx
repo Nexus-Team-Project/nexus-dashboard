@@ -236,24 +236,21 @@ const CreateOffer = () => {
     );
   }
 
-  // Voucher CSV bulk mode takes over the whole page (replaces the manual form).
-  if (executionType === 'voucher' && mode === 'csv') {
-    return (
-      <VoucherCsvBulk
-        mode={mode}
-        onModeChange={setMode}
-        onCancel={() => navigate('/benefits-partnerships')}
-      />
-    );
-  }
-
   // ─── Left + right columns ──────────────────────────────────────────────────
+
+  // Voucher CSV bulk mode keeps the page header + mode toggle and only swaps the
+  // content below (the manual form → the CSV upload/preview).
+  const isCsv = executionType === 'voucher' && mode === 'csv';
 
   const leftColumn = (
     <>
       {executionType === 'voucher' && (
         <CreationModeTabs mode={mode} onChange={setMode} disabled={isSubmitting} />
       )}
+      {isCsv ? (
+        <VoucherCsvBulk />
+      ) : (
+      <>
       <OfferTypeField
         value={executionType}
         onChange={handleExecutionTypeChange}
@@ -301,10 +298,13 @@ const CreateOffer = () => {
         tags={tags} setTags={setTags}
         isSubmitting={isSubmitting}
       />
+      </>
+      )}
     </>
   );
 
-  const rightColumn = (
+  // No visibility sidebar in CSV mode — visibility is a per-row CSV column.
+  const rightColumn = isCsv ? null : (
     <OfferVisibilityCard
       isPlatformAdmin={isPlatformAdmin}
       businessSetupComplete={businessSetupComplete}
@@ -326,6 +326,7 @@ const CreateOffer = () => {
         onSave={handleSave}
         onCancel={() => navigate('/benefits-partnerships')}
         isSubmitting={isSubmitting}
+        hideSave={isCsv}
         error={error}
         leftColumn={leftColumn}
         rightColumn={rightColumn}

@@ -108,16 +108,11 @@ export function validateVoucherRow(row: Record<string, string>): string[] {
   const color = get('backgroundColor');
   if (color && !HEX_RE.test(color)) errors.push('backgroundColor must be a #rrggbb hex');
 
-  // Inventory: barcodes XOR links.
-  const qty = get('barcodeQuantity');
-  const links = parseLinks(get('links'));
-  if (qty && links.length > 0) errors.push('use barcodeQuantity OR links, not both');
-  if (qty && (!isPositiveInt(qty) || Number(qty) > INVENTORY_MAX)) {
-    errors.push(`barcodeQuantity must be 1–${INVENTORY_MAX}`);
-  }
-  if (links.length > 0) {
-    if (links.some((l) => !HTTP_RE.test(l))) errors.push('links must all be http(s) URLs');
-    if (links.length > INVENTORY_MAX) errors.push(`at most ${INVENTORY_MAX} links`);
+  // Inventory: barcodes XOR links. Both cells filled is the only hard error;
+  // an empty/invalid cell is tolerated and simply yields no stock (the voucher
+  // is created out of stock), so it is NOT a row error.
+  if (get('barcodeQuantity') && get('links')) {
+    errors.push('use barcodeQuantity OR links, not both');
   }
 
   return errors;
@@ -133,9 +128,10 @@ export function backgroundHint(row: Record<string, string>): 'image' | 'color' |
 /** Preview hint for a row's inventory: a short label like "100 barcodes" / "3 links" / "—". */
 export function inventoryHint(row: Record<string, string>): string {
   const qty = (row.barcodeQuantity ?? '').trim();
+  // Reflect only VALID inventory (mirrors the backend); invalid/empty → "—" (no stock).
+  if (qty && isPositiveInt(qty) && Number(qty) <= INVENTORY_MAX) return `${qty} barcodes`;
   const links = parseLinks(row.links);
-  if (qty && isPositiveInt(qty)) return `${qty} barcodes`;
-  if (links.length > 0) return `${links.length} links`;
+  if (links.length > 0 && links.every((l) => HTTP_RE.test(l))) return `${links.length} links`;
   return '—';
 }
 
