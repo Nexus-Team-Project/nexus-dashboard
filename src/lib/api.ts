@@ -1336,6 +1336,31 @@ export async function addOfferInventory(
   return request<OfferInventoryResult>('POST', `/api/v1/offers/${offerId}/inventory`, input);
 }
 
+/** One row's outcome from a bulk voucher create. */
+export interface BulkVoucherRowResult {
+  index: number;
+  status: 'created' | 'failed';
+  offerId?: string;
+  error?: string;
+}
+
+/** Aggregate result of a bulk voucher create. */
+export interface BulkVoucherResult {
+  results: BulkVoucherRowResult[];
+  created: number;
+  failed: number;
+}
+
+/**
+ * Bulk-creates voucher offers from parsed CSV rows (one row = one voucher).
+ * Matches POST /api/v1/offers/bulk (admin-gated; tenant from session). Each row
+ * is a header→cell string map; the backend validates every row and returns a
+ * per-row result, so a single bad row does not fail the request.
+ */
+export async function bulkCreateVouchers(offers: Record<string, string>[]): Promise<BulkVoucherResult> {
+  return request<BulkVoucherResult>('POST', '/api/v1/offers/bulk', { offers });
+}
+
 /** Summary of an offer's existing inventory: link values + per-kind counts. */
 export interface OfferInventorySummary {
   links: string[];
