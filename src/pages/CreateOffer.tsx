@@ -14,6 +14,7 @@
  * file under 350 lines.
  */
 import { useState, useEffect, useMemo } from 'react';
+import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -185,13 +186,28 @@ const CreateOffer = () => {
   const finalizePublish = async (inventory: OfferInventoryInput | null) => {
     setIsSubmitting(true);
     setError(null);
+    // Track whether the offer itself was created, so an inventory-step failure
+    // (offer already published) shows a recoverable message instead of a generic error.
+    let offerCreated = false;
     try {
       const offer = await createOfferApi(buildFormData());
-      if (inventory) await addOfferInventory(offer.offerId, inventory);
+      offerCreated = true;
+      if (inventory) {
+        const res = await addOfferInventory(offer.offerId, inventory);
+        toast.success(`${t('co_toastPublished')} · ${res.created} ${t('co_toastUnits')}`);
+      } else {
+        toast.success(t('co_toastPublished'));
+      }
       navigate('/benefits-partnerships');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : t('co_errPublish'));
-      setShowInventoryModal(false);
+      if (offerCreated) {
+        // Offer is published; only the inventory step failed — recoverable from Edit.
+        toast.error(t('co_toastInventoryFailed'));
+        navigate('/benefits-partnerships');
+      } else {
+        setError(err instanceof Error ? err.message : t('co_errPublish'));
+        setShowInventoryModal(false);
+      }
     } finally {
       setIsSubmitting(false);
     }

@@ -1336,6 +1336,20 @@ export async function addOfferInventory(
   return request<OfferInventoryResult>('POST', `/api/v1/offers/${offerId}/inventory`, input);
 }
 
+/** Summary of an offer's existing inventory: link values + per-kind counts. */
+export interface OfferInventorySummary {
+  links: string[];
+  counts: { barcode: number; link: number };
+}
+
+/**
+ * Reads an offer's inventory summary (existing link values + counts) so the
+ * Edit popup can pre-fill them. Matches GET /api/v1/offers/:offerId/inventory.
+ */
+export async function getOfferInventory(offerId: string): Promise<OfferInventorySummary> {
+  return request<OfferInventorySummary>('GET', `/api/v1/offers/${offerId}/inventory`);
+}
+
 /**
  * Requests the backend to transition the tenant's catalog from sandbox to live.
  * Matches POST /api/v1/tenant/go-live.

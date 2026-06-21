@@ -439,7 +439,7 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
               {offer.isSoldOut
                 ? t('om_soldOutIndicator')
                 : offer.stockAvailable !== null && offer.stockAvailable <= 5
-                  ? `⚠️ ${[t('om_stockOnly'), String(offer.stockAvailable), t('om_stockLeft')].filter(Boolean).join(' ')}`
+                  ? `⚠️ ${[ String(offer.stockAvailable), t('om_stockLeft')].filter(Boolean).join(' ')}`
                   : `${offer.stockAvailable} ${t('om_stockAvailable')}`}
             </p>
           )}

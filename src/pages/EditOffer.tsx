@@ -1,22 +1,16 @@
 /**
- * EditOffer page: full-page editor for an existing NEXUS catalog offer.
- *
- * Mirrors `CreateOffer` visually via `OfferFormLayout` but pre-fills every
- * field from `getOfferDetails(offerId)`. Visibility is intentionally hidden —
- * it cannot be changed after creation (matches the prior EditOfferDrawer
- * behavior). Denied offers show a denial-reason banner above the grid and the
- * server auto-transitions the status back to pending_approval on save.
- *
+ * EditOffer page: full-page editor for an existing offer. Mirrors `CreateOffer`
+ * via `OfferFormLayout`, pre-filled from `getOfferDetails`. Visibility is hidden
+ * (immutable after creation); denied offers re-enter pending_approval on save.
+ * Backend enforces ownership on PATCH (foreign offerId → 404).
  * Route: /benefits-partnerships/edit-offer/:offerId
- * Guards: route is mounted only when the user is authenticated. The backend
- *         enforces ownership (createdByTenantId match) on PATCH so a foreign
- *         offerId returns 404 even if the URL is hand-crafted.
  */
 import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
-import { getOfferDetails, updateOfferApi, addOfferInventory, type CatalogItem, type OfferInventoryInput } from '../lib/api';
+import { getOfferDetails, updateOfferApi, addOfferInventory, getOfferInventory, type CatalogItem, type OfferInventoryInput } from '../lib/api';
 import CreateOfferDetailsSection from './CreateOfferDetailsSection';
 import CreateOfferRedemptionSection from './CreateOfferRedemptionSection';
 import OfferFormLayout from '../components/offer/OfferFormLayout';
@@ -79,6 +73,7 @@ const EditOffer = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   // For vouchers, Save opens the inventory popup so admins can add more stock.
   const [showInventoryModal, setShowInventoryModal] = useState(false);
+  const [existingLinks, setExistingLinks] = useState<string[]>([]); // pre-fills the popup links tab on edit
 
   // ─── Load offer detail ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -123,6 +118,10 @@ const EditOffer = () => {
         // a stored color exists; else default to image (empty -> tenant fallback).
         setVoucherBackgroundColor(detail.voucherBackgroundColor ?? '');
         setBgMode(urls.length > 0 ? 'image' : (detail.voucherBackgroundColor ? 'color' : 'image'));
+        // Load existing link inventory so the popup can pre-fill it (voucher-only, non-fatal).
+        if ((detail.executionType ?? 'voucher') === 'voucher') {
+          try { const inv = await getOfferInventory(offerId); if (!cancelled) setExistingLinks(inv.links); } catch { /* ignore */ }
+        }
       } catch (err) {
         if (cancelled) return;
         setLoadError(err instanceof Error ? err.message : t('of_loadFailed'));
@@ -140,17 +139,13 @@ const EditOffer = () => {
     return first.kind === 'existing' ? first.url : first.previewUrl;
   }, [gallery]);
 
-  /** Seed/fallback color for the picker + hero when the voucher uses a color. */
+  // Seed/fallback color for the picker; solid hero color in color mode w/o image.
   const defaultBrandColor = me?.context?.tenantBrandColor ?? '#635bff';
-  /** Solid hero color when a voucher is in color mode with no image. */
   const coverColor = executionType === 'voucher' && bgMode === 'color' && !coverUrl
     ? (voucherBackgroundColor || defaultBrandColor)
     : undefined;
 
-  /**
-   * Wraps setExecutionType: switching TO voucher trims the gallery to its
-   * single cover image and revokes any dropped new-file preview URLs.
-   */
+  /** Switching TO voucher trims the gallery to one cover image (revoking dropped previews). */
   const handleExecutionTypeChange = (next: string) => {
     setExecutionType(next);
     if (next === 'voucher') {
@@ -194,31 +189,25 @@ const EditOffer = () => {
     if (!offerId) return;
     setIsSubmitting(true);
     setError(null);
+    let saved = false; // true once the PATCH succeeds (distinguishes inventory-step failure)
     try {
       const fd = new FormData();
       fd.append('title', title.trim());
       fd.append('description', description.trim());
-      // Note: category cannot currently change via PATCH (omitted intentionally).
-      fd.append('executionType', executionType);
+      fd.append('executionType', executionType); // category is immutable via PATCH (omitted)
       if (marketPrice && Number(marketPrice) > 0) fd.append('market_price', marketPrice);
-      // Stock limit is a non-voucher field only; vouchers never send it.
       if (executionType !== 'voucher') {
         fd.append('stockLimit', stockLimit && Number(stockLimit) > 0 ? stockLimit : '');
       }
-      // Voucher pricing is locked for non-platform-admin callers. Skip the
-      // fields entirely so the backend update payload doesn't try to change
-      // them; the server also rejects the change defensively.
+      // Voucher face/nexus prices are locked for non-platform-admins (server also rejects).
       if (executionType === 'voucher' && !pricingLocked) {
         if (faceValue) fd.append('face_value', faceValue);
         if (nexusCost) fd.append('nexus_cost', nexusCost);
       }
-      // Vouchers no longer carry an offer-level implementation link.
       if (executionType !== 'voucher') fd.append('implementationLink', implementationLink.trim());
       fd.append('implementationInstructions', implementationInstructions.trim());
       if (executionType === 'voucher') {
-        // Voucher: send the validity duration (empty -> backend clears it);
-        // never send absolute dates. The backend also nulls validFrom/validUntil
-        // for vouchers, normalizing any legacy values.
+        // Voucher: send validity duration (empty clears it); never absolute dates.
         const hasValidity = voucherValidityValue.trim() !== '';
         fd.append('voucherValidityValue', hasValidity ? voucherValidityValue.trim() : '');
         fd.append('voucherValidityUnit', hasValidity ? voucherValidityUnit : '');
@@ -240,11 +229,23 @@ const EditOffer = () => {
       gallery.forEach((g) => { if (g.kind === 'new') fd.append('images', g.file); });
 
       await updateOfferApi(offerId, fd);
-      if (inventory) await addOfferInventory(offerId, inventory);
+      saved = true;
+      if (inventory) {
+        const res = await addOfferInventory(offerId, inventory);
+        toast.success(`${t('co_toastSaved')} · ${res.created} ${t('co_toastUnits')}`);
+      } else {
+        toast.success(t('co_toastSaved'));
+      }
       navigate('/benefits-partnerships');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : t('co_errPublish'));
-      setShowInventoryModal(false);
+      if (saved) {
+        // Changes saved; only the inventory step failed.
+        toast.error(t('co_toastInventoryFailedSave'));
+        navigate('/benefits-partnerships');
+      } else {
+        setError(err instanceof Error ? err.message : t('co_errPublish'));
+        setShowInventoryModal(false);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -336,6 +337,7 @@ const EditOffer = () => {
       {showInventoryModal && (
         <VoucherInventoryModal
           busy={isSubmitting}
+          initialLinks={existingLinks}
           onConfirm={(inventory) => { void finalizeSave(inventory); }}
           onSkip={() => { void finalizeSave(null); }}
           onCancel={() => setShowInventoryModal(false)}
