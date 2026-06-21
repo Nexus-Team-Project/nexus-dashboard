@@ -1,17 +1,9 @@
 /**
- * CreateOffer page: full-page form for publishing a new NEXUS catalog offer.
- *
- * Layout matches the EditBenefit mock — full-bleed hero banner + 12-col grid
- * with sidebar cards (see `OfferFormLayout`). Multi-image gallery (up to 6)
- * lives in the left column; visibility + helper info card live in the right.
- *
- * Route: /supply/create
- * Guards: isTenantAdmin || isPlatformAdmin (App.tsx) AND service active for
- *         tenant supply managers (this file).
- *
- * State is owned here; field-level rendering is delegated to the existing
- * `CreateOfferDetailsSection` and `CreateOfferRedemptionSection` to keep the
- * file under 350 lines.
+ * CreateOffer page (`/supply/create`): full-bleed form (`OfferFormLayout`) for
+ * publishing a new catalog offer. Field rendering is delegated to the section
+ * components to keep this file under 350 lines. For vouchers, a Manual | CSV
+ * mode toggle lets the admin bulk-upload via `VoucherCsvBulk` instead.
+ * Guards: isTenantAdmin || isPlatformAdmin (App.tsx) + service active (here).
  */
 import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
@@ -27,6 +19,8 @@ import OfferTypeField from '../components/offer/OfferTypeField';
 import VoucherBackgroundField, { type BgMode } from '../components/offer/VoucherBackgroundField';
 import OfferVisibilityCard from '../components/offer/OfferVisibilityCard';
 import VoucherInventoryModal from '../components/offer/VoucherInventoryModal';
+import CreationModeTabs, { type CreateMode } from '../components/offer/CreationModeTabs';
+import VoucherCsvBulk from '../components/offer/VoucherCsvBulk';
 
 /** Visibility options for a platform offer. */
 type OfferVisibility = 'ecosystem' | 'tenant_only';
@@ -73,6 +67,8 @@ const CreateOffer = () => {
   const [error, setError] = useState<string | null>(null);
   // For vouchers, Publish opens the inventory popup instead of submitting.
   const [showInventoryModal, setShowInventoryModal] = useState(false);
+  // Manual single-offer form vs CSV bulk upload (voucher-only).
+  const [mode, setMode] = useState<CreateMode>('manual');
 
   // Force tenant_only when business setup is not complete (UX only — backend
   // also enforces this gate, see offers.routes.ts ecosystem guard).
@@ -240,10 +236,24 @@ const CreateOffer = () => {
     );
   }
 
+  // Voucher CSV bulk mode takes over the whole page (replaces the manual form).
+  if (executionType === 'voucher' && mode === 'csv') {
+    return (
+      <VoucherCsvBulk
+        mode={mode}
+        onModeChange={setMode}
+        onCancel={() => navigate('/benefits-partnerships')}
+      />
+    );
+  }
+
   // ─── Left + right columns ──────────────────────────────────────────────────
 
   const leftColumn = (
     <>
+      {executionType === 'voucher' && (
+        <CreationModeTabs mode={mode} onChange={setMode} disabled={isSubmitting} />
+      )}
       <OfferTypeField
         value={executionType}
         onChange={handleExecutionTypeChange}
