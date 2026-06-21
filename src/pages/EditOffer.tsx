@@ -1,18 +1,12 @@
 /**
- * EditOffer page: full-page editor for an existing NEXUS catalog offer.
- *
- * Mirrors `CreateOffer` visually via `OfferFormLayout` but pre-fills every
- * field from `getOfferDetails(offerId)`. Visibility is intentionally hidden —
- * it cannot be changed after creation (matches the prior EditOfferDrawer
- * behavior). Denied offers show a denial-reason banner above the grid and the
- * server auto-transitions the status back to pending_approval on save.
- *
+ * EditOffer page: full-page editor for an existing offer. Mirrors `CreateOffer`
+ * via `OfferFormLayout`, pre-filled from `getOfferDetails`. Visibility is hidden
+ * (immutable after creation); denied offers re-enter pending_approval on save.
+ * Backend enforces ownership on PATCH (foreign offerId → 404).
  * Route: /benefits-partnerships/edit-offer/:offerId
- * Guards: route is mounted only when the user is authenticated. The backend
- *         enforces ownership (createdByTenantId match) on PATCH so a foreign
- *         offerId returns 404 even if the URL is hand-crafted.
  */
 import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -195,31 +189,25 @@ const EditOffer = () => {
     if (!offerId) return;
     setIsSubmitting(true);
     setError(null);
+    let saved = false; // true once the PATCH succeeds (distinguishes inventory-step failure)
     try {
       const fd = new FormData();
       fd.append('title', title.trim());
       fd.append('description', description.trim());
-      // Note: category cannot currently change via PATCH (omitted intentionally).
-      fd.append('executionType', executionType);
+      fd.append('executionType', executionType); // category is immutable via PATCH (omitted)
       if (marketPrice && Number(marketPrice) > 0) fd.append('market_price', marketPrice);
-      // Stock limit is a non-voucher field only; vouchers never send it.
       if (executionType !== 'voucher') {
         fd.append('stockLimit', stockLimit && Number(stockLimit) > 0 ? stockLimit : '');
       }
-      // Voucher pricing is locked for non-platform-admin callers. Skip the
-      // fields entirely so the backend update payload doesn't try to change
-      // them; the server also rejects the change defensively.
+      // Voucher face/nexus prices are locked for non-platform-admins (server also rejects).
       if (executionType === 'voucher' && !pricingLocked) {
         if (faceValue) fd.append('face_value', faceValue);
         if (nexusCost) fd.append('nexus_cost', nexusCost);
       }
-      // Vouchers no longer carry an offer-level implementation link.
       if (executionType !== 'voucher') fd.append('implementationLink', implementationLink.trim());
       fd.append('implementationInstructions', implementationInstructions.trim());
       if (executionType === 'voucher') {
-        // Voucher: send the validity duration (empty -> backend clears it);
-        // never send absolute dates. The backend also nulls validFrom/validUntil
-        // for vouchers, normalizing any legacy values.
+        // Voucher: send validity duration (empty clears it); never absolute dates.
         const hasValidity = voucherValidityValue.trim() !== '';
         fd.append('voucherValidityValue', hasValidity ? voucherValidityValue.trim() : '');
         fd.append('voucherValidityUnit', hasValidity ? voucherValidityUnit : '');
@@ -241,11 +229,23 @@ const EditOffer = () => {
       gallery.forEach((g) => { if (g.kind === 'new') fd.append('images', g.file); });
 
       await updateOfferApi(offerId, fd);
-      if (inventory) await addOfferInventory(offerId, inventory);
+      saved = true;
+      if (inventory) {
+        const res = await addOfferInventory(offerId, inventory);
+        toast.success(`${t('co_toastSaved')} · ${res.created} ${t('co_toastUnits')}`);
+      } else {
+        toast.success(t('co_toastSaved'));
+      }
       navigate('/benefits-partnerships');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : t('co_errPublish'));
-      setShowInventoryModal(false);
+      if (saved) {
+        // Changes saved; only the inventory step failed.
+        toast.error(t('co_toastInventoryFailedSave'));
+        navigate('/benefits-partnerships');
+      } else {
+        setError(err instanceof Error ? err.message : t('co_errPublish'));
+        setShowInventoryModal(false);
+      }
     } finally {
       setIsSubmitting(false);
     }

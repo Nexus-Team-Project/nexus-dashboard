@@ -64,6 +64,11 @@ function SkeletonCard() {
 // Main page component
 // ----------------------------------------------------------------
 
+/** Above this count the stock badge shows "N+" instead of the exact number. */
+const STOCK_BADGE_MAX = 100;
+/** Formats an available-stock count for a badge, capping large values as "N+". */
+const formatStock = (n: number): string => (n > STOCK_BADGE_MAX ? `${STOCK_BADGE_MAX}+` : String(n));
+
 /**
  * ProductCatalog page component.
  * Loads the platform offer list and filters to only adopted offers.
@@ -214,24 +219,34 @@ const ProductCatalog = () => {
         onKeyDown={(e) => { if (e.key === 'Enter') setDetailOffer(item); }}
         aria-label={`Open details: ${item.title}`}
       >
-        {/* Offer image */}
-        {item.imageUrl ? (
-          <img
-            src={item.imageUrl}
-            alt={item.title}
-            className="w-full h-36 object-cover"
-            loading="lazy"
-          />
-        ) : (
-          <div
-            className="w-full h-36 bg-slate-100 flex items-center justify-center"
-            aria-hidden="true"
-          >
-            <span className="material-symbols-rounded !text-[40px] text-slate-300">
-              local_offer
+        {/* Offer image + overlay badges */}
+        <div className="relative">
+          {item.imageUrl ? (
+            <img
+              src={item.imageUrl}
+              alt={item.title}
+              className="w-full h-36 object-cover"
+              loading="lazy"
+            />
+          ) : (
+            <div
+              className="w-full h-36 bg-slate-100 flex items-center justify-center"
+              aria-hidden="true"
+            >
+              <span className="material-symbols-rounded !text-[40px] text-slate-300">
+                local_offer
+              </span>
+            </div>
+          )}
+          {/* Combine-with-promotions (כפל מבצעים) badge — voucher + combinable only. */}
+          {item.executionType === 'voucher' && item.voucherStackable === true && (
+            <span
+              className="pointer-events-none absolute top-2 start-2 inline-flex items-center rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-medium text-white"
+            >
+              {t('badge_combinable')}
             </span>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Card body */}
         <div className="p-4 flex flex-col flex-1">
@@ -250,13 +265,27 @@ const ProductCatalog = () => {
                   {language === 'he' ? EXECUTION_TYPE_LABELS[item.executionType].labelHe : EXECUTION_TYPE_LABELS[item.executionType].label}
                 </span>
               )}
-              {/* Stock indicator - shown only when a stock limit is configured */}
-              {item.stockLimit !== null && (
-                <span className={`text-xs font-medium whitespace-nowrap ${(item.stockAvailable ?? 0) <= 5 ? 'text-red-600' : 'text-slate-500'}`}>
-                  {item.stockAvailable === 0
-                    ? t('pc_soldOut')
-                    : `${item.stockAvailable} ${t('pc_stockLeft')}`}
-                </span>
+              {/* Voucher stock badge: out-of-stock when no inventory, else the
+                  available quantity (capped as "N+"). Driven by voucher inventory. */}
+              {item.executionType === 'voucher' ? (
+                (item.stockAvailable ?? 0) > 0 ? (
+                  <span className="rounded-full bg-emerald-50 border border-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 whitespace-nowrap" dir="ltr">
+                    {formatStock(item.stockAvailable ?? 0)}
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-red-50 border border-red-100 px-2 py-0.5 text-xs font-medium text-red-700 whitespace-nowrap">
+                    {t('pc_outOfStock')}
+                  </span>
+                )
+              ) : (
+                /* Non-voucher: existing stock indicator, only when a limit is set. */
+                item.stockLimit !== null && (
+                  <span className={`text-xs font-medium whitespace-nowrap ${(item.stockAvailable ?? 0) <= 5 ? 'text-red-600' : 'text-slate-500'}`}>
+                    {item.stockAvailable === 0
+                      ? t('pc_soldOut')
+                      : `${item.stockAvailable} ${t('pc_stockLeft')}`}
+                  </span>
+                )
               )}
             </div>
           </div>
