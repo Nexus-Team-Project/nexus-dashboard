@@ -2080,9 +2080,9 @@ export const translations = {
     pc_btnAddFromCatalog: '+ הוסף מקטלוג',
     pc_searchPlaceholder: 'חפש הצעות...',
     pc_allCategories: 'כל הקטגוריות',
-    pc_soldOut: '🔴 אזל המלאי',
+    pc_soldOut: '🔴 אין המלאי',
     pc_stockLeft: 'נותרו',
-    pc_outOfStock: 'אזל מהמלאי',
+    pc_outOfStock: 'אין מהמלאי',
     badge_combinable: 'כפל מבצעים',
     pc_removeQuestion: 'להסיר?',
     pc_btnYes: 'כן',
@@ -2106,7 +2106,7 @@ export const translations = {
     // OfferModal
     om_closeLabel: 'סגור פרטי הצעה',
     om_redeemTitle: 'ממש את ההצעה שלך',
-    om_soldOut: 'אזל המלאי',
+    om_soldOut: 'אין המלאי',
     om_processing: 'מעבד...',
     om_redeemNow: 'ממש עכשיו',
     om_comingSoon: 'בקרוב',
@@ -2117,7 +2117,7 @@ export const translations = {
     om_stockAvailable: 'זמינים',
     om_stockOnly: '',
     om_stockLeft: 'נותרו',
-    om_soldOutIndicator: '🔴 אזל המלאי',
+    om_soldOutIndicator: '🔴 אין המלאי',
     om_detailsTitle: 'פרטי ההטבה',
     om_validFrom: 'זמין מתאריך',
     om_validUntil: 'בתוקף עד',
@@ -2213,7 +2213,7 @@ export const translations = {
     // ── stockLimit ──
     fi_stockLimit_label: 'מגבלת מלאי',
     fi_stockLimit_short: 'מקסימום מימושים כולל בין כל החברים.',
-    fi_stockLimit_detail: 'ברגע שמספר המימושים הזה מושג, ההצעה מסומנת אוטומטית כאזלה מהמלאי. השאר ריק לזמינות בלתי מוגבלת. שימושי לקידומים מוגבלים, מלאי פיזי או מאגרי שוברים בלעדיים.',
+    fi_stockLimit_detail: 'ברגע שמספר המימושים הזה מושג, ההצעה מסומנת אוטומטית כאיןה מהמלאי. השאר ריק לזמינות בלתי מוגבלת. שימושי לקידומים מוגבלים, מלאי פיזי או מאגרי שוברים בלעדיים.',
     fi_stockLimit_example: 'אם יש לך 100 קודי שובר מוכנים, הגדר מגבלה ל-100. המלאי הנותר מוצג בכרטיס ההצעה.',
 
     // ── visibility ──
@@ -2366,7 +2366,7 @@ export const translations = {
     bp_notProvided: 'לא סופק',
     bp_notApplicable: 'לא רלוונטי',
     bp_unlimitedStock: 'ללא הגבלה',
-    bp_soldOut: 'אזל המלאי',
+    bp_soldOut: 'אין המלאי',
     bp_visibilityEcosystem: 'אקוסיסטם',
     bp_visibilityTenant: 'פרטי לארגון',
     bp_imageMissingAlt: 'ללא תמונה',
