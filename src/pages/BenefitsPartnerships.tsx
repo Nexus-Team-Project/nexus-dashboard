@@ -280,6 +280,11 @@ const BenefitsPartnerships = () => {
       await activateBenefitsCatalog();
       setIsRefreshing(true);
       await reloadMe();
+      // Re-activation restores previously-suspended offers server-side, so the
+      // offers query must be re-fetched too — reloadMe() only refreshes
+      // /api/me (catalogMode), not the catalog list. Without this the restored
+      // offers stay hidden until a hard page refresh remounts the list.
+      await loadCatalog();
     } catch (err) {
       console.error('[handleActivateCatalog] Failed to activate catalog:', err);
       toast.error('שגיאה בהפעלת השירות. נסה שוב.');
@@ -316,6 +321,9 @@ const BenefitsPartnerships = () => {
       toast.success(`שירות הושבת. ${result.offersDeactivated} הצעות הושהו.`);
       setIsRefreshing(true);
       await reloadMe();
+      // Deactivation suspends the tenant's offers server-side; re-fetch the
+      // list so they drop out immediately instead of lingering until a refresh.
+      await loadCatalog();
     } catch (err) {
       console.error('[handleDeactivateCatalog] Failed to deactivate catalog:', err);
       toast.error('שגיאה בהשבתת השירות. נסה שוב.');
