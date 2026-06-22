@@ -53,6 +53,10 @@ interface OfferFormLayoutProps {
   isSubmitting?: boolean;
   /** Hide the hero Save button (e.g. CSV bulk mode publishes from its own UI). */
   hideSave?: boolean;
+  /** Disables Save without an in-flight request (e.g. a required step not done). */
+  saveDisabled?: boolean;
+  /** Tooltip explaining why Save is disabled (shown on the button when saveDisabled). */
+  saveHint?: string;
   /** Optional error string rendered as a sticky banner above the grid. */
   error?: string | null;
   /** Optional denial-reason banner (Edit page resubmit flow). */
@@ -78,6 +82,8 @@ export default function OfferFormLayout({
   onCancel,
   isSubmitting = false,
   hideSave = false,
+  saveDisabled = false,
+  saveHint,
   error,
   denialReason,
   leftColumn,
@@ -142,10 +148,11 @@ export default function OfferFormLayout({
                 <button
                   type="button"
                   onClick={onSave}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || saveDisabled}
+                  title={saveDisabled && saveHint ? saveHint : undefined}
                   className={cn(
                     'px-6 py-2 text-sm font-semibold bg-white text-slate-900 rounded-xl shadow-lg transition-opacity',
-                    isSubmitting ? 'opacity-60 cursor-not-allowed' : 'hover:opacity-90',
+                    isSubmitting || saveDisabled ? 'opacity-60 cursor-not-allowed' : 'hover:opacity-90',
                   )}
                 >
                   {isSubmitting ? t('of_saving') : saveLabel}
