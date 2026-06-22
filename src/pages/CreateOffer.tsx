@@ -310,6 +310,8 @@ const CreateOffer = () => {
       {showInventoryModal && (
         <VoucherInventoryModal
           busy={isSubmitting}
+          initialBarcodes={stagedInventory?.kind === 'barcode' ? stagedInventory.values : undefined}
+          initialLinks={stagedInventory?.kind === 'link' ? stagedInventory.links : undefined}
           onConfirm={(inventory) => { setStagedInventory(inventory); setInventoryChoiceMade(true); setShowInventoryModal(false); }}
           onSkip={() => { setStagedInventory(null); setInventoryChoiceMade(true); setShowInventoryModal(false); }}
           onCancel={() => setShowInventoryModal(false)}

@@ -115,6 +115,6 @@ export function voucherInventorySummary(
 ): string {
   if (!choiceMade) return t('co_invSummaryNotSet');
   if (inventory === null) return t('co_invSummarySkipped');
-  if (inventory.kind === 'barcode') return `${inventory.quantity ?? 0} ${t('co_invSummaryBarcodes')}`;
+  if (inventory.kind === 'barcode') return `${inventory.values?.length ?? 0} ${t('co_invSummaryBarcodes')}`;
   return `${inventory.links?.length ?? 0} ${t('co_invSummaryLinks')}`;
 }
