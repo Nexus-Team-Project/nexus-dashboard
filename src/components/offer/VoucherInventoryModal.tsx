@@ -1,15 +1,16 @@
 /**
- * VoucherInventoryModal: the popup shown when an admin publishes a voucher.
+ * VoucherInventoryModal: the popup for choosing a voucher's redeemable inventory.
  *
- * Top tabs: Image (disabled placeholder), Insert links, Generate barcodes.
+ * Two tabs: Insert links, Generate barcodes.
  * - Generate barcodes: a quantity field sets how many mock codes to create.
  * - Insert links: one row per link; the + button adds a row AND increments the
  *   quantity, keeping quantity and the number of rows in sync.
- * Bottom actions: Skip (publish with no inventory) and Insert barcodes/links
- *   (publish + create the chosen inventory).
+ * Bottom actions: Skip (no inventory) and Insert barcodes/links.
  *
- * Presentation only: the parent owns publishing. onConfirm receives the chosen
- * inventory payload; onSkip publishes with none. `z-[200]`, body-scroll lock.
+ * Presentation only: the parent owns what happens with the choice. onConfirm
+ * receives the chosen inventory payload; onSkip signals "no inventory". The
+ * parent may apply it immediately (Edit) or hold it until publish (Create) —
+ * this component performs no backend call itself. `z-[200]`, body-scroll lock.
  * The popup closes ONLY via the X button (onCancel), Skip, or Insert — never on
  * backdrop click or Escape, so an accidental click can't dismiss it.
  */
@@ -18,7 +19,7 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import { cn } from '../../lib/utils';
 import type { OfferInventoryInput } from '../../lib/api';
 
-type Tab = 'image' | 'links' | 'barcodes';
+type Tab = 'links' | 'barcodes';
 
 interface VoucherInventoryModalProps {
   /** Disables actions while the parent is publishing. */
@@ -93,8 +94,7 @@ export default function VoucherInventoryModal({ busy = false, initialLinks, onCo
     }
   };
 
-  const tabs: { key: Tab; label: string; disabled?: boolean }[] = [
-    { key: 'image', label: t('vi_tabImage'), disabled: true },
+  const tabs: { key: Tab; label: string }[] = [
     { key: 'links', label: t('vi_tabLinks') },
     { key: 'barcodes', label: t('vi_tabBarcodes') },
   ];
@@ -128,7 +128,7 @@ export default function VoucherInventoryModal({ busy = false, initialLinks, onCo
               type="button"
               role="tab"
               aria-selected={tab === tb.key}
-              disabled={tb.disabled || busy}
+              disabled={busy}
               onClick={() => setTab(tb.key)}
               className={cn(
                 'rounded-lg border px-3 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50',
@@ -203,9 +203,6 @@ export default function VoucherInventoryModal({ busy = false, initialLinks, onCo
           {tab === 'barcodes' && (
             <p className="text-xs text-slate-400 dark:text-slate-500">{t('vi_barcodesHint')}</p>
           )}
-          {tab === 'image' && (
-            <p className="text-xs text-slate-400 dark:text-slate-500">{t('vi_imageSoon')}</p>
-          )}
 
           {error && <p className="text-sm text-red-500">{error}</p>}
         </div>
@@ -216,7 +213,7 @@ export default function VoucherInventoryModal({ busy = false, initialLinks, onCo
             className="flex-1 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 disabled:opacity-60">
             {t('vi_skip')}
           </button>
-          <button type="button" onClick={handleInsert} disabled={busy || tab === 'image'}
+          <button type="button" onClick={handleInsert} disabled={busy}
             className="flex-1 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 disabled:opacity-60">
             {busy ? t('of_saving') : t('vi_insert')}
           </button>
