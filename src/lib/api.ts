@@ -1307,13 +1307,20 @@ export async function updateOfferApi(
   return res.offer;
 }
 
-/** Payload for adding voucher inventory: a barcode quantity OR a list of links. */
+/** A link inventory item: an http(s) URL with an optional paired code. */
+export interface OfferLinkItem {
+  url: string;
+  /** Optional coupon/redemption code paired with the link (safe charset, server-validated). */
+  code?: string;
+}
+
+/** Payload for adding voucher inventory: barcode strings OR a list of links+codes. */
 export interface OfferInventoryInput {
   kind: 'barcode' | 'link';
-  /** Required when kind === 'barcode'. */
-  quantity?: number;
-  /** Required when kind === 'link'. */
-  links?: string[];
+  /** Required when kind === 'barcode': the provider-supplied barcode strings. */
+  values?: string[];
+  /** Required when kind === 'link': the links, each with an optional code. */
+  links?: OfferLinkItem[];
 }
 
 /** Result of an inventory call: units created + the offer's new stock total. */

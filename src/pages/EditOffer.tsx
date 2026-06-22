@@ -74,6 +74,7 @@ const EditOffer = () => {
   // For vouchers, Save opens the inventory popup so admins can add more stock.
   const [showInventoryModal, setShowInventoryModal] = useState(false);
   const [existingLinks, setExistingLinks] = useState<string[]>([]); // pre-fills the popup links tab on edit
+  const [lockedKind, setLockedKind] = useState<'barcode' | 'link' | null>(null); // a voucher holds one kind only
 
   // ─── Load offer detail ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -120,7 +121,13 @@ const EditOffer = () => {
         setBgMode(urls.length > 0 ? 'image' : (detail.voucherBackgroundColor ? 'color' : 'image'));
         // Load existing link inventory so the popup can pre-fill it (voucher-only, non-fatal).
         if ((detail.executionType ?? 'voucher') === 'voucher') {
-          try { const inv = await getOfferInventory(offerId); if (!cancelled) setExistingLinks(inv.links); } catch { /* ignore */ }
+          try {
+            const inv = await getOfferInventory(offerId);
+            if (!cancelled) {
+              setExistingLinks(inv.links);
+              setLockedKind(inv.counts.barcode > 0 ? 'barcode' : inv.counts.link > 0 ? 'link' : null);
+            }
+          } catch { /* ignore */ }
         }
       } catch (err) {
         if (cancelled) return;
@@ -337,7 +344,8 @@ const EditOffer = () => {
       {showInventoryModal && (
         <VoucherInventoryModal
           busy={isSubmitting}
-          initialLinks={existingLinks}
+          initialLinks={existingLinks.map((url) => ({ url }))}
+          lockedKind={lockedKind}
           onConfirm={(inventory) => { void finalizeSave(inventory); }}
           onSkip={() => { void finalizeSave(null); }}
           onCancel={() => setShowInventoryModal(false)}
