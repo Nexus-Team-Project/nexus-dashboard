@@ -1,9 +1,8 @@
 /**
  * CreateOffer page (`/supply/create`): full-bleed form (`OfferFormLayout`) for
- * publishing a new catalog offer. Field rendering is delegated to the section
- * components to keep this file under 350 lines. For vouchers, a Manual | CSV
- * mode toggle lets the admin bulk-upload via `VoucherCsvBulk` instead.
- * Guards: isTenantAdmin || isPlatformAdmin (App.tsx) + service active (here).
+ * publishing a new catalog offer; field rendering is delegated to section
+ * components + helpers to stay under 350 lines. Vouchers get a Manual | CSV mode
+ * toggle (`VoucherCsvBulk`). Guards: tenant-admin || platform-admin + service active.
  */
 import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
@@ -19,8 +18,11 @@ import OfferTypeField from '../components/offer/OfferTypeField';
 import VoucherBackgroundField, { type BgMode } from '../components/offer/VoucherBackgroundField';
 import OfferVisibilityCard from '../components/offer/OfferVisibilityCard';
 import VoucherInventoryModal from '../components/offer/VoucherInventoryModal';
+import VoucherInventorySection from '../components/offer/VoucherInventorySection';
+import PublishConfirmModal from '../components/offer/PublishConfirmModal';
 import CreationModeTabs, { type CreateMode } from '../components/offer/CreationModeTabs';
 import VoucherCsvBulk from '../components/offer/VoucherCsvBulk';
+import { buildCreateOfferFormData, validateCreateOffer, voucherInventorySummary, type CreateOfferValues } from './createOfferFormData';
 
 /** Visibility options for a platform offer. */
 type OfferVisibility = 'ecosystem' | 'tenant_only';
@@ -65,8 +67,14 @@ const CreateOffer = () => {
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // For vouchers, Publish opens the inventory popup instead of submitting.
+  // Voucher inventory: chosen via a dedicated button (not Publish), held in
+  // memory until publish. `inventoryChoiceMade` distinguishes "skipped" from
+  // "not chosen yet" (both have a null payload) so Publish can gate on it.
   const [showInventoryModal, setShowInventoryModal] = useState(false);
+  const [stagedInventory, setStagedInventory] = useState<OfferInventoryInput | null>(null);
+  const [inventoryChoiceMade, setInventoryChoiceMade] = useState(false);
+  // Publish opens an approve/cancel confirm dialog (where the real work happens).
+  const [showPublishConfirm, setShowPublishConfirm] = useState(false);
   // Manual single-offer form vs CSV bulk upload (voucher-only).
   const [mode, setMode] = useState<CreateMode>('manual');
 
@@ -93,11 +101,8 @@ const CreateOffer = () => {
     ? (voucherBackgroundColor || defaultBrandColor)
     : undefined;
 
-  /**
-   * Wraps setExecutionType: when switching TO voucher, a voucher carries a
-   * single card image, so trim the gallery to its cover (index 0) and revoke
-   * any dropped new-file preview URLs to avoid blob leaks.
-   */
+  /** setExecutionType wrapper: switching TO voucher trims the gallery to its
+   *  single cover (index 0), revoking dropped new-file previews to avoid leaks. */
   const handleExecutionTypeChange = (next: string) => {
     setExecutionType(next);
     if (next === 'voucher') {
@@ -109,75 +114,27 @@ const CreateOffer = () => {
     }
   };
 
-  /** Runs all field validations; sets an error + returns false on the first failure. */
+  /** Snapshot of the current form values, shared by validation + payload build. */
+  const formValues = (): CreateOfferValues => ({
+    title, description, category, marketPrice, visibility, isPlatformAdmin,
+    executionType, stockLimit, faceValue, nexusCost, gallery, implementationLink,
+    implementationInstructions, voucherValidityValue, voucherValidityUnit,
+    voucherStackable, bgMode, voucherBackgroundColor, sku, validFrom, validUntil,
+    terms, tags,
+  });
+
+  /** Validates the form; sets an error + returns false on the first failure. */
   const validate = (): boolean => {
-    if (!title.trim()) { setError(t('co_errTitleRequired')); return false; }
-    if (marketPrice && (isNaN(Number(marketPrice)) || Number(marketPrice) <= 0)) {
-      setError(t('co_errMarketPrice')); return false;
-    }
-    if (validFrom && validUntil && new Date(validFrom) >= new Date(validUntil)) {
-      setError(language === 'he' ? 'תאריך ההשקה חייב להיות לפני תאריך התפוגה' : 'Launch date must be before the expiry date');
-      return false;
-    }
-    if (executionType === 'voucher') {
-      const fv = Number(faceValue);
-      const nc = Number(nexusCost);
-      if (!faceValue || isNaN(fv) || fv <= 0) {
-        setError(language === 'he' ? 'יש להזין שווי שובר תקין וחיובי' : 'Face value must be a positive number'); return false;
-      }
-      if (!nexusCost || isNaN(nc) || nc <= 0 || nc >= fv) {
-        setError(language === 'he' ? 'מחיר NEXUS חייב להיות חיובי ופחות מהשווי' : 'Nexus price must be positive and less than face value'); return false;
-      }
-      if (voucherValidityValue.trim() !== '') {
-        const vv = Number(voucherValidityValue);
-        if (!Number.isInteger(vv) || vv <= 0) {
-          setError(language === 'he' ? 'מגבלת התוקף חייבת להיות מספר שלם חיובי' : 'Validity limit must be a positive whole number'); return false;
-        }
-      }
-      if (voucherStackable === '') { setError(t('co_voucherStackableRequired')); return false; }
-      if (sku.trim() !== '' && !/^[A-Z0-9_-]{4,20}$/.test(sku.trim())) { setError(t('co_errSku')); return false; }
-    }
+    const err = validateCreateOffer(formValues(), t, language);
+    if (err) { setError(err); return false; }
     return true;
   };
 
-  /** Builds the multipart FormData payload from the current form state. */
-  const buildFormData = (): FormData => {
-    const fd = new FormData();
-    fd.append('title', title.trim());
-    fd.append('description', description.trim());
-    fd.append('category', category);
-    if (marketPrice && Number(marketPrice) > 0) fd.append('market_price', marketPrice);
-    fd.append('visibility', isPlatformAdmin ? 'ecosystem' : visibility);
-    fd.append('executionType', executionType);
-    if (executionType !== 'voucher' && stockLimit && Number(stockLimit) > 0) fd.append('stockLimit', stockLimit);
-    if (executionType === 'voucher') {
-      fd.append('face_value', faceValue);
-      fd.append('nexus_cost', nexusCost);
-    }
-    gallery.forEach((item) => { if (item.kind === 'new') fd.append('images', item.file); });
-    if (implementationLink.trim()) fd.append('implementationLink', implementationLink.trim());
-    if (implementationInstructions.trim()) fd.append('implementationInstructions', implementationInstructions.trim());
-    if (executionType === 'voucher') {
-      if (voucherValidityValue.trim() !== '') {
-        fd.append('voucherValidityValue', voucherValidityValue.trim());
-        fd.append('voucherValidityUnit', voucherValidityUnit);
-      }
-      fd.append('voucherStackable', voucherStackable === 'yes' ? 'true' : 'false');
-      if (bgMode === 'color' && voucherBackgroundColor) fd.append('voucherBackgroundColor', voucherBackgroundColor);
-      if (sku.trim() !== '') fd.append('sku', sku.trim());
-    } else {
-      if (validFrom) fd.append('validFrom', validFrom);
-      if (validUntil) fd.append('validUntil', validUntil);
-    }
-    if (terms.trim()) fd.append('terms', terms.trim());
-    if (tags.length > 0) fd.append('tags', JSON.stringify(tags));
-    return fd;
-  };
+  const buildFormData = (): FormData => buildCreateOfferFormData(formValues());
 
   /**
-   * Creates the offer, then (when `inventory` is provided) adds it to the new
-   * offer, and navigates back to the catalog. Used by the inventory popup's
-   * Insert (inventory) and Skip (null) actions, and directly for non-vouchers.
+   * Creates the offer, then applies `inventory` when provided, and navigates back.
+   * This is where the real work happens — the choice was held in memory until now.
    */
   const finalizePublish = async (inventory: OfferInventoryInput | null) => {
     setIsSubmitting(true);
@@ -201,19 +158,28 @@ const CreateOffer = () => {
         toast.error(t('co_toastInventoryFailed'));
         navigate('/benefits-partnerships');
       } else {
+        // Offer was never created — surface the error and close the confirm dialog.
         setError(err instanceof Error ? err.message : t('co_errPublish'));
-        setShowInventoryModal(false);
+        setShowPublishConfirm(false);
       }
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  /** Save/Publish entry point: vouchers open the inventory popup; others publish now. */
+  /**
+   * Publish entry point. Vouchers require an inventory choice first (the button
+   * is disabled until then) and then open the publish-confirm dialog; the actual
+   * create+inventory happens on confirm. Non-vouchers publish directly.
+   */
   const handleSave = () => {
     if (!validate()) return;
     setError(null);
-    if (executionType === 'voucher') { setShowInventoryModal(true); return; }
+    if (executionType === 'voucher') {
+      if (!inventoryChoiceMade) return; // gated; defensive (button is disabled)
+      setShowPublishConfirm(true);
+      return;
+    }
     void finalizePublish(null);
   };
 
@@ -298,6 +264,14 @@ const CreateOffer = () => {
         tags={tags} setTags={setTags}
         isSubmitting={isSubmitting}
       />
+      {executionType === 'voucher' && (
+        <VoucherInventorySection
+          choiceMade={inventoryChoiceMade}
+          summary={voucherInventorySummary(t, inventoryChoiceMade, stagedInventory)}
+          onOpen={() => setShowInventoryModal(true)}
+          disabled={isSubmitting}
+        />
+      )}
       </>
       )}
     </>
@@ -327,6 +301,8 @@ const CreateOffer = () => {
         onCancel={() => navigate('/benefits-partnerships')}
         isSubmitting={isSubmitting}
         hideSave={isCsv}
+        saveDisabled={executionType === 'voucher' && !isCsv && !inventoryChoiceMade}
+        saveHint={t('co_invRequiredHint')}
         error={error}
         leftColumn={leftColumn}
         rightColumn={rightColumn}
@@ -334,9 +310,17 @@ const CreateOffer = () => {
       {showInventoryModal && (
         <VoucherInventoryModal
           busy={isSubmitting}
-          onConfirm={(inventory) => { void finalizePublish(inventory); }}
-          onSkip={() => { void finalizePublish(null); }}
+          onConfirm={(inventory) => { setStagedInventory(inventory); setInventoryChoiceMade(true); setShowInventoryModal(false); }}
+          onSkip={() => { setStagedInventory(null); setInventoryChoiceMade(true); setShowInventoryModal(false); }}
           onCancel={() => setShowInventoryModal(false)}
+        />
+      )}
+      {showPublishConfirm && (
+        <PublishConfirmModal
+          summary={voucherInventorySummary(t, inventoryChoiceMade, stagedInventory)}
+          busy={isSubmitting}
+          onConfirm={() => { void finalizePublish(stagedInventory); }}
+          onCancel={() => setShowPublishConfirm(false)}
         />
       )}
     </>
