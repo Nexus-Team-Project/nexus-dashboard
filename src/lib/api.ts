@@ -1021,6 +1021,31 @@ export interface CatalogItem {
   tenantMemberPrice?: number;
   /** Per-tenant denormalized display price (admin view only). */
   tenantDisplayPrice?: number;
+  /** Whether redemption terms/method are shared across variants or per variant. */
+  redemptionScope?: 'shared' | 'per_variant';
+  /**
+   * Voucher variants (priced configurations). Present only for voucher offers
+   * that carry variants. `nexus_cost` is included only for privileged callers.
+   */
+  variants?: CatalogVariant[];
+}
+
+/**
+ * A voucher variant as exposed by the catalog read. Mirrors the stored variant;
+ * `nexus_cost` is present only for the creating tenant / platform admin.
+ */
+export interface CatalogVariant {
+  variantId: string;
+  face_value?: number;
+  nexus_cost?: number;
+  member_price?: number;
+  voucherValidityValue?: number | null;
+  voucherValidityUnit?: 'days' | 'months' | 'years' | null;
+  voucherStackable?: boolean | null;
+  sku?: string | null;
+  tags?: string[];
+  terms?: string;
+  implementationInstructions?: string;
 }
 
 /**
@@ -1090,6 +1115,10 @@ export interface NexusOffer {
   member_price?: number;
   /** Denial reason - only set when status is 'denied'. */
   denial_reason?: string;
+  /** Whether redemption terms/method are shared across variants or per variant. */
+  redemptionScope?: 'shared' | 'per_variant';
+  /** Voucher variants with their server-generated variantIds (returned on create/update). */
+  variants?: CatalogVariant[];
 }
 
 /**
@@ -1343,6 +1372,25 @@ export async function addOfferInventory(
   return request<OfferInventoryResult>('POST', `/api/v1/offers/${offerId}/inventory`, input);
 }
 
+/**
+ * Appends redeemable inventory to ONE variant of a voucher offer.
+ * Matches POST /api/v1/offers/:offerId/variants/:variantId/inventory.
+ * Inventory is owned per variant, so this is the path used by the variant-aware
+ * authoring + edit flows. Throws on validation / authorization failure (incl.
+ * 409 on a global barcode collision or a one-kind-per-variant mismatch).
+ */
+export async function addVariantInventory(
+  offerId: string,
+  variantId: string,
+  input: OfferInventoryInput,
+): Promise<OfferInventoryResult & { variantCount?: number }> {
+  return request<OfferInventoryResult & { variantCount?: number }>(
+    'POST',
+    `/api/v1/offers/${offerId}/variants/${variantId}/inventory`,
+    input,
+  );
+}
+
 /** One row's outcome from a bulk voucher create. */
 export interface BulkVoucherRowResult {
   index: number;
@@ -1380,6 +1428,21 @@ export interface OfferInventorySummary {
  */
 export async function getOfferInventory(offerId: string): Promise<OfferInventorySummary> {
   return request<OfferInventorySummary>('GET', `/api/v1/offers/${offerId}/inventory`);
+}
+
+/**
+ * Reads ONE variant's inventory summary (existing link values + counts) so the
+ * Edit popup can pre-fill them. Matches
+ * GET /api/v1/offers/:offerId/variants/:variantId/inventory.
+ */
+export async function getVariantInventory(
+  offerId: string,
+  variantId: string,
+): Promise<OfferInventorySummary> {
+  return request<OfferInventorySummary>(
+    'GET',
+    `/api/v1/offers/${offerId}/variants/${variantId}/inventory`,
+  );
 }
 
 /**
