@@ -1283,11 +1283,12 @@ export async function excludeOffer(offerId: string): Promise<void> {
 export async function updateTenantVoucherPrice(
   offerId: string,
   memberPrice: number,
+  variantId?: string,
 ): Promise<{ config: TenantOfferConfig }> {
   return request<{ config: TenantOfferConfig }>(
     'PATCH',
     `/api/v1/offers/${encodeURIComponent(offerId)}/tenant-price`,
-    { memberPrice },
+    { memberPrice, ...(variantId !== undefined && { variantId }) },
   );
 }
 
@@ -1416,8 +1417,10 @@ export async function bulkCreateVouchers(offers: Record<string, string>[]): Prom
   return request<BulkVoucherResult>('POST', '/api/v1/offers/bulk', { offers });
 }
 
-/** Summary of an offer's existing inventory: link values + per-kind counts. */
+/** Summary of an offer's existing inventory: code values + per-kind counts. */
 export interface OfferInventorySummary {
+  /** Existing barcode values (used to pre-fill the edit popup). */
+  barcodes: string[];
   links: string[];
   counts: { barcode: number; link: number };
 }
