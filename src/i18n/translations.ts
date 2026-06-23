@@ -903,6 +903,10 @@ export const translations = {
     // Voucher variants
     co_fieldMemberPrice: 'Member price',
     co_variantMemberPriceHint: 'What members pay. Leave blank to default to the Nexus price; each adopting tenant can set their own.',
+    co_variantNexusPriceHint: 'This is the price members pay (the selling price). Must be lower than the value.',
+    co_sharedRedemptionHint: 'These apply to every variant by default. A variant can override them below.',
+    co_variantCustomRedemption: 'Use custom redemption text for this variant',
+    co_variantInheritsRedemption: 'This variant uses the shared redemption terms & method.',
     co_variantBuilderTitle: 'Variant details',
     co_variantTermsLabel: 'Redemption terms',
     co_variantMethodLabel: 'Redemption method',
@@ -2177,6 +2181,10 @@ export const translations = {
     // Voucher variants
     co_fieldMemberPrice: 'מחיר לחבר',
     co_variantMemberPriceHint: 'המחיר שחברים משלמים. השאירו ריק כדי להשתמש במחיר NEXUS כברירת מחדל; כל ארגון מאמץ יכול לקבוע מחיר משלו.',
+    co_variantNexusPriceHint: 'זהו המחיר שחברים משלמים (מחיר המכירה). חייב להיות נמוך מהשווי.',
+    co_sharedRedemptionHint: 'חלים על כל הוריאנטים כברירת מחדל. ניתן לעקוף אותם בכל וריאנט בנפרד.',
+    co_variantCustomRedemption: 'השתמש בטקסט מימוש מותאם לוריאנט זה',
+    co_variantInheritsRedemption: 'וריאנט זה משתמש בתנאי ובאופן המימוש המשותפים.',
     co_variantBuilderTitle: 'פרטי וריאנט',
     co_variantTermsLabel: 'תנאי מימוש',
     co_variantMethodLabel: 'אופן מימוש',

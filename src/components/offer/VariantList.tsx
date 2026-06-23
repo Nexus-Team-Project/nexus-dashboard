@@ -27,7 +27,8 @@ export default function VariantList({ variants, onEdit, onDelete, disabled = fal
   return (
     <div className="space-y-2">
       {variants.map((v, i) => {
-        const price = v.memberPrice.trim() !== '' ? v.memberPrice : v.nexusCost;
+        // The Nexus price is the member-facing selling price (no separate member price).
+        const price = v.nexusCost;
         return (
           <div
             key={v.localId}

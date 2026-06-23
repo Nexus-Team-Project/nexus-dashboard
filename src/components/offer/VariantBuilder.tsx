@@ -11,7 +11,7 @@
 import { useState } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import VoucherStackToggle from './VoucherStackToggle';
-import { type DraftVariant, variantInventorySummary } from '../../pages/voucherVariantDraft';
+import { type DraftVariant, variantInventorySummary, nexusPriceError } from '../../pages/voucherVariantDraft';
 
 const inputCls =
   'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-colors focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white disabled:cursor-not-allowed disabled:opacity-60';
@@ -22,8 +22,10 @@ interface VariantBuilderProps {
   draft: DraftVariant;
   /** Patch the draft (parent merges). */
   onChange: (patch: Partial<DraftVariant>) => void;
-  /** Whether redemption terms/method are authored here (per_variant scope). */
-  perVariant: boolean;
+  /** Parent's shared redemption terms - seeds a per-variant override when enabled. */
+  sharedTerms: string;
+  /** Parent's shared redemption method - seeds a per-variant override when enabled. */
+  sharedMethod: string;
   /** Open the inventory popup for this variant. */
   onOpenInventory: () => void;
   /** Save the variant (parent validates + dedupes). */
@@ -40,15 +42,19 @@ interface VariantBuilderProps {
 export default function VariantBuilder({
   draft,
   onChange,
-  perVariant,
+  sharedTerms,
+  sharedMethod,
   onOpenInventory,
   onSave,
   onCancel,
   error,
   isSubmitting = false,
 }: VariantBuilderProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [tagInput, setTagInput] = useState('');
+  // Live "Nexus price must be below the value" check, shown the moment both
+  // fields hold a number (not only on Save).
+  const priceErr = nexusPriceError(draft.faceValue, draft.nexusCost, language);
 
   const addTag = () => {
     const v = tagInput.trim();
@@ -56,6 +62,16 @@ export default function VariantBuilder({
       onChange({ tags: [...draft.tags, v] });
       setTagInput('');
     }
+  };
+
+  /** Toggle the per-variant redemption override; seed the textareas from the
+   *  shared text the first time it is enabled so the user starts from it. */
+  const toggleCustomRedemption = (checked: boolean) => {
+    onChange({
+      customRedemption: checked,
+      ...(checked && draft.terms.trim() === '' ? { terms: sharedTerms } : {}),
+      ...(checked && draft.implementationInstructions.trim() === '' ? { implementationInstructions: sharedMethod } : {}),
+    });
   };
 
   return (
@@ -83,24 +99,14 @@ export default function VariantBuilder({
             type="number" min="0.01" step="0.01" value={draft.nexusCost}
             onChange={(e) => onChange({ nexusCost: e.target.value })}
             onWheel={(e) => e.currentTarget.blur()}
-            placeholder="0.00" disabled={isSubmitting} className={inputCls}
+            placeholder="0.00" disabled={isSubmitting}
+            aria-invalid={priceErr ? true : undefined}
+            className={priceErr ? `${inputCls} border-red-400 focus:border-red-500` : inputCls}
           />
+          <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">{t('co_variantNexusPriceHint')}</p>
         </div>
       </div>
-
-      {/* Optional member price */}
-      <div className="mt-4">
-        <label className={labelCls}>
-          {t('co_fieldMemberPrice')} <span className="font-normal text-slate-400 me-0.5">{t('co_optional')}</span>
-        </label>
-        <input
-          type="number" min="0.01" step="0.01" value={draft.memberPrice}
-          onChange={(e) => onChange({ memberPrice: e.target.value })}
-          onWheel={(e) => e.currentTarget.blur()}
-          placeholder="0.00" disabled={isSubmitting} className={inputCls}
-        />
-        <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">{t('co_variantMemberPriceHint')}</p>
-      </div>
+      {priceErr && <p className="mt-1.5 text-sm font-medium text-red-600 dark:text-red-400">{priceErr}</p>}
 
       {/* Purchase-anchored validity */}
       <div className="mt-4">
@@ -144,26 +150,42 @@ export default function VariantBuilder({
         />
       </div>
 
-      {/* Per-variant redemption terms + method (only when scope is per_variant) */}
-      {perVariant && (
-        <>
-          <div className="mt-4">
-            <label className={labelCls}>{t('co_variantTermsLabel')}</label>
-            <textarea
-              value={draft.terms} onChange={(e) => onChange({ terms: e.target.value })}
-              rows={3} disabled={isSubmitting} className={`resize-none ${inputCls}`}
-            />
-          </div>
-          <div className="mt-4">
-            <label className={labelCls}>{t('co_variantMethodLabel')}</label>
-            <textarea
-              value={draft.implementationInstructions}
-              onChange={(e) => onChange({ implementationInstructions: e.target.value })}
-              rows={3} disabled={isSubmitting} className={`resize-none ${inputCls}`}
-            />
-          </div>
-        </>
-      )}
+      {/* Per-variant redemption override. Off by default - the variant inherits
+          the shared redemption text. Turning it on seeds the fields from the
+          shared text and lets the user edit them just for this variant. */}
+      <div className="mt-4 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+        <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
+          <input
+            type="checkbox" checked={draft.customRedemption}
+            onChange={(e) => toggleCustomRedemption(e.target.checked)}
+            disabled={isSubmitting}
+            className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+          />
+          {t('co_variantCustomRedemption')}
+        </label>
+        {!draft.customRedemption && (
+          <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">{t('co_variantInheritsRedemption')}</p>
+        )}
+        {draft.customRedemption && (
+          <>
+            <div className="mt-3">
+              <label className={labelCls}>{t('co_variantTermsLabel')}</label>
+              <textarea
+                value={draft.terms} onChange={(e) => onChange({ terms: e.target.value })}
+                rows={3} disabled={isSubmitting} className={`resize-none ${inputCls}`}
+              />
+            </div>
+            <div className="mt-4">
+              <label className={labelCls}>{t('co_variantMethodLabel')}</label>
+              <textarea
+                value={draft.implementationInstructions}
+                onChange={(e) => onChange({ implementationInstructions: e.target.value })}
+                rows={3} disabled={isSubmitting} className={`resize-none ${inputCls}`}
+              />
+            </div>
+          </>
+        )}
+      </div>
 
       {/* Tags */}
       <div className="mt-4">

@@ -21,9 +21,8 @@ export interface DraftVariant {
   /** Server variant id when editing an existing variant; absent for a new one. */
   variantId?: string;
   faceValue: string;
+  /** The Nexus price - also the member-facing selling price. Must be < faceValue. */
   nexusCost: string;
-  /** Optional; empty defaults to nexusCost server-side. */
-  memberPrice: string;
   /** Empty = never expires. */
   validityValue: string;
   validityUnit: string;
@@ -31,9 +30,14 @@ export interface DraftVariant {
   stackable: StackChoice;
   sku: string;
   tags: string[];
-  /** Redemption terms (תנאי מימוש) - used only when redemptionScope is per_variant. */
+  /**
+   * When true, this variant overrides the shared redemption text with its own.
+   * When false (default) the variant inherits the parent's shared terms/method.
+   */
+  customRedemption: boolean;
+  /** Per-variant redemption terms (תנאי מימוש) - used only when customRedemption. */
   terms: string;
-  /** Redemption method (אופן מימוש) - used only when redemptionScope is per_variant. */
+  /** Per-variant redemption method (אופן מימוש) - used only when customRedemption. */
   implementationInstructions: string;
   /** Staged inventory choice (null = explicitly none/skip). */
   inventory: OfferInventoryInput | null;
@@ -54,12 +58,12 @@ export function emptyDraftVariant(): DraftVariant {
     localId: nextLocalId(),
     faceValue: '',
     nexusCost: '',
-    memberPrice: '',
     validityValue: '',
     validityUnit: 'years',
     stackable: '',
     sku: '',
     tags: [],
+    customRedemption: false,
     terms: '',
     implementationInstructions: '',
     inventory: null,
@@ -74,12 +78,14 @@ export function variantToDraft(v: CatalogVariant): DraftVariant {
     variantId: v.variantId,
     faceValue: v.face_value != null ? String(v.face_value) : '',
     nexusCost: v.nexus_cost != null ? String(v.nexus_cost) : '',
-    memberPrice: v.member_price != null ? String(v.member_price) : '',
     validityValue: v.voucherValidityValue != null ? String(v.voucherValidityValue) : '',
     validityUnit: v.voucherValidityUnit ?? 'years',
     stackable: v.voucherStackable === true ? 'yes' : v.voucherStackable === false ? 'no' : '',
     sku: v.sku ?? '',
     tags: v.tags ?? [],
+    // A stored variant that carries its own terms/method is a custom override;
+    // otherwise it inherits the parent's shared text.
+    customRedemption: !!((v.terms && v.terms.trim()) || (v.implementationInstructions && v.implementationInstructions.trim())),
     terms: v.terms ?? '',
     implementationInstructions: v.implementationInstructions ?? '',
     // Inventory is loaded separately per variant (links pre-fill); start "made"
@@ -104,13 +110,7 @@ export function validateVariantDraft(
     return language === 'he' ? 'יש להזין שווי שובר תקין וחיובי' : 'Face value must be a positive number';
   }
   if (!d.nexusCost || isNaN(nc) || nc <= 0 || nc >= fv) {
-    return language === 'he' ? 'מחיר NEXUS חייב להיות חיובי ופחות מהשווי' : 'Nexus price must be positive and less than face value';
-  }
-  if (d.memberPrice.trim() !== '') {
-    const mp = Number(d.memberPrice);
-    if (isNaN(mp) || mp < nc || mp > fv) {
-      return language === 'he' ? 'מחיר לחבר חייב להיות בין מחיר NEXUS לשווי' : 'Member price must be between the Nexus price and the face value';
-    }
+    return language === 'he' ? 'מחיר NEXUS חייב להיות חיובי ופחות מהשווי' : 'Nexus price must be positive and less than the value';
   }
   if (d.validityValue.trim() !== '') {
     const vv = Number(d.validityValue);
@@ -128,49 +128,67 @@ export function validateVariantDraft(
  * definition of "identical" used to block duplicate variants (mirrors the
  * backend `variantSignature`). member_price defaults to nexus_cost when blank.
  */
-export function draftSignature(d: DraftVariant, perVariant: boolean): string {
+export function draftSignature(d: DraftVariant): string {
   const num = (s: string) => (s.trim() === '' ? null : Number(s));
-  const member = d.memberPrice.trim() === '' ? num(d.nexusCost) : num(d.memberPrice);
   return JSON.stringify([
     num(d.faceValue),
     num(d.nexusCost),
-    member,
+    // member price equals the Nexus price (no separate field), so it adds nothing
+    // to the signature beyond nexusCost above.
     num(d.validityValue),
     d.validityValue.trim() === '' ? null : d.validityUnit,
     d.stackable === 'yes',
     d.sku.trim().toUpperCase() || null,
-    perVariant ? (d.terms.trim() || null) : null,
-    perVariant ? (d.implementationInstructions.trim() || null) : null,
+    // Redemption text only distinguishes variants when this one overrides the shared text.
+    d.customRedemption ? (d.terms.trim() || null) : null,
+    d.customRedemption ? (d.implementationInstructions.trim() || null) : null,
   ]);
 }
 
 /** True when the draft duplicates another saved variant (excluding itself by localId). */
-export function isDuplicateVariant(
-  draft: DraftVariant,
-  existing: DraftVariant[],
-  perVariant: boolean,
-): boolean {
-  const sig = draftSignature(draft, perVariant);
-  return existing.some((v) => v.localId !== draft.localId && draftSignature(v, perVariant) === sig);
+export function isDuplicateVariant(draft: DraftVariant, existing: DraftVariant[]): boolean {
+  const sig = draftSignature(draft);
+  return existing.some((v) => v.localId !== draft.localId && draftSignature(v) === sig);
 }
 
 /** Maps a draft variant to the API variant-input shape (numbers, server contract). */
-export function draftToPayload(d: DraftVariant, perVariant: boolean): Record<string, unknown> {
+export function draftToPayload(d: DraftVariant): Record<string, unknown> {
   const hasValidity = d.validityValue.trim() !== '';
   return {
     ...(d.variantId ? { variantId: d.variantId } : {}),
     face_value: Number(d.faceValue),
     nexus_cost: Number(d.nexusCost),
-    ...(d.memberPrice.trim() !== '' ? { member_price: Number(d.memberPrice) } : {}),
+    // No member_price field: the backend defaults member_price to nexus_cost, so
+    // the Nexus price is the member-facing selling price.
     voucherValidityValue: hasValidity ? Number(d.validityValue) : null,
     voucherValidityUnit: hasValidity ? d.validityUnit : null,
     voucherStackable: d.stackable === 'yes',
     sku: d.sku.trim() !== '' ? d.sku.trim() : null,
     tags: d.tags,
-    ...(perVariant
+    // Send per-variant redemption text only when this variant overrides the
+    // shared text; otherwise it inherits the parent's terms/method.
+    ...(d.customRedemption
       ? { terms: d.terms.trim(), implementationInstructions: d.implementationInstructions.trim() }
       : {}),
   };
+}
+
+/**
+ * Live price check for the builder: returns a localized error when the Nexus
+ * price is not strictly below the value, or null. Only fires once both fields
+ * hold a number so the user is not nagged while still typing the first field.
+ */
+export function nexusPriceError(faceValue: string, nexusCost: string, language: string): string | null {
+  if (faceValue.trim() === '' || nexusCost.trim() === '') return null;
+  const fv = Number(faceValue);
+  const nc = Number(nexusCost);
+  if (isNaN(fv) || isNaN(nc)) return null;
+  if (nc >= fv) {
+    return language === 'he'
+      ? 'מחיר NEXUS חייב להיות נמוך מהשווי'
+      : 'The Nexus price must be lower than the value';
+  }
+  return null;
 }
 
 /** Human summary of a variant's staged inventory choice (for the list + builder). */
