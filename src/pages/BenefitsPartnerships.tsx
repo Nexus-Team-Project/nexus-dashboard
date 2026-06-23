@@ -977,6 +977,8 @@ const BenefitsPartnerships = () => {
           <CatalogTopBar
             activeTab={activeTab}
             onTabChange={setActiveTab}
+            offerTypes={filters.offerTypes}
+            onOfferTypeChange={(types) => setFilters({ ...filters, offerTypes: types })}
             searchValue={filters.search}
             onSearchChange={(v) => setFilters({ ...filters, search: v })}
             activeFilterCount={activeFilterCount}

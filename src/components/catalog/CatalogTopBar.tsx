@@ -2,27 +2,35 @@
  * CatalogTopBar - Transactions/Users-style top bar for the BenefitsPartnerships page.
  *
  * Structure (top to bottom):
- *   1. Tabs row (Cards | Table) with purple bottom-border indicator on the active tab.
+ *   1. Offer-type tab strip (All | Voucher | Coupon | ...) with the purple
+ *      bottom-border indicator on the active type. Drives the offerTypes filter
+ *      (server-side) - the single source of truth shared with the filter panel.
  *   2. Toolbar row with:
- *      - Left group: expandable search icon + filter icon with active-count badge + results count.
+ *      - Left group: expandable search icon + filter icon with active-count badge,
+ *        the cards/table VIEW toggle (two icon buttons), and the results count.
  *      - Right group: Create Offer primary CTA (only when allowed).
  *
- * Search is implemented as a toggling icon -> input pattern (Transactions:1265-1308).
- * Filter button shows a numeric badge when activeFilterCount > 0.
+ * View type (cards/table) and offer type are independent. Search is a toggling
+ * icon -> input pattern; the filter button shows a badge when activeFilterCount > 0.
  * All design tokens copied from Transactions/Users to keep the look-and-feel identical.
  */
 import { useState, useRef, useEffect } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { cn } from '../../lib/utils';
 import FieldTooltip from '../FieldTooltip';
+import { OFFER_TYPE_OPTIONS } from './catalogFilters';
 
 // ─── Public contract ──────────────────────────────────────────────────────────
 
 interface CatalogTopBarProps {
-  /** Active tab key. */
+  /** Active view (cards/table). */
   activeTab: 'cards' | 'table';
-  /** Called when the user picks a tab. */
+  /** Called when the user switches the view via the icon toggle. */
   onTabChange: (tab: 'cards' | 'table') => void;
+  /** Currently selected offer execution types (the offerTypes filter). Empty = All. */
+  offerTypes: string[];
+  /** Called when the user picks an offer-type tab. [] = All; [value] = one type. */
+  onOfferTypeChange: (types: string[]) => void;
   /** Current free-text search value (controlled from the parent). */
   searchValue: string;
   /** Called whenever the search input changes. */
@@ -44,6 +52,8 @@ interface CatalogTopBarProps {
 const CatalogTopBar = ({
   activeTab,
   onTabChange,
+  offerTypes,
+  onOfferTypeChange,
   searchValue,
   onSearchChange,
   activeFilterCount,
@@ -52,7 +62,7 @@ const CatalogTopBar = ({
   showCreateOffer,
   onCreateOffer,
 }: CatalogTopBarProps) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   // Lazy initial state keeps the search expanded when the parent already has a
   // value at mount time (e.g. user typed in the filter panel first). Avoids an
   // effect-driven setState that would trigger a cascading render.
@@ -73,37 +83,40 @@ const CatalogTopBar = ({
 
   const iconButton =
     'w-8 h-8 rounded-md flex items-center justify-center transition-colors text-[#635bff] hover:bg-[#635bff]/10';
+  // Active view icon reuses the filter icon's active treatment (purple fill).
+  const iconButtonActive =
+    'w-8 h-8 rounded-md flex items-center justify-center bg-[#635bff] text-white hover:opacity-90 transition-opacity';
+
+  // Offer-type tab strip, sourced from the shared OFFER_TYPE_OPTIONS (+ an All
+  // tab). The active tab is derived from the offerTypes filter so the strip and
+  // the filter panel stay in sync from one source of truth: empty -> All; a
+  // single type -> that tab; a multi-select (set via the panel) -> none active.
+  const offerTypeTabs = [
+    { value: '', label: t('bp_offerTypeAll') },
+    ...OFFER_TYPE_OPTIONS.map((o) => ({ value: o.value, label: language === 'he' ? o.he : o.en })),
+  ];
+  const activeType =
+    offerTypes.length === 0 ? '' : offerTypes.length === 1 ? offerTypes[0] : '__multi__';
 
   return (
     <div className="space-y-3">
-      {/* Tabs row. Each tab is a button + FieldTooltip pair grouped in a flex
-          wrapper so clicking the tooltip icon does not change tabs. */}
+      {/* Offer-type tab strip - filters the catalog by execution type (server-side
+          via the offerTypes filter). The purple bottom-border marks the active type. */}
       <div className="flex flex-wrap gap-x-4 sm:gap-x-6 gap-y-2 border-b border-slate-200 dark:border-slate-700">
-        <div className="flex items-center gap-1">
+        {offerTypeTabs.map((tab) => (
           <button
+            key={tab.value || 'all'}
             type="button"
-            onClick={() => onTabChange('cards')}
-            className={cn(tabBase, activeTab === 'cards' ? tabActive : tabInactive)}
-            aria-pressed={activeTab === 'cards'}
+            onClick={() => onOfferTypeChange(tab.value === '' ? [] : [tab.value])}
+            className={cn(tabBase, activeType === tab.value ? tabActive : tabInactive)}
+            aria-pressed={activeType === tab.value}
           >
-            {t('bp_tabCards')}
+            {tab.label}
           </button>
-          <FieldTooltip fieldKey="tabCards" placement="bottom" />
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => onTabChange('table')}
-            className={cn(tabBase, activeTab === 'table' ? tabActive : tabInactive)}
-            aria-pressed={activeTab === 'table'}
-          >
-            {t('bp_tabTable')}
-          </button>
-          <FieldTooltip fieldKey="tabTable" placement="bottom" />
-        </div>
+        ))}
         {/* Eye-catching "how do I adopt an offer?" pill. Sits inline with the
             tabs (not at the opposite edge) and uses an amber lightbulb badge
-            so admins notice the cards-then-table-toggle flow at a glance. */}
+            so admins notice the adoption flow at a glance. */}
         <div
           className={cn(
             'self-center inline-flex items-center gap-1.5 px-3 py-1 rounded-full',
@@ -184,6 +197,36 @@ const CatalogTopBar = ({
                 {activeFilterCount}
               </span>
             )}
+          </button>
+
+          {/* Divider between filter controls and the view toggle. */}
+          <span aria-hidden className="mx-0.5 h-5 w-px bg-slate-200 dark:bg-slate-700" />
+
+          {/* View toggle - cards / table. Active view uses the same purple-fill
+              treatment as the active filter icon. */}
+          <button
+            type="button"
+            onClick={() => onTabChange('cards')}
+            aria-label={t('bp_tabCards')}
+            title={t('bp_tabCards')}
+            aria-pressed={activeTab === 'cards'}
+            className={activeTab === 'cards' ? iconButtonActive : iconButton}
+          >
+            <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]" aria-hidden="true">
+              <path d="M3 3h6v6H3V3zm8 0h6v6h-6V3zM3 11h6v6H3v-6zm8 0h6v6h-6v-6z" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={() => onTabChange('table')}
+            aria-label={t('bp_tabTable')}
+            title={t('bp_tabTable')}
+            aria-pressed={activeTab === 'table'}
+            className={activeTab === 'table' ? iconButtonActive : iconButton}
+          >
+            <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]" aria-hidden="true">
+              <path d="M3 4h14v2.5H3V4zm0 5.25h14v2.5H3v-2.5zM3 14.5h14V17H3v-2.5z" />
+            </svg>
           </button>
 
           {/* Results count - subdued */}
