@@ -228,6 +228,49 @@ function OfferDetails({ offer }: { offer: CatalogItem }) {
   );
 }
 
+/**
+ * Variants summary - lists each voucher variant (price, validity, combine choice,
+ * SKU). Rendered only for voucher offers carrying more than one variant; a
+ * single-variant offer shows its price/details inline as before.
+ */
+function VariantsSummary({ offer }: { offer: CatalogItem }) {
+  const { t } = useLanguage();
+  const variants = offer.variants ?? [];
+  if (offer.executionType !== 'voucher' || variants.length <= 1) return null;
+
+  const UNIT_KEYS = { days: 'co_validityUnitDays', months: 'co_validityUnitMonths', years: 'co_validityUnitYears' } as const;
+
+  return (
+    <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-widest text-white/40">
+        {t('co_variantsSectionTitle')} ({variants.length})
+      </p>
+      <ul className="mt-3 space-y-2">
+        {variants.map((v, i) => {
+          const validity = v.voucherValidityValue && v.voucherValidityUnit
+            ? `${v.voucherValidityValue} ${t(UNIT_KEYS[v.voucherValidityUnit])}`
+            : '';
+          return (
+            <li key={v.variantId} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[13px]">
+              <span className="font-semibold text-white/85">
+                {t('co_variantLabel')} {i + 1}
+              </span>
+              {typeof v.member_price === 'number' && (
+                <span className="font-bold text-white">&#x20AA;{v.member_price.toLocaleString()}</span>
+              )}
+              {validity && <span className="text-white/50">· {validity}</span>}
+              {typeof v.voucherStackable === 'boolean' && (
+                <span className="text-white/50">· {v.voucherStackable ? t('om_voucherStackableYes') : t('om_voucherStackableNo')}</span>
+              )}
+              {v.sku && <span className="text-white/40" dir="ltr">· {v.sku}</span>}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 /**
@@ -415,6 +458,26 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
               - Other types: market_price is the member-facing price.
               No strike-through original price is ever displayed. */}
           {(() => {
+            // Voucher with multiple variants: show a "from {lowest}" price so the
+            // single card never hides the cheaper/dearer variants. Single-variant
+            // and non-voucher offers show one price exactly as before. face_value
+            // is never shown as the selling price.
+            const variantPrices = (offer.variants ?? [])
+              .map((v) => v.member_price)
+              .filter((n): n is number => typeof n === 'number');
+            const multiVariant = (offer.variants?.length ?? 0) > 1 && variantPrices.length > 0;
+            if (offer.executionType === 'voucher' && multiVariant) {
+              const min = Math.min(...variantPrices);
+              const max = Math.max(...variantPrices);
+              return (
+                <div className="mt-5 flex items-baseline gap-2">
+                  {min !== max && (
+                    <span className="text-sm font-semibold uppercase tracking-widest text-white/40">{t('om_priceFrom')}</span>
+                  )}
+                  <span className="text-4xl font-black text-white tracking-tight">&#x20AA;{min.toLocaleString()}</span>
+                </div>
+              );
+            }
             const display = offer.executionType === 'voucher'
               ? offer.member_price
               : (offer.market_price ?? offer.member_price);
@@ -443,6 +506,7 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
               backend field is present so the modal stays tight for sparse
               offers. Dates use the active language locale; the redemption
               link opens in a new tab with rel safety. */}
+          <VariantsSummary offer={offer} />
           <OfferDetails offer={offer} />
           </div>
         </div>

@@ -544,7 +544,12 @@ const BenefitsPartnerships = () => {
       if (override != null) return `₪${override}`;
       if (item.tenantMemberPrice != null) return `₪${item.tenantMemberPrice}`;
       if (item.executionType === 'voucher') {
-        if (item.member_price != null) return `₪${item.member_price}`;
+        if (item.member_price != null) {
+          // Multi-variant: member_price is the lowest variant (backend mirror),
+          // so prefix with "from" to signal the card spans several prices.
+          const multi = (item.variants?.length ?? 0) > 1;
+          return multi ? `${t('om_priceFrom')} ₪${item.member_price}` : `₪${item.member_price}`;
+        }
         return '';
       }
       if (item.market_price != null) return `₪${item.market_price}`;
@@ -965,11 +970,18 @@ const BenefitsPartnerships = () => {
                                 )}
                               </td>
 
-                              {/* 3. Title. */}
+                              {/* 3. Title. Multi-variant vouchers show a count chip
+                                  reflecting the parent/variant structure (the row
+                                  opens OfferModal, which lists the variants). */}
                               <td className="px-4 py-4 align-top">
                                 <span className="block text-sm font-semibold text-slate-900 dark:text-slate-100 line-clamp-1 max-w-[200px]">
                                   {item.title}
                                 </span>
+                                {isVoucher && (item.variants?.length ?? 0) > 1 && (
+                                  <span className="mt-1 inline-block rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                                    {item.variants!.length} {t('co_variantsCountLabel')}
+                                  </span>
+                                )}
                               </td>
 
                               {/* 4. Description — HTML stripped to plain text for table display. */}
@@ -1061,7 +1073,9 @@ const BenefitsPartnerships = () => {
                                       ? 'text-slate-400 italic font-normal'
                                       : 'text-slate-900 dark:text-slate-100',
                                   )}>
-                                    {formatPrice(priceValue)}
+                                    {isVoucher && (item.variants?.length ?? 0) > 1 && item.tenantMemberPrice == null && priceValue != null
+                                      ? `${t('om_priceFrom')} ${formatPrice(priceValue)}`
+                                      : formatPrice(priceValue)}
                                   </span>
                                 )}
                               </td>
