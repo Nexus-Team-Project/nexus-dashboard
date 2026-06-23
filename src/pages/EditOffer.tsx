@@ -1,8 +1,12 @@
 /**
  * EditOffer page: full-page editor for an existing offer. Mirrors `CreateOffer`
- * via `OfferFormLayout`, pre-filled from `getOfferDetails`. Visibility is hidden
- * (immutable after creation); denied offers re-enter pending_approval on save.
- * Backend enforces ownership on PATCH (foreign offerId → 404).
+ * via `OfferFormLayout`, pre-filled from `getOfferDetails`. For vouchers the offer
+ * is a PARENT with one or more VARIANTS (price/validity/stackable/SKU/tags +
+ * inventory per variant, edited via VariantsManager); global fields stay on the
+ * parent and a shared toggle controls redemption-terms/method placement.
+ * Non-voucher types are unchanged. Visibility is hidden (immutable after
+ * creation); denied offers re-enter pending_approval on save. Backend enforces
+ * ownership + voucher pricing lock on PATCH.
  * Route: /benefits-partnerships/edit-offer/:offerId
  */
 import { useEffect, useMemo, useState } from 'react';
@@ -10,31 +14,27 @@ import { toast } from 'sonner';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
-import { getOfferDetails, updateOfferApi, addOfferInventory, getOfferInventory, type CatalogItem, type OfferInventoryInput } from '../lib/api';
+import {
+  getOfferDetails, updateOfferApi, addVariantInventory, getVariantInventory,
+  type CatalogItem,
+} from '../lib/api';
 import CreateOfferDetailsSection from './CreateOfferDetailsSection';
 import CreateOfferRedemptionSection from './CreateOfferRedemptionSection';
 import OfferFormLayout from '../components/offer/OfferFormLayout';
 import OfferImageGallery, { type GalleryItem } from '../components/offer/OfferImageGallery';
 import OfferTypeField from '../components/offer/OfferTypeField';
 import VoucherBackgroundField, { type BgMode } from '../components/offer/VoucherBackgroundField';
-import VoucherInventoryModal from '../components/offer/VoucherInventoryModal';
+import VariantsManager from '../components/offer/VariantsManager';
+import VoucherRedemptionScopeCard from '../components/offer/VoucherRedemptionScopeCard';
 import { OfferFormSkeleton, OfferFormErrorState } from '../components/offer/OfferFormStates';
+import { type DraftVariant, variantToDraft, draftToPayload } from './voucherVariantDraft';
 
-/**
- * Renders the edit form for a single offer. The gallery merges existing
- * Cloudinary URLs (kind: 'existing') with any newly picked files (kind: 'new')
- * — the submit handler serialises them into multipart FormData so the backend
- * can reconcile the gallery in `supply.service.updateOffer`.
- */
 const EditOffer = () => {
   const navigate = useNavigate();
   const { offerId } = useParams<{ offerId: string }>();
   const { me } = useAuth();
   const { t, language } = useLanguage();
 
-  // Voucher pricing (face_value + nexus_cost) was agreed with Nexus and can
-  // only be changed by a platform admin. The form disables the inputs and
-  // the submit handler skips them when locked. Backend re-enforces the rule.
   const isPlatformAdmin = me?.authorization?.isPlatformAdmin === true;
   const pricingLocked = !isPlatformAdmin;
 
@@ -43,7 +43,7 @@ const EditOffer = () => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // ─── Form state (mirrors CreateOffer) ──────────────────────────────────────
+  // ─── Form state ─────────────────────────────────────────────────────────────
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<string>('food_beverage');
@@ -52,18 +52,14 @@ const EditOffer = () => {
   const [stockLimit, setStockLimit] = useState('');
   const [faceValue, setFaceValue] = useState('');
   const [nexusCost, setNexusCost] = useState('');
-  // Optional voucher SKU / internal company code (voucher-only).
   const [sku, setSku] = useState('');
   const [implementationLink, setImplementationLink] = useState('');
   const [implementationInstructions, setImplementationInstructions] = useState('');
   const [validFrom, setValidFrom] = useState('');
   const [validUntil, setValidUntil] = useState('');
-  // Voucher-only purchase-anchored validity duration (empty value = never expires).
   const [voucherValidityValue, setVoucherValidityValue] = useState('');
   const [voucherValidityUnit, setVoucherValidityUnit] = useState('years');
-  // Mandatory combine-with-promotions choice; legacy vouchers load as '' (must re-choose).
   const [voucherStackable, setVoucherStackable] = useState<'' | 'yes' | 'no'>('');
-  // Voucher background mode + color (voucher-only).
   const [bgMode, setBgMode] = useState<BgMode>('image');
   const [voucherBackgroundColor, setVoucherBackgroundColor] = useState('');
   const [terms, setTerms] = useState('');
@@ -71,10 +67,9 @@ const EditOffer = () => {
   const [tags, setTags] = useState<string[]>([]);
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // For vouchers, Save opens the inventory popup so admins can add more stock.
-  const [showInventoryModal, setShowInventoryModal] = useState(false);
-  const [existingLinks, setExistingLinks] = useState<string[]>([]); // pre-fills the popup links tab on edit
-  const [lockedKind, setLockedKind] = useState<'barcode' | 'link' | null>(null); // a voucher holds one kind only
+  // Voucher variant state.
+  const [variants, setVariants] = useState<DraftVariant[]>([]);
+  const [variantEditing, setVariantEditing] = useState(false);
 
   // ─── Load offer detail ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -92,7 +87,7 @@ const EditOffer = () => {
         setCategory(detail.category ?? 'food_beverage');
         setExecutionType(detail.executionType ?? 'voucher');
         setMarketPrice(detail.market_price ? String(detail.market_price) : '');
-        setStockLimit(detail.stockLimit !== null && detail.stockLimit !== undefined ? String(detail.stockLimit) : '');
+        setStockLimit(detail.stockLimit != null ? String(detail.stockLimit) : '');
         setFaceValue(detail.face_value ? String(detail.face_value) : '');
         setNexusCost(detail.nexus_cost ? String(detail.nexus_cost) : '');
         setSku(detail.sku ?? '');
@@ -100,35 +95,30 @@ const EditOffer = () => {
         setImplementationInstructions(detail.implementationInstructions ?? '');
         setValidFrom(detail.validFrom ? detail.validFrom.slice(0, 10) : '');
         setValidUntil(detail.validUntil ? detail.validUntil.slice(0, 10) : '');
-        // Legacy vouchers load with empty validity (treated as never-expires);
-        // their stale validUntil is normalized to null on save by the backend.
-        setVoucherValidityValue(
-          detail.voucherValidityValue != null ? String(detail.voucherValidityValue) : '',
-        );
+        setVoucherValidityValue(detail.voucherValidityValue != null ? String(detail.voucherValidityValue) : '');
         setVoucherValidityUnit(detail.voucherValidityUnit ?? 'years');
-        setVoucherStackable(
-          detail.voucherStackable === true ? 'yes' : detail.voucherStackable === false ? 'no' : '',
-        );
+        setVoucherStackable(detail.voucherStackable === true ? 'yes' : detail.voucherStackable === false ? 'no' : '');
         setTerms(detail.terms ?? '');
         setTags(detail.tags ?? []);
-        const urls = (detail.imageUrls && detail.imageUrls.length > 0)
-          ? detail.imageUrls
-          : (detail.imageUrl ? [detail.imageUrl] : []);
+        // Map stored variants into editable drafts (one default variant for
+        // migrated/legacy vouchers). Inventory is appended via the popup per variant.
+        // Pass the parent shared terms/method so a variant whose (read-filled) text
+        // equals the shared text loads as "inherited", not as a custom override.
+        setVariants((detail.variants ?? []).map((v) => variantToDraft(v, detail.terms, detail.implementationInstructions)));
+        // Background: a color-mode voucher stores the default placeholder as its
+        // imageUrl, so when a color is set we treat it as color mode with an EMPTY
+        // gallery (the placeholder is not a real chosen image). This both shows the
+        // saved color on load and stops Save from re-persisting the placeholder
+        // and dropping the color (the bug where the card reverted to the default).
+        const hasColor = (detail.executionType ?? 'voucher') === 'voucher' && !!detail.voucherBackgroundColor;
+        const urls = hasColor
+          ? []
+          : ((detail.imageUrls && detail.imageUrls.length > 0)
+              ? detail.imageUrls
+              : (detail.imageUrl ? [detail.imageUrl] : []));
         setGallery(urls.map((u) => ({ kind: 'existing' as const, url: u })));
-        // Voucher background mode: image when there is a cover; else color when
-        // a stored color exists; else default to image (empty -> tenant fallback).
         setVoucherBackgroundColor(detail.voucherBackgroundColor ?? '');
-        setBgMode(urls.length > 0 ? 'image' : (detail.voucherBackgroundColor ? 'color' : 'image'));
-        // Load existing link inventory so the popup can pre-fill it (voucher-only, non-fatal).
-        if ((detail.executionType ?? 'voucher') === 'voucher') {
-          try {
-            const inv = await getOfferInventory(offerId);
-            if (!cancelled) {
-              setExistingLinks(inv.links);
-              setLockedKind(inv.counts.barcode > 0 ? 'barcode' : inv.counts.link > 0 ? 'link' : null);
-            }
-          } catch { /* ignore */ }
-        }
+        setBgMode(hasColor ? 'color' : 'image');
       } catch (err) {
         if (cancelled) return;
         setLoadError(err instanceof Error ? err.message : t('of_loadFailed'));
@@ -146,13 +136,12 @@ const EditOffer = () => {
     return first.kind === 'existing' ? first.url : first.previewUrl;
   }, [gallery]);
 
-  // Seed/fallback color for the picker; solid hero color in color mode w/o image.
   const defaultBrandColor = me?.context?.tenantBrandColor ?? '#635bff';
-  const coverColor = executionType === 'voucher' && bgMode === 'color' && !coverUrl
+  const isVoucher = executionType === 'voucher';
+  const coverColor = isVoucher && bgMode === 'color' && !coverUrl
     ? (voucherBackgroundColor || defaultBrandColor)
     : undefined;
 
-  /** Switching TO voucher trims the gallery to one cover image (revoking dropped previews). */
   const handleExecutionTypeChange = (next: string) => {
     setExecutionType(next);
     if (next === 'voucher') {
@@ -164,106 +153,94 @@ const EditOffer = () => {
     }
   };
 
-  /**
-   * Builds the FormData payload and PATCHes the offer. `keptImageUrls` is
-   * always sent (even empty) so the backend reconciles the gallery against
-   * the previous state and drops orphaned Cloudinary images.
-   */
-  /** Runs all field validations; sets an error + returns false on the first failure. */
+  /** Edit-page inventory loader for the variants manager (existing barcodes +
+   *  links + the locked kind), so the popup re-shows the stored inventory. */
+  const loadExistingInventory = async (variantId: string) => {
+    if (!offerId) return { barcodes: [], links: [], lockedKind: null as 'barcode' | 'link' | null };
+    const inv = await getVariantInventory(offerId, variantId);
+    return {
+      barcodes: inv.barcodes,
+      links: inv.links,
+      lockedKind: inv.counts.barcode > 0 ? 'barcode' : inv.counts.link > 0 ? 'link' : null,
+    } as { barcodes: string[]; links: string[]; lockedKind: 'barcode' | 'link' | null };
+  };
+
   const validate = (): boolean => {
     if (!offerId) return false;
     if (!title.trim()) { setError(t('co_errTitleRequired')); return false; }
-    if (validFrom && validUntil && new Date(validFrom) >= new Date(validUntil)) {
+    if (!isVoucher && validFrom && validUntil && new Date(validFrom) >= new Date(validUntil)) {
       setError(language === 'he' ? 'תאריך ההשקה חייב להיות לפני תאריך התפוגה' : 'Launch date must be before the expiry date');
       return false;
     }
-    if (executionType === 'voucher') {
-      if (voucherValidityValue.trim() !== '') {
-        const vv = Number(voucherValidityValue);
-        if (!Number.isInteger(vv) || vv <= 0) {
-          setError(language === 'he' ? 'מגבלת התוקף חייבת להיות מספר שלם חיובי' : 'Validity limit must be a positive whole number');
-          return false;
-        }
-      }
-      if (voucherStackable === '') { setError(t('co_voucherStackableRequired')); return false; }
-      if (sku.trim() !== '' && !/^[A-Z0-9_-]{4,20}$/.test(sku.trim())) { setError(t('co_errSku')); return false; }
-    }
+    if (isVoucher && (variants.length === 0 || variantEditing)) { setError(t('co_variantsRequired')); return false; }
     return true;
   };
 
-  /** PATCHes the offer, optionally appends inventory, then navigates back. */
-  const finalizeSave = async (inventory: OfferInventoryInput | null) => {
+  /** Builds the PATCH FormData and saves, then appends any staged per-variant inventory. */
+  const finalizeSave = async () => {
     if (!offerId) return;
     setIsSubmitting(true);
     setError(null);
-    let saved = false; // true once the PATCH succeeds (distinguishes inventory-step failure)
+    let saved = false;
     try {
       const fd = new FormData();
       fd.append('title', title.trim());
       fd.append('description', description.trim());
-      fd.append('executionType', executionType); // category is immutable via PATCH (omitted)
+      fd.append('executionType', executionType);
       if (marketPrice && Number(marketPrice) > 0) fd.append('market_price', marketPrice);
-      if (executionType !== 'voucher') {
-        fd.append('stockLimit', stockLimit && Number(stockLimit) > 0 ? stockLimit : '');
-      }
-      // Voucher face/nexus prices are locked for non-platform-admins (server also rejects).
-      if (executionType === 'voucher' && !pricingLocked) {
-        if (faceValue) fd.append('face_value', faceValue);
-        if (nexusCost) fd.append('nexus_cost', nexusCost);
-      }
-      if (executionType !== 'voucher') fd.append('implementationLink', implementationLink.trim());
-      fd.append('implementationInstructions', implementationInstructions.trim());
-      if (executionType === 'voucher') {
-        // Voucher: send validity duration (empty clears it); never absolute dates.
-        const hasValidity = voucherValidityValue.trim() !== '';
-        fd.append('voucherValidityValue', hasValidity ? voucherValidityValue.trim() : '');
-        fd.append('voucherValidityUnit', hasValidity ? voucherValidityUnit : '');
-        fd.append('voucherStackable', voucherStackable === 'yes' ? 'true' : 'false');
-        // Color only in color mode; image mode sends '' so the backend clears any stored color.
+      if (isVoucher) {
+        const perVariant = variants.some((d) => d.customRedemption);
+        fd.append('redemptionScope', perVariant ? 'per_variant' : 'shared');
+        fd.append('variants', JSON.stringify(variants.map((d) => draftToPayload(d))));
         fd.append('voucherBackgroundColor', bgMode === 'color' && voucherBackgroundColor ? voucherBackgroundColor : '');
-        // SKU: send trimmed value, or '' to clear it on the backend.
-        fd.append('sku', sku.trim());
+        // Shared redemption text always lives on the parent; per-variant overrides
+        // travel inside each variant payload.
+        fd.append('terms', terms.trim());
+        fd.append('implementationInstructions', implementationInstructions.trim());
       } else {
+        fd.append('stockLimit', stockLimit && Number(stockLimit) > 0 ? stockLimit : '');
+        fd.append('implementationLink', implementationLink.trim());
+        fd.append('implementationInstructions', implementationInstructions.trim());
         fd.append('validFrom', validFrom || '');
         fd.append('validUntil', validUntil || '');
+        fd.append('terms', terms.trim());
+        fd.append('tags', JSON.stringify(tags));
       }
-      fd.append('terms', terms.trim());
-      fd.append('tags', JSON.stringify(tags));
-
-      // Gallery reconciliation: kept URLs in current order, new files appended.
       const keptUrls = gallery.filter((g): g is GalleryItem & { kind: 'existing' } => g.kind === 'existing').map((g) => g.url);
       fd.append('keptImageUrls', JSON.stringify(keptUrls));
       gallery.forEach((g) => { if (g.kind === 'new') fd.append('images', g.file); });
 
-      await updateOfferApi(offerId, fd);
+      const updated = await updateOfferApi(offerId, fd);
       saved = true;
-      if (inventory) {
-        const res = await addOfferInventory(offerId, inventory);
-        toast.success(`${t('co_toastSaved')} · ${res.created} ${t('co_toastUnits')}`);
-      } else {
-        toast.success(t('co_toastSaved'));
+      // Apply any newly staged inventory to each variant (matched by order).
+      let units = 0; let invFailed = false;
+      if (isVoucher) {
+        const created = updated.variants ?? [];
+        for (let i = 0; i < variants.length; i++) {
+          const inv = variants[i].inventory;
+          const variantId = created[i]?.variantId;
+          if (inv && variantId) {
+            try { const r = await addVariantInventory(offerId, variantId, inv); units += r.created; }
+            catch { invFailed = true; }
+          }
+        }
       }
+      if (invFailed) toast.error(t('co_toastInventoryFailedSave'));
+      else if (units > 0) toast.success(`${t('co_toastSaved')} · ${units} ${t('co_toastUnits')}`);
+      else toast.success(t('co_toastSaved'));
       navigate('/benefits-partnerships');
     } catch (err: unknown) {
-      if (saved) {
-        // Changes saved; only the inventory step failed.
-        toast.error(t('co_toastInventoryFailedSave'));
-        navigate('/benefits-partnerships');
-      } else {
-        setError(err instanceof Error ? err.message : t('co_errPublish'));
-        setShowInventoryModal(false);
-      }
+      if (saved) { toast.error(t('co_toastInventoryFailedSave')); navigate('/benefits-partnerships'); }
+      else { setError(err instanceof Error ? err.message : t('co_errPublish')); }
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  /** Save entry point: vouchers open the inventory popup (to add more); others save now. */
   const handleSave = () => {
     if (!validate()) return;
     setError(null);
-    if (executionType === 'voucher') { setShowInventoryModal(true); return; }
-    void finalizeSave(null);
+    void finalizeSave();
   };
 
   if (loading) return <OfferFormSkeleton />;
@@ -271,12 +248,8 @@ const EditOffer = () => {
 
   const leftColumn = (
     <>
-      <OfferTypeField
-        value={executionType}
-        onChange={handleExecutionTypeChange}
-        disabled={isSubmitting}
-      />
-      {executionType === 'voucher' ? (
+      <OfferTypeField value={executionType} onChange={handleExecutionTypeChange} disabled={isSubmitting} />
+      {isVoucher ? (
         <VoucherBackgroundField
           mode={bgMode} setMode={setBgMode}
           gallery={gallery} setGallery={setGallery}
@@ -285,12 +258,7 @@ const EditOffer = () => {
           disabled={isSubmitting}
         />
       ) : (
-        <OfferImageGallery
-          value={gallery}
-          onChange={setGallery}
-          maxImages={6}
-          disabled={isSubmitting}
-        />
+        <OfferImageGallery value={gallery} onChange={setGallery} maxImages={6} disabled={isSubmitting} />
       )}
       <CreateOfferDetailsSection
         title={title} setTitle={setTitle}
@@ -304,54 +272,60 @@ const EditOffer = () => {
         sku={sku} setSku={setSku}
         isSubmitting={isSubmitting}
         pricingLocked={pricingLocked}
+        hidePricing={isVoucher}
       />
-      <CreateOfferRedemptionSection
-        implementationLink={implementationLink} setImplementationLink={setImplementationLink}
-        implementationInstructions={implementationInstructions} setImplementationInstructions={setImplementationInstructions}
-        validFrom={validFrom} setValidFrom={setValidFrom}
-        validUntil={validUntil} setValidUntil={setValidUntil}
-        executionType={executionType}
-        voucherValidityValue={voucherValidityValue} setVoucherValidityValue={setVoucherValidityValue}
-        voucherValidityUnit={voucherValidityUnit} setVoucherValidityUnit={setVoucherValidityUnit}
-        voucherStackable={voucherStackable} setVoucherStackable={setVoucherStackable}
-        terms={terms} setTerms={setTerms}
-        tagInput={tagInput} setTagInput={setTagInput}
-        tags={tags} setTags={setTags}
-        isSubmitting={isSubmitting}
-      />
-    </>
-  );
-
-  const rightColumn = null;
-
-  return (
-    <>
-      <OfferFormLayout
-        title={t('of_pageTitleEdit')}
-        businessName={me?.context?.tenantName ?? undefined}
-        coverUrl={coverUrl}
-        coverColor={coverColor}
-        saveLabel={offer?.approval_status === 'denied' ? t('of_saveResubmit') : t('of_saveUpdate')}
-        cancelLabel={t('of_cancel')}
-        onSave={handleSave}
-        onCancel={() => navigate('/benefits-partnerships')}
-        isSubmitting={isSubmitting}
-        error={error}
-        denialReason={offer?.approval_status === 'denied' ? (offer?.denial_reason ?? null) : null}
-        leftColumn={leftColumn}
-        rightColumn={rightColumn}
-      />
-      {showInventoryModal && (
-        <VoucherInventoryModal
-          busy={isSubmitting}
-          initialLinks={existingLinks.map((url) => ({ url }))}
-          lockedKind={lockedKind}
-          onConfirm={(inventory) => { void finalizeSave(inventory); }}
-          onSkip={() => { void finalizeSave(null); }}
-          onCancel={() => setShowInventoryModal(false)}
+      {isVoucher ? (
+        <>
+          <VoucherRedemptionScopeCard
+            terms={terms} setTerms={setTerms}
+            method={implementationInstructions} setMethod={setImplementationInstructions}
+            isSubmitting={isSubmitting}
+          />
+          <VariantsManager
+            variants={variants} setVariants={setVariants}
+            sharedTerms={terms} sharedMethod={implementationInstructions}
+            onEditingChange={setVariantEditing}
+            loadExistingInventory={loadExistingInventory}
+            isSubmitting={isSubmitting}
+          />
+        </>
+      ) : (
+        <CreateOfferRedemptionSection
+          implementationLink={implementationLink} setImplementationLink={setImplementationLink}
+          implementationInstructions={implementationInstructions} setImplementationInstructions={setImplementationInstructions}
+          validFrom={validFrom} setValidFrom={setValidFrom}
+          validUntil={validUntil} setValidUntil={setValidUntil}
+          executionType={executionType}
+          voucherValidityValue={voucherValidityValue} setVoucherValidityValue={setVoucherValidityValue}
+          voucherValidityUnit={voucherValidityUnit} setVoucherValidityUnit={setVoucherValidityUnit}
+          voucherStackable={voucherStackable} setVoucherStackable={setVoucherStackable}
+          terms={terms} setTerms={setTerms}
+          tagInput={tagInput} setTagInput={setTagInput}
+          tags={tags} setTags={setTags}
+          isSubmitting={isSubmitting}
         />
       )}
     </>
+  );
+
+  return (
+    <OfferFormLayout
+      title={t('of_pageTitleEdit')}
+      businessName={me?.context?.tenantName ?? undefined}
+      coverUrl={coverUrl}
+      coverColor={coverColor}
+      saveLabel={offer?.approval_status === 'denied' ? t('of_saveResubmit') : t('of_saveUpdate')}
+      cancelLabel={t('of_cancel')}
+      onSave={handleSave}
+      onCancel={() => navigate('/benefits-partnerships')}
+      isSubmitting={isSubmitting}
+      saveDisabled={isVoucher && (variants.length === 0 || variantEditing)}
+      saveHint={t('co_variantsRequired')}
+      error={error}
+      denialReason={offer?.approval_status === 'denied' ? (offer?.denial_reason ?? null) : null}
+      leftColumn={leftColumn}
+      rightColumn={null}
+    />
   );
 };
 

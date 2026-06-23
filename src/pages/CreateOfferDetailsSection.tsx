@@ -62,6 +62,12 @@ interface DetailsSectionProps {
    * Used on the Edit page for non-platform-admin callers. Defaults to false.
    */
   pricingLocked?: boolean;
+  /**
+   * When true, the Pricing card is not rendered at all. Used by the voucher
+   * variant flow, where price/SKU are authored per variant (in VariantBuilder)
+   * rather than once on the offer. Defaults to false (pricing card shown).
+   */
+  hidePricing?: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -93,6 +99,7 @@ const CreateOfferDetailsSection = ({
   setSku,
   isSubmitting,
   pricingLocked = false,
+  hidePricing = false,
 }: DetailsSectionProps) => {
   const { t, language } = useLanguage();
 
@@ -170,7 +177,8 @@ const CreateOfferDetailsSection = ({
         </div>
       </section>
 
-      {/* Pricing card */}
+      {/* Pricing card. Hidden for the voucher variant flow (price is per variant). */}
+      {!hidePricing && (
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-card-dark">
         <h2 className="mb-4 text-base font-semibold text-slate-800 dark:text-white">
           {t('co_sectionPricing')}
@@ -240,6 +248,7 @@ const CreateOfferDetailsSection = ({
           </>
         )}
       </section>
+      )}
     </>
   );
 };
