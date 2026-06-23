@@ -26,7 +26,6 @@ import OfferTypeField from '../components/offer/OfferTypeField';
 import VoucherBackgroundField, { type BgMode } from '../components/offer/VoucherBackgroundField';
 import VariantsManager from '../components/offer/VariantsManager';
 import VoucherRedemptionScopeCard from '../components/offer/VoucherRedemptionScopeCard';
-import { type RedemptionScope } from '../components/offer/RedemptionScopeToggle';
 import { OfferFormSkeleton, OfferFormErrorState } from '../components/offer/OfferFormStates';
 import { type DraftVariant, variantToDraft, draftToPayload } from './voucherVariantDraft';
 
@@ -70,7 +69,6 @@ const EditOffer = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   // Voucher variant state.
   const [variants, setVariants] = useState<DraftVariant[]>([]);
-  const [redemptionScope, setRedemptionScope] = useState<RedemptionScope>('shared');
   const [variantEditing, setVariantEditing] = useState(false);
 
   // ─── Load offer detail ─────────────────────────────────────────────────────
@@ -102,16 +100,23 @@ const EditOffer = () => {
         setVoucherStackable(detail.voucherStackable === true ? 'yes' : detail.voucherStackable === false ? 'no' : '');
         setTerms(detail.terms ?? '');
         setTags(detail.tags ?? []);
-        setRedemptionScope(detail.redemptionScope === 'per_variant' ? 'per_variant' : 'shared');
         // Map stored variants into editable drafts (one default variant for
         // migrated/legacy vouchers). Inventory is appended via the popup per variant.
         setVariants((detail.variants ?? []).map(variantToDraft));
-        const urls = (detail.imageUrls && detail.imageUrls.length > 0)
-          ? detail.imageUrls
-          : (detail.imageUrl ? [detail.imageUrl] : []);
+        // Background: a color-mode voucher stores the default placeholder as its
+        // imageUrl, so when a color is set we treat it as color mode with an EMPTY
+        // gallery (the placeholder is not a real chosen image). This both shows the
+        // saved color on load and stops Save from re-persisting the placeholder
+        // and dropping the color (the bug where the card reverted to the default).
+        const hasColor = (detail.executionType ?? 'voucher') === 'voucher' && !!detail.voucherBackgroundColor;
+        const urls = hasColor
+          ? []
+          : ((detail.imageUrls && detail.imageUrls.length > 0)
+              ? detail.imageUrls
+              : (detail.imageUrl ? [detail.imageUrl] : []));
         setGallery(urls.map((u) => ({ kind: 'existing' as const, url: u })));
         setVoucherBackgroundColor(detail.voucherBackgroundColor ?? '');
-        setBgMode(urls.length > 0 ? 'image' : (detail.voucherBackgroundColor ? 'color' : 'image'));
+        setBgMode(hasColor ? 'color' : 'image');
       } catch (err) {
         if (cancelled) return;
         setLoadError(err instanceof Error ? err.message : t('of_loadFailed'));
@@ -180,12 +185,14 @@ const EditOffer = () => {
       fd.append('executionType', executionType);
       if (marketPrice && Number(marketPrice) > 0) fd.append('market_price', marketPrice);
       if (isVoucher) {
-        const perVariant = redemptionScope === 'per_variant';
-        fd.append('redemptionScope', redemptionScope);
-        fd.append('variants', JSON.stringify(variants.map((d) => draftToPayload(d, perVariant))));
+        const perVariant = variants.some((d) => d.customRedemption);
+        fd.append('redemptionScope', perVariant ? 'per_variant' : 'shared');
+        fd.append('variants', JSON.stringify(variants.map((d) => draftToPayload(d))));
         fd.append('voucherBackgroundColor', bgMode === 'color' && voucherBackgroundColor ? voucherBackgroundColor : '');
-        fd.append('terms', perVariant ? '' : terms.trim());
-        fd.append('implementationInstructions', perVariant ? '' : implementationInstructions.trim());
+        // Shared redemption text always lives on the parent; per-variant overrides
+        // travel inside each variant payload.
+        fd.append('terms', terms.trim());
+        fd.append('implementationInstructions', implementationInstructions.trim());
       } else {
         fd.append('stockLimit', stockLimit && Number(stockLimit) > 0 ? stockLimit : '');
         fd.append('implementationLink', implementationLink.trim());
@@ -266,14 +273,13 @@ const EditOffer = () => {
       {isVoucher ? (
         <>
           <VoucherRedemptionScopeCard
-            scope={redemptionScope} setScope={setRedemptionScope}
             terms={terms} setTerms={setTerms}
             method={implementationInstructions} setMethod={setImplementationInstructions}
             isSubmitting={isSubmitting}
           />
           <VariantsManager
             variants={variants} setVariants={setVariants}
-            perVariant={redemptionScope === 'per_variant'}
+            sharedTerms={terms} sharedMethod={implementationInstructions}
             onEditingChange={setVariantEditing}
             loadExistingInventory={loadExistingInventory}
             isSubmitting={isSubmitting}
