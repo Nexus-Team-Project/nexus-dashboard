@@ -1229,12 +1229,7 @@ const BenefitsPartnerships = () => {
                     >
                       {/* Image */}
                       <div className="h-64 bg-slate-200 dark:bg-slate-800 relative overflow-hidden">
-                        {/* Combine-with-promotions (כפל מבצעים) badge — voucher + combinable. */}
-                        {catalogItem?.executionType === 'voucher' && catalogItem?.voucherStackable === true && (
-                          <span className="pointer-events-none absolute top-2 start-2 z-10 inline-flex items-center rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-medium text-white">
-                            {t('badge_combinable')}
-                          </span>
-                        )}
+                        {/* Combine-with-promotions is per-variant now, so no offer-level badge here. */}
                         {catalogItem?.executionType === 'voucher' && catalogItem?.voucherBackgroundColor ? (
                           <VoucherColorTile color={catalogItem.voucherBackgroundColor} className="w-full h-full" />
                         ) : benefit.backgroundImage ? (
@@ -1375,12 +1370,7 @@ const BenefitsPartnerships = () => {
                     >
                       {/* Card image with optional pending-approval overlay */}
                       <div className="relative">
-                        {/* Combine-with-promotions (כפל מבצעים) badge — voucher + combinable. */}
-                        {catalogItem?.executionType === 'voucher' && catalogItem?.voucherStackable === true && (
-                          <span className="pointer-events-none absolute top-2 start-2 z-10 inline-flex items-center rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-medium text-white">
-                            {t('badge_combinable')}
-                          </span>
-                        )}
+                        {/* Combine-with-promotions is per-variant now, so no offer-level badge here. */}
                         {catalogItem?.executionType === 'voucher' && catalogItem?.voucherBackgroundColor ? (
                           <VoucherColorTile color={catalogItem.voucherBackgroundColor} className="w-full h-32" />
                         ) : benefit.backgroundImage ? (
