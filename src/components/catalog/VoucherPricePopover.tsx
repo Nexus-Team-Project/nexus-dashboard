@@ -20,6 +20,8 @@ import { updateTenantVoucherPrice } from '../../lib/api';
 export interface VoucherPricePopoverProps {
   /** Identifier of the offer whose price is being set. */
   offerId: string;
+  /** When set, the price is saved for THIS variant only (per-variant pricing). */
+  variantId?: string;
   /** Voucher face value (slider max). */
   faceValue: number;
   /** Nexus cost (slider min). */
@@ -36,6 +38,7 @@ export interface VoucherPricePopoverProps {
 
 const VoucherPricePopover = ({
   offerId,
+  variantId,
   faceValue,
   nexusCost,
   currentMemberPrice,
@@ -148,7 +151,7 @@ const VoucherPricePopover = ({
     setError(null);
     setSaving(true);
     try {
-      await updateTenantVoucherPrice(offerId, value);
+      await updateTenantVoucherPrice(offerId, value, variantId);
       onSaved(value);
       onClose();
     } catch {
@@ -156,7 +159,7 @@ const VoucherPricePopover = ({
     } finally {
       setSaving(false);
     }
-  }, [value, nexusCost, faceValue, offerId, onSaved, onClose, t]);
+  }, [value, nexusCost, faceValue, offerId, variantId, onSaved, onClose, t]);
 
   return createPortal(
     <div
