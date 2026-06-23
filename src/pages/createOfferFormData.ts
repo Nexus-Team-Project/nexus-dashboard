@@ -9,6 +9,7 @@ import type { GalleryItem } from '../components/offer/OfferImageGallery';
 import type { BgMode } from '../components/offer/VoucherBackgroundField';
 import type { OfferInventoryInput } from '../lib/api';
 import type { TranslationKey } from '../i18n/translations';
+import { type DraftVariant, draftToPayload } from './voucherVariantDraft';
 
 export interface CreateOfferValues {
   title: string;
@@ -23,6 +24,7 @@ export interface CreateOfferValues {
   nexusCost: string;
   gallery: GalleryItem[];
   implementationLink: string;
+  /** For vouchers, the parent-level redemption method (shared scope only). */
   implementationInstructions: string;
   voucherValidityValue: string;
   voucherValidityUnit: string;
@@ -32,8 +34,13 @@ export interface CreateOfferValues {
   sku: string;
   validFrom: string;
   validUntil: string;
+  /** For vouchers, the parent-level redemption terms (shared scope only). */
   terms: string;
   tags: string[];
+  /** Voucher variants (voucher executionType only). */
+  variants: DraftVariant[];
+  /** Whether redemption terms/method are shared or per-variant (voucher only). */
+  redemptionScope: 'shared' | 'per_variant';
 }
 
 export function buildCreateOfferFormData(v: CreateOfferValues): FormData {
@@ -44,28 +51,31 @@ export function buildCreateOfferFormData(v: CreateOfferValues): FormData {
   if (v.marketPrice && Number(v.marketPrice) > 0) fd.append('market_price', v.marketPrice);
   fd.append('visibility', v.isPlatformAdmin ? 'ecosystem' : v.visibility);
   fd.append('executionType', v.executionType);
-  if (v.executionType !== 'voucher' && v.stockLimit && Number(v.stockLimit) > 0) fd.append('stockLimit', v.stockLimit);
-  if (v.executionType === 'voucher') {
-    fd.append('face_value', v.faceValue);
-    fd.append('nexus_cost', v.nexusCost);
-  }
   v.gallery.forEach((item) => { if (item.kind === 'new') fd.append('images', item.file); });
-  if (v.implementationLink.trim()) fd.append('implementationLink', v.implementationLink.trim());
-  if (v.implementationInstructions.trim()) fd.append('implementationInstructions', v.implementationInstructions.trim());
+
   if (v.executionType === 'voucher') {
-    if (v.voucherValidityValue.trim() !== '') {
-      fd.append('voucherValidityValue', v.voucherValidityValue.trim());
-      fd.append('voucherValidityUnit', v.voucherValidityUnit);
-    }
-    fd.append('voucherStackable', v.voucherStackable === 'yes' ? 'true' : 'false');
+    // Voucher: price/validity/stackable/SKU/tags are per VARIANT. Send the
+    // variants array + the redemption scope; the backend mirrors the
+    // representative variant onto the offer's flat fields.
+    const perVariant = v.redemptionScope === 'per_variant';
+    fd.append('redemptionScope', v.redemptionScope);
+    fd.append('variants', JSON.stringify(v.variants.map((d) => draftToPayload(d, perVariant))));
     if (v.bgMode === 'color' && v.voucherBackgroundColor) fd.append('voucherBackgroundColor', v.voucherBackgroundColor);
-    if (v.sku.trim() !== '') fd.append('sku', v.sku.trim());
+    // Shared scope: redemption terms + method live on the parent. Per-variant
+    // scope: they travel inside each variant payload, so skip them here.
+    if (!perVariant) {
+      if (v.terms.trim()) fd.append('terms', v.terms.trim());
+      if (v.implementationInstructions.trim()) fd.append('implementationInstructions', v.implementationInstructions.trim());
+    }
   } else {
+    if (v.stockLimit && Number(v.stockLimit) > 0) fd.append('stockLimit', v.stockLimit);
+    if (v.implementationLink.trim()) fd.append('implementationLink', v.implementationLink.trim());
+    if (v.implementationInstructions.trim()) fd.append('implementationInstructions', v.implementationInstructions.trim());
     if (v.validFrom) fd.append('validFrom', v.validFrom);
     if (v.validUntil) fd.append('validUntil', v.validUntil);
+    if (v.terms.trim()) fd.append('terms', v.terms.trim());
+    if (v.tags.length > 0) fd.append('tags', JSON.stringify(v.tags));
   }
-  if (v.terms.trim()) fd.append('terms', v.terms.trim());
-  if (v.tags.length > 0) fd.append('tags', JSON.stringify(v.tags));
   return fd;
 }
 
@@ -84,22 +94,9 @@ export function validateCreateOffer(
     return language === 'he' ? 'תאריך ההשקה חייב להיות לפני תאריך התפוגה' : 'Launch date must be before the expiry date';
   }
   if (v.executionType === 'voucher') {
-    const fv = Number(v.faceValue);
-    const nc = Number(v.nexusCost);
-    if (!v.faceValue || isNaN(fv) || fv <= 0) {
-      return language === 'he' ? 'יש להזין שווי שובר תקין וחיובי' : 'Face value must be a positive number';
-    }
-    if (!v.nexusCost || isNaN(nc) || nc <= 0 || nc >= fv) {
-      return language === 'he' ? 'מחיר NEXUS חייב להיות חיובי ופחות מהשווי' : 'Nexus price must be positive and less than face value';
-    }
-    if (v.voucherValidityValue.trim() !== '') {
-      const vv = Number(v.voucherValidityValue);
-      if (!Number.isInteger(vv) || vv <= 0) {
-        return language === 'he' ? 'מגבלת התוקף חייבת להיות מספר שלם חיובי' : 'Validity limit must be a positive whole number';
-      }
-    }
-    if (v.voucherStackable === '') return t('co_voucherStackableRequired');
-    if (v.sku.trim() !== '' && !/^[A-Z0-9_-]{4,20}$/.test(v.sku.trim())) return t('co_errSku');
+    // Per-variant pricing/validity/stackable/SKU are validated when each variant
+    // is saved (VariantsManager). Here we only require at least one variant.
+    if (v.variants.length === 0) return t('co_variantsRequired');
   }
   return null;
 }
