@@ -3,7 +3,7 @@
  * Wires to real backend data via getPlatformOffers while preserving the existing
  * card/table UI structure. Adoption state is driven by the live API.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   getPlatformOffers,
@@ -14,8 +14,10 @@ import {
   deactivateBenefitsCatalog,
   deleteOffer,
   approveOfferApi,
+  getVariantInventory,
   EXECUTION_TYPE_LABELS,
   type CatalogItem,
+  type CatalogVariant,
 } from '../lib/api';
 import { useCatalogList } from '../hooks/useCatalogList';
 import Pagination from '../components/Pagination';
@@ -117,6 +119,197 @@ function toBenefitType(executionType?: string): Benefit['benefitType'] {
   return 'amount';
 }
 
+/**
+ * Computes the member-price span across a voucher offer's variants.
+ * Input: a CatalogItem.
+ * Output: { count, min, max } over the variants that carry a numeric
+ * member_price, or null when the offer has no priced variants. Used to render
+ * the card/table price range and the variant-count chips.
+ */
+function variantMemberPriceRange(item: CatalogItem): { count: number; min: number; max: number } | null {
+  const variants = item.variants ?? [];
+  const prices = variants.map((v) => v.member_price).filter((n): n is number => typeof n === 'number');
+  if (prices.length === 0) return null;
+  return { count: variants.length, min: Math.min(...prices), max: Math.max(...prices) };
+}
+
+/**
+ * Formats a voucher's member-facing price for the card/table face.
+ * Multi-variant offers with differing prices render an isolated "min - max"
+ * range (LRI/PDI wrapped so the hyphenated number pair never reorders in RTL);
+ * a single variant or equal prices render the single fallback price. face_value
+ * is never used here - only member_price is the selling price.
+ * Input: the CatalogItem + the single price to show when there is no range.
+ * Output: a display string (already bidi-isolated where needed).
+ */
+function formatVoucherCardPrice(item: CatalogItem, singlePrice: number): string {
+  const range = variantMemberPriceRange(item);
+  if (range && range.count > 1 && range.min !== range.max) {
+    // U+2066 LRI ... U+2069 PDI keeps the "min - max" pair left-to-right in RTL.
+    return `${String.fromCharCode(0x2066)}₪${range.min} - ₪${range.max}${String.fromCharCode(0x2069)}`;
+  }
+  return `₪${singlePrice}`;
+}
+
+/**
+ * VariantDetailsTable: a compact, RTL-safe nested table - one row per voucher
+ * variant - listing the per-variant member price (the selling price members pay;
+ * editable per variant when the caller may price this offer), face value, Nexus
+ * cost (when visible), real stock, validity, combine-with-promotions, SKU, the
+ * usage conditions + redemption method (truncated with a hover tooltip), and
+ * tags. Shared by the offer-detail modal and the offers table's expandable row.
+ *
+ * Stock is fetched per variant from the inventory endpoint on mount (the catalog
+ * read does not carry per-variant stock; the endpoint is owner-scoped, so it
+ * shows "-" when unavailable). face_value is never shown as the selling price.
+ *
+ * Input: offerId, the offer's variants, whether the caller may edit prices, and
+ * an onEditVariantPrice callback. Output: a horizontally scrollable table, or
+ * null when there are no variants.
+ */
+function VariantDetailsTable({
+  offerId,
+  variants,
+  canEditPrice = false,
+  onEditVariantPrice,
+}: {
+  offerId: string;
+  variants: CatalogVariant[];
+  canEditPrice?: boolean;
+  onEditVariantPrice?: (variant: CatalogVariant, anchor: HTMLElement) => void;
+}) {
+  const { t, language } = useLanguage();
+  const rows = variants ?? [];
+
+  // Per-variant real stock (unit count). Fetched lazily because the catalog read
+  // does not expose per-variant stock; owner-scoped, so failures fall back to "-".
+  const [stock, setStock] = useState<Record<string, number>>({});
+  const [stockLoading, setStockLoading] = useState(false);
+  const variantKey = rows.map((v) => v.variantId).join(',');
+  useEffect(() => {
+    if (rows.length === 0) return;
+    let cancelled = false;
+    setStockLoading(true);
+    Promise.all(
+      rows.map((v) =>
+        getVariantInventory(offerId, v.variantId)
+          .then((s) => [v.variantId, s.counts.barcode + s.counts.link] as const)
+          .catch(() => null),
+      ),
+    ).then((pairs) => {
+      if (cancelled) return;
+      const next: Record<string, number> = {};
+      for (const p of pairs) if (p) next[p[0]] = p[1];
+      setStock(next);
+      setStockLoading(false);
+    });
+    return () => { cancelled = true; };
+    // offerId + the variant-id list fully identify the data to fetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offerId, variantKey]);
+
+  if (rows.length === 0) return null;
+  // nexus_cost is privileged (creating tenant / platform admin only); show the
+  // column only when at least one variant actually carries it.
+  const showNexus = rows.some((v) => typeof v.nexus_cost === 'number');
+  const UNIT_KEYS = { days: 'co_validityUnitDays', months: 'co_validityUnitMonths', years: 'co_validityUnitYears' } as const;
+  const dash = '-';
+  const headCls = 'px-3 py-2 text-start font-semibold whitespace-nowrap';
+  const cellCls = 'px-3 py-2 align-top';
+  const truncCls = 'block max-w-[160px] truncate';
+  const validityText = (v: CatalogVariant) =>
+    v.voucherValidityValue && v.voucherValidityUnit
+      ? `${v.voucherValidityValue} ${t(UNIT_KEYS[v.voucherValidityUnit])}`
+      : dash;
+
+  return (
+    <div dir={language === 'he' ? 'rtl' : 'ltr'} className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+      <table className="w-full min-w-[760px] text-sm">
+        <thead className="bg-slate-50 text-xs text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
+          <tr>
+            <th className={headCls}>{t('co_variantLabel')}</th>
+            <th className={headCls}>{t('co_variantPriceLabel')}</th>
+            <th className={headCls}>
+              <span className="inline-flex items-center gap-1">{t('fi_faceValue_label')}<FieldTooltip fieldKey="faceValue" /></span>
+            </th>
+            {showNexus && (
+              <th className={headCls}>
+                <span className="inline-flex items-center gap-1">{t('fi_nexusCost_label')}<FieldTooltip fieldKey="nexusCost" /></span>
+              </th>
+            )}
+            <th className={headCls}>{t('bp_variantStock')}</th>
+            <th className={headCls}>{t('co_fieldVoucherValidity')}</th>
+            <th className={headCls}>{t('co_fieldVoucherStackable')}</th>
+            <th className={headCls}>{t('co_fieldSku')}</th>
+            <th className={headCls}>{t('co_variantTermsLabel')}</th>
+            <th className={headCls}>{t('co_variantMethodLabel')}</th>
+            <th className={headCls}>{t('co_fieldTags')}</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+          {rows.map((v, i) => {
+            const editable = canEditPrice && typeof v.nexus_cost === 'number' && typeof v.face_value === 'number';
+            const stockText = stock[v.variantId] !== undefined
+              ? String(stock[v.variantId])
+              : (stockLoading ? '…' : dash);
+            return (
+              <tr key={v.variantId} className="text-slate-700 dark:text-slate-300">
+                <td className={cn(cellCls, 'font-semibold text-slate-900 dark:text-white')}>{i + 1}</td>
+                {/* Member price - the selling price members pay; editable per variant. */}
+                <td className={cn(cellCls, 'whitespace-nowrap')}>
+                  {editable ? (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); onEditVariantPrice?.(v, e.currentTarget); }}
+                      title={t('vp_clickToEdit')}
+                      aria-label={t('vp_clickToEdit')}
+                      className="group inline-flex items-center gap-1.5 rounded-md border border-transparent px-2 py-1 font-semibold tabular-nums text-slate-900 hover:border-primary/30 hover:bg-slate-100 dark:text-white dark:hover:bg-slate-800"
+                      dir="ltr"
+                    >
+                      <svg className="h-3.5 w-3.5 text-slate-400 group-hover:text-primary" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z" />
+                      </svg>
+                      <span>{typeof v.member_price === 'number' ? `₪${v.member_price}` : dash}</span>
+                    </button>
+                  ) : (
+                    <span className="font-semibold tabular-nums text-slate-900 dark:text-white" dir="ltr">{typeof v.member_price === 'number' ? `₪${v.member_price}` : dash}</span>
+                  )}
+                </td>
+                <td className={cn(cellCls, 'tabular-nums')} dir="ltr">{typeof v.face_value === 'number' ? `₪${v.face_value}` : dash}</td>
+                {showNexus && <td className={cn(cellCls, 'tabular-nums')} dir="ltr">{typeof v.nexus_cost === 'number' ? `₪${v.nexus_cost}` : dash}</td>}
+                <td className={cn(cellCls, 'tabular-nums whitespace-nowrap')} dir="ltr">{stockText}</td>
+                <td className={cn(cellCls, 'whitespace-nowrap')}>{validityText(v)}</td>
+                <td className={cellCls}>{typeof v.voucherStackable === 'boolean' ? (v.voucherStackable ? t('co_voucherStackableYes') : t('co_voucherStackableNo')) : dash}</td>
+                <td className={cellCls} dir="ltr">{v.sku || dash}</td>
+                {/* Usage conditions + redemption method: truncated with a full-text hover tooltip. */}
+                <td className={cellCls}>
+                  {v.terms && v.terms.trim()
+                    ? <span className={truncCls} title={v.terms}>{v.terms}</span>
+                    : dash}
+                </td>
+                <td className={cellCls}>
+                  {v.implementationInstructions && v.implementationInstructions.trim()
+                    ? <span className={truncCls} title={v.implementationInstructions}>{v.implementationInstructions}</span>
+                    : dash}
+                </td>
+                <td className={cellCls}>
+                  {v.tags && v.tags.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {v.tags.map((tag) => (
+                        <span key={tag} className="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">{tag}</span>
+                      ))}
+                    </div>
+                  ) : dash}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 const BenefitsPartnerships = () => {
   const navigate = useNavigate();
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
@@ -125,6 +318,14 @@ const BenefitsPartnerships = () => {
   // Cards vs Table tab. Replaces the prior displayMode state.
   const [activeTab, setActiveTab] = useState<CatalogTab>('cards');
   const [benefitActiveStates, setBenefitActiveStates] = useState<Record<string, boolean>>({});
+  // Offer rows whose variant sub-table is expanded in the table view (by offerId).
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const toggleRow = (offerId: string) =>
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(offerId)) next.delete(offerId); else next.add(offerId);
+      return next;
+    });
 
   // ─── Real catalog API state ───────────────────────────────────────────────
 
@@ -171,6 +372,8 @@ const BenefitsPartnerships = () => {
    */
   const [pricePopover, setPricePopover] = useState<null | {
     offerId: string;
+    /** Set for per-variant pricing; omitted for legacy offer-level pricing. */
+    variantId?: string;
     faceValue: number;
     nexusCost: number;
     currentMemberPrice: number;
@@ -183,6 +386,13 @@ const BenefitsPartnerships = () => {
    * refresh re-syncs from the server.
    */
   const [priceOverrides, setPriceOverrides] = useState<Record<string, number>>({});
+
+  /**
+   * Optimistic PER-VARIANT price overrides: offerId -> (variantId -> member price).
+   * Applied to the open modal's item so the price range + variant table update in
+   * real time the moment a variant price is saved, before the catalog refetch lands.
+   */
+  const [variantPriceOverrides, setVariantPriceOverrides] = useState<Record<string, Record<string, number>>>({});
 
   /** True while /api/me is being re-fetched after a service state change. Shows loading skeleton. */
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -354,9 +564,30 @@ const BenefitsPartnerships = () => {
    * Output: boolean.
    */
   const canEditTenantPrice = (item: CatalogItem): boolean => {
+    // Both the creating tenant and any tenant that has actively adopted the offer
+    // may set their own (per-variant) member price. The backend re-checks active
+    // adoption, so this is only a UX gate.
     if (item.tenantMemberPrice !== undefined) return true;
+    if (item.isAdopted) return true;
     const myTenantId = me?.context?.tenantId;
     return !!myTenantId && item.createdByTenantId === myTenantId;
+  };
+
+  /**
+   * Opens the price slider for ONE variant. Bounds come from that variant's
+   * [nexus_cost, face_value]; saving PATCHes the per-variant tenant price. No-op
+   * when the variant lacks bounds (non-privileged caller can't see nexus_cost).
+   */
+  const openVariantPriceEditor = (item: CatalogItem, variant: CatalogVariant, anchor: HTMLElement): void => {
+    if (variant.face_value === undefined || variant.nexus_cost === undefined) return;
+    setPricePopover({
+      offerId: item.offerId,
+      variantId: variant.variantId,
+      faceValue: variant.face_value,
+      nexusCost: variant.nexus_cost,
+      currentMemberPrice: variant.member_price ?? variant.nexus_cost,
+      anchor,
+    });
   };
 
 
@@ -540,15 +771,19 @@ const BenefitsPartnerships = () => {
       // editable popover: optimistic override (from priceOverrides) wins,
       // then the per-tenant override (tenantMemberPrice) from the backend,
       // then voucher uses member_price, non-voucher prefers market_price.
+      // Multi-variant vouchers always show the per-variant member_price range
+      // (lowest-highest). The offer-level tenant override is the legacy
+      // representative (lowest) price and would otherwise hide the range.
+      if (item.executionType === 'voucher' && (item.variants?.length ?? 0) > 1) {
+        return formatVoucherCardPrice(item, item.member_price ?? 0);
+      }
       const override = priceOverrides[item.offerId];
       if (override != null) return `₪${override}`;
       if (item.tenantMemberPrice != null) return `₪${item.tenantMemberPrice}`;
       if (item.executionType === 'voucher') {
         if (item.member_price != null) {
-          // Multi-variant: member_price is the lowest variant (backend mirror),
-          // so prefix with "from" to signal the card spans several prices.
-          const multi = (item.variants?.length ?? 0) > 1;
-          return multi ? `${t('om_priceFrom')} ₪${item.member_price}` : `₪${item.member_price}`;
+          // Single variant or equal prices show the one price.
+          return formatVoucherCardPrice(item, item.member_price);
         }
         return '';
       }
@@ -611,6 +846,24 @@ const BenefitsPartnerships = () => {
     setSelectedBenefit(benefit);
     setShowBenefitModal(true);
   };
+
+  // Full CatalogItem behind the open modal - carries variants + redemptionScope
+  // that the mapped Benefit shape does not. Null when no modal is open. Any
+  // optimistic per-variant price edits are folded into the variants so the modal
+  // (hero range + variant table) reflects them instantly.
+  const selectedCatalogItem = (() => {
+    if (!selectedBenefit) return null;
+    const base = catalogItems.find((c) => c.offerId === selectedBenefit.id) ?? null;
+    if (!base) return null;
+    const overrides = variantPriceOverrides[base.offerId];
+    if (!overrides || !base.variants) return base;
+    return {
+      ...base,
+      variants: base.variants.map((v) =>
+        overrides[v.variantId] !== undefined ? { ...v, member_price: overrides[v.variantId] } : v,
+      ),
+    };
+  })();
 
   // When the catalog service is inactive, show the teaser page instead of the full catalog UI.
   // Platform admins always see the full catalog regardless of activation state.
@@ -795,24 +1048,7 @@ const BenefitsPartnerships = () => {
                             <FieldTooltip fieldKey="bpcPrice" placement="bottom" />
                           </span>
                         </th>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-primary/70 dark:text-slate-400 uppercase tracking-wider">
-                          <span className="inline-flex items-center">
-                            {language === 'he' ? 'מלאי' : 'Stock'}
-                            <FieldTooltip fieldKey="stockLimit" placement="bottom" />
-                          </span>
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-primary/70 dark:text-slate-400 uppercase tracking-wider">
-                          <span className="inline-flex items-center">
-                            {language === 'he' ? 'בתוקף מ-' : 'Valid From'}
-                            <FieldTooltip fieldKey="validFrom" placement="bottom" />
-                          </span>
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-primary/70 dark:text-slate-400 uppercase tracking-wider">
-                          <span className="inline-flex items-center">
-                            {language === 'he' ? 'בתוקף עד' : 'Valid Until'}
-                            <FieldTooltip fieldKey="validUntil" placement="bottom" />
-                          </span>
-                        </th>
+                        {/* Stock + validity columns moved to the per-variant expandable table. */}
                         <th className="px-4 py-3 text-right text-xs font-bold text-primary/70 dark:text-slate-400 uppercase tracking-wider">
                           <span className="inline-flex items-center">
                             {language === 'he' ? 'תגיות' : 'Tags'}
@@ -834,10 +1070,6 @@ const BenefitsPartnerships = () => {
                         const np = t('bp_notProvided');
                         const formatPrice = (n: number | null | undefined): string =>
                           n == null ? np : `₪${n}`;
-                        const formatDate = (d: Date | string | null | undefined): string => {
-                          if (d == null || d === '') return np;
-                          return new Date(d).toLocaleDateString(language === 'he' ? 'he-IL' : 'en-US');
-                        };
                         /* O(1) lookup from offerId back to the full CatalogItem, which
                            carries fields the local Benefit shape does not (visibility,
                            approval_status, validFrom, member_price, market_price...). */
@@ -846,7 +1078,6 @@ const BenefitsPartnerships = () => {
                           const item = itemMap.get(benefit.id);
                           if (!item) return null;
                           const editable = canEditOffer(item);
-                          const canEditPrice = canEditTenantPrice(item);
                           const categoryLabel = categories.find((c) => c.id === item.category)?.label ?? item.category;
                           const isVoucher = item.executionType === 'voucher';
                           const executionLabel = EXECUTION_TYPE_LABELS[item.executionType]
@@ -868,8 +1099,10 @@ const BenefitsPartnerships = () => {
                           const descPlain = stripHtml(item.description);
                           const tagsList = item.tags ?? [];
                           const visibility = item.visibility;
+                          const isExpanded = expandedRows.has(item.offerId);
                           return (
-                            <tr key={benefit.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                            <Fragment key={benefit.id}>
+                            <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
 
                               {/* 1. Status — toggle (tenant) or approve/deny (platform admin pending) or badge. */}
                               <td className="px-4 py-4 sticky right-0 bg-white dark:bg-slate-900 z-10 align-top">
@@ -970,17 +1203,29 @@ const BenefitsPartnerships = () => {
                                 )}
                               </td>
 
-                              {/* 3. Title. Multi-variant vouchers show a count chip
-                                  reflecting the parent/variant structure (the row
-                                  opens OfferModal, which lists the variants). */}
+                              {/* 3. Title. Multi-variant vouchers show a clickable
+                                  count chip that expands a nested per-variant table
+                                  in a row directly below this one. */}
                               <td className="px-4 py-4 align-top">
                                 <span className="block text-sm font-semibold text-slate-900 dark:text-slate-100 line-clamp-1 max-w-[200px]">
                                   {item.title}
                                 </span>
                                 {isVoucher && (item.variants?.length ?? 0) > 1 && (
-                                  <span className="mt-1 inline-block rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); toggleRow(item.offerId); }}
+                                    aria-expanded={isExpanded}
+                                    aria-label={isExpanded ? t('bp_collapseVariants') : t('bp_expandVariants')}
+                                    className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/20"
+                                  >
+                                    <svg
+                                      className={cn('h-3 w-3 transition-transform', isExpanded && 'rotate-180')}
+                                      fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" aria-hidden="true"
+                                    >
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                    </svg>
                                     {item.variants!.length} {t('co_variantsCountLabel')}
-                                  </span>
+                                  </button>
                                 )}
                               </td>
 
@@ -1025,97 +1270,23 @@ const BenefitsPartnerships = () => {
                                 </span>
                               </td>
 
-                              {/* 8. Price - member_price for vouchers, market_price otherwise.
-                                  Voucher rows the caller can edit open the slider popover. */}
-                              <td className="px-4 py-4 align-top">
-                                {isVoucher && canEditPrice && item.face_value !== undefined && item.nexus_cost !== undefined ? (
-                                  (() => {
-                                    const effectivePrice =
-                                      priceOverrides[item.offerId] ??
-                                      item.tenantMemberPrice ??
-                                      item.member_price ??
-                                      (item.nexus_cost as number);
-                                    return (
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setPricePopover({
-                                            offerId: item.offerId,
-                                            faceValue: item.face_value as number,
-                                            nexusCost: item.nexus_cost as number,
-                                            currentMemberPrice: effectivePrice,
-                                            anchor: e.currentTarget,
-                                          });
-                                        }}
-                                        title={t('vp_clickToEdit')}
-                                        aria-label={t('vp_clickToEdit')}
-                                        className="group inline-flex items-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-semibold tabular-nums text-slate-900 hover:border-primary/30 hover:bg-slate-100 dark:text-white dark:hover:bg-slate-800"
-                                      >
-                                        <svg
-                                          className="w-3.5 h-3.5 text-slate-400 group-hover:text-primary"
-                                          fill="none"
-                                          stroke="currentColor"
-                                          strokeWidth={1.75}
-                                          viewBox="0 0 24 24"
-                                          aria-hidden="true"
-                                        >
-                                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z" />
-                                        </svg>
-                                        <span>{`₪${effectivePrice}`}</span>
-                                      </button>
-                                    );
-                                  })()
-                                ) : (
-                                  <span className={cn(
-                                    'text-sm font-semibold tabular-nums whitespace-nowrap',
-                                    priceValue == null
-                                      ? 'text-slate-400 italic font-normal'
-                                      : 'text-slate-900 dark:text-slate-100',
-                                  )}>
-                                    {isVoucher && (item.variants?.length ?? 0) > 1 && item.tenantMemberPrice == null && priceValue != null
-                                      ? `${t('om_priceFrom')} ${formatPrice(priceValue)}`
-                                      : formatPrice(priceValue)}
-                                  </span>
-                                )}
-                              </td>
-
-                              {/* 9. Stock — Unlimited / available/limit / Sold out. */}
-                              <td className="px-4 py-4 align-top">
-                                {item.stockLimit == null ? (
-                                  <span className="text-sm text-slate-500 italic whitespace-nowrap">
-                                    {t('bp_unlimitedStock')}
-                                  </span>
-                                ) : item.isSoldOut ? (
-                                  <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700 dark:bg-red-900/30 dark:text-red-400 whitespace-nowrap">
-                                    {t('bp_soldOut')}
-                                  </span>
-                                ) : (
-                                  <span className="text-sm text-slate-700 dark:text-slate-300 tabular-nums whitespace-nowrap">
-                                    {item.stockAvailable} / {item.stockLimit}
-                                  </span>
-                                )}
-                              </td>
-
-                              {/* 10. Valid From. */}
+                              {/* 8. Price - READ-ONLY. Multi-variant vouchers show the
+                                  member_price range (lowest-highest); per-variant editing
+                                  lives in the expandable variant table. Non-vouchers show
+                                  market_price; a per-tenant override still wins. */}
                               <td className="px-4 py-4 align-top">
                                 <span className={cn(
-                                  'text-sm whitespace-nowrap',
-                                  item.validFrom ? 'text-slate-700 dark:text-slate-300' : 'text-slate-400 italic',
+                                  'text-sm font-semibold tabular-nums whitespace-nowrap',
+                                  priceValue == null
+                                    ? 'text-slate-400 italic font-normal'
+                                    : 'text-slate-900 dark:text-slate-100',
                                 )}>
-                                  {formatDate(item.validFrom)}
+                                  {isVoucher && (item.variants?.length ?? 0) > 1
+                                    ? formatVoucherCardPrice(item, priceValue ?? item.member_price ?? 0)
+                                    : formatPrice(priceValue)}
                                 </span>
                               </td>
-
-                              {/* 11. Valid Until. */}
-                              <td className="px-4 py-4 align-top">
-                                <span className={cn(
-                                  'text-sm whitespace-nowrap',
-                                  item.validUntil ? 'text-slate-700 dark:text-slate-300' : 'text-slate-400 italic',
-                                )}>
-                                  {formatDate(item.validUntil)}
-                                </span>
-                              </td>
+                              {/* Stock + validity columns removed - now per-variant in the expander. */}
 
                               {/* 12. Tags — first 3 chips + "+N" overflow badge. */}
                               <td className="px-4 py-4 align-top">
@@ -1167,6 +1338,20 @@ const BenefitsPartnerships = () => {
                                 )}
                               </td>
                             </tr>
+                            {/* Expanded per-variant sub-table (voucher rows only). */}
+                            {isExpanded && (item.variants?.length ?? 0) > 0 && (
+                              <tr className="bg-slate-50/60 dark:bg-slate-800/20">
+                                <td colSpan={10} className="px-4 py-4">
+                                  <VariantDetailsTable
+                                    offerId={item.offerId}
+                                    variants={item.variants!}
+                                    canEditPrice={canEditTenantPrice(item)}
+                                    onEditVariantPrice={(v, anchor) => openVariantPriceEditor(item, v, anchor)}
+                                  />
+                                </td>
+                              </tr>
+                            )}
+                            </Fragment>
                           );
                         });
                       })()}
@@ -1293,6 +1478,12 @@ const BenefitsPartnerships = () => {
                           <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mb-2">
                             {benefit.discount}
                           </div>
+                          {/* Variant count chip - voucher offers with >1 variant. */}
+                          {catalogItem?.executionType === 'voucher' && (catalogItem.variants?.length ?? 0) > 1 && (
+                            <span className="mb-1 inline-block rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                              {catalogItem.variants!.length} {t('co_variantsCountLabel')}
+                            </span>
+                          )}
                           {/* Execution type badge - bilingual, type-coloured. */}
                           {catalogItem?.executionType && (
                             <div className="mt-1">
@@ -1439,6 +1630,13 @@ const BenefitsPartnerships = () => {
                             {benefit.discount}
                           </p>
 
+                          {/* Variant count chip - voucher offers with >1 variant. */}
+                          {catalogItem?.executionType === 'voucher' && (catalogItem.variants?.length ?? 0) > 1 && (
+                            <span className="inline-block w-fit rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                              {catalogItem.variants!.length} {t('co_variantsCountLabel')}
+                            </span>
+                          )}
+
                           {/* Execution type badge - bilingual, type-coloured. */}
                           {catalogItem?.executionType && (
                             <div>
@@ -1473,16 +1671,7 @@ const BenefitsPartnerships = () => {
                             );
                           })()}
 
-                          {/* Tags */}
-                          {benefit.tags && benefit.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1">
-                              {benefit.tags.map((tag) => (
-                                <span key={tag} className="text-xs px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-full border border-slate-200 dark:border-slate-700">
-                                  {tag}
-                                </span>
-                              ))}
-                            </div>
-                          )}
+                          {/* Tags are shown per variant in the variant table, not on the card. */}
 
                           {/* Edit and Delete buttons - only for editable offers */}
                           {catalogItem && canEditOffer(catalogItem) && (
@@ -1562,13 +1751,73 @@ const BenefitsPartnerships = () => {
 
             {/* Modal Content */}
             <div className="p-6 overflow-y-auto flex-1 space-y-6">
-              {/* Discount */}
-              <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl p-6 text-center border border-emerald-100 dark:border-emerald-900/30">
-                <div className="text-4xl font-bold text-emerald-600 dark:text-emerald-400 mb-2">
-                  {selectedBenefit.discount}
+              {/* Price hero - colored by the offer's own background (image or
+                  color, parent-level), matching the card. A dark scrim keeps the
+                  white price + description legible on any image/color. The price
+                  is the member_price range (selectedBenefit.discount already
+                  resolves to "min - max" for multi-variant vouchers). */}
+              {(() => {
+                // Color-mode vouchers store the default placeholder as imageUrl,
+                // so check color first or the placeholder would mask it.
+                const heroColor = selectedCatalogItem?.executionType === 'voucher'
+                  ? selectedCatalogItem?.voucherBackgroundColor
+                  : null;
+                const heroImg = heroColor
+                  ? null
+                  : ((selectedCatalogItem?.imageUrls && selectedCatalogItem.imageUrls.length > 0)
+                      ? selectedCatalogItem.imageUrls[0]
+                      : (selectedCatalogItem?.imageUrl || selectedBenefit.backgroundImage || null));
+                return (
+                  <div className="relative overflow-hidden rounded-2xl">
+                    {heroColor ? (
+                      <div aria-hidden className="absolute inset-0" style={{ background: heroColor }} />
+                    ) : heroImg ? (
+                      <img src={heroImg} alt="" aria-hidden className="absolute inset-0 h-full w-full object-cover" />
+                    ) : (
+                      <div aria-hidden className="absolute inset-0 bg-gradient-to-br from-slate-600 to-slate-800" />
+                    )}
+                    {/* Legibility scrim (same treatment as other image-backed surfaces). */}
+                    <div aria-hidden className="absolute inset-0 bg-black/45" />
+                    <div className="relative p-6 text-center">
+                      <div className="mb-2 text-4xl font-black text-white drop-shadow-sm" dir="ltr">
+                        {selectedCatalogItem?.executionType === 'voucher'
+                          ? formatVoucherCardPrice(selectedCatalogItem, selectedCatalogItem.member_price ?? 0)
+                          : selectedBenefit.discount}
+                      </div>
+                      <RichTextDisplay
+                        html={selectedBenefit.description}
+                        className="text-white/90 [&_*]:!text-white/90 [&_a]:!text-white [&_a]:underline"
+                      />
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Variant breakdown - voucher offers with >1 variant. Lists every
+                  variant's per-variant detail (price/value/validity/SKU/tags) plus
+                  whether redemption terms are shared or per variant. */}
+              {selectedCatalogItem?.executionType === 'voucher' && (selectedCatalogItem.variants?.length ?? 0) > 1 && (
+                <div>
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                      {t('co_variantsSectionTitle')} ({selectedCatalogItem.variants!.length})
+                    </h3>
+                    {selectedCatalogItem.redemptionScope && (
+                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                        {t('co_redemptionScopeLabel')}: {selectedCatalogItem.redemptionScope === 'per_variant'
+                          ? t('co_redemptionScopePerVariant')
+                          : t('co_redemptionScopeShared')}
+                      </span>
+                    )}
+                  </div>
+                  <VariantDetailsTable
+                    offerId={selectedCatalogItem.offerId}
+                    variants={selectedCatalogItem.variants!}
+                    canEditPrice={canEditTenantPrice(selectedCatalogItem)}
+                    onEditVariantPrice={(v, anchor) => openVariantPriceEditor(selectedCatalogItem, v, anchor)}
+                  />
                 </div>
-                <RichTextDisplay html={selectedBenefit.description} className="text-slate-700 dark:text-slate-300" />
-              </div>
+              )}
 
               {/* Details */}
               <div className="space-y-4">
@@ -1596,73 +1845,22 @@ const BenefitsPartnerships = () => {
                   </div>
                 ) : null}
 
-                {selectedBenefit.terms ? (
-                  <div className="flex items-start gap-3">
-                    <span className="material-icons text-slate-400">description</span>
-                    <div>
-                      <div className="text-sm text-slate-500 dark:text-slate-400 mb-1">תנאים</div>
-                      <div className="text-slate-700 dark:text-slate-300">{selectedBenefit.terms}</div>
-                    </div>
-                  </div>
-                ) : null}
-
-                {selectedBenefit.implementationInstructions ? (
-                  <div className="flex items-start gap-3">
-                    <span className="material-icons text-slate-400">link</span>
-                    <div>
-                      <div className="text-sm text-slate-500 dark:text-slate-400 mb-1">אופן מימוש</div>
-                      <div className="text-slate-700 dark:text-slate-300">{selectedBenefit.implementationInstructions}</div>
-                    </div>
-                  </div>
-                ) : null}
+                {/* Conditions + redemption method are shown per variant in the
+                    variant table above, so the parent-level duplicates were removed. */}
               </div>
 
-              {/* Tags */}
-              {selectedBenefit.tags && selectedBenefit.tags.length > 0 && (
-                <div className="flex items-start gap-3">
-                  <span className="material-icons text-slate-400">sell</span>
-                  <div>
-                    <div className="text-sm text-slate-500 dark:text-slate-400 mb-2">תגיות</div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {selectedBenefit.tags.map((tag) => (
-                        <span key={tag} className="text-xs px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full border border-slate-200 dark:border-slate-700">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
+              {/* Tags are shown per variant in the variant table, not at the offer level. */}
 
             </div>
 
-            {/* Modal Footer */}
-            <div className="flex items-center gap-3 p-6 border-t border-slate-100 dark:border-slate-800">
+            {/* Modal Footer - Close only (the "Go to site" action was removed). */}
+            <div className="flex items-center p-6 border-t border-slate-100 dark:border-slate-800">
               <button
                 onClick={() => setShowBenefitModal(false)}
                 className="flex-1 px-6 py-3 border-2 border-slate-200 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-600 text-slate-700 dark:text-slate-300 font-semibold rounded-full transition-all"
               >
                 סגור
               </button>
-              {selectedBenefit.implementationLink ? (
-                <a
-                  href={selectedBenefit.implementationLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 px-6 py-3 bg-black dark:bg-white text-white dark:text-black font-bold rounded-full hover:opacity-90 transition-all flex items-center justify-center gap-2"
-                >
-                  <span className="material-icons text-base">open_in_new</span>
-                  עבור לאתר
-                </a>
-              ) : (
-                <button
-                  disabled
-                  className="flex-1 px-6 py-3 bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 font-bold rounded-full cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  <span className="material-icons text-base">open_in_new</span>
-                  עבור לאתר
-                </button>
-              )}
             </div>
           </div>
         </div>
@@ -1705,12 +1903,24 @@ const BenefitsPartnerships = () => {
       {pricePopover && (
         <VoucherPricePopover
           offerId={pricePopover.offerId}
+          variantId={pricePopover.variantId}
           faceValue={pricePopover.faceValue}
           nexusCost={pricePopover.nexusCost}
           currentMemberPrice={pricePopover.currentMemberPrice}
           anchor={pricePopover.anchor}
           onSaved={(newPrice) => {
-            setPriceOverrides((prev) => ({ ...prev, [pricePopover.offerId]: newPrice }));
+            // Optimistically reflect the new price right away (the modal range +
+            // variant table read these), then refetch so the rest of the catalog
+            // re-syncs. Per-variant edits use the per-variant override map.
+            if (pricePopover.variantId) {
+              const vId = pricePopover.variantId;
+              setVariantPriceOverrides((prev) => ({
+                ...prev,
+                [pricePopover.offerId]: { ...(prev[pricePopover.offerId] ?? {}), [vId]: newPrice },
+              }));
+            } else {
+              setPriceOverrides((prev) => ({ ...prev, [pricePopover.offerId]: newPrice }));
+            }
             void loadCatalog();
           }}
           onClose={() => setPricePopover(null)}

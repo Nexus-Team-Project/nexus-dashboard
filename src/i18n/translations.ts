@@ -1247,6 +1247,11 @@ export const translations = {
     bp_unlimitedStock: 'Unlimited',
     bp_soldOut: 'Sold out',
     bp_visibilityEcosystem: 'Ecosystem',
+    bp_expandVariants: 'Show variants',
+    bp_collapseVariants: 'Hide variants',
+    bp_expandUsage: 'Show usage & conditions',
+    bp_collapseUsage: 'Hide usage & conditions',
+    bp_variantStock: 'Stock',
     bp_visibilityTenant: 'Tenant only',
     bp_imageMissingAlt: 'No image',
 
@@ -2526,6 +2531,11 @@ export const translations = {
     bp_unlimitedStock: 'ללא הגבלה',
     bp_soldOut: 'אין המלאי',
     bp_visibilityEcosystem: 'אקוסיסטם',
+    bp_expandVariants: 'הצג וריאנטים',
+    bp_collapseVariants: 'הסתר וריאנטים',
+    bp_expandUsage: 'הצג תנאים ואופן מימוש',
+    bp_collapseUsage: 'הסתר תנאים ואופן מימוש',
+    bp_variantStock: 'מלאי',
     bp_visibilityTenant: 'פרטי לארגון',
     bp_imageMissingAlt: 'ללא תמונה',
 
