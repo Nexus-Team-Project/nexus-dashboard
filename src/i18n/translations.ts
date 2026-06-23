@@ -1019,6 +1019,7 @@ export const translations = {
     // BenefitsPartnerships top bar + filter panel (Transactions/Users-style redesign)
     bp_tabCards: 'Cards',
     bp_tabTable: 'Table',
+    bp_offerTypeAll: 'All',
     bp_filterPanelTitle: 'Filter offers',
     bp_filterSearchLabel: 'Search',
     bp_filterSearchPlaceholder: 'Title, business, description...',
@@ -2302,6 +2303,7 @@ export const translations = {
     // BenefitsPartnerships top bar + filter panel (Transactions/Users-style redesign)
     bp_tabCards: 'כרטיסים',
     bp_tabTable: 'טבלה',
+    bp_offerTypeAll: 'הכל',
     bp_filterPanelTitle: 'סינון הצעות',
     bp_filterSearchLabel: 'חיפוש',
     bp_filterSearchPlaceholder: 'כותרת, עסק, תיאור...',
