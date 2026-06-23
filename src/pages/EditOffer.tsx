@@ -102,7 +102,9 @@ const EditOffer = () => {
         setTags(detail.tags ?? []);
         // Map stored variants into editable drafts (one default variant for
         // migrated/legacy vouchers). Inventory is appended via the popup per variant.
-        setVariants((detail.variants ?? []).map(variantToDraft));
+        // Pass the parent shared terms/method so a variant whose (read-filled) text
+        // equals the shared text loads as "inherited", not as a custom override.
+        setVariants((detail.variants ?? []).map((v) => variantToDraft(v, detail.terms, detail.implementationInstructions)));
         // Background: a color-mode voucher stores the default placeholder as its
         // imageUrl, so when a color is set we treat it as color mode with an EMPTY
         // gallery (the placeholder is not a real chosen image). This both shows the
@@ -151,14 +153,16 @@ const EditOffer = () => {
     }
   };
 
-  /** Edit-page inventory loader for the variants manager (existing links + kind). */
+  /** Edit-page inventory loader for the variants manager (existing barcodes +
+   *  links + the locked kind), so the popup re-shows the stored inventory. */
   const loadExistingInventory = async (variantId: string) => {
-    if (!offerId) return { links: [], lockedKind: null as 'barcode' | 'link' | null };
+    if (!offerId) return { barcodes: [], links: [], lockedKind: null as 'barcode' | 'link' | null };
     const inv = await getVariantInventory(offerId, variantId);
     return {
+      barcodes: inv.barcodes,
       links: inv.links,
       lockedKind: inv.counts.barcode > 0 ? 'barcode' : inv.counts.link > 0 ? 'link' : null,
-    } as { links: string[]; lockedKind: 'barcode' | 'link' | null };
+    } as { barcodes: string[]; links: string[]; lockedKind: 'barcode' | 'link' | null };
   };
 
   const validate = (): boolean => {

@@ -33,7 +33,7 @@ interface VariantsManagerProps {
    * pre-fills its links and locks to the kind already in use. Omitted on Create
    * (a new variant has no backend inventory yet).
    */
-  loadExistingInventory?: (variantId: string) => Promise<{ links: string[]; lockedKind: 'barcode' | 'link' | null }>;
+  loadExistingInventory?: (variantId: string) => Promise<{ barcodes: string[]; links: string[]; lockedKind: 'barcode' | 'link' | null }>;
   isSubmitting?: boolean;
 }
 
@@ -69,7 +69,11 @@ export default function VariantsManager({
     } else {
       try {
         const inv = await loadExistingInventory(draft.variantId);
-        setPrefill({ initialLinks: inv.links.map((url) => ({ url })), lockedKind: inv.lockedKind });
+        setPrefill({
+          initialBarcodes: inv.barcodes,
+          initialLinks: inv.links.map((url) => ({ url })),
+          lockedKind: inv.lockedKind,
+        });
       } catch { setPrefill({ lockedKind: null }); }
     }
     setShowInventory(true);

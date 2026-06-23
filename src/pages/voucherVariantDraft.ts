@@ -71,8 +71,22 @@ export function emptyDraftVariant(): DraftVariant {
   };
 }
 
-/** Maps a stored CatalogVariant (edit load) into an editable draft. */
-export function variantToDraft(v: CatalogVariant): DraftVariant {
+/**
+ * Maps a stored CatalogVariant (edit load) into an editable draft.
+ *
+ * The catalog read surfaces the shared (parent) redemption text on every variant,
+ * so a variant only counts as a CUSTOM override when its text differs from the
+ * shared text. Pass the parent's terms/method so an inherited variant is not
+ * misread as custom (which would otherwise round-trip the shared text into it).
+ */
+export function variantToDraft(v: CatalogVariant, parentTerms?: string, parentMethod?: string): DraftVariant {
+  const ownTerms = (v.terms ?? '').trim();
+  const ownMethod = (v.implementationInstructions ?? '').trim();
+  const sharedTerms = (parentTerms ?? '').trim();
+  const sharedMethod = (parentMethod ?? '').trim();
+  const custom =
+    (ownTerms !== '' && ownTerms !== sharedTerms) ||
+    (ownMethod !== '' && ownMethod !== sharedMethod);
   return {
     localId: nextLocalId(),
     variantId: v.variantId,
@@ -83,11 +97,12 @@ export function variantToDraft(v: CatalogVariant): DraftVariant {
     stackable: v.voucherStackable === true ? 'yes' : v.voucherStackable === false ? 'no' : '',
     sku: v.sku ?? '',
     tags: v.tags ?? [],
-    // A stored variant that carries its own terms/method is a custom override;
-    // otherwise it inherits the parent's shared text.
-    customRedemption: !!((v.terms && v.terms.trim()) || (v.implementationInstructions && v.implementationInstructions.trim())),
-    terms: v.terms ?? '',
-    implementationInstructions: v.implementationInstructions ?? '',
+    // Custom only when the variant's text differs from the shared text; an
+    // inherited variant keeps an empty draft so the builder's checkbox is off
+    // and draftToPayload omits terms (storage stays normalized).
+    customRedemption: custom,
+    terms: custom ? (v.terms ?? '') : '',
+    implementationInstructions: custom ? (v.implementationInstructions ?? '') : '',
     // Inventory is loaded separately per variant (links pre-fill); start "made"
     // so an unchanged edit is publishable, matching the create-page gate.
     inventory: null,
