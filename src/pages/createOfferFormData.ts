@@ -39,8 +39,6 @@ export interface CreateOfferValues {
   tags: string[];
   /** Voucher variants (voucher executionType only). */
   variants: DraftVariant[];
-  /** Whether redemption terms/method are shared or per-variant (voucher only). */
-  redemptionScope: 'shared' | 'per_variant';
 }
 
 export function buildCreateOfferFormData(v: CreateOfferValues): FormData {
@@ -55,18 +53,17 @@ export function buildCreateOfferFormData(v: CreateOfferValues): FormData {
 
   if (v.executionType === 'voucher') {
     // Voucher: price/validity/stackable/SKU/tags are per VARIANT. Send the
-    // variants array + the redemption scope; the backend mirrors the
-    // representative variant onto the offer's flat fields.
-    const perVariant = v.redemptionScope === 'per_variant';
-    fd.append('redemptionScope', v.redemptionScope);
-    fd.append('variants', JSON.stringify(v.variants.map((d) => draftToPayload(d, perVariant))));
+    // variants array; the backend mirrors the representative variant onto the
+    // offer's flat fields. redemptionScope reflects whether any variant overrides
+    // the shared text (vestigial but kept accurate).
+    const perVariant = v.variants.some((d) => d.customRedemption);
+    fd.append('redemptionScope', perVariant ? 'per_variant' : 'shared');
+    fd.append('variants', JSON.stringify(v.variants.map((d) => draftToPayload(d))));
     if (v.bgMode === 'color' && v.voucherBackgroundColor) fd.append('voucherBackgroundColor', v.voucherBackgroundColor);
-    // Shared scope: redemption terms + method live on the parent. Per-variant
-    // scope: they travel inside each variant payload, so skip them here.
-    if (!perVariant) {
-      if (v.terms.trim()) fd.append('terms', v.terms.trim());
-      if (v.implementationInstructions.trim()) fd.append('implementationInstructions', v.implementationInstructions.trim());
-    }
+    // The shared redemption terms + method always live on the parent; a variant
+    // that overrides them carries its own copy inside its variant payload.
+    if (v.terms.trim()) fd.append('terms', v.terms.trim());
+    if (v.implementationInstructions.trim()) fd.append('implementationInstructions', v.implementationInstructions.trim());
   } else {
     if (v.stockLimit && Number(v.stockLimit) > 0) fd.append('stockLimit', v.stockLimit);
     if (v.implementationLink.trim()) fd.append('implementationLink', v.implementationLink.trim());

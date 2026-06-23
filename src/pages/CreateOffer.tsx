@@ -27,7 +27,6 @@ import VoucherRedemptionScopeCard from '../components/offer/VoucherRedemptionSco
 import PublishConfirmModal from '../components/offer/PublishConfirmModal';
 import CreationModeTabs, { type CreateMode } from '../components/offer/CreationModeTabs';
 import VoucherCsvBulk from '../components/offer/VoucherCsvBulk';
-import { type RedemptionScope } from '../components/offer/RedemptionScopeToggle';
 import { type DraftVariant } from './voucherVariantDraft';
 import { buildCreateOfferFormData, validateCreateOffer, type CreateOfferValues } from './createOfferFormData';
 
@@ -75,7 +74,6 @@ const CreateOffer = () => {
   // Voucher variants: at least one is required to publish. `variantEditing` is
   // true while a variant draft is open (blocks publish until saved/cancelled).
   const [variants, setVariants] = useState<DraftVariant[]>([]);
-  const [redemptionScope, setRedemptionScope] = useState<RedemptionScope>('shared');
   const [variantEditing, setVariantEditing] = useState(false);
   const [showPublishConfirm, setShowPublishConfirm] = useState(false);
   const [mode, setMode] = useState<CreateMode>('manual');
@@ -112,7 +110,7 @@ const CreateOffer = () => {
     executionType, stockLimit, faceValue, nexusCost, gallery, implementationLink,
     implementationInstructions, voucherValidityValue, voucherValidityUnit,
     voucherStackable, bgMode, voucherBackgroundColor, sku, validFrom, validUntil,
-    terms, tags, variants, redemptionScope,
+    terms, tags, variants,
   });
 
   const validate = (): boolean => {
@@ -223,14 +221,13 @@ const CreateOffer = () => {
       {isVoucher ? (
         <>
           <VoucherRedemptionScopeCard
-            scope={redemptionScope} setScope={setRedemptionScope}
             terms={terms} setTerms={setTerms}
             method={implementationInstructions} setMethod={setImplementationInstructions}
             isSubmitting={isSubmitting}
           />
           <VariantsManager
             variants={variants} setVariants={setVariants}
-            perVariant={redemptionScope === 'per_variant'}
+            sharedTerms={terms} sharedMethod={implementationInstructions}
             onEditingChange={setVariantEditing}
             isSubmitting={isSubmitting}
           />

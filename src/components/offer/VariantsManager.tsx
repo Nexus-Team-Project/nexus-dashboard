@@ -23,8 +23,9 @@ import {
 interface VariantsManagerProps {
   variants: DraftVariant[];
   setVariants: React.Dispatch<React.SetStateAction<DraftVariant[]>>;
-  /** True when redemption terms/method are authored per variant. */
-  perVariant: boolean;
+  /** Shared redemption terms/method - seed a variant's override when enabled. */
+  sharedTerms: string;
+  sharedMethod: string;
   /** Reports whether a draft is currently open (parent uses it to gate Publish). */
   onEditingChange?: (editing: boolean) => void;
   /**
@@ -45,7 +46,7 @@ interface InventoryPrefill {
 
 /** Renders the Create-Variant button, the builder, the saved list, and the inventory popup. */
 export default function VariantsManager({
-  variants, setVariants, perVariant, onEditingChange, loadExistingInventory, isSubmitting = false,
+  variants, setVariants, sharedTerms, sharedMethod, onEditingChange, loadExistingInventory, isSubmitting = false,
 }: VariantsManagerProps) {
   const { t, language } = useLanguage();
   const [draft, setDraft] = useState<DraftVariant | null>(null);
@@ -87,7 +88,7 @@ export default function VariantsManager({
     const err = validateVariantDraft(draft, t, language);
     if (err) { setBuilderError(err); return; }
     if (!draft.inventoryChoiceMade) { setBuilderError(t('co_invRequiredHint')); return; }
-    if (isDuplicateVariant(draft, variants, perVariant)) { setBuilderError(t('co_variantDuplicate')); return; }
+    if (isDuplicateVariant(draft, variants)) { setBuilderError(t('co_variantDuplicate')); return; }
     setVariants((prev) => {
       const idx = prev.findIndex((v) => v.localId === draft.localId);
       if (idx === -1) return [...prev, draft];
@@ -123,7 +124,8 @@ export default function VariantsManager({
           <VariantBuilder
             draft={draft}
             onChange={patchDraft}
-            perVariant={perVariant}
+            sharedTerms={sharedTerms}
+            sharedMethod={sharedMethod}
             onOpenInventory={() => { void openInventory(); }}
             onSave={saveDraft}
             onCancel={cancelDraft}
