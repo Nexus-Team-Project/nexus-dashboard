@@ -1007,6 +1007,7 @@ export const translations = {
     om_voucherStackableNo: 'No',
     om_skuLabel: 'SKU',
     om_termsTitle: 'Terms & conditions',
+    om_variantUsageTitle: 'Usage & terms',
     om_redemptionInstructions: 'How to redeem',
     om_redemptionLink: 'Open redemption link',
     om_tagsTitle: 'Tags',
@@ -1210,8 +1211,8 @@ export const translations = {
 
     // ── Product Catalog page header tooltip ──
     fi_productCatalogPage_label: 'Product Catalog',
-    fi_productCatalogPage_short: 'The offers you picked for your members.',
-    fi_productCatalogPage_detail: 'This page shows all the offers your tenant has added to its catalog. Members see these offers and can use them. Click an offer to see its full details. Use "Remove" to stop showing an offer to members. To add more offers go to Benefits & Partnerships.',
+    fi_productCatalogPage_short: 'Only the offers your organization created (uploaded), not offers adopted from the ecosystem.',
+    fi_productCatalogPage_detail: 'This page shows only the offers your organization itself created and uploaded (by an admin/owner or anyone with upload permission). Offers your org adopted from the ecosystem do NOT appear here - manage those in Benefits & Partnerships. Click an offer to see its full details. Use "Remove" to take one down.',
     fi_productCatalogPage_example: 'You added 3 food offers and 2 gym offers. This page lists those 5 offers.',
 
     // ── images (multi-image gallery on Create / Edit Offer) ──
@@ -2292,6 +2293,7 @@ export const translations = {
     om_voucherStackableNo: 'לא',
     om_skuLabel: 'מק"ט',
     om_termsTitle: 'תקנון ותנאים',
+    om_variantUsageTitle: 'מימוש ותנאים',
     om_redemptionInstructions: 'אופן המימוש',
     om_redemptionLink: 'פתח קישור למימוש',
     om_tagsTitle: 'תגיות',
@@ -2496,8 +2498,8 @@ export const translations = {
 
     // ── טיפ לכותרת דף קטלוג מוצרים ──
     fi_productCatalogPage_label: 'קטלוג מוצרים',
-    fi_productCatalogPage_short: 'ההצעות שבחרת להציג לחברים שלך.',
-    fi_productCatalogPage_detail: 'הדף הזה מציג את כל ההצעות שהוספת לקטלוג של הארגון. החברים שלך רואים ויכולים להשתמש בהצעות האלה. לחץ על הצעה כדי לראות את כל הפרטים. השתמש ב"הסר" כדי להפסיק להציג הצעה. כדי להוסיף עוד הצעות, היכנס ל"הטבות ושיתופי פעולה".',
+    fi_productCatalogPage_short: 'רק ההצעות שהארגון שלך יצר (העלה), ולא הצעות שאומצו מהאקוסיסטם.',
+    fi_productCatalogPage_detail: 'הדף הזה מציג רק את ההצעות שהארגון שלך עצמו יצר והעלה (מנהל/בעלים או כל מי שיש לו הרשאת העלאה). הצעות שהארגון אימץ מהאקוסיסטם אינן מופיעות כאן - נהל אותן ב"הטבות ושיתופי פעולה". לחץ על הצעה כדי לראות את כל הפרטים. השתמש ב"הסר" כדי להוריד הצעה.',
     fi_productCatalogPage_example: 'הוספת 3 הצעות אוכל ו-2 הצעות חדר כושר. הדף הזה מציג את 5 ההצעות.',
 
     // ── גלריית תמונות מרובת תמונות (Create / Edit Offer) ──

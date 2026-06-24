@@ -39,6 +39,7 @@ import { countActiveCatalogFilters } from '../components/catalog/catalogFilters'
 import VoucherPricePopover from '../components/catalog/VoucherPricePopover';
 import OfferTypeBadge from '../components/catalog/OfferTypeBadge';
 import VoucherColorTile from '../components/offer/VoucherColorTile';
+import { formatVoucherCardPrice } from '../lib/voucherPricing';
 
 interface Benefit {
   id: string;
@@ -119,37 +120,8 @@ function toBenefitType(executionType?: string): Benefit['benefitType'] {
   return 'amount';
 }
 
-/**
- * Computes the member-price span across a voucher offer's variants.
- * Input: a CatalogItem.
- * Output: { count, min, max } over the variants that carry a numeric
- * member_price, or null when the offer has no priced variants. Used to render
- * the card/table price range and the variant-count chips.
- */
-function variantMemberPriceRange(item: CatalogItem): { count: number; min: number; max: number } | null {
-  const variants = item.variants ?? [];
-  const prices = variants.map((v) => v.member_price).filter((n): n is number => typeof n === 'number');
-  if (prices.length === 0) return null;
-  return { count: variants.length, min: Math.min(...prices), max: Math.max(...prices) };
-}
-
-/**
- * Formats a voucher's member-facing price for the card/table face.
- * Multi-variant offers with differing prices render an isolated "min - max"
- * range (LRI/PDI wrapped so the hyphenated number pair never reorders in RTL);
- * a single variant or equal prices render the single fallback price. face_value
- * is never used here - only member_price is the selling price.
- * Input: the CatalogItem + the single price to show when there is no range.
- * Output: a display string (already bidi-isolated where needed).
- */
-function formatVoucherCardPrice(item: CatalogItem, singlePrice: number): string {
-  const range = variantMemberPriceRange(item);
-  if (range && range.count > 1 && range.min !== range.max) {
-    // U+2066 LRI ... U+2069 PDI keeps the "min - max" pair left-to-right in RTL.
-    return `${String.fromCharCode(0x2066)}₪${range.min} - ₪${range.max}${String.fromCharCode(0x2069)}`;
-  }
-  return `₪${singlePrice}`;
-}
+// Voucher price-range formatting is shared with ProductCatalog + OfferModal -
+// see src/lib/voucherPricing.ts (formatVoucherCardPrice / variantMemberPriceRange).
 
 /**
  * VariantDetailsTable: a compact, RTL-safe nested table - one row per voucher

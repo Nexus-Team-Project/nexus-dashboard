@@ -21,6 +21,7 @@ import RichTextDisplay from '../components/RichTextDisplay';
 import OfferModal from '../components/catalog/OfferModal';
 import FieldTooltip from '../components/FieldTooltip';
 import VoucherColorTile from '../components/offer/VoucherColorTile';
+import { formatVoucherCardPrice, variantMemberPriceRange } from '../lib/voucherPricing';
 
 // ----------------------------------------------------------------
 // Types
@@ -116,18 +117,20 @@ const ProductCatalog = () => {
   // ----------------------------------------------------------------
 
   /**
-   * Fetches all platform offers and retains only adopted ones.
-   * Sets isLoading while in-flight and records any error message.
+   * Fetches the offers THIS org created (uploaded), not adopted ecosystem
+   * offers. Server-side `ownedOnly` filter (createdByTenantId === tenant), so
+   * pagination counts only the org's own offers. Sets isLoading while in-flight
+   * and records any error message.
    */
   const loadAdoptedOffers = useCallback(async () => {
     setIsLoading(true);
     setFetchError(null);
     try {
-      // Server-side filter to adopted offers only — the page is capped at 100
-      // (backend hard limit). Tenants with more than 100 adopted offers will
-      // not see the overflow here; if that becomes a real case we switch to a
-      // pagination loop. Single page keeps this page simple for now.
-      const page = await getPlatformOffers({ page: 1, limit: 100, adoptionStatus: 'adopted' });
+      // Server-side filter to the org's own uploaded offers only — the page is
+      // capped at 100 (backend hard limit). Orgs with more than 100 of their own
+      // offers will not see the overflow here; if that becomes a real case we
+      // switch to a pagination loop. Single page keeps this page simple for now.
+      const page = await getPlatformOffers({ page: 1, limit: 100, ownedOnly: true });
       setItems(page.items);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load catalog';
@@ -241,14 +244,7 @@ const ProductCatalog = () => {
               </span>
             </div>
           )}
-          {/* Combine-with-promotions (כפל מבצעים) badge — voucher + combinable only. */}
-          {item.executionType === 'voucher' && item.voucherStackable === true && (
-            <span
-              className="pointer-events-none absolute top-2 start-2 inline-flex items-center rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-medium text-white"
-            >
-              {t('badge_combinable')}
-            </span>
-          )}
+          {/* Combine-with-promotions is a per-variant setting now, so no offer-level badge here. */}
         </div>
 
         {/* Card body */}
@@ -266,6 +262,12 @@ const ProductCatalog = () => {
                 <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-100 px-2 py-0.5 text-xs text-indigo-700 whitespace-nowrap">
                   {EXECUTION_TYPE_LABELS[item.executionType].icon}{' '}
                   {language === 'he' ? EXECUTION_TYPE_LABELS[item.executionType].labelHe : EXECUTION_TYPE_LABELS[item.executionType].label}
+                </span>
+              )}
+              {/* Variant count - voucher offers with more than one variant. */}
+              {item.executionType === 'voucher' && (item.variants?.length ?? 0) > 1 && (
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary whitespace-nowrap">
+                  {item.variants!.length} {t('co_variantsCountLabel')}
                 </span>
               )}
               {/* Voucher stock badge: out-of-stock when no inventory, else the
@@ -310,17 +312,23 @@ const ProductCatalog = () => {
                 // on adopted-offer cards. Vouchers prefer member_price; only
                 // fall back to face_value when no selling price is set, never
                 // as a normal display price.
+                const isVoucher = item.executionType === 'voucher';
                 const price = item.tenantMemberPrice
-                  ?? (item.executionType === 'voucher'
+                  ?? (isVoucher
                         ? (item.member_price ?? item.face_value)
                         : (item.market_price ?? item.member_price ?? item.face_value));
                 if (price === undefined) return null;
+                // Multi-variant vouchers show the member_price range (lowest -
+                // highest), matching the benefits cards. A range has no single
+                // face_value to strike through.
+                const range = isVoucher ? variantMemberPriceRange(item) : null;
+                const isRange = !!(range && range.count > 1 && range.min !== range.max);
                 return (
                   <>
-                    <span className="text-base font-bold text-slate-950">
-                      &#8362;{price}
+                    <span className="text-base font-bold text-slate-950" dir="ltr">
+                      {isVoucher ? formatVoucherCardPrice(item, price) : `₪${price}`}
                     </span>
-                    {item.face_value !== undefined && item.face_value !== price && (
+                    {!isRange && item.face_value !== undefined && item.face_value !== price && (
                       <span className="text-xs text-slate-400 line-through">
                         &#8362;{item.face_value}
                       </span>
