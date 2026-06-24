@@ -25,7 +25,7 @@ import type { OfferInventoryInput } from '../../lib/api';
 import CodePreviewModal from './CodePreviewModal';
 import {
   INVENTORY_MAX, isHttpUrl, isSafeCode, splitPastedBarcodes, parsePastedLinkRows, buildLinkExample,
-  type LinkRow,
+  findDuplicateCodes, findDuplicateUrls, type LinkRow,
 } from './voucherInventoryPaste';
 
 type Tab = 'links' | 'barcodes';
@@ -73,6 +73,12 @@ export default function VoucherInventoryModal({ busy = false, initialBarcodes, i
   // Links have no preview; when duplicates are combined we show a notice and
   // require a second Insert click to confirm. Reset (in the link mutators) on edit.
   const [linkDup, setLinkDup] = useState<{ removed: number; unique: number } | null>(null);
+  // Codes reused across DIFFERENT links - a hard error (no upload). The set holds
+  // the offending trimmed codes; rows carrying one get a red border (see render).
+  const [dupCodes, setDupCodes] = useState<Set<string>>(new Set());
+  // Links repeated on more than one row (combined into one on confirm); the
+  // duplicated url inputs get a red border so the admin sees which rows merge.
+  const [dupUrls, setDupUrls] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -106,12 +112,13 @@ export default function VoucherInventoryModal({ busy = false, initialBarcodes, i
     return true;
   };
 
-  // ── Link rows ── (each edit clears a pending duplicate notice) ──────────────
-  const setLinkUrl = (i: number, url: string) => { setLinkDup(null); setLinkRows((p) => withTrailingLink(p.map((r, idx) => (idx === i ? { ...r, url } : r)))); };
-  const setLinkCode = (i: number, code: string) => { setLinkDup(null); setLinkRows((p) => p.map((r, idx) => (idx === i ? { ...r, code } : r))); };
-  const removeLinkAt = (i: number) => { setLinkDup(null); setLinkRows((p) => (p.length <= 1 ? p : p.filter((_, idx) => idx !== i))); };
+  // ── Link rows ── (each edit clears a pending duplicate notice + code errors) ──
+  const clearLinkNotices = () => { setLinkDup(null); setDupCodes(new Set()); setDupUrls(new Set()); setError(null); };
+  const setLinkUrl = (i: number, url: string) => { clearLinkNotices(); setLinkRows((p) => withTrailingLink(p.map((r, idx) => (idx === i ? { ...r, url } : r)))); };
+  const setLinkCode = (i: number, code: string) => { clearLinkNotices(); setLinkRows((p) => p.map((r, idx) => (idx === i ? { ...r, code } : r))); };
+  const removeLinkAt = (i: number) => { clearLinkNotices(); setLinkRows((p) => (p.length <= 1 ? p : p.filter((_, idx) => idx !== i))); };
   const pasteLinks = (text: string): boolean => {
-    setLinkDup(null);
+    clearLinkNotices();
     const parsed = parsePastedLinkRows(text);
     if (parsed.length === 0) return false;
     if (parsed.length === 1 && !parsed[0].code) return false; // single bare url → normal paste
@@ -134,15 +141,26 @@ export default function VoucherInventoryModal({ busy = false, initialBarcodes, i
   };
   const finishLinks = () => {
     setError(null);
+    setDupCodes(new Set());
+    setDupUrls(new Set());
     if (filledLinks.length === 0) { setError(t('vi_errLinksEmpty')); return; }
     if (filledLinks.some((r) => !isHttpUrl(r.url))) { setError(t('vi_errLinksInvalid')); return; }
     if (filledLinks.some((r) => !isSafeCode(r.code))) { setError(t('vi_errCodeInvalid')); return; }
     // Combine duplicate URLs into one (first row wins, keeping its code).
     const seen = new Set<string>();
     const uniqueRows = filledLinks.filter((r) => { const u = r.url.trim(); if (seen.has(u)) return false; seen.add(u); return true; });
+    // A code may not be shared across DIFFERENT links - that is a hard error,
+    // never an upload. Flag the offending codes (red border) and name them.
+    const conflicts = findDuplicateCodes(uniqueRows);
+    if (conflicts.size > 0) {
+      setDupCodes(conflicts);
+      setError(t('vi_errCodeDup').replace('{codes}', Array.from(conflicts).join(', ')));
+      return;
+    }
     const removed = filledLinks.length - uniqueRows.length;
-    // First click with duplicates: show the count and wait for a confirming click.
-    if (removed > 0 && !linkDup) { setLinkDup({ removed, unique: uniqueRows.length }); return; }
+    // First click with duplicates: flag the repeated link rows (red border), show
+    // the count, and wait for a confirming click to combine them.
+    if (removed > 0 && !linkDup) { setDupUrls(findDuplicateUrls(filledLinks)); setLinkDup({ removed, unique: uniqueRows.length }); return; }
     onConfirm({ kind: 'link', links: uniqueRows.map((r) => ({ url: r.url.trim(), ...(r.code.trim() ? { code: r.code.trim() } : {}) })) });
   };
 
@@ -237,9 +255,15 @@ export default function VoucherInventoryModal({ busy = false, initialBarcodes, i
                   <div key={i} className="flex gap-2" dir="ltr">
                     <input type="url" value={row.url} onChange={(e) => setLinkUrl(i, e.target.value)}
                       onPaste={(e) => { if (pasteLinks(e.clipboardData.getData('text'))) e.preventDefault(); }}
-                      placeholder="https://..." disabled={busy} className={inputCls} />
+                      placeholder="https://..." disabled={busy}
+                      aria-invalid={row.url.trim() !== '' && dupUrls.has(row.url.trim())}
+                      className={cn(inputCls,
+                        row.url.trim() !== '' && dupUrls.has(row.url.trim()) && 'border-red-500 focus:border-red-500 dark:border-red-500')} />
                     <input value={row.code} onChange={(e) => setLinkCode(i, e.target.value)}
-                      placeholder={t('vi_linkCodePlaceholder')} disabled={busy} className={cn(inputCls, 'max-w-[40%]')} />
+                      placeholder={t('vi_linkCodePlaceholder')} disabled={busy}
+                      aria-invalid={row.code.trim() !== '' && dupCodes.has(row.code.trim())}
+                      className={cn(inputCls, 'max-w-[40%]',
+                        row.code.trim() !== '' && dupCodes.has(row.code.trim()) && 'border-red-500 focus:border-red-500 dark:border-red-500')} />
                     {linkRows.length > 1 && (
                       <button type="button" onClick={() => removeLinkAt(i)} disabled={busy} aria-label={t('vi_removeLink')}
                         className="shrink-0 rounded-lg border border-slate-200 px-3 text-slate-400 hover:text-red-500 dark:border-slate-700">&times;</button>
