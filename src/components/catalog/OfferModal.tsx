@@ -15,6 +15,7 @@ import type { CatalogItem } from '../../lib/api';
 import OfferImageCarousel from './OfferImageCarousel';
 import RichTextDisplay from '../RichTextDisplay';
 import ImageLightbox from '../ImageLightbox';
+import { variantValidityText } from '../../lib/voucherValidity';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -242,11 +243,10 @@ function OfferDetails({ offer }: { offer: CatalogItem }) {
  * than one variant; single-variant offers show their details inline in OfferDetails.
  */
 function VariantsSummary({ offer }: { offer: CatalogItem }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const variants = offer.variants ?? [];
   if (offer.executionType !== 'voucher' || variants.length <= 1) return null;
 
-  const UNIT_KEYS = { days: 'co_validityUnitDays', months: 'co_validityUnitMonths', years: 'co_validityUnitYears' } as const;
   const chip = 'rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[11px] text-white/70';
 
   return (
@@ -256,9 +256,7 @@ function VariantsSummary({ offer }: { offer: CatalogItem }) {
       </p>
       <ul className="mt-3 space-y-2.5">
         {variants.map((v, i) => {
-          const validity = v.voucherValidityValue && v.voucherValidityUnit
-            ? `${v.voucherValidityValue} ${t(UNIT_KEYS[v.voucherValidityUnit])}`
-            : '';
+          const validity = variantValidityText(v, t, language);
           const method = (v.implementationInstructions ?? '').trim();
           const terms = (v.terms ?? '').trim();
           const tags = (v.tags ?? []).filter(Boolean);

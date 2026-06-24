@@ -40,6 +40,7 @@ import VoucherPricePopover from '../components/catalog/VoucherPricePopover';
 import OfferTypeBadge from '../components/catalog/OfferTypeBadge';
 import VoucherColorTile from '../components/offer/VoucherColorTile';
 import { formatVoucherCardPrice } from '../lib/voucherPricing';
+import { variantValidityText } from '../lib/voucherValidity';
 
 interface Benefit {
   id: string;
@@ -184,15 +185,12 @@ function VariantDetailsTable({
   // nexus_cost is privileged (creating tenant / platform admin only); show the
   // column only when at least one variant actually carries it.
   const showNexus = rows.some((v) => typeof v.nexus_cost === 'number');
-  const UNIT_KEYS = { days: 'co_validityUnitDays', months: 'co_validityUnitMonths', years: 'co_validityUnitYears' } as const;
   const dash = '-';
   const headCls = 'px-3 py-2 text-start font-semibold whitespace-nowrap';
   const cellCls = 'px-3 py-2 align-top';
   const truncCls = 'block max-w-[160px] truncate';
-  const validityText = (v: CatalogVariant) =>
-    v.voucherValidityValue && v.voucherValidityUnit
-      ? `${v.voucherValidityValue} ${t(UNIT_KEYS[v.voucherValidityUnit])}`
-      : dash;
+  // Duration ("2 years") or date range ("01/01/26 - 31/03/26"), per variant.
+  const validityText = (v: CatalogVariant) => variantValidityText(v, t, language) || dash;
 
   return (
     <div dir={language === 'he' ? 'rtl' : 'ltr'} className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
