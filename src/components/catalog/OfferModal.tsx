@@ -13,6 +13,7 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import { EXECUTION_TYPE_LABELS, OFFER_CATEGORIES } from '../../lib/api';
 import type { CatalogItem } from '../../lib/api';
 import OfferImageCarousel from './OfferImageCarousel';
+import { buildOfferImageUrl, getImageCrop } from '../../lib/cloudinaryImage';
 import RichTextDisplay from '../RichTextDisplay';
 import ImageLightbox from '../ImageLightbox';
 import { variantValidityText } from '../../lib/voucherValidity';
@@ -429,10 +430,10 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
             // Prefer the multi-image gallery; fall back to legacy single
             // imageUrl so older offers (pre-gallery) keep rendering. Empty
             // gallery falls through to the gift emoji placeholder.
-            const images = (offer.imageUrls && offer.imageUrls.length > 0)
+            const origins = (offer.imageUrls && offer.imageUrls.length > 0)
               ? offer.imageUrls
               : (offer.imageUrl ? [offer.imageUrl] : []);
-            if (images.length === 0) {
+            if (origins.length === 0) {
               // No image + no color: gift placeholder (tenant fallback is wallet-side).
               return (
                 <div
@@ -443,11 +444,15 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
                 </div>
               );
             }
+            // Apply the saved crop per image: 'hero' (downscaled) in the carousel,
+            // 'full' (crop at native size) when the user clicks to enlarge.
+            const heroImages = origins.map((u) => buildOfferImageUrl(u, getImageCrop(offer.imageCrops, u), 'hero'));
+            const fullImages = origins.map((u) => buildOfferImageUrl(u, getImageCrop(offer.imageCrops, u), 'full'));
             return (
               <OfferImageCarousel
-                images={images}
+                images={heroImages}
                 alt={offer.title}
-                onImageClick={(url) => setLightboxSrc(url)}
+                onImageClick={(i) => setLightboxSrc(fullImages[i] ?? null)}
               />
             );
           })()}

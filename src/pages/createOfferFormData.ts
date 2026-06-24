@@ -49,7 +49,22 @@ export function buildCreateOfferFormData(v: CreateOfferValues): FormData {
   if (v.marketPrice && Number(v.marketPrice) > 0) fd.append('market_price', v.marketPrice);
   fd.append('visibility', v.isPlatformAdmin ? 'ecosystem' : v.visibility);
   fd.append('executionType', v.executionType);
-  v.gallery.forEach((item) => { if (item.kind === 'new') fd.append('images', item.file); });
+  // Originals upload as-is (images[]); crops travel as metadata. New-file crops
+  // align to the images[] append order; kept crops are keyed by URL. Create
+  // normally has no kept images, but the field is sent for codepath symmetry.
+  const newCrops: (typeof v.gallery[number]['crop'])[] = [];
+  v.gallery.forEach((item) => {
+    if (item.kind === 'new') {
+      fd.append('images', item.file);
+      newCrops.push(item.crop ?? null);
+    }
+  });
+  if (newCrops.length > 0) fd.append('newImageCrops', JSON.stringify(newCrops));
+  const keptItems = v.gallery.filter((g): g is Extract<GalleryItem, { kind: 'existing' }> => g.kind === 'existing');
+  if (keptItems.length > 0) {
+    fd.append('keptImageUrls', JSON.stringify(keptItems.map((g) => g.url)));
+    fd.append('keptImageCrops', JSON.stringify(keptItems.map((g) => ({ url: g.url, crop: g.crop ?? null }))));
+  }
 
   if (v.executionType === 'voucher') {
     // Voucher: price/validity/stackable/SKU/tags are per VARIANT. Send the
@@ -77,23 +92,59 @@ export function buildCreateOfferFormData(v: CreateOfferValues): FormData {
 }
 
 /**
- * Validates the create-offer form. Returns the first error message (already
- * localized) to display, or null when valid. Pure — the caller owns setError.
+ * Subset of the form needed to decide whether Publish is allowed. Both
+ * CreateOffer and EditOffer build this so the gate logic stays identical.
  */
-export function validateCreateOffer(
-  v: CreateOfferValues,
+export interface PublishGateInput {
+  title: string;
+  marketPrice: string;
+  executionType: string;
+  /** Voucher variants (voucher executionType only). */
+  variants: DraftVariant[];
+  /** True while a variant draft is open in the VariantsManager (blocks publish). */
+  variantEditing: boolean;
+}
+
+/**
+ * Computes the HARD publish blockers - the conditions that disable the Publish
+ * button. Each entry is an already-localized, user-friendly message; the first
+ * one is shown as the button tooltip + inline hint. This is the SINGLE source of
+ * truth: the same array drives both the button's `disabled` state and the
+ * on-click guard, so the two can never disagree about whether publishing is
+ * allowed. Pure - the caller owns rendering.
+ *
+ * Per-variant pricing/validity/stackable/SKU are validated when each variant is
+ * saved (VariantsManager), so here a voucher only needs at least one saved
+ * variant and no draft mid-edit.
+ */
+export function computePublishBlockers(
+  v: PublishGateInput,
   t: (key: TranslationKey) => string,
-  language: string,
-): string | null {
-  if (!v.title.trim()) return t('co_errTitleRequired');
-  if (v.marketPrice && (isNaN(Number(v.marketPrice)) || Number(v.marketPrice) <= 0)) return t('co_errMarketPrice');
-  if (v.validFrom && v.validUntil && new Date(v.validFrom) >= new Date(v.validUntil)) {
-    return language === 'he' ? 'תאריך ההשקה חייב להיות לפני תאריך התפוגה' : 'Launch date must be before the expiry date';
+): string[] {
+  const blockers: string[] = [];
+  if (!v.title.trim()) blockers.push(t('co_errTitleRequired'));
+  if (v.marketPrice && (isNaN(Number(v.marketPrice)) || Number(v.marketPrice) <= 0)) {
+    blockers.push(t('co_errMarketPrice'));
   }
   if (v.executionType === 'voucher') {
-    // Per-variant pricing/validity/stackable/SKU are validated when each variant
-    // is saved (VariantsManager). Here we only require at least one variant.
-    if (v.variants.length === 0) return t('co_variantsRequired');
+    if (v.variants.length === 0) blockers.push(t('co_variantsRequired'));
+    else if (v.variantEditing) blockers.push(t('of_publishBlockVariantEditing'));
+  }
+  return blockers;
+}
+
+/**
+ * The single SOFT, on-submit-only validation: the optional launch/expiry date
+ * range sanity check (non-voucher offers only). Returns a localized error to show
+ * in the error banner, or null. Deliberately kept OFF the disable gate so an
+ * in-progress date pair does not perma-disable Publish; it surfaces on click.
+ */
+export function submitDateRangeError(
+  v: { executionType: string; validFrom: string; validUntil: string },
+  language: string,
+): string | null {
+  if (v.executionType !== 'voucher' && v.validFrom && v.validUntil && new Date(v.validFrom) >= new Date(v.validUntil)) {
+    return language === 'he' ? 'תאריך ההשקה חייב להיות לפני תאריך התפוגה' : 'Launch date must be before the expiry date';
   }
   return null;
 }

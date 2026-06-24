@@ -28,7 +28,7 @@ import PublishConfirmModal from '../components/offer/PublishConfirmModal';
 import CreationModeTabs, { type CreateMode } from '../components/offer/CreationModeTabs';
 import VoucherCsvBulk from '../components/offer/VoucherCsvBulk';
 import { type DraftVariant } from './voucherVariantDraft';
-import { buildCreateOfferFormData, validateCreateOffer, type CreateOfferValues } from './createOfferFormData';
+import { buildCreateOfferFormData, computePublishBlockers, submitDateRangeError, type CreateOfferValues } from './createOfferFormData';
 
 /** Visibility options for a platform offer. */
 type OfferVisibility = 'ecosystem' | 'tenant_only';
@@ -113,11 +113,15 @@ const CreateOffer = () => {
     terms, tags, variants,
   });
 
-  const validate = (): boolean => {
-    const err = validateCreateOffer(formValues(), t, language);
-    if (err) { setError(err); return false; }
-    return true;
-  };
+  const isVoucher = executionType === 'voucher';
+  const isCsv = isVoucher && mode === 'csv';
+  // Single source of truth for "can publish": these hard blockers drive BOTH the
+  // button's disabled state and the on-click guard, so they can never diverge.
+  // The first blocker is shown as the button tooltip + inline hint.
+  const publishBlockers = computePublishBlockers(
+    { title, marketPrice, executionType, variants, variantEditing },
+    t,
+  );
 
   /** Creates the offer, then applies each variant's staged inventory to its
    *  server variantId (matched by order), and navigates back. */
@@ -152,10 +156,11 @@ const CreateOffer = () => {
   };
 
   const handleSave = () => {
-    if (!validate()) return;
+    if (publishBlockers.length > 0) return; // button is disabled; defensive
+    const dateErr = submitDateRangeError({ executionType, validFrom, validUntil }, language);
+    if (dateErr) { setError(dateErr); return; }
     setError(null);
     if (executionType === 'voucher') {
-      if (variants.length === 0 || variantEditing) return; // gated; defensive
       setShowPublishConfirm(true);
       return;
     }
@@ -179,12 +184,6 @@ const CreateOffer = () => {
       </div>
     );
   }
-
-  const isVoucher = executionType === 'voucher';
-  const isCsv = isVoucher && mode === 'csv';
-  // Publish is blocked for vouchers until at least one variant exists and no
-  // variant draft is mid-edit (each saved variant already has an inventory choice).
-  const voucherPublishBlocked = isVoucher && !isCsv && (variants.length === 0 || variantEditing);
 
   const leftColumn = (
     <>
@@ -276,8 +275,8 @@ const CreateOffer = () => {
         onCancel={() => navigate('/benefits-partnerships')}
         isSubmitting={isSubmitting}
         hideSave={isCsv}
-        saveDisabled={voucherPublishBlocked}
-        saveHint={t('co_variantsRequired')}
+        saveDisabled={publishBlockers.length > 0}
+        saveHint={publishBlockers[0]}
         error={error}
         leftColumn={leftColumn}
         rightColumn={rightColumn}

@@ -22,12 +22,14 @@ import CreateOfferDetailsSection from './CreateOfferDetailsSection';
 import CreateOfferRedemptionSection from './CreateOfferRedemptionSection';
 import OfferFormLayout from '../components/offer/OfferFormLayout';
 import OfferImageGallery, { type GalleryItem } from '../components/offer/OfferImageGallery';
+import { getImageCrop, type ImageCrop } from '../lib/cloudinaryImage';
 import OfferTypeField from '../components/offer/OfferTypeField';
 import VoucherBackgroundField, { type BgMode } from '../components/offer/VoucherBackgroundField';
 import VariantsManager from '../components/offer/VariantsManager';
 import VoucherRedemptionScopeCard from '../components/offer/VoucherRedemptionScopeCard';
 import { OfferFormSkeleton, OfferFormErrorState } from '../components/offer/OfferFormStates';
 import { type DraftVariant, variantToDraft, draftToPayload } from './voucherVariantDraft';
+import { computePublishBlockers, submitDateRangeError } from './createOfferFormData';
 
 const EditOffer = () => {
   const navigate = useNavigate();
@@ -116,7 +118,7 @@ const EditOffer = () => {
           : ((detail.imageUrls && detail.imageUrls.length > 0)
               ? detail.imageUrls
               : (detail.imageUrl ? [detail.imageUrl] : []));
-        setGallery(urls.map((u) => ({ kind: 'existing' as const, url: u })));
+        setGallery(urls.map((u) => ({ kind: 'existing' as const, url: u, crop: getImageCrop(detail.imageCrops, u) })));
         setVoucherBackgroundColor(detail.voucherBackgroundColor ?? '');
         setBgMode(hasColor ? 'color' : 'image');
       } catch (err) {
@@ -165,16 +167,12 @@ const EditOffer = () => {
     } as { barcodes: string[]; links: string[]; lockedKind: 'barcode' | 'link' | null };
   };
 
-  const validate = (): boolean => {
-    if (!offerId) return false;
-    if (!title.trim()) { setError(t('co_errTitleRequired')); return false; }
-    if (!isVoucher && validFrom && validUntil && new Date(validFrom) >= new Date(validUntil)) {
-      setError(language === 'he' ? 'תאריך ההשקה חייב להיות לפני תאריך התפוגה' : 'Launch date must be before the expiry date');
-      return false;
-    }
-    if (isVoucher && (variants.length === 0 || variantEditing)) { setError(t('co_variantsRequired')); return false; }
-    return true;
-  };
+  // Single source of truth for "can publish": same hard-blocker helper as Create.
+  // Drives both the button's disabled state and the on-click guard.
+  const publishBlockers = computePublishBlockers(
+    { title, marketPrice, executionType, variants, variantEditing },
+    t,
+  );
 
   /** Builds the PATCH FormData and saves, then appends any staged per-variant inventory. */
   const finalizeSave = async () => {
@@ -206,9 +204,17 @@ const EditOffer = () => {
         fd.append('terms', terms.trim());
         fd.append('tags', JSON.stringify(tags));
       }
-      const keptUrls = gallery.filter((g): g is GalleryItem & { kind: 'existing' } => g.kind === 'existing').map((g) => g.url);
-      fd.append('keptImageUrls', JSON.stringify(keptUrls));
-      gallery.forEach((g) => { if (g.kind === 'new') fd.append('images', g.file); });
+      // Originals stay put; crops travel as metadata. Kept crops are keyed by
+      // URL (re-cropping an existing image only changes this, never re-uploads);
+      // new-file crops align to the images[] append order.
+      const keptExisting = gallery.filter((g): g is GalleryItem & { kind: 'existing' } => g.kind === 'existing');
+      fd.append('keptImageUrls', JSON.stringify(keptExisting.map((g) => g.url)));
+      fd.append('keptImageCrops', JSON.stringify(keptExisting.map((g) => ({ url: g.url, crop: g.crop ?? null }))));
+      const newCrops: (ImageCrop | null)[] = [];
+      gallery.forEach((g) => {
+        if (g.kind === 'new') { fd.append('images', g.file); newCrops.push(g.crop ?? null); }
+      });
+      fd.append('newImageCrops', JSON.stringify(newCrops));
 
       const updated = await updateOfferApi(offerId, fd);
       saved = true;
@@ -238,7 +244,10 @@ const EditOffer = () => {
   };
 
   const handleSave = () => {
-    if (!validate()) return;
+    if (!offerId) return;
+    if (publishBlockers.length > 0) return; // button is disabled; defensive
+    const dateErr = submitDateRangeError({ executionType, validFrom, validUntil }, language);
+    if (dateErr) { setError(dateErr); return; }
     setError(null);
     void finalizeSave();
   };
@@ -319,8 +328,8 @@ const EditOffer = () => {
       onSave={handleSave}
       onCancel={() => navigate('/benefits-partnerships')}
       isSubmitting={isSubmitting}
-      saveDisabled={isVoucher && (variants.length === 0 || variantEditing)}
-      saveHint={t('co_variantsRequired')}
+      saveDisabled={publishBlockers.length > 0}
+      saveHint={publishBlockers[0]}
       error={error}
       denialReason={offer?.approval_status === 'denied' ? (offer?.denial_reason ?? null) : null}
       leftColumn={leftColumn}
