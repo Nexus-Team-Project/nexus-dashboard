@@ -1041,6 +1041,9 @@ export interface CatalogVariant {
   member_price?: number;
   voucherValidityValue?: number | null;
   voucherValidityUnit?: 'days' | 'months' | 'years' | null;
+  /** Absolute validity window (date-range mode); mutually exclusive with the duration. */
+  validFrom?: string | null;
+  validUntil?: string | null;
   voucherStackable?: boolean | null;
   sku?: string | null;
   tags?: string[];
