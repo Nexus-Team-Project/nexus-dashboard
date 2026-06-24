@@ -69,6 +69,16 @@ const WorkspaceSetupModal = ({ onClose, onFinished, firstName, forceOpen = false
       .catch(() => { /* non-fatal — localStorage fallback still active */ });
   }, []);
 
+  // Lock the background page scroll while the wizard overlay is open, so the
+  // dashboard behind it cannot scroll when the cursor is outside the modal.
+  // The overlay and the wizard card keep their own internal scrolling. The
+  // previous value is restored on unmount so the dashboard scrolls again.
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, []);
+
   /**
    * Creates a tenant workspace through the protected backend API.
    * Input: validated wizard data.
