@@ -117,18 +117,20 @@ const ProductCatalog = () => {
   // ----------------------------------------------------------------
 
   /**
-   * Fetches all platform offers and retains only adopted ones.
-   * Sets isLoading while in-flight and records any error message.
+   * Fetches the offers THIS org created (uploaded), not adopted ecosystem
+   * offers. Server-side `ownedOnly` filter (createdByTenantId === tenant), so
+   * pagination counts only the org's own offers. Sets isLoading while in-flight
+   * and records any error message.
    */
   const loadAdoptedOffers = useCallback(async () => {
     setIsLoading(true);
     setFetchError(null);
     try {
-      // Server-side filter to adopted offers only — the page is capped at 100
-      // (backend hard limit). Tenants with more than 100 adopted offers will
-      // not see the overflow here; if that becomes a real case we switch to a
-      // pagination loop. Single page keeps this page simple for now.
-      const page = await getPlatformOffers({ page: 1, limit: 100, adoptionStatus: 'adopted' });
+      // Server-side filter to the org's own uploaded offers only — the page is
+      // capped at 100 (backend hard limit). Orgs with more than 100 of their own
+      // offers will not see the overflow here; if that becomes a real case we
+      // switch to a pagination loop. Single page keeps this page simple for now.
+      const page = await getPlatformOffers({ page: 1, limit: 100, ownedOnly: true });
       setItems(page.items);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load catalog';

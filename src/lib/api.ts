@@ -1162,6 +1162,8 @@ export interface CatalogQuery {
   category?: string;
   approvalStatus?: 'active' | 'pending_approval' | 'denied' | 'expired';
   adoptionStatus?: 'adopted' | 'not_adopted';
+  /** When true, return only offers this tenant created (not adopted ones). */
+  ownedOnly?: boolean;
   /** Filter by one or more offer execution types (e.g. 'voucher', 'booking'). */
   offerTypes?: string[];
   /** Minimum selling price filter (inclusive). */
@@ -1207,6 +1209,7 @@ function catalogQueryToParams(q: CatalogQuery): string {
   // Status filters used by the admin (platform) catalog view.
   if (q.approvalStatus) u.set('approvalStatus', q.approvalStatus);
   if (q.adoptionStatus) u.set('adoptionStatus', q.adoptionStatus);
+  if (q.ownedOnly) u.set('ownedOnly', 'true');
   // Extended server-side filters (Task 11 - mirrors backend CatalogQuery Zod schema).
   if (q.offerTypes && q.offerTypes.length > 0) {
     u.set('offerTypes', q.offerTypes.join(','));
