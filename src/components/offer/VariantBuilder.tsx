@@ -10,6 +10,7 @@
  */
 import { useState } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
+import FieldTooltip from '../FieldTooltip';
 import VoucherStackToggle from './VoucherStackToggle';
 import { type DraftVariant, variantInventorySummary, nexusPriceError } from '../../pages/voucherVariantDraft';
 
@@ -93,7 +94,8 @@ export default function VariantBuilder({
         </div>
         <div>
           <label className={labelCls}>
-            {t('fi_nexusCost_label')} <span className="text-red-500 ms-0.5" aria-hidden="true">*</span>
+            {t('bp_variantSellingPrice')} <span className="text-red-500 ms-0.5" aria-hidden="true">*</span>
+            <FieldTooltip fieldKey="nexusCost" />
           </label>
           <input
             type="number" min="0.01" step="0.01" value={draft.nexusCost}
