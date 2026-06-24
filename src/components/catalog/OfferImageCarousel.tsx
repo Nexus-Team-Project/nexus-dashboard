@@ -18,8 +18,9 @@ interface OfferImageCarouselProps {
   images: string[];
   /** Accessible alt text — same for every slide (matches offer title). */
   alt: string;
-  /** Optional lightbox opener. Called with the currently visible image URL. */
-  onImageClick?: (url: string) => void;
+  /** Optional lightbox opener. Called with the index of the visible image so the
+   *  caller can open a different (e.g. full-resolution) URL for that slide. */
+  onImageClick?: (index: number) => void;
   /** Tailwind classes applied to the root wrapper; allows the caller to set height. */
   className?: string;
 }
@@ -73,7 +74,7 @@ export default function OfferImageCarousel({
         src={current}
         alt={alt}
         className={`w-full h-full object-cover ${onImageClick ? 'cursor-zoom-in' : ''}`}
-        onClick={() => onImageClick?.(current)}
+        onClick={() => onImageClick?.(index)}
       />
 
       {showControls && (

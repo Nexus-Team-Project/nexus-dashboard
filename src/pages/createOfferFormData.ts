@@ -49,7 +49,22 @@ export function buildCreateOfferFormData(v: CreateOfferValues): FormData {
   if (v.marketPrice && Number(v.marketPrice) > 0) fd.append('market_price', v.marketPrice);
   fd.append('visibility', v.isPlatformAdmin ? 'ecosystem' : v.visibility);
   fd.append('executionType', v.executionType);
-  v.gallery.forEach((item) => { if (item.kind === 'new') fd.append('images', item.file); });
+  // Originals upload as-is (images[]); crops travel as metadata. New-file crops
+  // align to the images[] append order; kept crops are keyed by URL. Create
+  // normally has no kept images, but the field is sent for codepath symmetry.
+  const newCrops: (typeof v.gallery[number]['crop'])[] = [];
+  v.gallery.forEach((item) => {
+    if (item.kind === 'new') {
+      fd.append('images', item.file);
+      newCrops.push(item.crop ?? null);
+    }
+  });
+  if (newCrops.length > 0) fd.append('newImageCrops', JSON.stringify(newCrops));
+  const keptItems = v.gallery.filter((g): g is Extract<GalleryItem, { kind: 'existing' }> => g.kind === 'existing');
+  if (keptItems.length > 0) {
+    fd.append('keptImageUrls', JSON.stringify(keptItems.map((g) => g.url)));
+    fd.append('keptImageCrops', JSON.stringify(keptItems.map((g) => ({ url: g.url, crop: g.crop ?? null }))));
+  }
 
   if (v.executionType === 'voucher') {
     // Voucher: price/validity/stackable/SKU/tags are per VARIANT. Send the
