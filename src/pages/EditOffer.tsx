@@ -28,6 +28,7 @@ import VariantsManager from '../components/offer/VariantsManager';
 import VoucherRedemptionScopeCard from '../components/offer/VoucherRedemptionScopeCard';
 import { OfferFormSkeleton, OfferFormErrorState } from '../components/offer/OfferFormStates';
 import { type DraftVariant, variantToDraft, draftToPayload } from './voucherVariantDraft';
+import { computePublishBlockers, submitDateRangeError } from './createOfferFormData';
 
 const EditOffer = () => {
   const navigate = useNavigate();
@@ -165,16 +166,12 @@ const EditOffer = () => {
     } as { barcodes: string[]; links: string[]; lockedKind: 'barcode' | 'link' | null };
   };
 
-  const validate = (): boolean => {
-    if (!offerId) return false;
-    if (!title.trim()) { setError(t('co_errTitleRequired')); return false; }
-    if (!isVoucher && validFrom && validUntil && new Date(validFrom) >= new Date(validUntil)) {
-      setError(language === 'he' ? 'תאריך ההשקה חייב להיות לפני תאריך התפוגה' : 'Launch date must be before the expiry date');
-      return false;
-    }
-    if (isVoucher && (variants.length === 0 || variantEditing)) { setError(t('co_variantsRequired')); return false; }
-    return true;
-  };
+  // Single source of truth for "can publish": same hard-blocker helper as Create.
+  // Drives both the button's disabled state and the on-click guard.
+  const publishBlockers = computePublishBlockers(
+    { title, marketPrice, executionType, variants, variantEditing },
+    t,
+  );
 
   /** Builds the PATCH FormData and saves, then appends any staged per-variant inventory. */
   const finalizeSave = async () => {
@@ -238,7 +235,10 @@ const EditOffer = () => {
   };
 
   const handleSave = () => {
-    if (!validate()) return;
+    if (!offerId) return;
+    if (publishBlockers.length > 0) return; // button is disabled; defensive
+    const dateErr = submitDateRangeError({ executionType, validFrom, validUntil }, language);
+    if (dateErr) { setError(dateErr); return; }
     setError(null);
     void finalizeSave();
   };
@@ -319,8 +319,8 @@ const EditOffer = () => {
       onSave={handleSave}
       onCancel={() => navigate('/benefits-partnerships')}
       isSubmitting={isSubmitting}
-      saveDisabled={isVoucher && (variants.length === 0 || variantEditing)}
-      saveHint={t('co_variantsRequired')}
+      saveDisabled={publishBlockers.length > 0}
+      saveHint={publishBlockers[0]}
       error={error}
       denialReason={offer?.approval_status === 'denied' ? (offer?.denial_reason ?? null) : null}
       leftColumn={leftColumn}
