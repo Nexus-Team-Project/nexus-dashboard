@@ -70,7 +70,7 @@ const COPY = {
     brandColorLabel: 'צבע המותג',
     brandColorTip: 'זהו הצבע שמשתמשי הארגון שלך יראו כשהם נכנסים בפעם הראשונה להטבות שלך.',
     websiteLabel: 'אתר',
-    websitePlaceholder: 'www.example.com',
+    websitePlaceholder: 'example.com, www.example.com, http://example.com, https://example.com',
     websiteError: 'כתובת האתר אינה תקינה',
     businessLabel: 'איזה סוג עסק אתם ומה אתם מציעים?',
     businessPlaceholder: 'לדוגמה: רשת קמעונאית המציעה מוצרי אלקטרוניקה ורוצה לפתח תוכנית נאמנות ללקוחות...',
@@ -108,7 +108,7 @@ const COPY = {
     brandColorLabel: 'Brand color',
     brandColorTip: 'This is the color your organization users will see when logging in for the first time to your benefits.',
     websiteLabel: 'Website',
-    websitePlaceholder: 'www.example.com',
+    websitePlaceholder: 'example.com, www.example.com, http://example.com, https://example.com',
     websiteError: 'Website is invalid',
     businessLabel: 'What kind of business are you and what do you offer?',
     businessPlaceholder: 'Example: A retail chain that sells electronics and wants to build a customer loyalty program...',
@@ -444,7 +444,7 @@ export default function OnboardingWizard({ onComplete, onSkip, onSkipWithDraft, 
               </div>
 
               <div>
-                <label className="block text-[13px] font-medium text-slate-700 mb-1.5">{c.websiteLabel}</label>
+                <label className="block text-[13px] font-medium text-slate-700 mb-1.5">{c.websiteLabel}<span aria-hidden="true" className="text-red-500"> *</span></label>
                 <input
                   type="text"
                   value={website}
@@ -452,18 +452,21 @@ export default function OnboardingWizard({ onComplete, onSkip, onSkipWithDraft, 
                   onBlur={() => validateWebsite(website)}
                   placeholder={c.websitePlaceholder}
                   dir="ltr"
+                  aria-required="true"
+                  aria-invalid={websiteError}
                   className={websiteError ? inputError : inputNormal}
                 />
                 {websiteError && <p className="text-[12px] text-red-500 mt-1">{c.websiteError}</p>}
               </div>
 
               <div>
-                <label className="block text-[13px] font-medium text-slate-700 mb-1.5">{c.businessLabel}</label>
+                <label className="block text-[13px] font-medium text-slate-700 mb-1.5">{c.businessLabel}<span aria-hidden="true" className="text-red-500"> *</span></label>
                 <textarea
                   value={businessDesc}
                   onChange={e => setBusinessDesc(e.target.value)}
                   rows={4}
                   placeholder={c.businessPlaceholder}
+                  aria-required="true"
                   className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-[14px] text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all resize-none leading-relaxed"
                 />
                 {/* Live character counter */}
@@ -556,11 +559,12 @@ export default function OnboardingWizard({ onComplete, onSkip, onSkipWithDraft, 
                 errorText={c.phoneError}
                 searchPlaceholder={c.searchCountry}
                 touched={phoneTouched}
+                required
               />
 
               <div>
-                <label className="block text-[13px] font-medium text-slate-700 mb-1.5">{c.roleLabel}</label>
-                <select value={role} onChange={e => setRole(e.target.value)} className={inputNormal}>
+                <label className="block text-[13px] font-medium text-slate-700 mb-1.5">{c.roleLabel}<span aria-hidden="true" className="text-red-500"> *</span></label>
+                <select value={role} onChange={e => setRole(e.target.value)} aria-required="true" className={inputNormal}>
                   <option value="">{c.rolePlaceholder}</option>
                   {CONTACT_ROLES.map(option => (
                     <option key={option.id} value={option.id}>{language === 'he' ? option.he : option.en}</option>

@@ -204,6 +204,8 @@ export interface PhoneInputFieldProps {
   searchPlaceholder: string;
   /** When true, shows error state if the field has been touched and is invalid. */
   touched?: boolean;
+  /** When true, renders a required-field asterisk and sets aria-required. */
+  required?: boolean;
 }
 
 /**
@@ -221,6 +223,7 @@ export function PhoneInputField({
   errorText,
   searchPlaceholder,
   touched = false,
+  required = false,
 }: PhoneInputFieldProps) {
   const { inputValue, phone, country, setCountry, handlePhoneValueChange, inputRef } =
     usePhoneInput({
@@ -238,7 +241,7 @@ export function PhoneInputField({
 
   return (
     <div>
-      <label className="block text-[13px] font-medium text-slate-700 mb-1.5">{label}</label>
+      <label className="block text-[13px] font-medium text-slate-700 mb-1.5">{label}{required && <span aria-hidden="true" className="text-red-500"> *</span>}</label>
       <div className="flex" dir="ltr">
         <CountryDropdown
           country={country}
@@ -250,6 +253,7 @@ export function PhoneInputField({
           type="tel"
           value={inputValue}
           onChange={handlePhoneValueChange}
+          aria-required={required}
           dir="ltr"
           className={`min-w-0 flex-1 rounded-e-lg border px-3.5 py-2.5 text-[14px] text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-2 transition-all ${
             showError
