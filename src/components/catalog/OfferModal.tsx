@@ -89,15 +89,20 @@ function formatDate(iso: string | null | undefined, language: 'he' | 'en'): stri
  */
 function OfferDetails({ offer }: { offer: CatalogItem }) {
   const { t, language } = useLanguage();
+  // For a multi-variant voucher, combine / redemption method / terms / tags are
+  // per variant (shown in VariantsSummary), so they are hidden from the shared
+  // offer-level details to avoid showing the representative variant's values as
+  // if they were the whole offer's.
+  const multiVariant = offer.executionType === 'voucher' && (offer.variants?.length ?? 0) > 1;
   const validFrom = formatDate(offer.validFrom, language);
   const validUntil = formatDate(offer.validUntil, language);
   const typeMeta = offer.executionType ? EXECUTION_TYPE_LABELS[offer.executionType] : undefined;
   const typeLabel = typeMeta ? (language === 'he' ? typeMeta.labelHe : typeMeta.label) : null;
-  const hasInstructions = !!offer.implementationInstructions;
-  const hasTerms = !!offer.terms;
+  const hasInstructions = !!offer.implementationInstructions && !multiVariant;
+  const hasTerms = !!offer.terms && !multiVariant;
   const hasLink = !!offer.implementationLink;
   const tags = (offer.tags ?? []).filter(Boolean);
-  const hasTags = tags.length > 0;
+  const hasTags = tags.length > 0 && !multiVariant;
 
   // Voucher redemption window (amount + unit), shown only for vouchers that
   // carry a validity duration. Reads e.g. "2 years from purchase".
@@ -114,12 +119,13 @@ function OfferDetails({ offer }: { offer: CatalogItem }) {
   // Combine-with-promotions (כפל מבצעים), shown only for vouchers that carry an
   // explicit choice. Reads "Yes" / "No".
   const stackableText =
-    offer.executionType === 'voucher' && typeof offer.voucherStackable === 'boolean'
+    offer.executionType === 'voucher' && !multiVariant && typeof offer.voucherStackable === 'boolean'
       ? (offer.voucherStackable ? t('om_voucherStackableYes') : t('om_voucherStackableNo'))
       : '';
 
-  // Voucher SKU / internal code, shown only when present.
-  const skuText = offer.executionType === 'voucher' && offer.sku ? offer.sku : '';
+  // Voucher SKU / internal code is per variant, so it is hidden from the
+  // offer-level details for a multi-variant voucher (shown per variant instead).
+  const skuText = offer.executionType === 'voucher' && !multiVariant && offer.sku ? offer.sku : '';
 
   // Bail when nothing optional exists so the layout stays compact.
   if (!validFrom && !validUntil && !validityText && !stackableText && !skuText && !typeLabel && !hasInstructions && !hasTerms && !hasLink && !hasTags) {
@@ -229,9 +235,11 @@ function OfferDetails({ offer }: { offer: CatalogItem }) {
 }
 
 /**
- * Variants summary - lists each voucher variant (price, validity, combine choice,
- * SKU). Rendered only for voucher offers carrying more than one variant; a
- * single-variant offer shows its price/details inline as before.
+ * Variants summary - one card per voucher variant carrying everything that is
+ * per variant: price, plus a chip row (validity, combine-with-promotions, SKU,
+ * tags) and a collapsible "usage & terms" disclosure (redemption method +
+ * terms, each hidden when empty). Rendered only for voucher offers with more
+ * than one variant; single-variant offers show their details inline in OfferDetails.
  */
 function VariantsSummary({ offer }: { offer: CatalogItem }) {
   const { t } = useLanguage();
@@ -239,30 +247,81 @@ function VariantsSummary({ offer }: { offer: CatalogItem }) {
   if (offer.executionType !== 'voucher' || variants.length <= 1) return null;
 
   const UNIT_KEYS = { days: 'co_validityUnitDays', months: 'co_validityUnitMonths', years: 'co_validityUnitYears' } as const;
+  const chip = 'rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[11px] text-white/70';
 
   return (
     <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
       <p className="text-[11px] font-semibold uppercase tracking-widest text-white/40">
         {t('co_variantsSectionTitle')} ({variants.length})
       </p>
-      <ul className="mt-3 space-y-2">
+      <ul className="mt-3 space-y-2.5">
         {variants.map((v, i) => {
           const validity = v.voucherValidityValue && v.voucherValidityUnit
             ? `${v.voucherValidityValue} ${t(UNIT_KEYS[v.voucherValidityUnit])}`
             : '';
+          const method = (v.implementationInstructions ?? '').trim();
+          const terms = (v.terms ?? '').trim();
+          const tags = (v.tags ?? []).filter(Boolean);
           return (
-            <li key={v.variantId} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[13px]">
-              <span className="font-semibold text-white/85">
-                {t('co_variantLabel')} {i + 1}
-              </span>
-              {typeof v.member_price === 'number' && (
-                <span className="font-bold text-white">&#x20AA;{v.member_price.toLocaleString()}</span>
+            <li key={v.variantId} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+              {/* Header: variant label + its own selling price. */}
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-[13px] font-semibold text-white/85">
+                  {t('co_variantLabel')} {i + 1}
+                </span>
+                {typeof v.member_price === 'number' && (
+                  <span className="text-base font-bold text-white" dir="ltr">&#x20AA;{v.member_price.toLocaleString()}</span>
+                )}
+              </div>
+
+              {/* Chips: validity, combine, SKU. Only the SKU value is isolated
+                  LTR (so its Hebrew label still flows RTL and is not broken). */}
+              {(validity || typeof v.voucherStackable === 'boolean' || v.sku) && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {validity && <span className={chip}>{validity}</span>}
+                  {typeof v.voucherStackable === 'boolean' && (
+                    <span className={chip}>
+                      {t('om_voucherStackableLabel')}: {v.voucherStackable ? t('om_voucherStackableYes') : t('om_voucherStackableNo')}
+                    </span>
+                  )}
+                  {v.sku && (
+                    <span className={chip}>
+                      {t('om_skuLabel')}: <span dir="ltr">{v.sku}</span>
+                    </span>
+                  )}
+                </div>
               )}
-              {validity && <span className="text-white/50">· {validity}</span>}
-              {typeof v.voucherStackable === 'boolean' && (
-                <span className="text-white/50">· {v.voucherStackable ? t('om_voucherStackableYes') : t('om_voucherStackableNo')}</span>
+
+              {/* Tags - shown under their own label so they read as tags. */}
+              {tags.length > 0 && (
+                <div className="mt-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-white/30">{t('om_tagsTitle')}</p>
+                  <div className="mt-1 flex flex-wrap gap-1.5">
+                    {tags.map((tag) => <span key={tag} className={chip}>{tag}</span>)}
+                  </div>
+                </div>
               )}
-              {v.sku && <span className="text-white/40" dir="ltr">· {v.sku}</span>}
+
+              {/* Per-variant usage method + terms, collapsed by default. */}
+              {(method || terms) && (
+                <details className="mt-2.5 border-t border-white/10 pt-2">
+                  <summary className="cursor-pointer text-[11px] font-semibold uppercase tracking-widest text-white/40 hover:text-white/60">
+                    {t('om_variantUsageTitle')}
+                  </summary>
+                  {method && (
+                    <div className="mt-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-white/30">{t('om_redemptionInstructions')}</p>
+                      <p className="mt-1 whitespace-pre-wrap break-words text-[12.5px] leading-relaxed text-white/70">{method}</p>
+                    </div>
+                  )}
+                  {terms && (
+                    <div className="mt-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-white/30">{t('om_termsTitle')}</p>
+                      <p className="mt-1 whitespace-pre-wrap break-words text-[12.5px] leading-relaxed text-white/65">{terms}</p>
+                    </div>
+                  )}
+                </details>
+              )}
             </li>
           );
         })}
@@ -458,10 +517,10 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
               - Other types: market_price is the member-facing price.
               No strike-through original price is ever displayed. */}
           {(() => {
-            // Voucher with multiple variants: show a "from {lowest}" price so the
-            // single card never hides the cheaper/dearer variants. Single-variant
-            // and non-voucher offers show one price exactly as before. face_value
-            // is never shown as the selling price.
+            // Voucher with multiple variants: show the member_price RANGE
+            // (lowest - highest) so the single card never hides the cheaper/dearer
+            // variants. Single-variant and non-voucher offers show one price
+            // exactly as before. face_value is never shown as the selling price.
             const variantPrices = (offer.variants ?? [])
               .map((v) => v.member_price)
               .filter((n): n is number => typeof n === 'number');
@@ -470,11 +529,13 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
               const min = Math.min(...variantPrices);
               const max = Math.max(...variantPrices);
               return (
-                <div className="mt-5 flex items-baseline gap-2">
-                  {min !== max && (
-                    <span className="text-sm font-semibold uppercase tracking-widest text-white/40">{t('om_priceFrom')}</span>
-                  )}
-                  <span className="text-4xl font-black text-white tracking-tight">&#x20AA;{min.toLocaleString()}</span>
+                <div className="mt-5">
+                  {/* dir=ltr keeps the "min - max" pair from reordering in RTL. */}
+                  <span className="text-4xl font-black text-white tracking-tight" dir="ltr">
+                    {min === max
+                      ? `₪${min.toLocaleString()}`
+                      : `₪${min.toLocaleString()} - ₪${max.toLocaleString()}`}
+                  </span>
                 </div>
               );
             }
@@ -502,12 +563,11 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
             </p>
           )}
 
-          {/* Offer details block - renders only when at least one optional
-              backend field is present so the modal stays tight for sparse
-              offers. Dates use the active language locale; the redemption
-              link opens in a new tab with rel safety. */}
-          <VariantsSummary offer={offer} />
+          {/* Offer details first (offer-wide info), then the per-variant
+              breakdown below it. Each renders only when it has content, so the
+              modal stays tight for sparse offers. */}
           <OfferDetails offer={offer} />
+          <VariantsSummary offer={offer} />
           </div>
         </div>
 
