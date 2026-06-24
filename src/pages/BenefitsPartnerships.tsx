@@ -39,6 +39,7 @@ import { countActiveCatalogFilters } from '../components/catalog/catalogFilters'
 import VoucherPricePopover from '../components/catalog/VoucherPricePopover';
 import OfferTypeBadge from '../components/catalog/OfferTypeBadge';
 import VoucherColorTile from '../components/offer/VoucherColorTile';
+import { buildOfferImageUrl, getImageCrop } from '../lib/cloudinaryImage';
 import { formatVoucherCardPrice } from '../lib/voucherPricing';
 import { variantValidityText } from '../lib/voucherValidity';
 
@@ -717,10 +718,15 @@ const BenefitsPartnerships = () => {
     businessId: item.createdByTenantId,
     businessName: item.title,
     businessLogo: '',
-    backgroundImage: item.imageUrl,
-    galleryImages: (item.imageUrls && item.imageUrls.length > 0)
+    // Crop is applied at the mapping boundary: card-context for the thumbnail,
+    // full-context for the gallery (the lightbox shows the crop at full size).
+    backgroundImage: item.imageUrl
+      ? buildOfferImageUrl(item.imageUrl, getImageCrop(item.imageCrops, item.imageUrl), 'card')
+      : undefined,
+    galleryImages: ((item.imageUrls && item.imageUrls.length > 0)
       ? item.imageUrls
-      : (item.imageUrl ? [item.imageUrl] : []),
+      : (item.imageUrl ? [item.imageUrl] : []))
+      .map((u) => buildOfferImageUrl(u, getImageCrop(item.imageCrops, u), 'full')),
     implementationMethod: toImplementationMethod(item.executionType),
     benefitType: toBenefitType(item.executionType),
     usageTerms: item.stockLimit !== null
@@ -734,7 +740,9 @@ const BenefitsPartnerships = () => {
     category: item.category,
     categories: [item.category],
     featured: false,
-    image: item.imageUrl,
+    image: item.imageUrl
+      ? buildOfferImageUrl(item.imageUrl, getImageCrop(item.imageCrops, item.imageUrl), 'card')
+      : undefined,
     title: item.title,
     discount: (() => {
       // Price resolution for the cards view. Must mirror the table view's
@@ -1138,17 +1146,18 @@ const BenefitsPartnerships = () => {
                                 {item.imageUrl ? (
                                   <div className="relative inline-block">
                                     <img
-                                      src={item.imageUrl}
+                                      src={buildOfferImageUrl(item.imageUrl, getImageCrop(item.imageCrops, item.imageUrl), 'card')}
                                       alt={item.title}
                                       className="w-14 h-14 rounded-lg object-cover border border-slate-200 dark:border-slate-700 cursor-zoom-in"
                                       onClick={() => {
-                                        // Open the lightbox on the cover, but
-                                        // hand it the full ordered gallery so
-                                        // the user can flip through every image.
-                                        const images = (item.imageUrls && item.imageUrls.length > 0)
+                                        // Open the lightbox on the cover, but hand it the full
+                                        // ordered gallery (crop applied at full size) so the
+                                        // user can flip through every image.
+                                        const origins = (item.imageUrls && item.imageUrls.length > 0)
                                           ? item.imageUrls
                                           : (item.imageUrl ? [item.imageUrl] : []);
-                                        if (images.length === 0) return;
+                                        if (origins.length === 0) return;
+                                        const images = origins.map((u) => buildOfferImageUrl(u, getImageCrop(item.imageCrops, u), 'full'));
                                         setLightboxGallery({ images, initialIndex: 0 });
                                       }}
                                     />
@@ -1734,11 +1743,17 @@ const BenefitsPartnerships = () => {
                 const heroColor = selectedCatalogItem?.executionType === 'voucher'
                   ? selectedCatalogItem?.voucherBackgroundColor
                   : null;
+                // Resolve the cover from the original, then apply its crop at
+                // hero size. Fall back to the (already crop-applied) benefit
+                // background so we never double-transform a Cloudinary URL.
+                const heroCover = (selectedCatalogItem?.imageUrls && selectedCatalogItem.imageUrls.length > 0)
+                  ? selectedCatalogItem.imageUrls[0]
+                  : selectedCatalogItem?.imageUrl;
                 const heroImg = heroColor
                   ? null
-                  : ((selectedCatalogItem?.imageUrls && selectedCatalogItem.imageUrls.length > 0)
-                      ? selectedCatalogItem.imageUrls[0]
-                      : (selectedCatalogItem?.imageUrl || selectedBenefit.backgroundImage || null));
+                  : (heroCover
+                      ? buildOfferImageUrl(heroCover, getImageCrop(selectedCatalogItem?.imageCrops, heroCover), 'hero')
+                      : (selectedBenefit.backgroundImage || null));
                 return (
                   <div className="relative overflow-hidden rounded-2xl">
                     {heroColor ? (
