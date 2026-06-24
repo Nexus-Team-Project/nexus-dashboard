@@ -97,6 +97,36 @@ export default function OfferFormLayout({
 }: OfferFormLayoutProps) {
   const { t } = useLanguage();
 
+  // Cancel + Publish/Save group. Rendered identically in the hero top bar and in
+  // the bottom action bar (same design in both places). The disabled reason shows
+  // only as a hover tooltip on the Save button (no inline text).
+  const actionButtons = (
+    <div className="flex items-center gap-3">
+      <button
+        type="button"
+        onClick={onCancel}
+        disabled={isSubmitting}
+        className="px-5 py-2 text-sm font-medium border border-white/40 text-white rounded-xl hover:bg-white/10 backdrop-blur-sm transition-colors disabled:opacity-60"
+      >
+        {cancelLabel}
+      </button>
+      {!hideSave && (
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={isSubmitting || saveDisabled}
+          title={saveDisabled && saveHint ? saveHint : undefined}
+          className={cn(
+            'px-6 py-2 text-sm font-semibold bg-white text-slate-900 rounded-xl shadow-lg transition-opacity',
+            isSubmitting || saveDisabled ? 'opacity-60 cursor-not-allowed' : 'hover:opacity-90',
+          )}
+        >
+          {isSubmitting ? t('of_saving') : saveLabel}
+        </button>
+      )}
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* ── Hero banner ───────────────────────────────────────────────────── */}
@@ -119,7 +149,8 @@ export default function OfferFormLayout({
         <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-transparent" />
 
         <div className="relative h-full">
-          {/* Top bar: back button + breadcrumb + Cancel/Save */}
+          {/* Top bar: back button + breadcrumb + Cancel/Publish (also duplicated
+              at the bottom of the page). */}
           <div className="px-4 sm:px-8 py-6 flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-3 min-w-0">
               <button
@@ -140,31 +171,7 @@ export default function OfferFormLayout({
                 <span className="font-medium text-white truncate">{title}</span>
               </div>
             </div>
-
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={onCancel}
-                disabled={isSubmitting}
-                className="px-5 py-2 text-sm font-medium border border-white/40 text-white rounded-xl hover:bg-white/10 backdrop-blur-sm transition-colors disabled:opacity-60"
-              >
-                {cancelLabel}
-              </button>
-              {!hideSave && (
-                <button
-                  type="button"
-                  onClick={onSave}
-                  disabled={isSubmitting || saveDisabled}
-                  title={saveDisabled && saveHint ? saveHint : undefined}
-                  className={cn(
-                    'px-6 py-2 text-sm font-semibold bg-white text-slate-900 rounded-xl shadow-lg transition-opacity',
-                    isSubmitting || saveDisabled ? 'opacity-60 cursor-not-allowed' : 'hover:opacity-90',
-                  )}
-                >
-                  {isSubmitting ? t('of_saving') : saveLabel}
-                </button>
-              )}
-            </div>
+            {actionButtons}
           </div>
 
           {/* Business chip: pinned to the BOTTOM-end of the banner so it never
@@ -214,13 +221,21 @@ export default function OfferFormLayout({
       {/* ── Main grid ─────────────────────────────────────────────────────── */}
       <main className="relative px-4 sm:px-8 pt-6 pb-12">
         <div className="grid grid-cols-12 gap-6 lg:gap-8">
-          <div className={cn(
-            'col-span-12 space-y-6',
-            rightColumn ? 'lg:col-span-8' : 'lg:col-span-12',
-          )}>{leftColumn}</div>
-          {rightColumn && (
-            <aside className="col-span-12 lg:col-span-4 space-y-6">{rightColumn}</aside>
-          )}
+          <div className="col-span-12 space-y-6 lg:col-span-8">{leftColumn}</div>
+          {/* Sidebar column: optional right-column cards plus, pinned to the bottom
+              of the column, the Cancel + Publish action bar (`lg:mt-auto` pushes it
+              down; the grid stretches this column to the form's height). Always
+              rendered so the bar has a home even when a page passes no rightColumn
+              (e.g. EditOffer). */}
+          <aside className="col-span-12 lg:col-span-4 flex flex-col gap-6">
+            {rightColumn}
+            {/* Action bar: same Cancel + Publish/Save group as the hero. The buttons
+                use the white-on-dark hero design, so the bar reuses the hero gradient
+                tokens to keep that design legible. */}
+            <div className="flex items-center justify-end rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 px-4 py-4 shadow-sm sm:px-6 lg:mt-auto">
+              {actionButtons}
+            </div>
+          </aside>
         </div>
       </main>
     </div>
