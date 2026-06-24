@@ -68,6 +68,52 @@ export function parsePastedLinkRows(text: string): LinkRow[] {
   return out;
 }
 
+/**
+ * Finds codes shared across DIFFERENT links. Pass rows that are already
+ * de-duplicated by URL (so a code paired with the same link more than once is
+ * not a false positive). A non-empty code matched on two or more distinct URLs
+ * is a conflict - each link must carry its own code. Empty codes are ignored
+ * (the code is optional and many links may legitimately have none). Matching is
+ * exact after trim (codes are case-sensitive coupon strings). Returns the set of
+ * conflicting trimmed code strings, empty when there is no conflict.
+ *
+ * Mirrors the backend conflict check in voucher-inventory.service.ts; the backend
+ * re-validates and is the source of truth.
+ */
+export function findDuplicateCodes(rows: LinkRow[]): Set<string> {
+  const urlsByCode = new Map<string, Set<string>>();
+  for (const r of rows) {
+    const code = r.code.trim();
+    if (!code) continue;
+    const url = r.url.trim();
+    let urls = urlsByCode.get(code);
+    if (!urls) { urls = new Set<string>(); urlsByCode.set(code, urls); }
+    urls.add(url);
+  }
+  const conflicts = new Set<string>();
+  for (const [code, urls] of urlsByCode) {
+    if (urls.size > 1) conflicts.add(code);
+  }
+  return conflicts;
+}
+
+/**
+ * Finds links (URLs) that appear on more than one row. Matching is exact after
+ * trim. Used to highlight the duplicated link inputs before they are combined
+ * into one. Returns the set of duplicated trimmed URLs, empty when all unique.
+ */
+export function findDuplicateUrls(rows: LinkRow[]): Set<string> {
+  const seen = new Set<string>();
+  const dups = new Set<string>();
+  for (const r of rows) {
+    const url = r.url.trim();
+    if (!url) continue;
+    if (seen.has(url)) dups.add(url);
+    else seen.add(url);
+  }
+  return dups;
+}
+
 /** A few example lines shown/downloaded to teach the `link, code` format. */
 export function buildLinkExample(): string {
   return [
