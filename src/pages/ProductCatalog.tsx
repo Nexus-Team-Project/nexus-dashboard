@@ -21,6 +21,7 @@ import RichTextDisplay from '../components/RichTextDisplay';
 import OfferModal from '../components/catalog/OfferModal';
 import FieldTooltip from '../components/FieldTooltip';
 import VoucherColorTile from '../components/offer/VoucherColorTile';
+import { buildOfferImageUrl, getImageCrop } from '../lib/cloudinaryImage';
 import { formatVoucherCardPrice, variantMemberPriceRange } from '../lib/voucherPricing';
 
 // ----------------------------------------------------------------
@@ -229,7 +230,7 @@ const ProductCatalog = () => {
             <VoucherColorTile color={item.voucherBackgroundColor} className="w-full h-36" />
           ) : item.imageUrl ? (
             <img
-              src={item.imageUrl}
+              src={buildOfferImageUrl(item.imageUrl, getImageCrop(item.imageCrops, item.imageUrl), 'card')}
               alt={item.title}
               className="w-full h-36 object-cover"
               loading="lazy"

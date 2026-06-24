@@ -4,6 +4,7 @@
  * Includes in-flight deduplication for refresh calls and automatic 401 retry,
  * mirroring the website API client to prevent concurrent-refresh races.
  */
+import type { ImageCropEntry } from './cloudinaryImage';
 
 const AUTH_BASE = (import.meta.env.VITE_AUTH_URL as string | undefined) ?? (import.meta.env.VITE_API_URL as string | undefined) ?? '';
 const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '';
@@ -967,6 +968,11 @@ export interface CatalogItem {
   imageUrl?: string;
   /** Ordered gallery of public image URLs (max 6). Index 0 is the cover. */
   imageUrls?: string[];
+  /**
+   * Per-image crop metadata keyed by original URL. The URLs above are the
+   * pristine originals; render with `buildOfferImageUrl` to apply the crop.
+   */
+  imageCrops?: ImageCropEntry[];
   category: string;
   /** 'ecosystem' (visible to every tenant) or 'tenant_only' (visible only to the creating tenant). */
   visibility: 'ecosystem' | 'tenant_only' | string;
@@ -1075,6 +1081,8 @@ export interface NexusOffer {
   imageUrl?: string;
   /** Ordered gallery of public image URLs (max 6). Index 0 is the cover. */
   imageUrls?: string[];
+  /** Per-image crop metadata keyed by original URL (full image when absent). */
+  imageCrops?: ImageCropEntry[];
   category: string;
   market_price?: number;
   /** Offer lifecycle status. */
