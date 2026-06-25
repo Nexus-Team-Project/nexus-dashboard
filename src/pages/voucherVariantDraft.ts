@@ -11,6 +11,9 @@ import type { TranslationKey } from '../i18n/translations';
 /** Combine-with-promotions tri-state, mirrors VoucherStackToggle. */
 export type StackChoice = '' | 'yes' | 'no';
 
+/** Per-variant validity TYPE override: '' = inherit the offer default. */
+export type ValidityTypeChoice = '' | 'limit' | 'from_until';
+
 /**
  * One variant being authored. All numeric fields are kept as strings (form
  * inputs); inventory is staged in memory and applied per variant at publish.
@@ -24,17 +27,11 @@ export interface DraftVariant {
   /** The Nexus price - also the member-facing selling price. Must be < faceValue. */
   nexusCost: string;
   /**
-   * Validity mode: 'duration' = purchase-anchored amount + unit; 'dates' = an
-   * absolute from/until range. Mutually exclusive - only the active mode's
-   * fields are validated and sent.
+   * Per-variant validity TYPE override ('' = inherit the offer's defaultValidityType).
+   * The validity VALUE is NOT on the variant - it is entered per inventory unit
+   * (voucher-validity-dating). This only selects which kind of date each unit holds.
    */
-  validityMode: 'duration' | 'dates';
-  /** Duration mode. Empty = never expires. */
-  validityValue: string;
-  validityUnit: string;
-  /** Date-range mode (YYYY-MM-DD strings from the date inputs). */
-  validFrom: string;
-  validUntil: string;
+  validityTypeOverride: ValidityTypeChoice;
   /** Mandatory combine-with-promotions choice. */
   stackable: StackChoice;
   sku: string;
@@ -67,11 +64,7 @@ export function emptyDraftVariant(): DraftVariant {
     localId: nextLocalId(),
     faceValue: '',
     nexusCost: '',
-    validityMode: 'duration',
-    validityValue: '',
-    validityUnit: 'years',
-    validFrom: '',
-    validUntil: '',
+    validityTypeOverride: '',
     stackable: '',
     sku: '',
     tags: [],
@@ -104,12 +97,9 @@ export function variantToDraft(v: CatalogVariant, parentTerms?: string, parentMe
     variantId: v.variantId,
     faceValue: v.face_value != null ? String(v.face_value) : '',
     nexusCost: v.nexus_cost != null ? String(v.nexus_cost) : '',
-    // Date range present -> date-range mode; otherwise duration mode.
-    validityMode: (v.validFrom || v.validUntil) ? 'dates' : 'duration',
-    validityValue: v.voucherValidityValue != null ? String(v.voucherValidityValue) : '',
-    validityUnit: v.voucherValidityUnit ?? 'years',
-    validFrom: v.validFrom ? v.validFrom.slice(0, 10) : '',
-    validUntil: v.validUntil ? v.validUntil.slice(0, 10) : '',
+    // Per-variant validity TYPE override ('' = inherit offer default). The value
+    // is per unit now, loaded/edited through the inventory flow.
+    validityTypeOverride: v.validityTypeOverride ?? '',
     stackable: v.voucherStackable === true ? 'yes' : v.voucherStackable === false ? 'no' : '',
     sku: v.sku ?? '',
     tags: v.tags ?? [],
@@ -143,19 +133,9 @@ export function validateVariantDraft(
   if (!d.nexusCost || isNaN(nc) || nc <= 0 || nc >= fv) {
     return language === 'he' ? 'מחיר NEXUS חייב להיות חיובי ופחות מהשווי' : 'Nexus price must be positive and less than the value';
   }
-  if (d.validityMode === 'dates') {
-    if (!d.validFrom || !d.validUntil) {
-      return language === 'he' ? 'יש להזין תאריך התחלה ותאריך סיום' : 'Enter both a from and an until date';
-    }
-    if (new Date(d.validUntil).getTime() < new Date(d.validFrom).getTime()) {
-      return language === 'he' ? 'תאריך הסיום חייב להיות באותו יום או אחרי ההתחלה' : 'The until date must be on or after the from date';
-    }
-  } else if (d.validityValue.trim() !== '') {
-    const vv = Number(d.validityValue);
-    if (!Number.isInteger(vv) || vv <= 0) {
-      return language === 'he' ? 'מגבלת התוקף חייבת להיות מספר שלם חיובי' : 'Validity limit must be a positive whole number';
-    }
-  }
+  // Validity VALUE is no longer entered on the variant (it is per inventory unit);
+  // only the optional TYPE override lives here and is a fixed enum, so there is
+  // nothing to validate. See voucher-validity-dating.
   if (d.stackable === '') return t('co_voucherStackableRequired');
   if (d.sku.trim() !== '' && !/^[A-Z0-9_-]{4,20}$/.test(d.sku.trim())) return t('co_errSku');
   return null;
@@ -173,11 +153,9 @@ export function draftSignature(d: DraftVariant): string {
     num(d.nexusCost),
     // member price equals the Nexus price (no separate field), so it adds nothing
     // to the signature beyond nexusCost above.
-    // Active validity mode only: duration OR date range distinguishes variants.
-    d.validityMode === 'dates' ? null : num(d.validityValue),
-    d.validityMode === 'dates' ? null : (d.validityValue.trim() === '' ? null : d.validityUnit),
-    d.validityMode === 'dates' ? (d.validFrom || null) : null,
-    d.validityMode === 'dates' ? (d.validUntil || null) : null,
+    // Validity is NOT part of the signature: the value lives on inventory units,
+    // and the type override does not make a distinct priced product. So two
+    // variants differing only by date are the same variant (voucher-validity-dating).
     d.stackable === 'yes',
     d.sku.trim().toUpperCase() || null,
     // Redemption text only distinguishes variants when this one overrides the shared text.
@@ -194,19 +172,15 @@ export function isDuplicateVariant(draft: DraftVariant, existing: DraftVariant[]
 
 /** Maps a draft variant to the API variant-input shape (numbers, server contract). */
 export function draftToPayload(d: DraftVariant): Record<string, unknown> {
-  const hasValidity = d.validityValue.trim() !== '';
-  const isDates = d.validityMode === 'dates';
   return {
     ...(d.variantId ? { variantId: d.variantId } : {}),
     face_value: Number(d.faceValue),
     nexus_cost: Number(d.nexusCost),
     // No member_price field: the backend defaults member_price to nexus_cost, so
     // the Nexus price is the member-facing selling price.
-    // Validity: send only the active mode's fields (the other side stays null).
-    voucherValidityValue: isDates ? null : (hasValidity ? Number(d.validityValue) : null),
-    voucherValidityUnit: isDates ? null : (hasValidity ? d.validityUnit : null),
-    validFrom: isDates && d.validFrom ? d.validFrom : null,
-    validUntil: isDates && d.validUntil ? d.validUntil : null,
+    // Validity VALUE is per inventory unit; only the optional TYPE override is sent
+    // here (null = inherit the offer defaultValidityType). See voucher-validity-dating.
+    validityTypeOverride: d.validityTypeOverride === '' ? null : d.validityTypeOverride,
     voucherStackable: d.stackable === 'yes',
     sku: d.sku.trim() !== '' ? d.sku.trim() : null,
     tags: d.tags,

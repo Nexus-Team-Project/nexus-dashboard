@@ -21,8 +21,10 @@ export default function VariantList({ variants, onEdit, onDelete, disabled = fal
   const { t, language } = useLanguage();
   if (variants.length === 0) return null;
 
-  const unitLabel = (u: string) =>
-    u === 'days' ? t('co_validityUnitDays') : u === 'months' ? t('co_validityUnitMonths') : t('co_validityUnitYears');
+  // A variant only shows a validity TYPE when it overrides the offer default;
+  // otherwise it inherits (shown as nothing here). The date VALUE is per unit.
+  const overrideLabel = (o: DraftVariant['validityTypeOverride']) =>
+    o === 'limit' ? t('co_validityTypeLimit') : o === 'from_until' ? t('co_validityTypeFromUntil') : '';
 
   return (
     <div className="space-y-2">
@@ -44,8 +46,8 @@ export default function VariantList({ variants, onEdit, onDelete, disabled = fal
               <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
                 <span>{t('co_variantPriceLabel')}: ₪{price || '-'}</span>
                 <span>{t('fi_faceValue_label')}: ₪{v.faceValue || '-'}</span>
-                {v.validityValue.trim() !== '' && (
-                  <span>{t('co_fieldVoucherValidity')}: {v.validityValue} {unitLabel(v.validityUnit)}</span>
+                {v.validityTypeOverride !== '' && (
+                  <span>{t('co_validityTypeOverrideLabel')}: {overrideLabel(v.validityTypeOverride)}</span>
                 )}
                 <span>
                   {t('co_fieldVoucherStackable')}: {v.stackable === 'yes' ? t('co_voucherStackableYes') : v.stackable === 'no' ? t('co_voucherStackableNo') : '-'}

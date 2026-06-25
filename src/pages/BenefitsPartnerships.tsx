@@ -41,7 +41,7 @@ import OfferTypeBadge from '../components/catalog/OfferTypeBadge';
 import VoucherColorTile from '../components/offer/VoucherColorTile';
 import { buildOfferImageUrl, getImageCrop } from '../lib/cloudinaryImage';
 import { formatVoucherCardPrice } from '../lib/voucherPricing';
-import { variantValidityText } from '../lib/voucherValidity';
+import { validityTypeLabel } from '../lib/voucherValidity';
 
 interface Benefit {
   id: string;
@@ -144,11 +144,14 @@ function toBenefitType(executionType?: string): Benefit['benefitType'] {
 function VariantDetailsTable({
   offerId,
   variants,
+  defaultValidityType = null,
   canEditPrice = false,
   onEditVariantPrice,
 }: {
   offerId: string;
   variants: CatalogVariant[];
+  /** The offer's validity-type default, so a variant with no override shows the inherited type. */
+  defaultValidityType?: 'limit' | 'from_until' | null;
   canEditPrice?: boolean;
   onEditVariantPrice?: (variant: CatalogVariant, anchor: HTMLElement) => void;
 }) {
@@ -190,8 +193,9 @@ function VariantDetailsTable({
   const headCls = 'px-3 py-2 text-start font-semibold whitespace-nowrap';
   const cellCls = 'px-3 py-2 align-top';
   const truncCls = 'block max-w-[160px] truncate';
-  // Duration ("2 years") or date range ("01/01/26 - 31/03/26"), per variant.
-  const validityText = (v: CatalogVariant) => variantValidityText(v, t, language) || dash;
+  // Validity TYPE label per variant (the per-code dates live on the inventory
+  // units now); inherits the offer default when the variant has no override.
+  const validityText = (v: CatalogVariant) => validityTypeLabel(v.validityTypeOverride ?? defaultValidityType, t) || dash;
 
   return (
     <div dir={language === 'he' ? 'rtl' : 'ltr'} className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
@@ -1326,6 +1330,7 @@ const BenefitsPartnerships = () => {
                                   <VariantDetailsTable
                                     offerId={item.offerId}
                                     variants={item.variants!}
+                                    defaultValidityType={item.defaultValidityType ?? null}
                                     canEditPrice={canEditTenantPrice(item)}
                                     onEditVariantPrice={(v, anchor) => openVariantPriceEditor(item, v, anchor)}
                                   />
@@ -1800,6 +1805,7 @@ const BenefitsPartnerships = () => {
                   <VariantDetailsTable
                     offerId={selectedCatalogItem.offerId}
                     variants={selectedCatalogItem.variants!}
+                    defaultValidityType={selectedCatalogItem.defaultValidityType ?? null}
                     canEditPrice={canEditTenantPrice(selectedCatalogItem)}
                     onEditVariantPrice={(v, anchor) => openVariantPriceEditor(selectedCatalogItem, v, anchor)}
                   />

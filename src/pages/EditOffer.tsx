@@ -27,6 +27,7 @@ import OfferTypeField from '../components/offer/OfferTypeField';
 import VoucherBackgroundField, { type BgMode } from '../components/offer/VoucherBackgroundField';
 import VariantsManager from '../components/offer/VariantsManager';
 import VoucherRedemptionScopeCard from '../components/offer/VoucherRedemptionScopeCard';
+import VoucherValidityTypeCard from '../components/offer/VoucherValidityTypeCard';
 import { OfferFormSkeleton, OfferFormErrorState } from '../components/offer/OfferFormStates';
 import { type DraftVariant, variantToDraft, draftToPayload } from './voucherVariantDraft';
 import { computePublishBlockers, submitDateRangeError } from './createOfferFormData';
@@ -59,8 +60,7 @@ const EditOffer = () => {
   const [implementationInstructions, setImplementationInstructions] = useState('');
   const [validFrom, setValidFrom] = useState('');
   const [validUntil, setValidUntil] = useState('');
-  const [voucherValidityValue, setVoucherValidityValue] = useState('');
-  const [voucherValidityUnit, setVoucherValidityUnit] = useState('years');
+  const [defaultValidityType, setDefaultValidityType] = useState<'limit' | 'from_until'>('limit');
   const [voucherStackable, setVoucherStackable] = useState<'' | 'yes' | 'no'>('');
   const [bgMode, setBgMode] = useState<BgMode>('image');
   const [voucherBackgroundColor, setVoucherBackgroundColor] = useState('');
@@ -97,8 +97,7 @@ const EditOffer = () => {
         setImplementationInstructions(detail.implementationInstructions ?? '');
         setValidFrom(detail.validFrom ? detail.validFrom.slice(0, 10) : '');
         setValidUntil(detail.validUntil ? detail.validUntil.slice(0, 10) : '');
-        setVoucherValidityValue(detail.voucherValidityValue != null ? String(detail.voucherValidityValue) : '');
-        setVoucherValidityUnit(detail.voucherValidityUnit ?? 'years');
+        setDefaultValidityType(detail.defaultValidityType ?? 'limit');
         setVoucherStackable(detail.voucherStackable === true ? 'yes' : detail.voucherStackable === false ? 'no' : '');
         setTerms(detail.terms ?? '');
         setTags(detail.tags ?? []);
@@ -189,6 +188,7 @@ const EditOffer = () => {
       if (isVoucher) {
         const perVariant = variants.some((d) => d.customRedemption);
         fd.append('redemptionScope', perVariant ? 'per_variant' : 'shared');
+        fd.append('defaultValidityType', defaultValidityType);
         fd.append('variants', JSON.stringify(variants.map((d) => draftToPayload(d))));
         fd.append('voucherBackgroundColor', bgMode === 'color' && voucherBackgroundColor ? voucherBackgroundColor : '');
         // Shared redemption text always lives on the parent; per-variant overrides
@@ -285,6 +285,10 @@ const EditOffer = () => {
       />
       {isVoucher ? (
         <>
+          <VoucherValidityTypeCard
+            value={defaultValidityType} setValue={setDefaultValidityType}
+            isSubmitting={isSubmitting}
+          />
           <VoucherRedemptionScopeCard
             terms={terms} setTerms={setTerms}
             method={implementationInstructions} setMethod={setImplementationInstructions}
@@ -305,8 +309,6 @@ const EditOffer = () => {
           validFrom={validFrom} setValidFrom={setValidFrom}
           validUntil={validUntil} setValidUntil={setValidUntil}
           executionType={executionType}
-          voucherValidityValue={voucherValidityValue} setVoucherValidityValue={setVoucherValidityValue}
-          voucherValidityUnit={voucherValidityUnit} setVoucherValidityUnit={setVoucherValidityUnit}
           voucherStackable={voucherStackable} setVoucherStackable={setVoucherStackable}
           terms={terms} setTerms={setTerms}
           tagInput={tagInput} setTagInput={setTagInput}

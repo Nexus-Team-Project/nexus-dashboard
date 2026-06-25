@@ -40,14 +40,6 @@ interface RedemptionSectionProps {
    * replaced by the purchase-anchored validity-duration control.
    */
   executionType: string;
-  /** Voucher validity amount as string (form input); empty = never expires. Voucher-only. */
-  voucherValidityValue: string;
-  /** Setter for voucherValidityValue. */
-  setVoucherValidityValue: (v: string) => void;
-  /** Voucher validity unit ('days' | 'months' | 'years'). Voucher-only. */
-  voucherValidityUnit: string;
-  /** Setter for voucherValidityUnit. */
-  setVoucherValidityUnit: (v: string) => void;
   /** Mandatory combine-with-promotions choice ('' | 'yes' | 'no'). Voucher-only. */
   voucherStackable: StackChoice;
   /** Setter for voucherStackable. */
@@ -87,10 +79,6 @@ const CreateOfferRedemptionSection = ({
   validUntil,
   setValidUntil,
   executionType,
-  voucherValidityValue,
-  setVoucherValidityValue,
-  voucherValidityUnit,
-  setVoucherValidityUnit,
   voucherStackable,
   setVoucherStackable,
   terms,
@@ -178,52 +166,9 @@ const CreateOfferRedemptionSection = ({
         />
       </div>
 
-      {executionType === 'voucher' ? (
-        /* Voucher: purchase-anchored validity duration (amount + unit) instead
-           of absolute dates. (The combine-with-promotions toggle sits at the
-           top of this card.) */
-        <div className="mb-4">
-          <label
-            htmlFor="offer-voucher-validity"
-            className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300"
-          >
-            {t('co_fieldVoucherValidity')}
-            <span className="font-normal text-slate-400 ms-1 me-0.5">{t('co_optional')}</span>
-            <FieldTooltip fieldKey="voucherValidity" />
-          </label>
-          {/* No dir override: the control follows the page direction so Hebrew
-              text aligns RTL and the native select arrow sits on the left. */}
-          <div className="flex gap-2">
-            <input
-              id="offer-voucher-validity"
-              type="number"
-              min="1"
-              step="1"
-              value={voucherValidityValue}
-              onChange={(e) => setVoucherValidityValue(e.target.value)}
-              onWheel={(e) => e.currentTarget.blur()}
-              placeholder={t('co_voucherValidityPlaceholder')}
-              disabled={isSubmitting}
-              className="w-28 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-colors focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white disabled:cursor-not-allowed disabled:opacity-60"
-            />
-            <select
-              aria-label={t('co_fieldVoucherValidity')}
-              value={voucherValidityUnit}
-              onChange={(e) => setVoucherValidityUnit(e.target.value)}
-              disabled={isSubmitting}
-              className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-colors focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <option value="days">{t('co_validityUnitDays')}</option>
-              <option value="months">{t('co_validityUnitMonths')}</option>
-              <option value="years">{t('co_validityUnitYears')}</option>
-            </select>
-          </div>
-          <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">{t('co_voucherValidityHint')}</p>
-        </div>
-      ) : (
-        /* Non-voucher: absolute valid-from / valid-until date range picker.
-           Stacks on mobile, two columns on sm+ screens. */
-        <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+      {/* Absolute valid-from / valid-until date range (non-voucher offers only;
+          vouchers use unit-level dating via the inventory flow). */}
+      <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label
               htmlFor="offer-valid-from"
@@ -264,7 +209,6 @@ const CreateOfferRedemptionSection = ({
             />
           </div>
         </div>
-      )}
 
       {/* Terms and conditions text */}
       <div className="mb-4">

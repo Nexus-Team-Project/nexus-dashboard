@@ -24,6 +24,7 @@ import VoucherBackgroundField, { type BgMode } from '../components/offer/Voucher
 import OfferVisibilityCard from '../components/offer/OfferVisibilityCard';
 import VariantsManager from '../components/offer/VariantsManager';
 import VoucherRedemptionScopeCard from '../components/offer/VoucherRedemptionScopeCard';
+import VoucherValidityTypeCard from '../components/offer/VoucherValidityTypeCard';
 import PublishConfirmModal from '../components/offer/PublishConfirmModal';
 import CreationModeTabs, { type CreateMode } from '../components/offer/CreationModeTabs';
 import VoucherCsvBulk from '../components/offer/VoucherCsvBulk';
@@ -60,8 +61,6 @@ const CreateOffer = () => {
   const [validFrom, setValidFrom] = useState('');
   const [validUntil, setValidUntil] = useState('');
   // Voucher-only flat fields retained for the non-voucher redemption section props.
-  const [voucherValidityValue, setVoucherValidityValue] = useState('');
-  const [voucherValidityUnit, setVoucherValidityUnit] = useState('years');
   const [voucherStackable, setVoucherStackable] = useState<'' | 'yes' | 'no'>('');
   const [bgMode, setBgMode] = useState<BgMode>('image');
   const [voucherBackgroundColor, setVoucherBackgroundColor] = useState('');
@@ -74,6 +73,8 @@ const CreateOffer = () => {
   // Voucher variants: at least one is required to publish. `variantEditing` is
   // true while a variant draft is open (blocks publish until saved/cancelled).
   const [variants, setVariants] = useState<DraftVariant[]>([]);
+  // Voucher validity TYPE default for the offer; per-unit VALUE is set at inventory time.
+  const [defaultValidityType, setDefaultValidityType] = useState<'limit' | 'from_until'>('limit');
   const [variantEditing, setVariantEditing] = useState(false);
   const [showPublishConfirm, setShowPublishConfirm] = useState(false);
   const [mode, setMode] = useState<CreateMode>('manual');
@@ -108,9 +109,9 @@ const CreateOffer = () => {
   const formValues = (): CreateOfferValues => ({
     title, description, category, marketPrice, visibility, isPlatformAdmin,
     executionType, stockLimit, faceValue, nexusCost, gallery, implementationLink,
-    implementationInstructions, voucherValidityValue, voucherValidityUnit,
+    implementationInstructions,
     voucherStackable, bgMode, voucherBackgroundColor, sku, validFrom, validUntil,
-    terms, tags, variants,
+    terms, tags, variants, defaultValidityType,
   });
 
   const isVoucher = executionType === 'voucher';
@@ -219,6 +220,10 @@ const CreateOffer = () => {
       />
       {isVoucher ? (
         <>
+          <VoucherValidityTypeCard
+            value={defaultValidityType} setValue={setDefaultValidityType}
+            isSubmitting={isSubmitting}
+          />
           <VoucherRedemptionScopeCard
             terms={terms} setTerms={setTerms}
             method={implementationInstructions} setMethod={setImplementationInstructions}
@@ -238,8 +243,6 @@ const CreateOffer = () => {
           validFrom={validFrom} setValidFrom={setValidFrom}
           validUntil={validUntil} setValidUntil={setValidUntil}
           executionType={executionType}
-          voucherValidityValue={voucherValidityValue} setVoucherValidityValue={setVoucherValidityValue}
-          voucherValidityUnit={voucherValidityUnit} setVoucherValidityUnit={setVoucherValidityUnit}
           voucherStackable={voucherStackable} setVoucherStackable={setVoucherStackable}
           terms={terms} setTerms={setTerms}
           tagInput={tagInput} setTagInput={setTagInput}
