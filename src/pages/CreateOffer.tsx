@@ -28,7 +28,7 @@ import VoucherValidityTypeCard from '../components/offer/VoucherValidityTypeCard
 import PublishConfirmModal from '../components/offer/PublishConfirmModal';
 import CreationModeTabs, { type CreateMode } from '../components/offer/CreationModeTabs';
 import VoucherCsvBulk from '../components/offer/VoucherCsvBulk';
-import { type DraftVariant } from './voucherVariantDraft';
+import { type DraftVariant, stagedUnitsToBatches } from './voucherVariantDraft';
 import { buildCreateOfferFormData, computePublishBlockers, submitDateRangeError, type CreateOfferValues } from './createOfferFormData';
 
 /** Visibility options for a platform offer. */
@@ -137,10 +137,11 @@ const CreateOffer = () => {
       let units = 0;
       let invError: string | null = null;
       for (let i = 0; i < variants.length; i++) {
-        const inv = variants[i].inventory;
         const variantId = created[i]?.variantId;
-        if (inv && variantId) {
-          try { const r = await addVariantInventory(offer.offerId, variantId, inv); units += r.created; }
+        if (!variantId) continue;
+        // Group this variant's staged units into batches (one per kind+validity) and apply each.
+        for (const batch of stagedUnitsToBatches(variants[i].stagedUnits)) {
+          try { const r = await addVariantInventory(offer.offerId, variantId, batch); units += r.created; }
           catch (e) { if (!invError) invError = e instanceof Error ? e.message : String(e); }
         }
       }

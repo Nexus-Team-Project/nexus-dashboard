@@ -221,14 +221,15 @@ export default function VariantBuilder({
         )}
       </div>
 
-      {/* Inventory control (stages in memory, applied at publish) */}
+      {/* Inventory: opens the staged inventory manager. Codes are held in memory
+          (unsaved) and persisted only when the offer is published/saved. */}
       <div className="mt-4 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-slate-900 dark:text-white">{t('co_invSectionTitle')}</p>
             <p className="mt-1 flex items-center gap-2 text-sm">
               <span className="text-slate-500 dark:text-slate-400">{t('co_invCurrentLabel')}</span>
-              <span className={draft.inventoryChoiceMade ? 'font-semibold text-slate-900 dark:text-white' : 'font-medium text-amber-600 dark:text-amber-400'}>
+              <span className={draft.stagedUnits.length > 0 ? 'font-medium text-amber-600 dark:text-amber-400' : 'font-semibold text-slate-900 dark:text-white'}>
                 {variantInventorySummary(t, draft)}
               </span>
             </p>
@@ -237,7 +238,7 @@ export default function VariantBuilder({
             type="button" onClick={onOpenInventory} disabled={isSubmitting}
             className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90 disabled:opacity-60"
           >
-            {draft.inventoryChoiceMade ? t('co_invEditBtn') : t('co_invOpenBtn')}
+            {t('im_title')}
           </button>
         </div>
       </div>

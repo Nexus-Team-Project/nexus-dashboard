@@ -15,7 +15,7 @@ import { useEffect, useState } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import VariantBuilder from './VariantBuilder';
 import VariantList from './VariantList';
-import VoucherInventoryModal from './VoucherInventoryModal';
+import StagedInventoryModal from './StagedInventoryModal';
 import {
   type DraftVariant, emptyDraftVariant, validateVariantDraft, isDuplicateVariant,
 } from '../../pages/voucherVariantDraft';
@@ -31,56 +31,22 @@ interface VariantsManagerProps {
   defaultValidityType: 'limit' | 'from_until';
   /** Reports whether a draft is currently open (parent uses it to gate Publish). */
   onEditingChange?: (editing: boolean) => void;
-  /**
-   * Edit-page only: loads an existing variant's stored inventory so the popup
-   * pre-fills its links and locks to the kind already in use. Omitted on Create
-   * (a new variant has no backend inventory yet).
-   */
-  loadExistingInventory?: (variantId: string) => Promise<{ barcodes: string[]; links: string[]; lockedKind: 'barcode' | 'link' | null }>;
   isSubmitting?: boolean;
-}
-
-/** What the inventory popup is pre-filled + locked with when it opens. */
-interface InventoryPrefill {
-  initialBarcodes?: string[];
-  initialLinks?: { url: string; code?: string }[];
-  lockedKind: 'barcode' | 'link' | null;
 }
 
 /** Renders the Create-Variant button, the builder, the saved list, and the inventory popup. */
 export default function VariantsManager({
-  variants, setVariants, sharedTerms, sharedMethod, defaultValidityType, onEditingChange, loadExistingInventory, isSubmitting = false,
+  variants, setVariants, sharedTerms, sharedMethod, defaultValidityType, onEditingChange, isSubmitting = false,
 }: VariantsManagerProps) {
   const { t, language } = useLanguage();
   const [draft, setDraft] = useState<DraftVariant | null>(null);
   const [builderError, setBuilderError] = useState<string | null>(null);
   const [showInventory, setShowInventory] = useState(false);
-  const [prefill, setPrefill] = useState<InventoryPrefill>({ lockedKind: null });
 
   useEffect(() => { onEditingChange?.(draft !== null); }, [draft, onEditingChange]);
 
-  /** Opens the inventory popup, pre-filling from this session's staged choice or
-   *  (for an existing variant on Edit) from the backend, locking the used kind. */
-  const openInventory = async () => {
-    if (!draft) return;
-    if (draft.inventory || !draft.variantId || !loadExistingInventory) {
-      setPrefill({
-        initialBarcodes: draft.inventory?.kind === 'barcode' ? draft.inventory.values : undefined,
-        initialLinks: draft.inventory?.kind === 'link' ? draft.inventory.links : undefined,
-        lockedKind: null,
-      });
-    } else {
-      try {
-        const inv = await loadExistingInventory(draft.variantId);
-        setPrefill({
-          initialBarcodes: inv.barcodes,
-          initialLinks: inv.links.map((url) => ({ url })),
-          lockedKind: inv.lockedKind,
-        });
-      } catch { setPrefill({ lockedKind: null }); }
-    }
-    setShowInventory(true);
-  };
+  /** Opens the staged inventory modal for the current draft variant. */
+  const openInventory = () => { if (draft) setShowInventory(true); };
 
   const startCreate = () => { setBuilderError(null); setDraft(emptyDraftVariant()); };
   const startEdit = (localId: string) => {
@@ -94,7 +60,6 @@ export default function VariantsManager({
     if (!draft) return;
     const err = validateVariantDraft(draft, t, language);
     if (err) { setBuilderError(err); return; }
-    if (!draft.inventoryChoiceMade) { setBuilderError(t('co_invRequiredHint')); return; }
     if (isDuplicateVariant(draft, variants)) { setBuilderError(t('co_variantDuplicate')); return; }
     setVariants((prev) => {
       const idx = prev.findIndex((v) => v.localId === draft.localId);
@@ -167,16 +132,12 @@ export default function VariantsManager({
       </div>
 
       {showInventory && draft !== null && (
-        <VoucherInventoryModal
-          busy={isSubmitting}
-          initialBarcodes={prefill.initialBarcodes}
-          initialLinks={prefill.initialLinks}
-          lockedKind={prefill.lockedKind}
+        <StagedInventoryModal
+          variantLabel={t('co_variantBuilderTitle')}
           validityType={draft.validityTypeOverride === '' ? defaultValidityType : draft.validityTypeOverride}
-          initialValidity={draft.inventory ?? undefined}
-          onConfirm={(inv) => { patchDraft({ inventory: inv, inventoryChoiceMade: true }); setShowInventory(false); }}
-          onSkip={() => { patchDraft({ inventory: null, inventoryChoiceMade: true }); setShowInventory(false); }}
-          onCancel={() => setShowInventory(false)}
+          units={draft.stagedUnits}
+          onChange={(units) => patchDraft({ stagedUnits: units })}
+          onClose={() => setShowInventory(false)}
         />
       )}
     </section>

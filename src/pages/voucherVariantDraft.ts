@@ -26,22 +26,6 @@ export function effectiveValidityType(
 }
 
 /**
- * True when a staged inventory's per-batch validity matches the effective type it
- * will be applied under (voucher-validity-dating). A `limit` batch must carry a
- * validity amount; a `from_until` batch must carry both window dates. Inventory
- * that was skipped (null) needs no validity. Used by the publish gate so a batch
- * staged under one type cannot be applied after the type was switched.
- */
-export function stagedValidityMatches(
-  inv: OfferInventoryInput | null,
-  effType: 'limit' | 'from_until',
-): boolean {
-  if (!inv) return true;
-  if (effType === 'limit') return inv.validityValue != null && inv.validityUnit != null;
-  return inv.validFrom != null && inv.validUntil != null;
-}
-
-/**
  * One variant being authored. All numeric fields are kept as strings (form
  * inputs); inventory is staged in memory and applied per variant at publish.
  */
@@ -72,10 +56,31 @@ export interface DraftVariant {
   terms: string;
   /** Per-variant redemption method (אופן מימוש) - used only when customRedemption. */
   implementationInstructions: string;
-  /** Staged inventory choice (null = explicitly none/skip). */
-  inventory: OfferInventoryInput | null;
-  /** Whether the admin has chosen inventory or explicitly skipped for this variant. */
-  inventoryChoiceMade: boolean;
+  /**
+   * Inventory staged in memory on the authoring (create/edit) page. Each unit
+   * carries its own validity; they are grouped by kind+validity into batches and
+   * persisted only when the offer is published/saved (voucher-validity-dating).
+   * Empty = no inventory yet (the voucher publishes out of stock). On Benefits
+   * Partnerships inventory is written immediately instead (live mode).
+   */
+  stagedUnits: StagedUnit[];
+}
+
+/**
+ * One redeemable unit staged in memory before publish/save. Mirrors a stored
+ * `voucherCodes` unit's authoring-relevant fields plus a client-only id. Validity
+ * follows the variant's effective type: `limit` -> validityValue+validityUnit;
+ * `from_until` -> validFrom+validUntil (ISO date strings).
+ */
+export interface StagedUnit {
+  localId: string;
+  kind: 'barcode' | 'link';
+  value: string;
+  code?: string;
+  validityValue?: number | null;
+  validityUnit?: 'days' | 'months' | 'years' | null;
+  validFrom?: string | null;
+  validUntil?: string | null;
 }
 
 let localIdCounter = 0;
@@ -98,9 +103,66 @@ export function emptyDraftVariant(): DraftVariant {
     customRedemption: false,
     terms: '',
     implementationInstructions: '',
-    inventory: null,
-    inventoryChoiceMade: false,
+    stagedUnits: [],
   };
+}
+
+/** Local-id counter for staged units (client-only; never sent to the server). */
+let stagedUnitCounter = 0;
+function nextStagedUnitId(): string {
+  stagedUnitCounter += 1;
+  return `su_${stagedUnitCounter}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/**
+ * Expands an inventory batch (one kind + codes + one validity) into staged units,
+ * stamping the batch validity onto each. Used when the authoring "add batch" popup
+ * confirms - the batch becomes individual staged units so they list + edit uniformly.
+ */
+export function batchToStagedUnits(inv: OfferInventoryInput): StagedUnit[] {
+  const validity = {
+    validityValue: inv.validityValue ?? null,
+    validityUnit: inv.validityUnit ?? null,
+    validFrom: inv.validFrom ?? null,
+    validUntil: inv.validUntil ?? null,
+  };
+  if (inv.kind === 'barcode') {
+    return (inv.values ?? []).map((value) => ({ localId: nextStagedUnitId(), kind: 'barcode', value, ...validity }));
+  }
+  return (inv.links ?? []).map((l) => ({ localId: nextStagedUnitId(), kind: 'link', value: l.url, ...(l.code ? { code: l.code } : {}), ...validity }));
+}
+
+/**
+ * Groups staged units back into the minimal set of inventory batches (one per
+ * distinct kind+validity), so publish/save can apply each with a single
+ * `addVariantInventory` call. Pure.
+ */
+export function stagedUnitsToBatches(units: StagedUnit[]): OfferInventoryInput[] {
+  const groups = new Map<string, OfferInventoryInput>();
+  for (const u of units) {
+    const key = JSON.stringify([u.kind, u.validityValue ?? null, u.validityUnit ?? null, u.validFrom ?? null, u.validUntil ?? null]);
+    let batch = groups.get(key);
+    if (!batch) {
+      batch = {
+        kind: u.kind,
+        ...(u.kind === 'barcode' ? { values: [] } : { links: [] }),
+        ...(u.validityValue != null && { validityValue: u.validityValue }),
+        ...(u.validityUnit != null && { validityUnit: u.validityUnit }),
+        ...(u.validFrom != null && { validFrom: u.validFrom }),
+        ...(u.validUntil != null && { validUntil: u.validUntil }),
+      };
+      groups.set(key, batch);
+    }
+    if (u.kind === 'barcode') batch.values!.push(u.value);
+    else batch.links!.push({ url: u.value, ...(u.code ? { code: u.code } : {}) });
+  }
+  return Array.from(groups.values());
+}
+
+/** True when a staged unit carries the validity its effective type requires. */
+export function stagedUnitMatchesType(u: StagedUnit, effType: 'limit' | 'from_until'): boolean {
+  if (effType === 'limit') return u.validityValue != null && u.validityUnit != null;
+  return u.validFrom != null && u.validUntil != null;
 }
 
 /**
@@ -136,10 +198,11 @@ export function variantToDraft(v: CatalogVariant, parentTerms?: string, parentMe
     customRedemption: custom,
     terms: custom ? (v.terms ?? '') : '',
     implementationInstructions: custom ? (v.implementationInstructions ?? '') : '',
-    // Inventory is loaded separately per variant (links pre-fill); start "made"
-    // so an unchanged edit is publishable, matching the create-page gate.
-    inventory: null,
-    inventoryChoiceMade: true,
+    // Existing inventory is NOT loaded into the draft: the authoring inventory
+    // modal shows already-saved units (read-only) from the backend and stages only
+    // NEW units here. Start empty - publishing with no new units leaves the
+    // variant's stored inventory untouched.
+    stagedUnits: [],
   };
 }
 
@@ -237,13 +300,11 @@ export function nexusPriceError(faceValue: string, nexusCost: string, language: 
   return null;
 }
 
-/** Human summary of a variant's staged inventory choice (for the list + builder). */
+/** Human summary of a variant's staged (unsaved) inventory additions, for the list + builder. */
 export function variantInventorySummary(
   t: (key: TranslationKey) => string,
   d: DraftVariant,
 ): string {
-  if (!d.inventoryChoiceMade) return t('co_invSummaryNotSet');
-  if (d.inventory === null) return t('co_invSummarySkipped');
-  if (d.inventory.kind === 'barcode') return `${d.inventory.values?.length ?? 0} ${t('co_invSummaryBarcodes')}`;
-  return `${d.inventory.links?.length ?? 0} ${t('co_invSummaryLinks')}`;
+  if (d.stagedUnits.length === 0) return t('co_invSummaryNone');
+  return `${d.stagedUnits.length} ${t('co_invSummaryUnsaved')}`;
 }

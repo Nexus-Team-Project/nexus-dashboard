@@ -9,7 +9,7 @@ import type { GalleryItem } from '../components/offer/OfferImageGallery';
 import type { BgMode } from '../components/offer/VoucherBackgroundField';
 import type { OfferInventoryInput } from '../lib/api';
 import type { TranslationKey } from '../i18n/translations';
-import { type DraftVariant, draftToPayload, effectiveValidityType, stagedValidityMatches } from './voucherVariantDraft';
+import { type DraftVariant, draftToPayload, effectiveValidityType, stagedUnitMatchesType } from './voucherVariantDraft';
 
 export interface CreateOfferValues {
   title: string;
@@ -135,9 +135,12 @@ export function computePublishBlockers(
   if (v.executionType === 'voucher') {
     if (v.variants.length === 0) blockers.push(t('co_variantsRequired'));
     else if (v.variantEditing) blockers.push(t('of_publishBlockVariantEditing'));
-    // A batch staged under one validity type cannot be applied after the type was
-    // switched (variant override or offer default). Force re-entering the date.
-    else if (v.variants.some((d) => !stagedValidityMatches(d.inventory, effectiveValidityType(d.validityTypeOverride, v.defaultValidityType)))) {
+    // A staged unit dated under one validity type cannot be applied after the type
+    // was switched (variant override or offer default). Force re-entering the date.
+    else if (v.variants.some((d) => {
+      const eff = effectiveValidityType(d.validityTypeOverride, v.defaultValidityType);
+      return d.stagedUnits.some((u) => !stagedUnitMatchesType(u, eff));
+    })) {
       blockers.push(t('co_invDateNeeded'));
     }
   }

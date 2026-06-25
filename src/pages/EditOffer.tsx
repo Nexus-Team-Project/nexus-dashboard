@@ -15,7 +15,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import {
-  getOfferDetails, updateOfferApi, addVariantInventory, getVariantInventory,
+  getOfferDetails, updateOfferApi, addVariantInventory,
   type CatalogItem,
 } from '../lib/api';
 import CreateOfferDetailsSection from './CreateOfferDetailsSection';
@@ -30,7 +30,7 @@ import VoucherRedemptionScopeCard from '../components/offer/VoucherRedemptionSco
 import VoucherValidityTypeCard from '../components/offer/VoucherValidityTypeCard';
 import ValidityFlipConfirmModal from '../components/offer/ValidityFlipConfirmModal';
 import { OfferFormSkeleton, OfferFormErrorState } from '../components/offer/OfferFormStates';
-import { type DraftVariant, variantToDraft, draftToPayload } from './voucherVariantDraft';
+import { type DraftVariant, variantToDraft, draftToPayload, stagedUnitsToBatches } from './voucherVariantDraft';
 import { computePublishBlockers, submitDateRangeError } from './createOfferFormData';
 
 const EditOffer = () => {
@@ -158,17 +158,6 @@ const EditOffer = () => {
     }
   };
 
-  /** Edit-page inventory loader for the variants manager (existing barcodes +
-   *  links + the locked kind), so the popup re-shows the stored inventory. */
-  const loadExistingInventory = async (variantId: string) => {
-    if (!offerId) return { barcodes: [], links: [], lockedKind: null as 'barcode' | 'link' | null };
-    const inv = await getVariantInventory(offerId, variantId);
-    return {
-      barcodes: inv.barcodes,
-      links: inv.links,
-      lockedKind: inv.counts.barcode > 0 ? 'barcode' : inv.counts.link > 0 ? 'link' : null,
-    } as { barcodes: string[]; links: string[]; lockedKind: 'barcode' | 'link' | null };
-  };
 
   // Single source of truth for "can publish": same hard-blocker helper as Create.
   // Drives both the button's disabled state and the on-click guard.
@@ -227,10 +216,10 @@ const EditOffer = () => {
       if (isVoucher) {
         const created = updated.variants ?? [];
         for (let i = 0; i < variants.length; i++) {
-          const inv = variants[i].inventory;
           const variantId = created[i]?.variantId;
-          if (inv && variantId) {
-            try { const r = await addVariantInventory(offerId, variantId, inv); units += r.created; }
+          if (!variantId) continue;
+          for (const batch of stagedUnitsToBatches(variants[i].stagedUnits)) {
+            try { const r = await addVariantInventory(offerId, variantId, batch); units += r.created; }
             catch (e) { if (!invError) invError = e instanceof Error ? e.message : String(e); }
           }
         }
@@ -304,7 +293,6 @@ const EditOffer = () => {
             sharedTerms={terms} sharedMethod={implementationInstructions}
             defaultValidityType={defaultValidityType}
             onEditingChange={setVariantEditing}
-            loadExistingInventory={loadExistingInventory}
             isSubmitting={isSubmitting}
           />
         </>
