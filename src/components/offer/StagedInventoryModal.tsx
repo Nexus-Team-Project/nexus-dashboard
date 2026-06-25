@@ -1,21 +1,22 @@
 /**
  * StagedInventoryModal: the authoring (Create/Edit) inventory surface for ONE
- * voucher variant. It mirrors the live VariantInventoryManagerModal but operates
- * purely IN MEMORY - nothing is written to the backend here; the staged units are
- * persisted only when the offer is published/saved (voucher-validity-dating). Every
- * row carries an "unsaved" badge. Adding a batch reuses VoucherInventoryModal; a
- * unit's date can be edited or the unit removed, all in memory. One kind only
- * (the add-batch popup is locked to the kind already staged).
+ * voucher variant. It operates IN MEMORY - nothing is written to the backend
+ * here; staged additions (`stagedUnits`) and edits to already-saved units
+ * (`stagedEdits`, keyed by codeId) are persisted only on Publish/Save
+ * (voucher-validity-dating). Already-saved units load read-only-by-default (one
+ * lazy GET, first page) for reference and can be edited (staged). Rows are
+ * multi-selectable for a bulk date change. One kind per variant (the add-batch
+ * popup locks to the kind already in use).
  *
  * z-[200], body-scroll-lock, RTL-aware. Controlled by the parent (VariantsManager).
  */
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLanguage } from '../../i18n/LanguageContext';
-import { cn } from '../../lib/utils';
 import { type OfferInventoryInput, type InventoryUnitView, listVariantUnits } from '../../lib/api';
 import { type StagedUnit, type StagedEdit, batchToStagedUnits } from '../../pages/voucherVariantDraft';
 import VoucherInventoryModal from './VoucherInventoryModal';
+import InventoryValidityEditor, { type ValidityPatch } from './InventoryValidityEditor';
 
 interface Props {
   variantLabel: string;
@@ -27,20 +28,12 @@ interface Props {
   edits: StagedEdit[];
   onEditsChange: (edits: StagedEdit[]) => void;
   onClose: () => void;
-  /**
-   * When editing a persisted variant, the offer + variant ids let the modal load
-   * the variant's ALREADY-SAVED units for READ-ONLY reference (one lazy GET on
-   * open). Editing/deleting saved codes is done on Benefits Partnerships (live);
-   * here only new batches are staged. Omitted on Create (nothing saved yet).
-   */
+  /** When editing a persisted variant, load its already-saved units for reference. */
   offerId?: string;
   variantId?: string;
 }
 
-/** First-page size for the read-only "already saved" reference list. */
 const SAVED_PAGE_SIZE = 50;
-
-const inputCls = 'rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white';
 
 /** Minimal validity shape shared by staged units and saved unit views. */
 type ValidityShape = { validFrom?: string | null; validUntil?: string | null; validityValue?: number | null; validityUnit?: 'days' | 'months' | 'years' | null };
@@ -55,16 +48,18 @@ function validityText(u: ValidityShape, t: (k: 'co_validityUnitDays' | 'co_valid
   return t('im_noWindowYet');
 }
 
+const thCls = 'p-2 text-start text-xs font-semibold text-slate-500 dark:text-slate-400';
+
 export default function StagedInventoryModal({ variantLabel, defaultType, units, onChange, edits, onEditsChange, onClose, offerId, variantId }: Props) {
   const { t, language } = useLanguage();
   const [showAddBatch, setShowAddBatch] = useState(false);
-  const [editing, setEditing] = useState<string | null>(null);
-  const [editingSaved, setEditingSaved] = useState<string | null>(null);
-  // Already-saved units (read-only reference), lazily loaded once when editing a
-  // persisted variant. One GET; first page only - the full list is managed on
-  // Benefits Partnerships.
+  const [editing, setEditing] = useState<string | null>(null);       // staged-unit localId
+  const [editingSaved, setEditingSaved] = useState<string | null>(null); // saved-unit codeId
+  const [bulkEditing, setBulkEditing] = useState(false);
+  const [sel, setSel] = useState<Set<string>>(new Set()); // keys: "s:<localId>" / "v:<codeId>"
   const [saved, setSaved] = useState<InventoryUnitView[]>([]);
   const [savedTotal, setSavedTotal] = useState(0);
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     const prev = document.body.style.overflow; document.body.style.overflow = 'hidden';
@@ -82,26 +77,51 @@ export default function StagedInventoryModal({ variantLabel, defaultType, units,
     return () => { alive = false; };
   }, [offerId, variantId]);
 
-  // One kind per variant: lock the add-batch popup to the kind already in use
-  // (saved units take precedence, then anything staged).
+  const q = search.trim().toLowerCase();
+  const shownUnits = q ? units.filter((u) => u.value.toLowerCase().includes(q) || (u.code ?? '').toLowerCase().includes(q)) : units;
+  const shownSaved = q ? saved.filter((u) => u.value.toLowerCase().includes(q) || (u.code ?? '').toLowerCase().includes(q)) : saved;
+
   const lockedKind = saved[0]?.kind ?? units[0]?.kind ?? null;
   const addBatch = (inv: OfferInventoryInput) => { onChange([...units, ...batchToStagedUnits(inv)]); setShowAddBatch(false); };
   const removeUnit = (id: string) => onChange(units.filter((u) => u.localId !== id));
-  const editUnit = (id: string, patch: Partial<StagedUnit>) => { onChange(units.map((u) => (u.localId === id ? { ...u, ...patch } : u))); setEditing(null); };
-  /** Upsert a staged edit for a saved unit (keyed by codeId). */
-  const editSaved = (codeId: string, patch: Partial<StagedEdit>) => {
-    const next = edits.filter((e) => e.codeId !== codeId);
-    next.push({ codeId, validityValue: null, validityUnit: null, validFrom: null, validUntil: null, ...patch });
-    onEditsChange(next);
-    setEditingSaved(null);
-  };
-  /** The staged-edit override for a saved unit, if any. */
+  const editUnit = (id: string, patch: ValidityPatch) => { onChange(units.map((u) => (u.localId === id ? { ...u, ...patch } : u))); setEditing(null); };
+  const editSaved = (codeId: string, patch: ValidityPatch) => { upsertEdits([codeId], patch); setEditingSaved(null); };
   const editFor = (codeId: string) => edits.find((e) => e.codeId === codeId);
+
+  /** Upsert staged edits for the given saved codeIds with one validity. */
+  function upsertEdits(codeIds: string[], patch: ValidityPatch) {
+    const set = new Set(codeIds);
+    const next = edits.filter((e) => !set.has(e.codeId));
+    for (const codeId of codeIds) next.push({ codeId, validityValue: null, validityUnit: null, validFrom: null, validUntil: null, ...patch });
+    onEditsChange(next);
+  }
+
+  const toggleSel = (key: string) => setSel((s) => { const n = new Set(s); if (n.has(key)) n.delete(key); else n.add(key); return n; });
+  const allKeys = [...shownUnits.map((u) => `s:${u.localId}`), ...shownSaved.map((u) => `v:${u.codeId}`)];
+  const allSelected = allKeys.length > 0 && allKeys.every((k) => sel.has(k));
+  const toggleAll = () => setSel(allSelected ? new Set() : new Set(allKeys));
+
+  /** Apply one validity to every selected row (staged units + saved units). */
+  const applyBulk = (patch: ValidityPatch) => {
+    const stagedIds = [...sel].filter((k) => k.startsWith('s:')).map((k) => k.slice(2));
+    const savedIds = [...sel].filter((k) => k.startsWith('v:')).map((k) => k.slice(2));
+    if (stagedIds.length > 0) {
+      const set = new Set(stagedIds);
+      onChange(units.map((u) => (set.has(u.localId) ? { ...u, ...patch } : u)));
+    }
+    if (savedIds.length > 0) upsertEdits(savedIds, patch);
+    setBulkEditing(false); setSel(new Set());
+  };
+
+  const Check = ({ k }: { k: string }) => (
+    <input type="checkbox" checked={sel.has(k)} onChange={() => toggleSel(k)}
+      className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" />
+  );
 
   return createPortal(
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}
       role="dialog" aria-modal="true" aria-label={t('im_title')} dir={language === 'he' ? 'rtl' : 'ltr'}>
-      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl bg-white shadow-2xl dark:bg-card-dark">
+      <div className="flex max-h-[92vh] w-full max-w-4xl flex-col rounded-2xl bg-white shadow-2xl dark:bg-card-dark">
         <div className="flex items-center justify-between border-b border-slate-100 p-5 dark:border-slate-800">
           <div>
             <h2 className="text-base font-semibold text-slate-900 dark:text-white">{t('im_title')} · {variantLabel}</h2>
@@ -111,35 +131,48 @@ export default function StagedInventoryModal({ variantLabel, defaultType, units,
             className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">&#x2715;</button>
         </div>
 
-        <div className="flex items-center justify-end px-5 pt-4">
+        {/* Toolbar: search + select-all + add batch */}
+        <div className="flex flex-wrap items-center gap-2 px-5 pt-4">
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('im_searchPlaceholder')}
+            className="flex-1 min-w-[160px] rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" />
+          {allKeys.length > 0 && (
+            <label className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
+              <input type="checkbox" checked={allSelected} onChange={toggleAll} className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" />
+              {t('im_selectAll')}
+            </label>
+          )}
           <button type="button" onClick={() => setShowAddBatch(true)}
             className="rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:opacity-90">{t('im_addBatch')}</button>
         </div>
 
+        {/* Bulk-edit bar */}
+        {sel.size > 0 && (
+          <div className="mx-5 mt-3 flex items-center justify-between gap-2 rounded-lg bg-slate-50 p-2 text-xs dark:bg-slate-800/50">
+            <span className="text-slate-600 dark:text-slate-300">{sel.size} {t('im_selected')}</span>
+            <button type="button" onClick={() => setBulkEditing(true)} className="font-semibold text-primary hover:underline">{t('im_editSelected')}</button>
+          </div>
+        )}
+
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
-          {/* Already-saved units (read-only reference). Manage these on Benefits Partnerships. */}
-          {saved.length > 0 && (
+          {/* Already-saved units (load read-only; editable -> staged). */}
+          {shownSaved.length > 0 && (
             <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
-                {t('im_savedBadge')} ({savedTotal})
-              </p>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">{t('im_savedBadge')} ({savedTotal})</p>
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-start text-xs font-semibold text-slate-500 dark:text-slate-400">
-                    <th className="p-2 text-start">{t('im_colValue')}</th>
-                    <th className="p-2 text-start">{t('im_colValidity')}</th>
-                    <th className="p-2 text-start">{t('im_colStatus')}</th>
-                    <th className="p-2 text-start">{t('im_colCreated')}</th>
-                    <th className="p-2 text-start">{t('im_colUpdated')}</th>
-                    <th className="p-2 text-end">{t('im_colActions')}</th>
+                  <tr>
+                    <th className="w-8 p-2" /><th className={thCls}>{t('im_colValue')}</th><th className={thCls}>{t('im_colValidity')}</th>
+                    <th className={thCls}>{t('im_colStatus')}</th><th className={thCls}>{t('im_colCreated')}</th><th className={thCls}>{t('im_colUpdated')}</th>
+                    <th className="p-2 text-end text-xs font-semibold text-slate-500 dark:text-slate-400">{t('im_colActions')}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {saved.map((u) => {
+                  {shownSaved.map((u) => {
                     const ed = editFor(u.codeId);
-                    const shown = ed ?? u; // staged edit overrides the saved validity in the display
+                    const shown = ed ?? u;
                     return (
-                      <tr key={u.codeId} className="border-t border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400">
+                      <tr key={u.codeId} className="border-t border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400 align-top">
+                        <td className="p-2"><Check k={`v:${u.codeId}`} /></td>
                         <td className="p-2 font-mono text-xs" dir="ltr">{u.value}</td>
                         <td className="p-2" dir="ltr">{validityText(shown, t)}</td>
                         <td className="p-2">
@@ -149,58 +182,47 @@ export default function StagedInventoryModal({ variantLabel, defaultType, units,
                         </td>
                         <td className="p-2 text-xs whitespace-nowrap" dir="ltr">{u.createdAt ? u.createdAt.slice(0, 10) : '-'}</td>
                         <td className="p-2 text-xs whitespace-nowrap" dir="ltr">{u.updatedAt ? u.updatedAt.slice(0, 10) : '-'}</td>
-                        <td className="p-2 text-end">
+                        <td className="p-2 text-end whitespace-nowrap">
                           <button type="button" onClick={() => setEditingSaved(u.codeId)} className="text-xs font-medium text-primary hover:underline">{t('im_editDate')}</button>
                           {ed && <button type="button" onClick={() => onEditsChange(edits.filter((e) => e.codeId !== u.codeId))} className="ms-2 text-xs font-medium text-slate-400 hover:underline">{t('im_cancel')}</button>}
                         </td>
                         {editingSaved === u.codeId && (
-                          <td colSpan={6} className="p-0">
-                            <div className="p-3">
-                              <StagedUnitEditor defaultType={defaultType} unit={shown} onCancel={() => setEditingSaved(null)} onSave={(patch) => editSaved(u.codeId, patch)} />
-                            </div>
-                          </td>
+                          <td colSpan={7} className="p-0"><div className="p-3"><InventoryValidityEditor defaultType={defaultType} unit={shown} onCancel={() => setEditingSaved(null)} onSave={(patch) => editSaved(u.codeId, patch)} /></div></td>
                         )}
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
-              {savedTotal > saved.length && (
-                <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">{t('im_savedMoreOnBenefits').replace('{n}', String(savedTotal - saved.length))}</p>
-              )}
+              {savedTotal > saved.length && <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">{t('im_savedMoreOnBenefits').replace('{n}', String(savedTotal - saved.length))}</p>}
             </div>
           )}
 
-          {units.length === 0 ? (
-            saved.length === 0 ? <p className="py-8 text-center text-sm text-slate-400 dark:text-slate-500">{t('im_empty')}</p> : null
+          {/* Staged additions (unsaved). */}
+          {shownUnits.length === 0 ? (
+            shownSaved.length === 0 ? <p className="py-8 text-center text-sm text-slate-400 dark:text-slate-500">{t('im_empty')}</p> : null
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-start text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  <th className="p-2 text-start">{t('im_colValue')}</th>
-                  <th className="p-2 text-start">{t('im_colValidity')}</th>
-                  <th className="p-2 text-start">{t('im_colStatus')}</th>
-                  <th className="p-2 text-end">{t('im_colActions')}</th>
+                <tr>
+                  <th className="w-8 p-2" /><th className={thCls}>{t('im_colValue')}</th><th className={thCls}>{t('im_colValidity')}</th>
+                  <th className={thCls}>{t('im_colStatus')}</th>
+                  <th className="p-2 text-end text-xs font-semibold text-slate-500 dark:text-slate-400">{t('im_colActions')}</th>
                 </tr>
               </thead>
               <tbody>
-                {units.map((u) => (
-                  <tr key={u.localId} className="border-t border-slate-100 dark:border-slate-800">
+                {shownUnits.map((u) => (
+                  <tr key={u.localId} className="border-t border-slate-100 dark:border-slate-800 align-top">
+                    <td className="p-2"><Check k={`s:${u.localId}`} /></td>
                     <td className="p-2 font-mono text-xs text-slate-700 dark:text-slate-200" dir="ltr">{u.value}</td>
                     <td className="p-2 text-slate-600 dark:text-slate-300" dir="ltr">{validityText(u, t)}</td>
-                    <td className="p-2">
-                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{t('im_unsavedBadge')}</span>
-                    </td>
-                    <td className="p-2 text-end">
+                    <td className="p-2"><span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{t('im_unsavedBadge')}</span></td>
+                    <td className="p-2 text-end whitespace-nowrap">
                       <button type="button" onClick={() => setEditing(u.localId)} className="text-xs font-medium text-primary hover:underline">{t('im_editDate')}</button>
                       <button type="button" onClick={() => removeUnit(u.localId)} className="ms-2 text-xs font-medium text-red-500 hover:underline">{t('im_delete')}</button>
                     </td>
                     {editing === u.localId && (
-                      <td colSpan={4} className="p-0">
-                        <div className="p-3">
-                          <StagedUnitEditor defaultType={defaultType} unit={u} onCancel={() => setEditing(null)} onSave={(patch) => editUnit(u.localId, patch)} />
-                        </div>
-                      </td>
+                      <td colSpan={5} className="p-0"><div className="p-3"><InventoryValidityEditor defaultType={defaultType} unit={u} onCancel={() => setEditing(null)} onSave={(patch) => editUnit(u.localId, patch)} /></div></td>
                     )}
                   </tr>
                 ))}
@@ -211,88 +233,17 @@ export default function StagedInventoryModal({ variantLabel, defaultType, units,
       </div>
 
       {showAddBatch && (
-        <VoucherInventoryModal
-          defaultType={defaultType}
-          lockedKind={lockedKind}
-          onConfirm={addBatch}
-          onSkip={() => setShowAddBatch(false)}
-          onCancel={() => setShowAddBatch(false)}
-        />
+        <VoucherInventoryModal defaultType={defaultType} lockedKind={lockedKind} onConfirm={addBatch} onSkip={() => setShowAddBatch(false)} onCancel={() => setShowAddBatch(false)} />
+      )}
+      {bulkEditing && (
+        <div className="fixed inset-0 z-[210] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.4)' }} role="dialog" aria-modal="true">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl dark:bg-card-dark">
+            <p className="mb-3 text-sm font-semibold text-slate-900 dark:text-white">{t('im_editSelected')} ({sel.size})</p>
+            <InventoryValidityEditor defaultType={defaultType} unit={null} onCancel={() => setBulkEditing(false)} onSave={applyBulk} />
+          </div>
+        </div>
       )}
     </div>,
     document.body,
-  );
-}
-
-/** Validity-only patch produced by the inline editor (only the active type's fields). */
-type ValidityPatch = { validityValue?: number | null; validityUnit?: 'days' | 'months' | 'years' | null; validFrom?: string | null; validUntil?: string | null };
-
-/** Inline validity editor for a single staged unit or saved-unit edit (in-memory).
- *  The type can be switched per unit (defaults to the unit's current type, or the
- *  offer default for a unit with no validity yet). */
-function StagedUnitEditor({ defaultType, unit, onSave, onCancel }: {
-  defaultType: 'limit' | 'from_until';
-  unit: ValidityPatch;
-  onSave: (patch: ValidityPatch) => void;
-  onCancel: () => void;
-}) {
-  const { t } = useLanguage();
-  const inferred: 'limit' | 'from_until' = unit.validFrom != null ? 'from_until' : unit.validityValue != null ? 'limit' : defaultType;
-  const [vType, setVType] = useState<'limit' | 'from_until'>(inferred);
-  const [val, setVal] = useState(unit.validityValue != null ? String(unit.validityValue) : '5');
-  const [u, setU] = useState<'days' | 'months' | 'years'>(unit.validityUnit ?? 'years');
-  const [from, setFrom] = useState(unit.validFrom ? unit.validFrom.slice(0, 10) : '');
-  const [until, setUntil] = useState(unit.validUntil ? unit.validUntil.slice(0, 10) : '');
-  const [err, setErr] = useState<string | null>(null);
-
-  const save = () => {
-    setErr(null);
-    if (vType === 'limit') {
-      const n = Number(val);
-      if (!val.trim() || !Number.isInteger(n) || n <= 0) { setErr(t('vi_errBatchValidity')); return; }
-      // Only the active type's fields; clear the other so the unit stays one type.
-      onSave({ validityValue: n, validityUnit: u, validFrom: null, validUntil: null });
-    } else {
-      if (!from || !until) { setErr(t('vi_errBatchValidity')); return; }
-      if (new Date(until).getTime() < new Date(from).getTime()) { setErr(t('vi_errBatchRange')); return; }
-      onSave({ validFrom: from, validUntil: until, validityValue: null, validityUnit: null });
-    }
-  };
-
-  return (
-    <div className="rounded-lg border border-primary/40 bg-primary/5 p-3">
-      <div className="mb-2 inline-flex gap-1 rounded-lg border border-slate-200 p-0.5 dark:border-slate-700" role="group">
-        {([{ v: 'limit', label: t('co_validityTypeLimit') }, { v: 'from_until', label: t('co_validityTypeFromUntil') }] as const).map((opt) => (
-          <button key={opt.v} type="button" onClick={() => setVType(opt.v)} aria-pressed={vType === opt.v}
-            className={cn('rounded-md px-3 py-1 text-xs font-medium transition-colors', vType === opt.v ? 'bg-primary text-white' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800')}>
-            {opt.label}
-          </button>
-        ))}
-      </div>
-      {vType === 'limit' ? (
-        <div className="flex gap-2" dir="ltr">
-          <input type="number" min="1" step="1" value={val} onChange={(e) => setVal(e.target.value)} className={cn(inputCls, 'w-20')} />
-          <select value={u} onChange={(e) => setU(e.target.value as 'days' | 'months' | 'years')} className={inputCls}>
-            <option value="days">{t('co_validityUnitDays')}</option>
-            <option value="months">{t('co_validityUnitMonths')}</option>
-            <option value="years">{t('co_validityUnitYears')}</option>
-          </select>
-        </div>
-      ) : (
-        <div className="flex flex-wrap gap-2" dir="ltr">
-          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={inputCls} />
-          <input type="date" value={until} min={from || undefined} onChange={(e) => setUntil(e.target.value)} className={inputCls} />
-        </div>
-      )}
-      {vType === 'from_until' && !!from && !!until && new Date(until).getTime() >= new Date(from).getTime()
-        && (new Date(until).getTime() - new Date(from).getTime()) < 5 * 365.25 * 24 * 60 * 60 * 1000 && (
-        <p className="mt-2 rounded-md bg-amber-50 dark:bg-amber-900/20 p-2 text-xs text-amber-700 dark:text-amber-400">{t('vi_legalAdvisory')}</p>
-      )}
-      {err && <p className="mt-2 text-xs text-red-500">{err}</p>}
-      <div className="mt-2 flex gap-2">
-        <button type="button" onClick={save} className="rounded-lg bg-primary px-3 py-1 text-xs font-semibold text-white hover:opacity-90">{t('im_save')}</button>
-        <button type="button" onClick={onCancel} className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300">{t('im_cancel')}</button>
-      </div>
-    </div>
   );
 }
