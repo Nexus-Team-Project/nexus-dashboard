@@ -9,7 +9,7 @@
  *
  * z-[200], body-scroll-lock, RTL-aware. Presentational state only; no global state.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -147,7 +147,7 @@ export default function VariantInventoryManagerModal({ offerId, variantId, varia
         )}
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-5">
+        <div className="flex-1 overflow-y-auto p-5" style={{ scrollbarGutter: 'stable' }}>
           {loading ? (
             <div className="space-y-2">
               {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-10 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />)}
@@ -269,6 +269,7 @@ function UnitRow({ unit, defaultType, selected, onToggle, editing, onEditStart, 
   const validityText = useUnitValidityText();
   const statusLabel = unit.status === 'available' ? t('im_statusAvailable') : unit.status === 'assigned' ? t('im_statusAssigned') : t('im_statusRedeemed');
   return (
+    <Fragment>
     <tr className="border-t border-slate-100 dark:border-slate-800">
       <td className="p-2"><input type="checkbox" checked={selected} onChange={onToggle} className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" /></td>
       <td className="p-2 font-mono text-xs text-slate-700 dark:text-slate-200" dir="ltr">{unit.value}</td>
@@ -282,14 +283,13 @@ function UnitRow({ unit, defaultType, selected, onToggle, editing, onEditStart, 
         <button type="button" onClick={onDelete} aria-label={t('im_delete')} title={t('im_delete')}
           className="ms-1 inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-red-50 hover:text-red-600 dark:text-slate-400 dark:hover:bg-red-900/20"><TrashIcon /></button>
       </td>
-      {editing && (
-        <td colSpan={7} className="p-0">
-          <div className="p-3">
-            <InventoryValidityEditor defaultType={defaultType} unit={unit} onCancel={onEditCancel}
-              onSave={async (patch) => { await updateUnitValidity(offerId, variantId, unit.codeId, patch); toast.success(t('im_toastUpdated').replace('{n}', '1')); onSaved(); }} />
-          </div>
-        </td>
-      )}
     </tr>
+    {editing && (
+      <tr><td colSpan={7} className="p-0"><div className="px-2 pb-3">
+        <InventoryValidityEditor defaultType={defaultType} unit={unit} onCancel={onEditCancel}
+          onSave={async (patch) => { await updateUnitValidity(offerId, variantId, unit.codeId, patch); toast.success(t('im_toastUpdated').replace('{n}', '1')); onSaved(); }} />
+      </div></td></tr>
+    )}
+    </Fragment>
   );
 }

@@ -10,7 +10,7 @@
  *
  * z-[200], body-scroll-lock, RTL-aware. Controlled by the parent (VariantsManager).
  */
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { type OfferInventoryInput, type InventoryUnitView, listVariantUnits } from '../../lib/api';
@@ -114,7 +114,9 @@ export default function StagedInventoryModal({ variantLabel, defaultType, units,
     setBulkEditing(false); setSel(new Set());
   };
 
-  const Check = ({ k }: { k: string }) => (
+  // Render the row checkbox inline (NOT as a component defined in render - that
+  // would be a new component type each render and remount the whole table).
+  const renderCheck = (k: string) => (
     <input type="checkbox" checked={sel.has(k)} onChange={() => toggleSel(k)}
       className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" />
   );
@@ -154,7 +156,7 @@ export default function StagedInventoryModal({ variantLabel, defaultType, units,
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+        <div className="flex-1 overflow-y-auto p-5 space-y-4" style={{ scrollbarGutter: 'stable' }}>
           {/* Already-saved units (load read-only; editable -> staged). */}
           {shownSaved.length > 0 && (
             <div>
@@ -172,8 +174,9 @@ export default function StagedInventoryModal({ variantLabel, defaultType, units,
                     const ed = editFor(u.codeId);
                     const shown = ed ?? u;
                     return (
-                      <tr key={u.codeId} className="border-t border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400 align-top">
-                        <td className="p-2"><Check k={`v:${u.codeId}`} /></td>
+                      <Fragment key={u.codeId}>
+                      <tr className="border-t border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400 align-top">
+                        <td className="p-2">{renderCheck(`v:${u.codeId}`)}</td>
                         <td className="p-2 font-mono text-xs" dir="ltr">{u.value}</td>
                         <td className="p-2" dir="ltr">{validityText(shown, t)}</td>
                         <td className="p-2">
@@ -189,10 +192,11 @@ export default function StagedInventoryModal({ variantLabel, defaultType, units,
                           {ed && <button type="button" onClick={() => onEditsChange(edits.filter((e) => e.codeId !== u.codeId))} aria-label={t('im_cancel')} title={t('im_cancel')}
                             className="ms-1 inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"><UndoIcon /></button>}
                         </td>
-                        {editingSaved === u.codeId && (
-                          <td colSpan={7} className="p-0"><div className="p-3"><InventoryValidityEditor defaultType={defaultType} unit={shown} onCancel={() => setEditingSaved(null)} onSave={(patch) => editSaved(u.codeId, patch)} /></div></td>
-                        )}
                       </tr>
+                      {editingSaved === u.codeId && (
+                        <tr><td colSpan={7} className="p-0"><div className="px-2 pb-3"><InventoryValidityEditor defaultType={defaultType} unit={shown} onCancel={() => setEditingSaved(null)} onSave={(patch) => editSaved(u.codeId, patch)} /></div></td></tr>
+                      )}
+                      </Fragment>
                     );
                   })}
                 </tbody>
@@ -215,8 +219,9 @@ export default function StagedInventoryModal({ variantLabel, defaultType, units,
               </thead>
               <tbody>
                 {shownUnits.map((u) => (
-                  <tr key={u.localId} className="border-t border-slate-100 dark:border-slate-800 align-top">
-                    <td className="p-2"><Check k={`s:${u.localId}`} /></td>
+                  <Fragment key={u.localId}>
+                  <tr className="border-t border-slate-100 dark:border-slate-800 align-top">
+                    <td className="p-2">{renderCheck(`s:${u.localId}`)}</td>
                     <td className="p-2 font-mono text-xs text-slate-700 dark:text-slate-200" dir="ltr">{u.value}</td>
                     <td className="p-2 text-slate-600 dark:text-slate-300" dir="ltr">{validityText(u, t)}</td>
                     <td className="p-2"><span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{t('im_unsavedBadge')}</span></td>
@@ -226,10 +231,11 @@ export default function StagedInventoryModal({ variantLabel, defaultType, units,
                       <button type="button" onClick={() => removeUnit(u.localId)} aria-label={t('im_delete')} title={t('im_delete')}
                         className="ms-1 inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-red-50 hover:text-red-600 dark:text-slate-400 dark:hover:bg-red-900/20"><TrashIcon /></button>
                     </td>
-                    {editing === u.localId && (
-                      <td colSpan={5} className="p-0"><div className="p-3"><InventoryValidityEditor defaultType={defaultType} unit={u} onCancel={() => setEditing(null)} onSave={(patch) => editUnit(u.localId, patch)} /></div></td>
-                    )}
                   </tr>
+                  {editing === u.localId && (
+                    <tr><td colSpan={5} className="p-0"><div className="px-2 pb-3"><InventoryValidityEditor defaultType={defaultType} unit={u} onCancel={() => setEditing(null)} onSave={(patch) => editUnit(u.localId, patch)} /></div></td></tr>
+                  )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
