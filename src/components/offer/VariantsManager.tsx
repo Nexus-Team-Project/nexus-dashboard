@@ -31,12 +31,15 @@ interface VariantsManagerProps {
   defaultValidityType: 'limit' | 'from_until';
   /** Reports whether a draft is currently open (parent uses it to gate Publish). */
   onEditingChange?: (editing: boolean) => void;
+  /** Offer id when editing an existing offer; lets the staged modal load a
+   *  persisted variant's already-saved units for read-only reference. Omitted on Create. */
+  offerId?: string;
   isSubmitting?: boolean;
 }
 
 /** Renders the Create-Variant button, the builder, the saved list, and the inventory popup. */
 export default function VariantsManager({
-  variants, setVariants, sharedTerms, sharedMethod, defaultValidityType, onEditingChange, isSubmitting = false,
+  variants, setVariants, sharedTerms, sharedMethod, defaultValidityType, onEditingChange, offerId, isSubmitting = false,
 }: VariantsManagerProps) {
   const { t, language } = useLanguage();
   const [draft, setDraft] = useState<DraftVariant | null>(null);
@@ -138,6 +141,8 @@ export default function VariantsManager({
           units={draft.stagedUnits}
           onChange={(units) => patchDraft({ stagedUnits: units })}
           onClose={() => setShowInventory(false)}
+          offerId={offerId}
+          variantId={draft.variantId}
         />
       )}
     </section>

@@ -293,6 +293,7 @@ const EditOffer = () => {
             sharedTerms={terms} sharedMethod={implementationInstructions}
             defaultValidityType={defaultValidityType}
             onEditingChange={setVariantEditing}
+            offerId={offerId}
             isSubmitting={isSubmitting}
           />
         </>

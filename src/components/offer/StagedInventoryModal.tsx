@@ -13,7 +13,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { cn } from '../../lib/utils';
-import type { OfferInventoryInput } from '../../lib/api';
+import { type OfferInventoryInput, type InventoryUnitView, listVariantUnits } from '../../lib/api';
 import { type StagedUnit, batchToStagedUnits } from '../../pages/voucherVariantDraft';
 import VoucherInventoryModal from './VoucherInventoryModal';
 
@@ -23,13 +23,27 @@ interface Props {
   units: StagedUnit[];
   onChange: (units: StagedUnit[]) => void;
   onClose: () => void;
+  /**
+   * When editing a persisted variant, the offer + variant ids let the modal load
+   * the variant's ALREADY-SAVED units for READ-ONLY reference (one lazy GET on
+   * open). Editing/deleting saved codes is done on Benefits Partnerships (live);
+   * here only new batches are staged. Omitted on Create (nothing saved yet).
+   */
+  offerId?: string;
+  variantId?: string;
 }
+
+/** First-page size for the read-only "already saved" reference list. */
+const SAVED_PAGE_SIZE = 50;
 
 const inputCls = 'rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white';
 
-/** Short validity text for a staged unit (limit duration / window). */
-function validityText(u: StagedUnit, t: (k: 'co_validityUnitDays' | 'co_validityUnitMonths' | 'co_validityUnitYears' | 'im_noWindowYet') => string): string {
-  if (u.validFrom && u.validUntil) return `⁦${u.validFrom} - ${u.validUntil}⁩`;
+/** Minimal validity shape shared by staged units and saved unit views. */
+type ValidityShape = { validFrom?: string | null; validUntil?: string | null; validityValue?: number | null; validityUnit?: 'days' | 'months' | 'years' | null };
+
+/** Short validity text for a unit (limit duration / window / not-yet-set). */
+function validityText(u: ValidityShape, t: (k: 'co_validityUnitDays' | 'co_validityUnitMonths' | 'co_validityUnitYears' | 'im_noWindowYet') => string): string {
+  if (u.validFrom && u.validUntil) return `⁦${u.validFrom.slice(0, 10)} - ${u.validUntil.slice(0, 10)}⁩`;
   if (u.validityValue && u.validityUnit) {
     const unit = u.validityUnit === 'days' ? t('co_validityUnitDays') : u.validityUnit === 'months' ? t('co_validityUnitMonths') : t('co_validityUnitYears');
     return `${u.validityValue} ${unit}`;
@@ -37,10 +51,15 @@ function validityText(u: StagedUnit, t: (k: 'co_validityUnitDays' | 'co_validity
   return t('im_noWindowYet');
 }
 
-export default function StagedInventoryModal({ variantLabel, validityType, units, onChange, onClose }: Props) {
+export default function StagedInventoryModal({ variantLabel, validityType, units, onChange, onClose, offerId, variantId }: Props) {
   const { t, language } = useLanguage();
   const [showAddBatch, setShowAddBatch] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
+  // Already-saved units (read-only reference), lazily loaded once when editing a
+  // persisted variant. One GET; first page only - the full list is managed on
+  // Benefits Partnerships.
+  const [saved, setSaved] = useState<InventoryUnitView[]>([]);
+  const [savedTotal, setSavedTotal] = useState(0);
 
   useEffect(() => {
     const prev = document.body.style.overflow; document.body.style.overflow = 'hidden';
@@ -49,7 +68,18 @@ export default function StagedInventoryModal({ variantLabel, validityType, units
     return () => { document.body.style.overflow = prev; document.removeEventListener('keydown', onKey); };
   }, [onClose]);
 
-  const lockedKind = units[0]?.kind ?? null;
+  useEffect(() => {
+    if (!offerId || !variantId) return;
+    let alive = true;
+    void listVariantUnits(offerId, variantId, {}, 1, SAVED_PAGE_SIZE)
+      .then((res) => { if (alive) { setSaved(res.units); setSavedTotal(res.total); } })
+      .catch(() => { /* reference-only; ignore load errors */ });
+    return () => { alive = false; };
+  }, [offerId, variantId]);
+
+  // One kind per variant: lock the add-batch popup to the kind already in use
+  // (saved units take precedence, then anything staged).
+  const lockedKind = saved[0]?.kind ?? units[0]?.kind ?? null;
   const addBatch = (inv: OfferInventoryInput) => { onChange([...units, ...batchToStagedUnits(inv)]); setShowAddBatch(false); };
   const removeUnit = (id: string) => onChange(units.filter((u) => u.localId !== id));
   const editUnit = (id: string, patch: Partial<StagedUnit>) => { onChange(units.map((u) => (u.localId === id ? { ...u, ...patch } : u))); setEditing(null); };
@@ -72,9 +102,34 @@ export default function StagedInventoryModal({ variantLabel, validityType, units
             className="rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:opacity-90">{t('im_addBatch')}</button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5">
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          {/* Already-saved units (read-only reference). Manage these on Benefits Partnerships. */}
+          {saved.length > 0 && (
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                {t('im_savedBadge')} ({savedTotal})
+              </p>
+              <table className="w-full text-sm">
+                <tbody>
+                  {saved.map((u) => (
+                    <tr key={u.codeId} className="border-t border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400">
+                      <td className="p-2 font-mono text-xs" dir="ltr">{u.value}</td>
+                      <td className="p-2" dir="ltr">{validityText(u, t)}</td>
+                      <td className="p-2">
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400">{t('im_savedBadge')}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {savedTotal > saved.length && (
+                <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">{t('im_savedMoreOnBenefits').replace('{n}', String(savedTotal - saved.length))}</p>
+              )}
+            </div>
+          )}
+
           {units.length === 0 ? (
-            <p className="py-8 text-center text-sm text-slate-400 dark:text-slate-500">{t('im_empty')}</p>
+            saved.length === 0 ? <p className="py-8 text-center text-sm text-slate-400 dark:text-slate-500">{t('im_empty')}</p> : null
           ) : (
             <table className="w-full text-sm">
               <thead>
