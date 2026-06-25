@@ -28,7 +28,6 @@ import VoucherBackgroundField, { type BgMode } from '../components/offer/Voucher
 import VariantsManager from '../components/offer/VariantsManager';
 import VoucherRedemptionScopeCard from '../components/offer/VoucherRedemptionScopeCard';
 import VoucherValidityTypeCard from '../components/offer/VoucherValidityTypeCard';
-import ValidityFlipConfirmModal from '../components/offer/ValidityFlipConfirmModal';
 import { OfferFormSkeleton, OfferFormErrorState } from '../components/offer/OfferFormStates';
 import { type DraftVariant, variantToDraft, draftToPayload, stagedUnitsToBatches, stagedEditsToBulk } from './voucherVariantDraft';
 import { computePublishBlockers, submitDateRangeError } from './createOfferFormData';
@@ -62,9 +61,6 @@ const EditOffer = () => {
   const [validFrom, setValidFrom] = useState('');
   const [validUntil, setValidUntil] = useState('');
   const [defaultValidityType, setDefaultValidityType] = useState<'limit' | 'from_until'>('limit');
-  // Flipping the type on a LIVE (published) offer is confirmed first; the pending
-  // choice is held until the admin approves. See voucher-validity-dating.
-  const [pendingValidityType, setPendingValidityType] = useState<'limit' | 'from_until' | null>(null);
   const [voucherStackable, setVoucherStackable] = useState<'' | 'yes' | 'no'>('');
   const [bgMode, setBgMode] = useState<BgMode>('image');
   const [voucherBackgroundColor, setVoucherBackgroundColor] = useState('');
@@ -162,7 +158,7 @@ const EditOffer = () => {
   // Single source of truth for "can publish": same hard-blocker helper as Create.
   // Drives both the button's disabled state and the on-click guard.
   const publishBlockers = computePublishBlockers(
-    { title, marketPrice, executionType, variants, variantEditing, defaultValidityType },
+    { title, marketPrice, executionType, variants, variantEditing },
     t,
   );
 
@@ -285,7 +281,7 @@ const EditOffer = () => {
         <>
           <VoucherValidityTypeCard
             value={defaultValidityType}
-            setValue={(next) => { if (next !== defaultValidityType) setPendingValidityType(next); }}
+            setValue={setDefaultValidityType}
             isSubmitting={isSubmitting}
           />
           <VoucherRedemptionScopeCard
@@ -314,12 +310,6 @@ const EditOffer = () => {
           tagInput={tagInput} setTagInput={setTagInput}
           tags={tags} setTags={setTags}
           isSubmitting={isSubmitting}
-        />
-      )}
-      {pendingValidityType !== null && (
-        <ValidityFlipConfirmModal
-          onConfirm={() => { setDefaultValidityType(pendingValidityType); setPendingValidityType(null); }}
-          onCancel={() => setPendingValidityType(null)}
         />
       )}
     </>

@@ -111,7 +111,6 @@ function OfferDetails({ offer }: { offer: CatalogItem }) {
   const validityText = offer.executionType === 'voucher'
     ? validityTypeLabel(offer.defaultValidityType, t)
     : '';
-  const hasValidity = validityText !== '';
 
   // Combine-with-promotions (כפל מבצעים), shown only for vouchers that carry an
   // explicit choice. Reads "Yes" / "No".
@@ -239,7 +238,7 @@ function OfferDetails({ offer }: { offer: CatalogItem }) {
  * than one variant; single-variant offers show their details inline in OfferDetails.
  */
 function VariantsSummary({ offer }: { offer: CatalogItem }) {
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const variants = offer.variants ?? [];
   if (offer.executionType !== 'voucher' || variants.length <= 1) return null;
 
@@ -252,7 +251,7 @@ function VariantsSummary({ offer }: { offer: CatalogItem }) {
       </p>
       <ul className="mt-3 space-y-2.5">
         {variants.map((v, i) => {
-          const validity = validityTypeLabel(v.validityTypeOverride ?? offer.defaultValidityType, t);
+          const validity = validityTypeLabel(offer.defaultValidityType, t);
           const method = (v.implementationInstructions ?? '').trim();
           const terms = (v.terms ?? '').trim();
           const tags = (v.tags ?? []).filter(Boolean);

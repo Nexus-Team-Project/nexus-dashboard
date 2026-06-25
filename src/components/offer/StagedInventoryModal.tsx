@@ -19,7 +19,8 @@ import VoucherInventoryModal from './VoucherInventoryModal';
 
 interface Props {
   variantLabel: string;
-  validityType: 'limit' | 'from_until';
+  /** Offer-level validity type default (the initial type for new batches/edits). */
+  defaultType: 'limit' | 'from_until';
   units: StagedUnit[];
   onChange: (units: StagedUnit[]) => void;
   /** Staged edits to already-saved units (keyed by codeId); applied on publish/save. */
@@ -54,7 +55,7 @@ function validityText(u: ValidityShape, t: (k: 'co_validityUnitDays' | 'co_valid
   return t('im_noWindowYet');
 }
 
-export default function StagedInventoryModal({ variantLabel, validityType, units, onChange, edits, onEditsChange, onClose, offerId, variantId }: Props) {
+export default function StagedInventoryModal({ variantLabel, defaultType, units, onChange, edits, onEditsChange, onClose, offerId, variantId }: Props) {
   const { t, language } = useLanguage();
   const [showAddBatch, setShowAddBatch] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
@@ -123,6 +124,16 @@ export default function StagedInventoryModal({ variantLabel, validityType, units
                 {t('im_savedBadge')} ({savedTotal})
               </p>
               <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-start text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    <th className="p-2 text-start">{t('im_colValue')}</th>
+                    <th className="p-2 text-start">{t('im_colValidity')}</th>
+                    <th className="p-2 text-start">{t('im_colStatus')}</th>
+                    <th className="p-2 text-start">{t('im_colCreated')}</th>
+                    <th className="p-2 text-start">{t('im_colUpdated')}</th>
+                    <th className="p-2 text-end">{t('im_colActions')}</th>
+                  </tr>
+                </thead>
                 <tbody>
                   {saved.map((u) => {
                     const ed = editFor(u.codeId);
@@ -136,14 +147,16 @@ export default function StagedInventoryModal({ variantLabel, validityType, units
                             ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{t('im_unsavedBadge')}</span>
                             : <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400">{t('im_savedBadge')}</span>}
                         </td>
+                        <td className="p-2 text-xs whitespace-nowrap" dir="ltr">{u.createdAt ? u.createdAt.slice(0, 10) : '-'}</td>
+                        <td className="p-2 text-xs whitespace-nowrap" dir="ltr">{u.updatedAt ? u.updatedAt.slice(0, 10) : '-'}</td>
                         <td className="p-2 text-end">
                           <button type="button" onClick={() => setEditingSaved(u.codeId)} className="text-xs font-medium text-primary hover:underline">{t('im_editDate')}</button>
                           {ed && <button type="button" onClick={() => onEditsChange(edits.filter((e) => e.codeId !== u.codeId))} className="ms-2 text-xs font-medium text-slate-400 hover:underline">{t('im_cancel')}</button>}
                         </td>
                         {editingSaved === u.codeId && (
-                          <td colSpan={4} className="p-0">
+                          <td colSpan={6} className="p-0">
                             <div className="p-3">
-                              <StagedUnitEditor validityType={validityType} unit={shown} onCancel={() => setEditingSaved(null)} onSave={(patch) => editSaved(u.codeId, patch)} />
+                              <StagedUnitEditor defaultType={defaultType} unit={shown} onCancel={() => setEditingSaved(null)} onSave={(patch) => editSaved(u.codeId, patch)} />
                             </div>
                           </td>
                         )}
@@ -185,7 +198,7 @@ export default function StagedInventoryModal({ variantLabel, validityType, units
                     {editing === u.localId && (
                       <td colSpan={4} className="p-0">
                         <div className="p-3">
-                          <StagedUnitEditor validityType={validityType} unit={u} onCancel={() => setEditing(null)} onSave={(patch) => editUnit(u.localId, patch)} />
+                          <StagedUnitEditor defaultType={defaultType} unit={u} onCancel={() => setEditing(null)} onSave={(patch) => editUnit(u.localId, patch)} />
                         </div>
                       </td>
                     )}
@@ -199,7 +212,7 @@ export default function StagedInventoryModal({ variantLabel, validityType, units
 
       {showAddBatch && (
         <VoucherInventoryModal
-          validityType={validityType}
+          defaultType={defaultType}
           lockedKind={lockedKind}
           onConfirm={addBatch}
           onSkip={() => setShowAddBatch(false)}
@@ -214,14 +227,18 @@ export default function StagedInventoryModal({ variantLabel, validityType, units
 /** Validity-only patch produced by the inline editor (only the active type's fields). */
 type ValidityPatch = { validityValue?: number | null; validityUnit?: 'days' | 'months' | 'years' | null; validFrom?: string | null; validUntil?: string | null };
 
-/** Inline validity editor for a single staged unit or saved-unit edit (in-memory). */
-function StagedUnitEditor({ validityType, unit, onSave, onCancel }: {
-  validityType: 'limit' | 'from_until';
+/** Inline validity editor for a single staged unit or saved-unit edit (in-memory).
+ *  The type can be switched per unit (defaults to the unit's current type, or the
+ *  offer default for a unit with no validity yet). */
+function StagedUnitEditor({ defaultType, unit, onSave, onCancel }: {
+  defaultType: 'limit' | 'from_until';
   unit: ValidityPatch;
   onSave: (patch: ValidityPatch) => void;
   onCancel: () => void;
 }) {
   const { t } = useLanguage();
+  const inferred: 'limit' | 'from_until' = unit.validFrom != null ? 'from_until' : unit.validityValue != null ? 'limit' : defaultType;
+  const [vType, setVType] = useState<'limit' | 'from_until'>(inferred);
   const [val, setVal] = useState(unit.validityValue != null ? String(unit.validityValue) : '5');
   const [u, setU] = useState<'days' | 'months' | 'years'>(unit.validityUnit ?? 'years');
   const [from, setFrom] = useState(unit.validFrom ? unit.validFrom.slice(0, 10) : '');
@@ -230,21 +247,29 @@ function StagedUnitEditor({ validityType, unit, onSave, onCancel }: {
 
   const save = () => {
     setErr(null);
-    if (validityType === 'limit') {
+    if (vType === 'limit') {
       const n = Number(val);
       if (!val.trim() || !Number.isInteger(n) || n <= 0) { setErr(t('vi_errBatchValidity')); return; }
-      // Only the active type's fields, so the dormant set is preserved (lossless).
-      onSave({ validityValue: n, validityUnit: u });
+      // Only the active type's fields; clear the other so the unit stays one type.
+      onSave({ validityValue: n, validityUnit: u, validFrom: null, validUntil: null });
     } else {
       if (!from || !until) { setErr(t('vi_errBatchValidity')); return; }
       if (new Date(until).getTime() < new Date(from).getTime()) { setErr(t('vi_errBatchRange')); return; }
-      onSave({ validFrom: from, validUntil: until });
+      onSave({ validFrom: from, validUntil: until, validityValue: null, validityUnit: null });
     }
   };
 
   return (
     <div className="rounded-lg border border-primary/40 bg-primary/5 p-3">
-      {validityType === 'limit' ? (
+      <div className="mb-2 inline-flex gap-1 rounded-lg border border-slate-200 p-0.5 dark:border-slate-700" role="group">
+        {([{ v: 'limit', label: t('co_validityTypeLimit') }, { v: 'from_until', label: t('co_validityTypeFromUntil') }] as const).map((opt) => (
+          <button key={opt.v} type="button" onClick={() => setVType(opt.v)} aria-pressed={vType === opt.v}
+            className={cn('rounded-md px-3 py-1 text-xs font-medium transition-colors', vType === opt.v ? 'bg-primary text-white' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800')}>
+            {opt.label}
+          </button>
+        ))}
+      </div>
+      {vType === 'limit' ? (
         <div className="flex gap-2" dir="ltr">
           <input type="number" min="1" step="1" value={val} onChange={(e) => setVal(e.target.value)} className={cn(inputCls, 'w-20')} />
           <select value={u} onChange={(e) => setU(e.target.value as 'days' | 'months' | 'years')} className={inputCls}>
@@ -258,6 +283,10 @@ function StagedUnitEditor({ validityType, unit, onSave, onCancel }: {
           <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={inputCls} />
           <input type="date" value={until} min={from || undefined} onChange={(e) => setUntil(e.target.value)} className={inputCls} />
         </div>
+      )}
+      {vType === 'from_until' && !!from && !!until && new Date(until).getTime() >= new Date(from).getTime()
+        && (new Date(until).getTime() - new Date(from).getTime()) < 5 * 365.25 * 24 * 60 * 60 * 1000 && (
+        <p className="mt-2 rounded-md bg-amber-50 dark:bg-amber-900/20 p-2 text-xs text-amber-700 dark:text-amber-400">{t('vi_legalAdvisory')}</p>
       )}
       {err && <p className="mt-2 text-xs text-red-500">{err}</p>}
       <div className="mt-2 flex gap-2">

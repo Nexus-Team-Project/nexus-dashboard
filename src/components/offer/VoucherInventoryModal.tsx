@@ -40,7 +40,9 @@ interface VoucherInventoryModalProps {
   /** When set, the voucher already uses this kind — the other tab is disabled. */
   lockedKind?: 'barcode' | 'link' | null;
   /** The variant's effective validity type - drives the per-batch date control. */
-  validityType: 'limit' | 'from_until';
+  /** The batch's INITIAL validity type (the offer default); the admin can switch it
+   *  per batch via the in-modal toggle. */
+  defaultType: 'limit' | 'from_until';
   /** Re-open pre-fill: a previously staged inventory choice (carries its validity). */
   initialValidity?: OfferInventoryInput;
   /** Record the chosen inventory (barcodes or links+codes) with its batch validity. */
@@ -59,8 +61,15 @@ function withTrailingLink(rows: LinkRow[]): LinkRow[] {
   return rows.length === 0 || rows[rows.length - 1].url.trim() !== '' ? [...rows, { url: '', code: '' }] : rows;
 }
 
-export default function VoucherInventoryModal({ busy = false, initialBarcodes, initialLinks, lockedKind, validityType, initialValidity, onConfirm, onSkip, onCancel }: VoucherInventoryModalProps) {
+export default function VoucherInventoryModal({ busy = false, initialBarcodes, initialLinks, lockedKind, defaultType, initialValidity, onConfirm, onSkip, onCancel }: VoucherInventoryModalProps) {
   const { t, language } = useLanguage();
+  // The batch's validity type, chosen per batch (defaults to the offer default, or
+  // the type implied by a re-opened staged choice).
+  const initialType: 'limit' | 'from_until' =
+    initialValidity?.validFrom != null ? 'from_until'
+      : initialValidity?.validityValue != null ? 'limit'
+        : defaultType;
+  const [validityType, setValidityType] = useState<'limit' | 'from_until'>(initialType);
   // Per-batch validity (voucher-validity-dating): stamped onto every unit added in
   // this batch. 'limit' defaults to 5 years; 'from_until' takes a window and warns
   // (non-blocking) when the span is under the 5-year legal recommendation.
@@ -255,6 +264,23 @@ export default function VoucherInventoryModal({ busy = false, initialBarcodes, i
                 {t('vi_batchValidityTitle')}
                 <FieldTooltip fieldKey="batchValidity" />
               </p>
+              {/* Type toggle: this batch is a time limit OR a date range. */}
+              <div className="mb-2 inline-flex gap-1 rounded-lg border border-slate-200 p-0.5 dark:border-slate-700" role="group" aria-label={t('co_validityTypeCardTitle')}>
+                {([
+                  { v: 'limit', label: t('co_validityTypeLimit') },
+                  { v: 'from_until', label: t('co_validityTypeFromUntil') },
+                ] as const).map((opt) => (
+                  <button
+                    key={opt.v} type="button" disabled={busy}
+                    onClick={() => setValidityType(opt.v)}
+                    aria-pressed={validityType === opt.v}
+                    className={cn('rounded-md px-3 py-1 text-xs font-medium transition-colors',
+                      validityType === opt.v ? 'bg-primary text-white' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800')}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
               {validityType === 'limit' ? (
                 <div className="flex gap-2" dir="ltr">
                   <input

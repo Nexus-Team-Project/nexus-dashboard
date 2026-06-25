@@ -1044,9 +1044,6 @@ export interface CatalogVariant {
   face_value?: number;
   nexus_cost?: number;
   member_price?: number;
-  /** Per-variant validity TYPE override (null = inherit the offer default). The
-   *  validity VALUE is per inventory unit (voucher-validity-dating). */
-  validityTypeOverride?: 'limit' | 'from_until' | null;
   voucherStackable?: boolean | null;
   sku?: string | null;
   tags?: string[];
@@ -1422,6 +1419,8 @@ export interface InventoryUnitView {
   validityUnit?: 'days' | 'months' | 'years' | null;
   validFrom?: string | null;
   validUntil?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 }
 
 /** A page of a variant's inventory units plus the total matching the filter. */

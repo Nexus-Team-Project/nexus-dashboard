@@ -110,32 +110,6 @@ export default function VariantBuilder({
       </div>
       {priceErr && <p className="mt-1.5 text-sm font-medium text-red-600 dark:text-red-400">{priceErr}</p>}
 
-      {/* Validity TYPE override only. The actual date/limit VALUE is entered per
-          inventory unit (voucher-validity-dating). '' = inherit the offer default. */}
-      <div className="mt-4">
-        <label className={labelCls}>
-          {t('co_validityTypeOverrideLabel')} <span className="font-normal text-slate-400 me-0.5">{t('co_optional')}</span>
-          <FieldTooltip fieldKey="validityTypeOverride" />
-        </label>
-        <div className="inline-flex gap-1 rounded-lg border border-slate-200 p-0.5 dark:border-slate-700" role="group" aria-label={t('co_validityTypeOverrideLabel')}>
-          {([
-            { v: '', label: t('co_validityTypeInherit') },
-            { v: 'limit', label: t('co_validityTypeLimit') },
-            { v: 'from_until', label: t('co_validityTypeFromUntil') },
-          ] as const).map((opt) => (
-            <button
-              key={opt.v || 'inherit'} type="button" disabled={isSubmitting}
-              onClick={() => onChange({ validityTypeOverride: opt.v })}
-              aria-pressed={draft.validityTypeOverride === opt.v}
-              className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${draft.validityTypeOverride === opt.v ? 'bg-primary text-white' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'}`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-        <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">{t('co_validityTypeOverrideHint')}</p>
-      </div>
-
       {/* Combine with promotions (mandatory) */}
       <div className="mt-4">
         <VoucherStackToggle value={draft.stackable} onChange={(v) => onChange({ stackable: v })} disabled={isSubmitting} />

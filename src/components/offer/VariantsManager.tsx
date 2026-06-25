@@ -137,7 +137,7 @@ export default function VariantsManager({
       {showInventory && draft !== null && (
         <StagedInventoryModal
           variantLabel={t('co_variantBuilderTitle')}
-          validityType={draft.validityTypeOverride === '' ? defaultValidityType : draft.validityTypeOverride}
+          defaultType={defaultValidityType}
           units={draft.stagedUnits}
           onChange={(units) => patchDraft({ stagedUnits: units })}
           edits={draft.stagedEdits}

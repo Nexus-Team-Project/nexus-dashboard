@@ -11,20 +11,6 @@ import type { TranslationKey } from '../i18n/translations';
 /** Combine-with-promotions tri-state, mirrors VoucherStackToggle. */
 export type StackChoice = '' | 'yes' | 'no';
 
-/** Per-variant validity TYPE override: '' = inherit the offer default. */
-export type ValidityTypeChoice = '' | 'limit' | 'from_until';
-
-/**
- * A variant's effective validity type: its own override, or the offer default
- * when it inherits ('').
- */
-export function effectiveValidityType(
-  override: ValidityTypeChoice,
-  offerDefault: 'limit' | 'from_until',
-): 'limit' | 'from_until' {
-  return override === '' ? offerDefault : override;
-}
-
 /**
  * One variant being authored. All numeric fields are kept as strings (form
  * inputs); inventory is staged in memory and applied per variant at publish.
@@ -37,12 +23,6 @@ export interface DraftVariant {
   faceValue: string;
   /** The Nexus price - also the member-facing selling price. Must be < faceValue. */
   nexusCost: string;
-  /**
-   * Per-variant validity TYPE override ('' = inherit the offer's defaultValidityType).
-   * The validity VALUE is NOT on the variant - it is entered per inventory unit
-   * (voucher-validity-dating). This only selects which kind of date each unit holds.
-   */
-  validityTypeOverride: ValidityTypeChoice;
   /** Mandatory combine-with-promotions choice. */
   stackable: StackChoice;
   sku: string;
@@ -111,7 +91,6 @@ export function emptyDraftVariant(): DraftVariant {
     localId: nextLocalId(),
     faceValue: '',
     nexusCost: '',
-    validityTypeOverride: '',
     stackable: '',
     sku: '',
     tags: [],
@@ -178,12 +157,6 @@ export function stagedUnitsToBatches(units: StagedUnit[]): OfferInventoryInput[]
 /** Minimal validity shape shared by staged units and staged edits. */
 type ValidityFields = { validityValue?: number | null; validityUnit?: 'days' | 'months' | 'years' | null; validFrom?: string | null; validUntil?: string | null };
 
-/** True when a staged unit/edit carries the validity its effective type requires. */
-export function stagedUnitMatchesType(u: ValidityFields, effType: 'limit' | 'from_until'): boolean {
-  if (effType === 'limit') return u.validityValue != null && u.validityUnit != null;
-  return u.validFrom != null && u.validUntil != null;
-}
-
 /**
  * Groups staged edits to saved units into the minimal set of bulk-update calls -
  * one per distinct validity (codeIds + that validity). Keeps Publish/Save to a few
@@ -229,9 +202,6 @@ export function variantToDraft(v: CatalogVariant, parentTerms?: string, parentMe
     variantId: v.variantId,
     faceValue: v.face_value != null ? String(v.face_value) : '',
     nexusCost: v.nexus_cost != null ? String(v.nexus_cost) : '',
-    // Per-variant validity TYPE override ('' = inherit offer default). The value
-    // is per unit now, loaded/edited through the inventory flow.
-    validityTypeOverride: v.validityTypeOverride ?? '',
     stackable: v.voucherStackable === true ? 'yes' : v.voucherStackable === false ? 'no' : '',
     sku: v.sku ?? '',
     tags: v.tags ?? [],
@@ -312,9 +282,7 @@ export function draftToPayload(d: DraftVariant): Record<string, unknown> {
     nexus_cost: Number(d.nexusCost),
     // No member_price field: the backend defaults member_price to nexus_cost, so
     // the Nexus price is the member-facing selling price.
-    // Validity VALUE is per inventory unit; only the optional TYPE override is sent
-    // here (null = inherit the offer defaultValidityType). See voucher-validity-dating.
-    validityTypeOverride: d.validityTypeOverride === '' ? null : d.validityTypeOverride,
+    // No validity on the variant - it lives per inventory unit (voucher-validity-dating).
     voucherStackable: d.stackable === 'yes',
     sku: d.sku.trim() !== '' ? d.sku.trim() : null,
     tags: d.tags,

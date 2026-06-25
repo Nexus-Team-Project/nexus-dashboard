@@ -27,7 +27,8 @@ interface Props {
   variantId: string;
   variantLabel: string;
   /** The variant's effective validity type, for the add-batch + edit controls. */
-  validityType: 'limit' | 'from_until';
+  /** Offer-level validity type default (the initial type for new batches/edits). */
+  defaultType: 'limit' | 'from_until';
   onClose: () => void;
   /** Called after any write so the parent can refresh its stock/counts. */
   onChanged?: () => void;
@@ -43,7 +44,7 @@ function toFilter(choice: ExpiringChoice): UnitDateFilter {
   return {};
 }
 
-export default function VariantInventoryManagerModal({ offerId, variantId, variantLabel, validityType, onClose, onChanged }: Props) {
+export default function VariantInventoryManagerModal({ offerId, variantId, variantLabel, defaultType, onClose, onChanged }: Props) {
   const { t, language } = useLanguage();
   const [units, setUnits] = useState<InventoryUnitView[]>([]);
   const [total, setTotal] = useState(0);
@@ -149,13 +150,15 @@ export default function VariantInventoryManagerModal({ offerId, variantId, varia
                   <th className="p-2 text-start">{t('im_colValue')}</th>
                   <th className="p-2 text-start">{t('im_colValidity')}</th>
                   <th className="p-2 text-start">{t('im_colStatus')}</th>
+                  <th className="p-2 text-start">{t('im_colCreated')}</th>
+                  <th className="p-2 text-start">{t('im_colUpdated')}</th>
                   <th className="p-2 text-end">{t('im_colActions')}</th>
                 </tr>
               </thead>
               <tbody>
                 {units.map((u) => (
                   <UnitRow
-                    key={u.codeId} unit={u} validityType={validityType}
+                    key={u.codeId} unit={u} defaultType={defaultType}
                     selected={selected.has(u.codeId)}
                     onToggle={() => setSelected((s) => { const n = new Set(s); if (n.has(u.codeId)) n.delete(u.codeId); else n.add(u.codeId); return n; })}
                     editing={editing === u.codeId}
@@ -186,7 +189,7 @@ export default function VariantInventoryManagerModal({ offerId, variantId, varia
       {/* Add-batch popup (reuses the authoring inventory modal). */}
       {showAddBatch && (
         <VoucherInventoryModal
-          validityType={validityType}
+          defaultType={defaultType}
           lockedKind={lockedKind}
           onConfirm={async (inv: OfferInventoryInput) => {
             try { const r = await addVariantInventory(offerId, variantId, inv); toast.success(t('im_toastAdded').replace('{n}', String(r.created))); setShowAddBatch(false); refresh(); }
@@ -200,7 +203,7 @@ export default function VariantInventoryManagerModal({ offerId, variantId, varia
       {/* Bulk re-stamp editor. */}
       {editing === '__bulk__' && (
         <UnitDateEditor
-          validityType={validityType} unit={null}
+          defaultType={defaultType} unit={null}
           onCancel={() => setEditing(null)}
           onSave={async (patch) => {
             try {
@@ -236,13 +239,13 @@ function useUnitValidityText() {
 }
 
 interface UnitRowProps {
-  unit: InventoryUnitView; validityType: 'limit' | 'from_until';
+  unit: InventoryUnitView; defaultType: 'limit' | 'from_until';
   selected: boolean; onToggle: () => void;
   editing: boolean; onEditStart: () => void; onEditCancel: () => void; onSaved: () => void;
   onDelete: () => void; offerId: string; variantId: string;
 }
 
-function UnitRow({ unit, validityType, selected, onToggle, editing, onEditStart, onEditCancel, onSaved, onDelete, offerId, variantId }: UnitRowProps) {
+function UnitRow({ unit, defaultType, selected, onToggle, editing, onEditStart, onEditCancel, onSaved, onDelete, offerId, variantId }: UnitRowProps) {
   const { t } = useLanguage();
   const validityText = useUnitValidityText();
   const statusLabel = unit.status === 'available' ? t('im_statusAvailable') : unit.status === 'assigned' ? t('im_statusAssigned') : t('im_statusRedeemed');
@@ -252,14 +255,16 @@ function UnitRow({ unit, validityType, selected, onToggle, editing, onEditStart,
       <td className="p-2 font-mono text-xs text-slate-700 dark:text-slate-200" dir="ltr">{unit.value}</td>
       <td className="p-2 text-slate-600 dark:text-slate-300" dir="ltr">{validityText(unit)}</td>
       <td className="p-2 text-slate-500 dark:text-slate-400">{statusLabel}</td>
+      <td className="p-2 text-slate-400 dark:text-slate-500 text-xs whitespace-nowrap" dir="ltr">{unit.createdAt ? unit.createdAt.slice(0, 10) : '-'}</td>
+      <td className="p-2 text-slate-400 dark:text-slate-500 text-xs whitespace-nowrap" dir="ltr">{unit.updatedAt ? unit.updatedAt.slice(0, 10) : '-'}</td>
       <td className="p-2 text-end">
         <button type="button" onClick={onEditStart} className="text-xs font-medium text-primary hover:underline">{t('im_editDate')}</button>
         <button type="button" onClick={onDelete} className="ms-2 text-xs font-medium text-red-500 hover:underline">{t('im_delete')}</button>
       </td>
       {editing && (
-        <td colSpan={5} className="p-0">
+        <td colSpan={7} className="p-0">
           <div className="p-3">
-            <UnitDateEditor validityType={validityType} unit={unit} onCancel={onEditCancel}
+            <UnitDateEditor defaultType={defaultType} unit={unit} onCancel={onEditCancel}
               onSave={async (patch) => { await updateUnitValidity(offerId, variantId, unit.codeId, patch); toast.success(t('im_toastUpdated').replace('{n}', '1')); onSaved(); }} />
           </div>
         </td>
@@ -269,15 +274,19 @@ function UnitRow({ unit, validityType, selected, onToggle, editing, onEditStart,
 }
 
 interface EditorProps {
-  validityType: 'limit' | 'from_until';
+  defaultType: 'limit' | 'from_until';
   unit: InventoryUnitView | null;
-  onSave: (patch: { validityValue?: number; validityUnit?: 'days' | 'months' | 'years'; validFrom?: string; validUntil?: string }) => Promise<void>;
+  onSave: (patch: { validityValue?: number | null; validityUnit?: 'days' | 'months' | 'years' | null; validFrom?: string | null; validUntil?: string | null }) => Promise<void>;
   onCancel: () => void;
 }
 
-/** Inline validity editor for a single unit or a bulk selection (unit === null). */
-function UnitDateEditor({ validityType, unit, onSave, onCancel }: EditorProps) {
+/** Inline validity editor for a single unit or a bulk selection (unit === null).
+ *  Type is switchable (defaults to the unit's current type, or the offer default
+ *  for a bulk re-stamp / window-less unit). */
+function UnitDateEditor({ defaultType, unit, onSave, onCancel }: EditorProps) {
   const { t } = useLanguage();
+  const inferred: 'limit' | 'from_until' = unit?.validFrom != null ? 'from_until' : unit?.validityValue != null ? 'limit' : defaultType;
+  const [vType, setVType] = useState<'limit' | 'from_until'>(inferred);
   const [val, setVal] = useState(unit?.validityValue != null ? String(unit.validityValue) : '5');
   const [u, setU] = useState<'days' | 'months' | 'years'>(unit?.validityUnit ?? 'years');
   const [from, setFrom] = useState(unit?.validFrom ? unit.validFrom.slice(0, 10) : '');
@@ -287,20 +296,28 @@ function UnitDateEditor({ validityType, unit, onSave, onCancel }: EditorProps) {
 
   const save = async () => {
     setErr(null);
-    if (validityType === 'limit') {
+    if (vType === 'limit') {
       const n = Number(val);
       if (!val.trim() || !Number.isInteger(n) || n <= 0) { setErr(t('vi_errBatchValidity')); return; }
-      setBusy(true); try { await onSave({ validityValue: n, validityUnit: u }); } catch { setErr(t('im_loadError')); } finally { setBusy(false); }
+      setBusy(true); try { await onSave({ validityValue: n, validityUnit: u, validFrom: null, validUntil: null }); } catch { setErr(t('im_loadError')); } finally { setBusy(false); }
     } else {
       if (!from || !until) { setErr(t('vi_errBatchValidity')); return; }
       if (new Date(until).getTime() < new Date(from).getTime()) { setErr(t('vi_errBatchRange')); return; }
-      setBusy(true); try { await onSave({ validFrom: from, validUntil: until }); } catch { setErr(t('im_loadError')); } finally { setBusy(false); }
+      setBusy(true); try { await onSave({ validFrom: from, validUntil: until, validityValue: null, validityUnit: null }); } catch { setErr(t('im_loadError')); } finally { setBusy(false); }
     }
   };
 
   return (
     <div className="rounded-lg border border-primary/40 bg-primary/5 p-3">
-      {validityType === 'limit' ? (
+      <div className="mb-2 inline-flex gap-1 rounded-lg border border-slate-200 p-0.5 dark:border-slate-700" role="group">
+        {([{ v: 'limit', label: t('co_validityTypeLimit') }, { v: 'from_until', label: t('co_validityTypeFromUntil') }] as const).map((opt) => (
+          <button key={opt.v} type="button" onClick={() => setVType(opt.v)} aria-pressed={vType === opt.v}
+            className={cn('rounded-md px-3 py-1 text-xs font-medium transition-colors', vType === opt.v ? 'bg-primary text-white' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800')}>
+            {opt.label}
+          </button>
+        ))}
+      </div>
+      {vType === 'limit' ? (
         <div className="flex gap-2" dir="ltr">
           <input type="number" min="1" step="1" value={val} onChange={(e) => setVal(e.target.value)} className={cn(inputCls, 'w-20')} />
           <select value={u} onChange={(e) => setU(e.target.value as 'days' | 'months' | 'years')} className={inputCls}>

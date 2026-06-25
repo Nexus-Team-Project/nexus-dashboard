@@ -163,6 +163,8 @@ function VariantDetailsTable({
   // does not expose per-variant stock; owner-scoped, so failures fall back to "-".
   const [stock, setStock] = useState<Record<string, number>>({});
   const [stockLoading, setStockLoading] = useState(false);
+  // The variant whose inventory is being managed (opens the management modal).
+  const [managing, setManaging] = useState<CatalogVariant | null>(null);
   const variantKey = rows.map((v) => v.variantId).join(',');
   useEffect(() => {
     if (rows.length === 0) return;
@@ -194,11 +196,9 @@ function VariantDetailsTable({
   const headCls = 'px-3 py-2 text-start font-semibold whitespace-nowrap';
   const cellCls = 'px-3 py-2 align-top';
   const truncCls = 'block max-w-[160px] truncate';
-  // Validity TYPE label per variant (the per-code dates live on the inventory
-  // units now); inherits the offer default when the variant has no override.
-  const validityText = (v: CatalogVariant) => validityTypeLabel(v.validityTypeOverride ?? defaultValidityType, t) || dash;
-  // The variant whose inventory is being managed (opens the management modal).
-  const [managing, setManaging] = useState<CatalogVariant | null>(null);
+  // Validity is per inventory unit now; the offer default is the only variant-level
+  // hint to show here (each code carries its own type + date - see the manage modal).
+  const validityText = validityTypeLabel(defaultValidityType, t) || dash;
 
   return (
     <div dir={language === 'he' ? 'rtl' : 'ltr'} className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
@@ -262,7 +262,7 @@ function VariantDetailsTable({
                       className="ms-2 text-xs font-medium text-primary hover:underline">{t('im_title')}</button>
                   )}
                 </td>
-                <td className={cn(cellCls, 'whitespace-nowrap')}>{validityText(v)}</td>
+                <td className={cn(cellCls, 'whitespace-nowrap')}>{validityText}</td>
                 <td className={cellCls}>{typeof v.voucherStackable === 'boolean' ? (v.voucherStackable ? t('co_voucherStackableYes') : t('co_voucherStackableNo')) : dash}</td>
                 <td className={cellCls} dir="ltr">{v.sku || dash}</td>
                 {/* Usage conditions + redemption method: truncated with a full-text hover tooltip. */}
@@ -295,7 +295,7 @@ function VariantDetailsTable({
           offerId={offerId}
           variantId={managing.variantId}
           variantLabel={`${t('co_variantLabel')} ${variants.indexOf(managing) + 1}`}
-          validityType={managing.validityTypeOverride ?? defaultValidityType ?? 'limit'}
+          defaultType={defaultValidityType ?? 'limit'}
           onClose={() => setManaging(null)}
         />
       )}
