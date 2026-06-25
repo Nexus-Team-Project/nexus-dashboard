@@ -278,9 +278,9 @@ function UnitRow({ unit, defaultType, selected, onToggle, editing, onEditStart, 
       <td className="p-2 text-slate-400 dark:text-slate-500 text-xs whitespace-nowrap" dir="ltr">{unit.createdAt ? unit.createdAt.slice(0, 10) : '-'}</td>
       <td className="p-2 text-slate-400 dark:text-slate-500 text-xs whitespace-nowrap" dir="ltr">{unit.updatedAt ? unit.updatedAt.slice(0, 10) : '-'}</td>
       <td className="p-2 text-end whitespace-nowrap">
-        <button type="button" onClick={onEditStart} aria-label={t('im_editDate')} title={t('im_editDate')}
+        <button type="button" onClick={onEditStart} aria-label={t('im_editDate')}
           className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800"><EditIcon /></button>
-        <button type="button" onClick={onDelete} aria-label={t('im_delete')} title={t('im_delete')}
+        <button type="button" onClick={onDelete} aria-label={t('im_delete')}
           className="ms-1 inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-red-50 hover:text-red-600 dark:text-slate-400 dark:hover:bg-red-900/20"><TrashIcon /></button>
       </td>
     </tr>
