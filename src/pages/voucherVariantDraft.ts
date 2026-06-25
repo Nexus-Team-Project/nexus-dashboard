@@ -15,6 +15,33 @@ export type StackChoice = '' | 'yes' | 'no';
 export type ValidityTypeChoice = '' | 'limit' | 'from_until';
 
 /**
+ * A variant's effective validity type: its own override, or the offer default
+ * when it inherits ('').
+ */
+export function effectiveValidityType(
+  override: ValidityTypeChoice,
+  offerDefault: 'limit' | 'from_until',
+): 'limit' | 'from_until' {
+  return override === '' ? offerDefault : override;
+}
+
+/**
+ * True when a staged inventory's per-batch validity matches the effective type it
+ * will be applied under (voucher-validity-dating). A `limit` batch must carry a
+ * validity amount; a `from_until` batch must carry both window dates. Inventory
+ * that was skipped (null) needs no validity. Used by the publish gate so a batch
+ * staged under one type cannot be applied after the type was switched.
+ */
+export function stagedValidityMatches(
+  inv: OfferInventoryInput | null,
+  effType: 'limit' | 'from_until',
+): boolean {
+  if (!inv) return true;
+  if (effType === 'limit') return inv.validityValue != null && inv.validityUnit != null;
+  return inv.validFrom != null && inv.validUntil != null;
+}
+
+/**
  * One variant being authored. All numeric fields are kept as strings (form
  * inputs); inventory is staged in memory and applied per variant at publish.
  */

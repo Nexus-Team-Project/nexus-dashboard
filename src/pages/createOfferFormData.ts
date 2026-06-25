@@ -9,7 +9,7 @@ import type { GalleryItem } from '../components/offer/OfferImageGallery';
 import type { BgMode } from '../components/offer/VoucherBackgroundField';
 import type { OfferInventoryInput } from '../lib/api';
 import type { TranslationKey } from '../i18n/translations';
-import { type DraftVariant, draftToPayload } from './voucherVariantDraft';
+import { type DraftVariant, draftToPayload, effectiveValidityType, stagedValidityMatches } from './voucherVariantDraft';
 
 export interface CreateOfferValues {
   title: string;
@@ -107,6 +107,8 @@ export interface PublishGateInput {
   variants: DraftVariant[];
   /** True while a variant draft is open in the VariantsManager (blocks publish). */
   variantEditing: boolean;
+  /** Offer-level validity type default, to resolve each variant's effective type. */
+  defaultValidityType: 'limit' | 'from_until';
 }
 
 /**
@@ -133,6 +135,11 @@ export function computePublishBlockers(
   if (v.executionType === 'voucher') {
     if (v.variants.length === 0) blockers.push(t('co_variantsRequired'));
     else if (v.variantEditing) blockers.push(t('of_publishBlockVariantEditing'));
+    // A batch staged under one validity type cannot be applied after the type was
+    // switched (variant override or offer default). Force re-entering the date.
+    else if (v.variants.some((d) => !stagedValidityMatches(d.inventory, effectiveValidityType(d.validityTypeOverride, v.defaultValidityType)))) {
+      blockers.push(t('co_invDateNeeded'));
+    }
   }
   return blockers;
 }
