@@ -13,12 +13,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 import { useLanguage } from '../../i18n/LanguageContext';
-import { cn } from '../../lib/utils';
 import {
   listVariantUnits, updateUnitValidity, bulkUpdateUnitValidity, deleteVariantUnit, addVariantInventory,
   type InventoryUnitView, type UnitDateFilter, type OfferInventoryInput,
 } from '../../lib/api';
 import VoucherInventoryModal from './VoucherInventoryModal';
+import InventoryValidityEditor from './InventoryValidityEditor';
 
 type ExpiringChoice = 'all' | '1m' | '3m' | '1y' | 'none';
 
@@ -26,7 +26,6 @@ interface Props {
   offerId: string;
   variantId: string;
   variantLabel: string;
-  /** The variant's effective validity type, for the add-batch + edit controls. */
   /** Offer-level validity type default (the initial type for new batches/edits). */
   defaultType: 'limit' | 'from_until';
   onClose: () => void;
@@ -36,13 +35,7 @@ interface Props {
 
 const PAGE_SIZE = 50;
 const inputCls = 'rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white';
-
-/** Maps the filter choice to the API date filter. */
-function toFilter(choice: ExpiringChoice): UnitDateFilter {
-  if (choice === 'none') return { noWindow: true };
-  if (choice === '1m' || choice === '3m' || choice === '1y') return { expiringWithin: choice };
-  return {};
-}
+const thCls = 'p-2 text-start text-xs font-semibold text-slate-500 dark:text-slate-400';
 
 export default function VariantInventoryManagerModal({ offerId, variantId, variantLabel, defaultType, onClose, onChanged }: Props) {
   const { t, language } = useLanguage();
@@ -50,19 +43,36 @@ export default function VariantInventoryManagerModal({ offerId, variantId, varia
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [choice, setChoice] = useState<ExpiringChoice>('all');
+  // Created/Updated ranges + debounced code search.
+  const [createdFrom, setCreatedFrom] = useState(''); const [createdTo, setCreatedTo] = useState('');
+  const [updatedFrom, setUpdatedFrom] = useState(''); const [updatedTo, setUpdatedTo] = useState('');
+  const [searchInput, setSearchInput] = useState(''); const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAddBatch, setShowAddBatch] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
+  // Debounce the search box (300ms) so typing does not spam the server.
+  useEffect(() => { const id = setTimeout(() => setSearch(searchInput), 300); return () => clearTimeout(id); }, [searchInput]);
+  // Any filter change resets to page 1.
+  useEffect(() => { setPage(1); }, [choice, createdFrom, createdTo, updatedFrom, updatedTo, search]);
+
+  const filter: UnitDateFilter = {
+    ...(choice === 'none' ? { noWindow: true } : choice !== 'all' ? { expiringWithin: choice } : {}),
+    ...(createdFrom && { createdFrom }), ...(createdTo && { createdTo }),
+    ...(updatedFrom && { updatedFrom }), ...(updatedTo && { updatedTo }),
+    ...(search.trim() && { search: search.trim() }),
+  };
+  const filterKey = JSON.stringify(filter);
+
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const res = await listVariantUnits(offerId, variantId, toFilter(choice), page, PAGE_SIZE);
+      const res = await listVariantUnits(offerId, variantId, JSON.parse(filterKey), page, PAGE_SIZE);
       setUnits(res.units); setTotal(res.total);
     } catch { setError(t('im_loadError')); } finally { setLoading(false); }
-  }, [offerId, variantId, choice, page, t]);
+  }, [offerId, variantId, filterKey, page, t]);
 
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
@@ -83,18 +93,11 @@ export default function VariantInventoryManagerModal({ offerId, variantId, varia
   /** The kind already in use (locks the add-batch popup to one kind). */
   const lockedKind = units[0]?.kind ?? null;
   const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const lockedChoices: { v: ExpiringChoice; label: string }[] = [
-    { v: 'all', label: t('im_filterAll') },
-    { v: '1m', label: t('im_filterExpiring1m') },
-    { v: '3m', label: t('im_filterExpiring3m') },
-    { v: '1y', label: t('im_filterExpiring1y') },
-    { v: 'none', label: t('im_filterNoWindow') },
-  ];
 
   return createPortal(
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}
       role="dialog" aria-modal="true" aria-label={t('im_title')} dir={language === 'he' ? 'rtl' : 'ltr'}>
-      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl bg-white shadow-2xl dark:bg-card-dark">
+      <div className="flex max-h-[92vh] w-full max-w-4xl flex-col rounded-2xl bg-white shadow-2xl dark:bg-card-dark">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-100 p-5 dark:border-slate-800">
           <div>
@@ -105,30 +108,40 @@ export default function VariantInventoryManagerModal({ offerId, variantId, varia
             className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">&#x2715;</button>
         </div>
 
-        {/* Toolbar: filter + add batch */}
-        <div className="flex flex-wrap items-center justify-between gap-2 px-5 pt-4">
-          <div className="flex flex-wrap items-center gap-1">
-            <span className="me-1 text-xs font-medium text-slate-500 dark:text-slate-400">{t('im_filterLabel')}:</span>
-            {lockedChoices.map((c) => (
-              <button key={c.v} type="button" onClick={() => { setChoice(c.v); setPage(1); }}
-                aria-pressed={choice === c.v}
-                className={cn('rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
-                  choice === c.v ? 'bg-primary text-white' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800')}>
-                {c.label}
-              </button>
-            ))}
-          </div>
+        {/* Toolbar: search + expiring dropdown + created/updated ranges + add batch */}
+        <div className="flex flex-wrap items-end gap-3 px-5 pt-4">
+          <input value={searchInput} onChange={(e) => setSearchInput(e.target.value)} placeholder={t('im_searchPlaceholder')}
+            className="min-w-[150px] flex-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" />
+          <label className="flex flex-col gap-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+            {t('im_filterExpiringLabel')}
+            <select value={choice} onChange={(e) => setChoice(e.target.value as ExpiringChoice)} className={inputCls}>
+              <option value="all">{t('im_filterAll')}</option>
+              <option value="1m">{t('im_filterExpiring1m')}</option>
+              <option value="3m">{t('im_filterExpiring3m')}</option>
+              <option value="1y">{t('im_filterExpiring1y')}</option>
+              <option value="none">{t('im_filterNoWindow')}</option>
+            </select>
+          </label>
           <button type="button" onClick={() => setShowAddBatch(true)}
-            className="rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:opacity-90">
-            {t('im_addBatch')}
-          </button>
+            className="rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:opacity-90">{t('im_addBatch')}</button>
+        </div>
+        {/* Created / Updated date ranges */}
+        <div className="flex flex-wrap items-end gap-3 px-5 pt-2" dir="ltr">
+          <label className="flex flex-col gap-0.5 text-[11px] text-slate-500 dark:text-slate-400">{t('im_filterCreated')} {t('im_filterFrom')}
+            <input type="date" value={createdFrom} onChange={(e) => setCreatedFrom(e.target.value)} className={inputCls} /></label>
+          <label className="flex flex-col gap-0.5 text-[11px] text-slate-500 dark:text-slate-400">{t('im_filterCreated')} {t('im_filterTo')}
+            <input type="date" value={createdTo} onChange={(e) => setCreatedTo(e.target.value)} className={inputCls} /></label>
+          <label className="flex flex-col gap-0.5 text-[11px] text-slate-500 dark:text-slate-400">{t('im_filterUpdated')} {t('im_filterFrom')}
+            <input type="date" value={updatedFrom} onChange={(e) => setUpdatedFrom(e.target.value)} className={inputCls} /></label>
+          <label className="flex flex-col gap-0.5 text-[11px] text-slate-500 dark:text-slate-400">{t('im_filterUpdated')} {t('im_filterTo')}
+            <input type="date" value={updatedTo} onChange={(e) => setUpdatedTo(e.target.value)} className={inputCls} /></label>
         </div>
 
-        {/* Bulk re-stamp note */}
+        {/* Bulk re-stamp bar */}
         {selected.size > 0 && (
           <div className="mx-5 mt-3 flex items-center justify-between gap-2 rounded-lg bg-slate-50 p-2 text-xs dark:bg-slate-800/50">
-            <span className="text-slate-600 dark:text-slate-300">{selected.size}</span>
-            <button type="button" onClick={() => setEditing('__bulk__')} className="font-semibold text-primary hover:underline">{t('im_editDate')}</button>
+            <span className="text-slate-600 dark:text-slate-300">{selected.size} {t('im_selected')}</span>
+            <button type="button" onClick={() => setEditing('__bulk__')} className="font-semibold text-primary hover:underline">{t('im_editSelected')}</button>
           </div>
         )}
 
@@ -145,14 +158,14 @@ export default function VariantInventoryManagerModal({ offerId, variantId, varia
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-start text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  <th className="w-6 p-2"></th>
-                  <th className="p-2 text-start">{t('im_colValue')}</th>
-                  <th className="p-2 text-start">{t('im_colValidity')}</th>
-                  <th className="p-2 text-start">{t('im_colStatus')}</th>
-                  <th className="p-2 text-start">{t('im_colCreated')}</th>
-                  <th className="p-2 text-start">{t('im_colUpdated')}</th>
-                  <th className="p-2 text-end">{t('im_colActions')}</th>
+                <tr>
+                  <th className="w-8 p-2" />
+                  <th className={thCls}>{t('im_colValue')}</th>
+                  <th className={thCls}>{t('im_colValidity')}</th>
+                  <th className={thCls}>{t('im_colStatus')}</th>
+                  <th className={thCls}>{t('im_colCreated')}</th>
+                  <th className={thCls}>{t('im_colUpdated')}</th>
+                  <th className="p-2 text-end text-xs font-semibold text-slate-500 dark:text-slate-400">{t('im_colActions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -202,7 +215,10 @@ export default function VariantInventoryManagerModal({ offerId, variantId, varia
 
       {/* Bulk re-stamp editor. */}
       {editing === '__bulk__' && (
-        <UnitDateEditor
+        <div className="fixed inset-0 z-[210] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.4)' }} role="dialog" aria-modal="true">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl dark:bg-card-dark">
+            <p className="mb-3 text-sm font-semibold text-slate-900 dark:text-white">{t('im_editSelected')} ({selected.size})</p>
+        <InventoryValidityEditor
           defaultType={defaultType} unit={null}
           onCancel={() => setEditing(null)}
           onSave={async (patch) => {
@@ -214,6 +230,8 @@ export default function VariantInventoryManagerModal({ offerId, variantId, varia
             } catch { setEditing(null); setError(t('im_loadError')); }
           }}
         />
+          </div>
+        </div>
       )}
     </div>,
     document.body,
@@ -264,81 +282,11 @@ function UnitRow({ unit, defaultType, selected, onToggle, editing, onEditStart, 
       {editing && (
         <td colSpan={7} className="p-0">
           <div className="p-3">
-            <UnitDateEditor defaultType={defaultType} unit={unit} onCancel={onEditCancel}
+            <InventoryValidityEditor defaultType={defaultType} unit={unit} onCancel={onEditCancel}
               onSave={async (patch) => { await updateUnitValidity(offerId, variantId, unit.codeId, patch); toast.success(t('im_toastUpdated').replace('{n}', '1')); onSaved(); }} />
           </div>
         </td>
       )}
     </tr>
-  );
-}
-
-interface EditorProps {
-  defaultType: 'limit' | 'from_until';
-  unit: InventoryUnitView | null;
-  onSave: (patch: { validityValue?: number | null; validityUnit?: 'days' | 'months' | 'years' | null; validFrom?: string | null; validUntil?: string | null }) => Promise<void>;
-  onCancel: () => void;
-}
-
-/** Inline validity editor for a single unit or a bulk selection (unit === null).
- *  Type is switchable (defaults to the unit's current type, or the offer default
- *  for a bulk re-stamp / window-less unit). */
-function UnitDateEditor({ defaultType, unit, onSave, onCancel }: EditorProps) {
-  const { t } = useLanguage();
-  const inferred: 'limit' | 'from_until' = unit?.validFrom != null ? 'from_until' : unit?.validityValue != null ? 'limit' : defaultType;
-  const [vType, setVType] = useState<'limit' | 'from_until'>(inferred);
-  const [val, setVal] = useState(unit?.validityValue != null ? String(unit.validityValue) : '5');
-  const [u, setU] = useState<'days' | 'months' | 'years'>(unit?.validityUnit ?? 'years');
-  const [from, setFrom] = useState(unit?.validFrom ? unit.validFrom.slice(0, 10) : '');
-  const [until, setUntil] = useState(unit?.validUntil ? unit.validUntil.slice(0, 10) : '');
-  const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  const save = async () => {
-    setErr(null);
-    if (vType === 'limit') {
-      const n = Number(val);
-      if (!val.trim() || !Number.isInteger(n) || n <= 0) { setErr(t('vi_errBatchValidity')); return; }
-      setBusy(true); try { await onSave({ validityValue: n, validityUnit: u, validFrom: null, validUntil: null }); } catch { setErr(t('im_loadError')); } finally { setBusy(false); }
-    } else {
-      if (!from || !until) { setErr(t('vi_errBatchValidity')); return; }
-      if (new Date(until).getTime() < new Date(from).getTime()) { setErr(t('vi_errBatchRange')); return; }
-      setBusy(true); try { await onSave({ validFrom: from, validUntil: until, validityValue: null, validityUnit: null }); } catch { setErr(t('im_loadError')); } finally { setBusy(false); }
-    }
-  };
-
-  return (
-    <div className="rounded-lg border border-primary/40 bg-primary/5 p-3">
-      <div className="mb-2 inline-flex gap-1 rounded-lg border border-slate-200 p-0.5 dark:border-slate-700" role="group">
-        {([{ v: 'limit', label: t('co_validityTypeLimit') }, { v: 'from_until', label: t('co_validityTypeFromUntil') }] as const).map((opt) => (
-          <button key={opt.v} type="button" onClick={() => setVType(opt.v)} aria-pressed={vType === opt.v}
-            className={cn('rounded-md px-3 py-1 text-xs font-medium transition-colors', vType === opt.v ? 'bg-primary text-white' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800')}>
-            {opt.label}
-          </button>
-        ))}
-      </div>
-      {vType === 'limit' ? (
-        <div className="flex gap-2" dir="ltr">
-          <input type="number" min="1" step="1" value={val} onChange={(e) => setVal(e.target.value)} className={cn(inputCls, 'w-20')} />
-          <select value={u} onChange={(e) => setU(e.target.value as 'days' | 'months' | 'years')} className={inputCls}>
-            <option value="days">{t('co_validityUnitDays')}</option>
-            <option value="months">{t('co_validityUnitMonths')}</option>
-            <option value="years">{t('co_validityUnitYears')}</option>
-          </select>
-        </div>
-      ) : (
-        <div className="flex flex-wrap gap-2" dir="ltr">
-          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={inputCls} />
-          <input type="date" value={until} min={from || undefined} onChange={(e) => setUntil(e.target.value)} className={inputCls} />
-        </div>
-      )}
-      {err && <p className="mt-2 text-xs text-red-500">{err}</p>}
-      <div className="mt-2 flex gap-2">
-        <button type="button" onClick={() => void save()} disabled={busy}
-          className="rounded-lg bg-primary px-3 py-1 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60">{t('im_save')}</button>
-        <button type="button" onClick={onCancel} disabled={busy}
-          className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300">{t('im_cancel')}</button>
-      </div>
-    </div>
   );
 }

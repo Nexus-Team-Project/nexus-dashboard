@@ -1437,6 +1437,14 @@ export interface UnitDateFilter {
   until?: string;
   expiringWithin?: '1m' | '3m' | '1y';
   noWindow?: boolean;
+  /** Created-at range (ISO date strings). */
+  createdFrom?: string;
+  createdTo?: string;
+  /** Updated-at range (ISO date strings). */
+  updatedFrom?: string;
+  updatedTo?: string;
+  /** Case-insensitive substring match on the code value / link code. */
+  search?: string;
 }
 
 /**
@@ -1455,6 +1463,11 @@ export async function listVariantUnits(
   if (filter.until) u.set('until', filter.until);
   if (filter.expiringWithin) u.set('expiringWithin', filter.expiringWithin);
   if (filter.noWindow) u.set('noWindow', 'true');
+  if (filter.createdFrom) u.set('createdFrom', filter.createdFrom);
+  if (filter.createdTo) u.set('createdTo', filter.createdTo);
+  if (filter.updatedFrom) u.set('updatedFrom', filter.updatedFrom);
+  if (filter.updatedTo) u.set('updatedTo', filter.updatedTo);
+  if (filter.search && filter.search.trim()) u.set('search', filter.search.trim());
   u.set('page', String(page));
   u.set('pageSize', String(pageSize));
   return request<InventoryUnitPage>(
