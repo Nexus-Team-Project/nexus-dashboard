@@ -11,6 +11,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { toast } from 'sonner';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { cn } from '../../lib/utils';
 import {
@@ -74,7 +75,7 @@ export default function VariantInventoryManagerModal({ offerId, variantId, varia
 
   const onDelete = async (codeId: string) => {
     if (!window.confirm(t('im_deleteConfirm'))) return;
-    try { await deleteVariantUnit(offerId, variantId, codeId); refresh(); }
+    try { await deleteVariantUnit(offerId, variantId, codeId); toast.success(t('im_toastDeleted')); refresh(); }
     catch { setError(t('im_loadError')); }
   };
 
@@ -188,7 +189,7 @@ export default function VariantInventoryManagerModal({ offerId, variantId, varia
           validityType={validityType}
           lockedKind={lockedKind}
           onConfirm={async (inv: OfferInventoryInput) => {
-            try { await addVariantInventory(offerId, variantId, inv); setShowAddBatch(false); refresh(); }
+            try { const r = await addVariantInventory(offerId, variantId, inv); toast.success(t('im_toastAdded').replace('{n}', String(r.created))); setShowAddBatch(false); refresh(); }
             catch { setShowAddBatch(false); setError(t('im_loadError')); }
           }}
           onSkip={() => setShowAddBatch(false)}
@@ -204,7 +205,8 @@ export default function VariantInventoryManagerModal({ offerId, variantId, varia
           onSave={async (patch) => {
             try {
               // One request for the whole selection (not one per unit).
-              await bulkUpdateUnitValidity(offerId, variantId, Array.from(selected), patch);
+              const res = await bulkUpdateUnitValidity(offerId, variantId, Array.from(selected), patch);
+              toast.success(t('im_toastUpdated').replace('{n}', String(res.updated)));
               setEditing(null); setSelected(new Set()); refresh();
             } catch { setEditing(null); setError(t('im_loadError')); }
           }}
@@ -258,7 +260,7 @@ function UnitRow({ unit, validityType, selected, onToggle, editing, onEditStart,
         <td colSpan={5} className="p-0">
           <div className="p-3">
             <UnitDateEditor validityType={validityType} unit={unit} onCancel={onEditCancel}
-              onSave={async (patch) => { await updateUnitValidity(offerId, variantId, unit.codeId, patch); onSaved(); }} />
+              onSave={async (patch) => { await updateUnitValidity(offerId, variantId, unit.codeId, patch); toast.success(t('im_toastUpdated').replace('{n}', '1')); onSaved(); }} />
           </div>
         </td>
       )}

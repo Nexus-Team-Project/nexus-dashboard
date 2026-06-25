@@ -1489,17 +1489,34 @@ export async function updateUnitValidity(
   );
 }
 
+/** One unit's before -> after validity in a bulk-update response. */
+export interface UnitValidityChange {
+  codeId: string;
+  value: string;
+  before: UnitValidityPatch;
+  after: UnitValidityPatch;
+}
+
+/** Bulk-update response: count + per-unit from->to + who/when (audit). */
+export interface BulkUpdateResult {
+  updated: number;
+  changes: UnitValidityChange[];
+  updatedBy: { identityId: string; tenantId: string };
+  updatedAt: string;
+}
+
 /**
  * Re-stamps the validity of MANY units in one request. Matches
- * PATCH /api/v1/offers/:offerId/variants/:variantId/inventory (bulk).
+ * PATCH /api/v1/offers/:offerId/variants/:variantId/inventory (bulk). The response
+ * reports how many changed, the per-unit before->after, and who/when (audit).
  */
 export async function bulkUpdateUnitValidity(
   offerId: string,
   variantId: string,
   codeIds: string[],
   validity: UnitValidityPatch,
-): Promise<{ updated: number }> {
-  return request<{ updated: number }>(
+): Promise<BulkUpdateResult> {
+  return request<BulkUpdateResult>(
     'PATCH',
     `/api/v1/offers/${offerId}/variants/${variantId}/inventory`,
     { codeIds, ...validity },
