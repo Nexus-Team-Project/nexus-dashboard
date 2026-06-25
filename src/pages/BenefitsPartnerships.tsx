@@ -42,6 +42,7 @@ import VoucherColorTile from '../components/offer/VoucherColorTile';
 import { buildOfferImageUrl, getImageCrop } from '../lib/cloudinaryImage';
 import { formatVoucherCardPrice } from '../lib/voucherPricing';
 import { validityTypeLabel } from '../lib/voucherValidity';
+import VariantInventoryManagerModal from '../components/offer/VariantInventoryManagerModal';
 
 interface Benefit {
   id: string;
@@ -196,6 +197,8 @@ function VariantDetailsTable({
   // Validity TYPE label per variant (the per-code dates live on the inventory
   // units now); inherits the offer default when the variant has no override.
   const validityText = (v: CatalogVariant) => validityTypeLabel(v.validityTypeOverride ?? defaultValidityType, t) || dash;
+  // The variant whose inventory is being managed (opens the management modal).
+  const [managing, setManaging] = useState<CatalogVariant | null>(null);
 
   return (
     <div dir={language === 'he' ? 'rtl' : 'ltr'} className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
@@ -252,7 +255,13 @@ function VariantDetailsTable({
                 </td>
                 <td className={cn(cellCls, 'tabular-nums')} dir="ltr">{typeof v.face_value === 'number' ? `₪${v.face_value}` : dash}</td>
                 {showNexus && <td className={cn(cellCls, 'tabular-nums')} dir="ltr">{typeof v.nexus_cost === 'number' ? `₪${v.nexus_cost}` : dash}</td>}
-                <td className={cn(cellCls, 'tabular-nums whitespace-nowrap')} dir="ltr">{stockText}</td>
+                <td className={cn(cellCls, 'tabular-nums whitespace-nowrap')} dir="ltr">
+                  <span>{stockText}</span>
+                  {canEditPrice && (
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setManaging(v); }}
+                      className="ms-2 text-xs font-medium text-primary hover:underline">{t('im_title')}</button>
+                  )}
+                </td>
                 <td className={cn(cellCls, 'whitespace-nowrap')}>{validityText(v)}</td>
                 <td className={cellCls}>{typeof v.voucherStackable === 'boolean' ? (v.voucherStackable ? t('co_voucherStackableYes') : t('co_voucherStackableNo')) : dash}</td>
                 <td className={cellCls} dir="ltr">{v.sku || dash}</td>
@@ -281,6 +290,15 @@ function VariantDetailsTable({
           })}
         </tbody>
       </table>
+      {managing && (
+        <VariantInventoryManagerModal
+          offerId={offerId}
+          variantId={managing.variantId}
+          variantLabel={`${t('co_variantLabel')} ${variants.indexOf(managing) + 1}`}
+          validityType={managing.validityTypeOverride ?? defaultValidityType ?? 'limit'}
+          onClose={() => setManaging(null)}
+        />
+      )}
     </div>
   );
 }
