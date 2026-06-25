@@ -223,7 +223,7 @@ const EditOffer = () => {
       const updated = await updateOfferApi(offerId, fd);
       saved = true;
       // Apply any newly staged inventory to each variant (matched by order).
-      let units = 0; let invFailed = false;
+      let units = 0; let invError: string | null = null;
       if (isVoucher) {
         const created = updated.variants ?? [];
         for (let i = 0; i < variants.length; i++) {
@@ -231,11 +231,11 @@ const EditOffer = () => {
           const variantId = created[i]?.variantId;
           if (inv && variantId) {
             try { const r = await addVariantInventory(offerId, variantId, inv); units += r.created; }
-            catch { invFailed = true; }
+            catch (e) { if (!invError) invError = e instanceof Error ? e.message : String(e); }
           }
         }
       }
-      if (invFailed) toast.error(t('co_toastInventoryFailedSave'));
+      if (invError) toast.error(`${t('co_toastInventoryFailedSave')}: ${invError}`);
       else if (units > 0) toast.success(`${t('co_toastSaved')} · ${units} ${t('co_toastUnits')}`);
       else toast.success(t('co_toastSaved'));
       navigate('/benefits-partnerships');

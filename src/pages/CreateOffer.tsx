@@ -135,16 +135,16 @@ const CreateOffer = () => {
       offerCreated = true;
       const created = offer.variants ?? [];
       let units = 0;
-      let invFailed = false;
+      let invError: string | null = null;
       for (let i = 0; i < variants.length; i++) {
         const inv = variants[i].inventory;
         const variantId = created[i]?.variantId;
         if (inv && variantId) {
           try { const r = await addVariantInventory(offer.offerId, variantId, inv); units += r.created; }
-          catch { invFailed = true; }
+          catch (e) { if (!invError) invError = e instanceof Error ? e.message : String(e); }
         }
       }
-      if (invFailed) toast.error(t('co_toastInventoryFailed'));
+      if (invError) toast.error(`${t('co_toastInventoryFailed')}: ${invError}`);
       else if (units > 0) toast.success(`${t('co_toastPublished')} · ${units} ${t('co_toastUnits')}`);
       else toast.success(t('co_toastPublished'));
       navigate('/benefits-partnerships');
