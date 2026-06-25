@@ -125,21 +125,39 @@ export default function VariantsManager({
       </div>
 
       <div className="space-y-4">
-        <VariantList variants={variants} onEdit={startEdit} onDelete={deleteVariant} disabled={isSubmitting || draft !== null} />
-
-        {draft !== null && (
-          <VariantBuilder
-            draft={draft}
-            onChange={patchDraft}
-            sharedTerms={sharedTerms}
-            sharedMethod={sharedMethod}
-            onOpenInventory={() => { void openInventory(); }}
-            onSave={saveDraft}
-            onCancel={cancelDraft}
-            error={builderError}
-            isSubmitting={isSubmitting}
-          />
-        )}
+        {(() => {
+          // An open draft that matches an existing variant is an inline edit: the
+          // builder is rendered in place of that variant's row by VariantList.
+          // A draft with no matching variant is a brand-new variant: render the
+          // builder below the list.
+          const editingExisting = draft !== null && variants.some((v) => v.localId === draft.localId);
+          const builder = draft !== null && (
+            <VariantBuilder
+              draft={draft}
+              onChange={patchDraft}
+              sharedTerms={sharedTerms}
+              sharedMethod={sharedMethod}
+              onOpenInventory={() => { void openInventory(); }}
+              onSave={saveDraft}
+              onCancel={cancelDraft}
+              error={builderError}
+              isSubmitting={isSubmitting}
+            />
+          );
+          return (
+            <>
+              <VariantList
+                variants={variants}
+                onEdit={startEdit}
+                onDelete={deleteVariant}
+                disabled={isSubmitting || draft !== null}
+                editingLocalId={editingExisting ? draft!.localId : null}
+                editorSlot={builder}
+              />
+              {!editingExisting && builder}
+            </>
+          );
+        })()}
 
         {variants.length === 0 && draft === null && (
           <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-400">
