@@ -156,7 +156,7 @@ export default function VariantInventoryManagerModal({ offerId, variantId, varia
                   <UnitRow
                     key={u.codeId} unit={u} validityType={validityType}
                     selected={selected.has(u.codeId)}
-                    onToggle={() => setSelected((s) => { const n = new Set(s); n.has(u.codeId) ? n.delete(u.codeId) : n.add(u.codeId); return n; })}
+                    onToggle={() => setSelected((s) => { const n = new Set(s); if (n.has(u.codeId)) n.delete(u.codeId); else n.add(u.codeId); return n; })}
                     editing={editing === u.codeId}
                     onEditStart={() => setEditing(u.codeId)}
                     onEditCancel={() => setEditing(null)}
