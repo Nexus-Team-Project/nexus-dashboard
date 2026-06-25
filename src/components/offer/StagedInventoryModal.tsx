@@ -17,6 +17,7 @@ import { type OfferInventoryInput, type InventoryUnitView, listVariantUnits } fr
 import { type StagedUnit, type StagedEdit, batchToStagedUnits } from '../../pages/voucherVariantDraft';
 import VoucherInventoryModal from './VoucherInventoryModal';
 import InventoryValidityEditor, { type ValidityPatch } from './InventoryValidityEditor';
+import { EditIcon, TrashIcon, UndoIcon } from './inventoryIcons';
 
 interface Props {
   variantLabel: string;
@@ -183,8 +184,10 @@ export default function StagedInventoryModal({ variantLabel, defaultType, units,
                         <td className="p-2 text-xs whitespace-nowrap" dir="ltr">{u.createdAt ? u.createdAt.slice(0, 10) : '-'}</td>
                         <td className="p-2 text-xs whitespace-nowrap" dir="ltr">{u.updatedAt ? u.updatedAt.slice(0, 10) : '-'}</td>
                         <td className="p-2 text-end whitespace-nowrap">
-                          <button type="button" onClick={() => setEditingSaved(u.codeId)} className="text-xs font-medium text-primary hover:underline">{t('im_editDate')}</button>
-                          {ed && <button type="button" onClick={() => onEditsChange(edits.filter((e) => e.codeId !== u.codeId))} className="ms-2 text-xs font-medium text-slate-400 hover:underline">{t('im_cancel')}</button>}
+                          <button type="button" onClick={() => setEditingSaved(u.codeId)} aria-label={t('im_editDate')} title={t('im_editDate')}
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800"><EditIcon /></button>
+                          {ed && <button type="button" onClick={() => onEditsChange(edits.filter((e) => e.codeId !== u.codeId))} aria-label={t('im_cancel')} title={t('im_cancel')}
+                            className="ms-1 inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"><UndoIcon /></button>}
                         </td>
                         {editingSaved === u.codeId && (
                           <td colSpan={7} className="p-0"><div className="p-3"><InventoryValidityEditor defaultType={defaultType} unit={shown} onCancel={() => setEditingSaved(null)} onSave={(patch) => editSaved(u.codeId, patch)} /></div></td>
@@ -218,8 +221,10 @@ export default function StagedInventoryModal({ variantLabel, defaultType, units,
                     <td className="p-2 text-slate-600 dark:text-slate-300" dir="ltr">{validityText(u, t)}</td>
                     <td className="p-2"><span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{t('im_unsavedBadge')}</span></td>
                     <td className="p-2 text-end whitespace-nowrap">
-                      <button type="button" onClick={() => setEditing(u.localId)} className="text-xs font-medium text-primary hover:underline">{t('im_editDate')}</button>
-                      <button type="button" onClick={() => removeUnit(u.localId)} className="ms-2 text-xs font-medium text-red-500 hover:underline">{t('im_delete')}</button>
+                      <button type="button" onClick={() => setEditing(u.localId)} aria-label={t('im_editDate')} title={t('im_editDate')}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800"><EditIcon /></button>
+                      <button type="button" onClick={() => removeUnit(u.localId)} aria-label={t('im_delete')} title={t('im_delete')}
+                        className="ms-1 inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-red-50 hover:text-red-600 dark:text-slate-400 dark:hover:bg-red-900/20"><TrashIcon /></button>
                     </td>
                     {editing === u.localId && (
                       <td colSpan={5} className="p-0"><div className="p-3"><InventoryValidityEditor defaultType={defaultType} unit={u} onCancel={() => setEditing(null)} onSave={(patch) => editUnit(u.localId, patch)} /></div></td>
