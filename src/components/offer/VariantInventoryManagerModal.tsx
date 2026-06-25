@@ -14,7 +14,7 @@ import { createPortal } from 'react-dom';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { cn } from '../../lib/utils';
 import {
-  listVariantUnits, updateUnitValidity, deleteVariantUnit, addVariantInventory,
+  listVariantUnits, updateUnitValidity, bulkUpdateUnitValidity, deleteVariantUnit, addVariantInventory,
   type InventoryUnitView, type UnitDateFilter, type OfferInventoryInput,
 } from '../../lib/api';
 import VoucherInventoryModal from './VoucherInventoryModal';
@@ -203,7 +203,8 @@ export default function VariantInventoryManagerModal({ offerId, variantId, varia
           onCancel={() => setEditing(null)}
           onSave={async (patch) => {
             try {
-              await Promise.all(Array.from(selected).map((id) => updateUnitValidity(offerId, variantId, id, patch)));
+              // One request for the whole selection (not one per unit).
+              await bulkUpdateUnitValidity(offerId, variantId, Array.from(selected), patch);
               setEditing(null); setSelected(new Set()); refresh();
             } catch { setEditing(null); setError(t('im_loadError')); }
           }}

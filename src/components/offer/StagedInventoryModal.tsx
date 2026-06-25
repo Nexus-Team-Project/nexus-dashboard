@@ -14,7 +14,7 @@ import { createPortal } from 'react-dom';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { cn } from '../../lib/utils';
 import { type OfferInventoryInput, type InventoryUnitView, listVariantUnits } from '../../lib/api';
-import { type StagedUnit, batchToStagedUnits } from '../../pages/voucherVariantDraft';
+import { type StagedUnit, type StagedEdit, batchToStagedUnits } from '../../pages/voucherVariantDraft';
 import VoucherInventoryModal from './VoucherInventoryModal';
 
 interface Props {
@@ -22,6 +22,9 @@ interface Props {
   validityType: 'limit' | 'from_until';
   units: StagedUnit[];
   onChange: (units: StagedUnit[]) => void;
+  /** Staged edits to already-saved units (keyed by codeId); applied on publish/save. */
+  edits: StagedEdit[];
+  onEditsChange: (edits: StagedEdit[]) => void;
   onClose: () => void;
   /**
    * When editing a persisted variant, the offer + variant ids let the modal load
@@ -51,10 +54,11 @@ function validityText(u: ValidityShape, t: (k: 'co_validityUnitDays' | 'co_valid
   return t('im_noWindowYet');
 }
 
-export default function StagedInventoryModal({ variantLabel, validityType, units, onChange, onClose, offerId, variantId }: Props) {
+export default function StagedInventoryModal({ variantLabel, validityType, units, onChange, edits, onEditsChange, onClose, offerId, variantId }: Props) {
   const { t, language } = useLanguage();
   const [showAddBatch, setShowAddBatch] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
+  const [editingSaved, setEditingSaved] = useState<string | null>(null);
   // Already-saved units (read-only reference), lazily loaded once when editing a
   // persisted variant. One GET; first page only - the full list is managed on
   // Benefits Partnerships.
@@ -83,6 +87,15 @@ export default function StagedInventoryModal({ variantLabel, validityType, units
   const addBatch = (inv: OfferInventoryInput) => { onChange([...units, ...batchToStagedUnits(inv)]); setShowAddBatch(false); };
   const removeUnit = (id: string) => onChange(units.filter((u) => u.localId !== id));
   const editUnit = (id: string, patch: Partial<StagedUnit>) => { onChange(units.map((u) => (u.localId === id ? { ...u, ...patch } : u))); setEditing(null); };
+  /** Upsert a staged edit for a saved unit (keyed by codeId). */
+  const editSaved = (codeId: string, patch: Partial<StagedEdit>) => {
+    const next = edits.filter((e) => e.codeId !== codeId);
+    next.push({ codeId, validityValue: null, validityUnit: null, validFrom: null, validUntil: null, ...patch });
+    onEditsChange(next);
+    setEditingSaved(null);
+  };
+  /** The staged-edit override for a saved unit, if any. */
+  const editFor = (codeId: string) => edits.find((e) => e.codeId === codeId);
 
   return createPortal(
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}
@@ -111,15 +124,32 @@ export default function StagedInventoryModal({ variantLabel, validityType, units
               </p>
               <table className="w-full text-sm">
                 <tbody>
-                  {saved.map((u) => (
-                    <tr key={u.codeId} className="border-t border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400">
-                      <td className="p-2 font-mono text-xs" dir="ltr">{u.value}</td>
-                      <td className="p-2" dir="ltr">{validityText(u, t)}</td>
-                      <td className="p-2">
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400">{t('im_savedBadge')}</span>
-                      </td>
-                    </tr>
-                  ))}
+                  {saved.map((u) => {
+                    const ed = editFor(u.codeId);
+                    const shown = ed ?? u; // staged edit overrides the saved validity in the display
+                    return (
+                      <tr key={u.codeId} className="border-t border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400">
+                        <td className="p-2 font-mono text-xs" dir="ltr">{u.value}</td>
+                        <td className="p-2" dir="ltr">{validityText(shown, t)}</td>
+                        <td className="p-2">
+                          {ed
+                            ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{t('im_unsavedBadge')}</span>
+                            : <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400">{t('im_savedBadge')}</span>}
+                        </td>
+                        <td className="p-2 text-end">
+                          <button type="button" onClick={() => setEditingSaved(u.codeId)} className="text-xs font-medium text-primary hover:underline">{t('im_editDate')}</button>
+                          {ed && <button type="button" onClick={() => onEditsChange(edits.filter((e) => e.codeId !== u.codeId))} className="ms-2 text-xs font-medium text-slate-400 hover:underline">{t('im_cancel')}</button>}
+                        </td>
+                        {editingSaved === u.codeId && (
+                          <td colSpan={4} className="p-0">
+                            <div className="p-3">
+                              <StagedUnitEditor validityType={validityType} unit={shown} onCancel={() => setEditingSaved(null)} onSave={(patch) => editSaved(u.codeId, patch)} />
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
               {savedTotal > saved.length && (
@@ -181,18 +211,21 @@ export default function StagedInventoryModal({ variantLabel, validityType, units
   );
 }
 
-/** Inline validity editor for a single staged unit (in-memory). */
+/** Validity-only patch produced by the inline editor (only the active type's fields). */
+type ValidityPatch = { validityValue?: number | null; validityUnit?: 'days' | 'months' | 'years' | null; validFrom?: string | null; validUntil?: string | null };
+
+/** Inline validity editor for a single staged unit or saved-unit edit (in-memory). */
 function StagedUnitEditor({ validityType, unit, onSave, onCancel }: {
   validityType: 'limit' | 'from_until';
-  unit: StagedUnit;
-  onSave: (patch: Partial<StagedUnit>) => void;
+  unit: ValidityPatch;
+  onSave: (patch: ValidityPatch) => void;
   onCancel: () => void;
 }) {
   const { t } = useLanguage();
   const [val, setVal] = useState(unit.validityValue != null ? String(unit.validityValue) : '5');
   const [u, setU] = useState<'days' | 'months' | 'years'>(unit.validityUnit ?? 'years');
-  const [from, setFrom] = useState(unit.validFrom ?? '');
-  const [until, setUntil] = useState(unit.validUntil ?? '');
+  const [from, setFrom] = useState(unit.validFrom ? unit.validFrom.slice(0, 10) : '');
+  const [until, setUntil] = useState(unit.validUntil ? unit.validUntil.slice(0, 10) : '');
   const [err, setErr] = useState<string | null>(null);
 
   const save = () => {
@@ -200,11 +233,12 @@ function StagedUnitEditor({ validityType, unit, onSave, onCancel }: {
     if (validityType === 'limit') {
       const n = Number(val);
       if (!val.trim() || !Number.isInteger(n) || n <= 0) { setErr(t('vi_errBatchValidity')); return; }
-      onSave({ validityValue: n, validityUnit: u, validFrom: null, validUntil: null });
+      // Only the active type's fields, so the dormant set is preserved (lossless).
+      onSave({ validityValue: n, validityUnit: u });
     } else {
       if (!from || !until) { setErr(t('vi_errBatchValidity')); return; }
       if (new Date(until).getTime() < new Date(from).getTime()) { setErr(t('vi_errBatchRange')); return; }
-      onSave({ validFrom: from, validUntil: until, validityValue: null, validityUnit: null });
+      onSave({ validFrom: from, validUntil: until });
     }
   };
 

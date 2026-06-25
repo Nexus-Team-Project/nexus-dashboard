@@ -64,6 +64,21 @@ export interface DraftVariant {
    * Partnerships inventory is written immediately instead (live mode).
    */
   stagedUnits: StagedUnit[];
+  /**
+   * Edits to ALREADY-SAVED units, staged in memory on the Edit page (keyed by the
+   * unit's server codeId). Applied via one bulk request per distinct validity on
+   * Publish/Save - never written before. Empty on Create (nothing saved yet).
+   */
+  stagedEdits: StagedEdit[];
+}
+
+/** A staged edit to a saved unit's validity (only the active type's fields are set). */
+export interface StagedEdit {
+  codeId: string;
+  validityValue?: number | null;
+  validityUnit?: 'days' | 'months' | 'years' | null;
+  validFrom?: string | null;
+  validUntil?: string | null;
 }
 
 /**
@@ -104,6 +119,7 @@ export function emptyDraftVariant(): DraftVariant {
     terms: '',
     implementationInstructions: '',
     stagedUnits: [],
+    stagedEdits: [],
   };
 }
 
@@ -159,10 +175,37 @@ export function stagedUnitsToBatches(units: StagedUnit[]): OfferInventoryInput[]
   return Array.from(groups.values());
 }
 
-/** True when a staged unit carries the validity its effective type requires. */
-export function stagedUnitMatchesType(u: StagedUnit, effType: 'limit' | 'from_until'): boolean {
+/** Minimal validity shape shared by staged units and staged edits. */
+type ValidityFields = { validityValue?: number | null; validityUnit?: 'days' | 'months' | 'years' | null; validFrom?: string | null; validUntil?: string | null };
+
+/** True when a staged unit/edit carries the validity its effective type requires. */
+export function stagedUnitMatchesType(u: ValidityFields, effType: 'limit' | 'from_until'): boolean {
   if (effType === 'limit') return u.validityValue != null && u.validityUnit != null;
   return u.validFrom != null && u.validUntil != null;
+}
+
+/**
+ * Groups staged edits to saved units into the minimal set of bulk-update calls -
+ * one per distinct validity (codeIds + that validity). Keeps Publish/Save to a few
+ * requests regardless of how many units were edited. Pure.
+ */
+export function stagedEditsToBulk(edits: StagedEdit[]): { codeIds: string[]; validity: ValidityFields }[] {
+  const groups = new Map<string, { codeIds: string[]; validity: ValidityFields }>();
+  for (const e of edits) {
+    const key = JSON.stringify([e.validityValue ?? null, e.validityUnit ?? null, e.validFrom ?? null, e.validUntil ?? null]);
+    let g = groups.get(key);
+    if (!g) {
+      const validity: ValidityFields = {};
+      if (e.validityValue != null) validity.validityValue = e.validityValue;
+      if (e.validityUnit != null) validity.validityUnit = e.validityUnit;
+      if (e.validFrom != null) validity.validFrom = e.validFrom;
+      if (e.validUntil != null) validity.validUntil = e.validUntil;
+      g = { codeIds: [], validity };
+      groups.set(key, g);
+    }
+    g.codeIds.push(e.codeId);
+  }
+  return Array.from(groups.values());
 }
 
 /**
@@ -203,6 +246,7 @@ export function variantToDraft(v: CatalogVariant, parentTerms?: string, parentMe
     // NEW units here. Start empty - publishing with no new units leaves the
     // variant's stored inventory untouched.
     stagedUnits: [],
+    stagedEdits: [],
   };
 }
 

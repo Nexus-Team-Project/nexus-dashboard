@@ -15,7 +15,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import {
-  getOfferDetails, updateOfferApi, addVariantInventory,
+  getOfferDetails, updateOfferApi, addVariantInventory, bulkUpdateUnitValidity,
   type CatalogItem,
 } from '../lib/api';
 import CreateOfferDetailsSection from './CreateOfferDetailsSection';
@@ -30,7 +30,7 @@ import VoucherRedemptionScopeCard from '../components/offer/VoucherRedemptionSco
 import VoucherValidityTypeCard from '../components/offer/VoucherValidityTypeCard';
 import ValidityFlipConfirmModal from '../components/offer/ValidityFlipConfirmModal';
 import { OfferFormSkeleton, OfferFormErrorState } from '../components/offer/OfferFormStates';
-import { type DraftVariant, variantToDraft, draftToPayload, stagedUnitsToBatches } from './voucherVariantDraft';
+import { type DraftVariant, variantToDraft, draftToPayload, stagedUnitsToBatches, stagedEditsToBulk } from './voucherVariantDraft';
 import { computePublishBlockers, submitDateRangeError } from './createOfferFormData';
 
 const EditOffer = () => {
@@ -220,6 +220,11 @@ const EditOffer = () => {
           if (!variantId) continue;
           for (const batch of stagedUnitsToBatches(variants[i].stagedUnits)) {
             try { const r = await addVariantInventory(offerId, variantId, batch); units += r.created; }
+            catch (e) { if (!invError) invError = e instanceof Error ? e.message : String(e); }
+          }
+          // Apply staged edits to already-saved units, one bulk request per distinct validity.
+          for (const grp of stagedEditsToBulk(variants[i].stagedEdits)) {
+            try { await bulkUpdateUnitValidity(offerId, variantId, grp.codeIds, grp.validity); }
             catch (e) { if (!invError) invError = e instanceof Error ? e.message : String(e); }
           }
         }

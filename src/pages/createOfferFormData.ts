@@ -139,7 +139,8 @@ export function computePublishBlockers(
     // was switched (variant override or offer default). Force re-entering the date.
     else if (v.variants.some((d) => {
       const eff = effectiveValidityType(d.validityTypeOverride, v.defaultValidityType);
-      return d.stagedUnits.some((u) => !stagedUnitMatchesType(u, eff));
+      return d.stagedUnits.some((u) => !stagedUnitMatchesType(u, eff))
+        || d.stagedEdits.some((e) => !stagedUnitMatchesType(e, eff));
     })) {
       blockers.push(t('co_invDateNeeded'));
     }

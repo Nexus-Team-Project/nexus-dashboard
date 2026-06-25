@@ -140,6 +140,8 @@ export default function VariantsManager({
           validityType={draft.validityTypeOverride === '' ? defaultValidityType : draft.validityTypeOverride}
           units={draft.stagedUnits}
           onChange={(units) => patchDraft({ stagedUnits: units })}
+          edits={draft.stagedEdits}
+          onEditsChange={(edits) => patchDraft({ stagedEdits: edits })}
           onClose={() => setShowInventory(false)}
           offerId={offerId}
           variantId={draft.variantId}

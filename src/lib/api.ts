@@ -1490,6 +1490,23 @@ export async function updateUnitValidity(
 }
 
 /**
+ * Re-stamps the validity of MANY units in one request. Matches
+ * PATCH /api/v1/offers/:offerId/variants/:variantId/inventory (bulk).
+ */
+export async function bulkUpdateUnitValidity(
+  offerId: string,
+  variantId: string,
+  codeIds: string[],
+  validity: UnitValidityPatch,
+): Promise<{ updated: number }> {
+  return request<{ updated: number }>(
+    'PATCH',
+    `/api/v1/offers/${offerId}/variants/${variantId}/inventory`,
+    { codeIds, ...validity },
+  );
+}
+
+/**
  * Deletes ONE inventory unit. Matches
  * DELETE /api/v1/offers/:offerId/variants/:variantId/inventory/:codeId.
  */
