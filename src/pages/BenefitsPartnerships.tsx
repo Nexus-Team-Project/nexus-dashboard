@@ -1163,9 +1163,17 @@ const BenefitsPartnerships = () => {
                                 )}
                               </td>
 
-                              {/* 2. Image — cover thumbnail; click for full-screen lightbox. */}
+                              {/* 2. Image — cover thumbnail; click for full-screen lightbox.
+                                  Color-mode vouchers store the default placeholder as
+                                  imageUrl, so check the color first or the placeholder
+                                  would mask the chosen color (parity with the cards). */}
                               <td className="px-4 py-4 align-top">
-                                {item.imageUrl ? (
+                                {isVoucher && item.voucherBackgroundColor ? (
+                                  <VoucherColorTile
+                                    color={item.voucherBackgroundColor}
+                                    className="w-14 h-14 rounded-lg border border-slate-200 dark:border-slate-700"
+                                  />
+                                ) : item.imageUrl ? (
                                   <div className="relative inline-block">
                                     <img
                                       src={buildOfferImageUrl(item.imageUrl, getImageCrop(item.imageCrops, item.imageUrl), 'card')}
