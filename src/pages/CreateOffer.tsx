@@ -232,6 +232,7 @@ const CreateOffer = () => {
           <VariantsManager
             variants={variants} setVariants={setVariants}
             sharedTerms={terms} sharedMethod={implementationInstructions}
+            defaultValidityType={defaultValidityType}
             onEditingChange={setVariantEditing}
             isSubmitting={isSubmitting}
           />

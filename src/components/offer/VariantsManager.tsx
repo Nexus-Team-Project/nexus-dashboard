@@ -26,6 +26,9 @@ interface VariantsManagerProps {
   /** Shared redemption terms/method - seed a variant's override when enabled. */
   sharedTerms: string;
   sharedMethod: string;
+  /** The offer's default validity type; combined with a variant's override to get
+   *  the effective type the inventory popup uses for its per-batch date control. */
+  defaultValidityType: 'limit' | 'from_until';
   /** Reports whether a draft is currently open (parent uses it to gate Publish). */
   onEditingChange?: (editing: boolean) => void;
   /**
@@ -46,7 +49,7 @@ interface InventoryPrefill {
 
 /** Renders the Create-Variant button, the builder, the saved list, and the inventory popup. */
 export default function VariantsManager({
-  variants, setVariants, sharedTerms, sharedMethod, onEditingChange, loadExistingInventory, isSubmitting = false,
+  variants, setVariants, sharedTerms, sharedMethod, defaultValidityType, onEditingChange, loadExistingInventory, isSubmitting = false,
 }: VariantsManagerProps) {
   const { t, language } = useLanguage();
   const [draft, setDraft] = useState<DraftVariant | null>(null);
@@ -151,6 +154,8 @@ export default function VariantsManager({
           initialBarcodes={prefill.initialBarcodes}
           initialLinks={prefill.initialLinks}
           lockedKind={prefill.lockedKind}
+          validityType={draft.validityTypeOverride === '' ? defaultValidityType : draft.validityTypeOverride}
+          initialValidity={draft.inventory ?? undefined}
           onConfirm={(inv) => { patchDraft({ inventory: inv, inventoryChoiceMade: true }); setShowInventory(false); }}
           onSkip={() => { patchDraft({ inventory: null, inventoryChoiceMade: true }); setShowInventory(false); }}
           onCancel={() => setShowInventory(false)}

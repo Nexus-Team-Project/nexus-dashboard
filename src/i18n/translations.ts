@@ -899,6 +899,10 @@ export const translations = {
     fi_batchValidity_short: 'Set the expiry once for every code you are adding now. Each code keeps its own date, so you can add new batches with different dates later.',
     fi_batchValidity_detail: 'The date you set here is saved onto every code in this upload, so you do not type it per code. Because each code stores its own expiry, you can return another day and add a new batch with a different date to the same variant. A time limit defaults to 5 years; a date range shorter than 5 years shows a legal reminder.',
     fi_batchValidity_example: 'Add 500 codes today valid until 31/12/2030; add 500 more tomorrow valid until 31/03/2031 - same variant.',
+    // Live-offer validity-type flip confirmation.
+    ef_flipTitle: 'Change validity type?',
+    ef_flipConfirm: 'Change type',
+    ef_flipBody: 'This offer is live. Changing the validity type means the existing codes will need their dates re-entered before you can save. Nothing is deleted - you can switch back.',
     co_fieldVoucherStackable: 'Combine with other promotions',
     co_voucherStackableYes: 'Yes',
     co_voucherStackableNo: 'No',
@@ -2250,6 +2254,10 @@ export const translations = {
     fi_batchValidity_short: 'קבע את התפוגה פעם אחת לכל ברקוד שאתה מוסיף כעת. כל ברקוד שומר את התאריך שלו, כך שניתן להוסיף אצוות חדשות עם תאריכים שונים בהמשך.',
     fi_batchValidity_detail: 'התאריך שתקבע כאן נשמר על כל ברקוד בהעלאה זו, כך שאינך מקליד אותו לכל קוד. מכיוון שכל ברקוד שומר את התפוגה שלו, ניתן לחזור ביום אחר ולהוסיף אצווה חדשה עם תאריך שונה לאותו וריאנט. הגבלת זמן מוגדרת כברירת מחדל ל-5 שנים; טווח תאריכים קצר מ-5 שנים מציג תזכורת חוקית.',
     fi_batchValidity_example: 'הוסף 500 קודים היום בתוקף עד 31/12/2030; הוסף 500 נוספים מחר בתוקף עד 31/03/2031 - אותו וריאנט.',
+    // אישור שינוי סוג תוקף בהצעה פעילה.
+    ef_flipTitle: 'לשנות את סוג התוקף?',
+    ef_flipConfirm: 'שינוי סוג',
+    ef_flipBody: 'הצעה זו פעילה. שינוי סוג התוקף מחייב הזנה מחדש של התאריכים לקודים הקיימים לפני שמירה. שום דבר לא נמחק - ניתן לחזור אחורה.',
     co_fieldVoucherStackable: 'כפל מבצעים',
     co_voucherStackableYes: 'כן',
     co_voucherStackableNo: 'לא',
