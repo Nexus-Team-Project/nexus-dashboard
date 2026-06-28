@@ -194,7 +194,10 @@ function VariantDetailsTable({
   const showNexus = rows.some((v) => typeof v.nexus_cost === 'number');
   const dash = '-';
   const headCls = 'px-3 py-2 text-start font-semibold whitespace-nowrap';
-  const cellCls = 'px-3 py-2 align-top';
+  // text-start (logical) keeps every cell value under its header: right edge in
+  // RTL, left in LTR. Numbers/prices that must read LTR wrap their TEXT in a
+  // `dir="ltr"` span - never on the <td>, which would flip the cell's alignment.
+  const cellCls = 'px-3 py-2 text-start align-top';
   const truncCls = 'block max-w-[160px] truncate';
   // Validity is per inventory unit now; the offer default is the only variant-level
   // hint to show here (each code carries its own type + date - see the manage modal).
@@ -253,10 +256,10 @@ function VariantDetailsTable({
                     <span className="font-semibold tabular-nums text-slate-900 dark:text-white" dir="ltr">{typeof v.member_price === 'number' ? `₪${v.member_price}` : dash}</span>
                   )}
                 </td>
-                <td className={cn(cellCls, 'tabular-nums')} dir="ltr">{typeof v.face_value === 'number' ? `₪${v.face_value}` : dash}</td>
-                {showNexus && <td className={cn(cellCls, 'tabular-nums')} dir="ltr">{typeof v.nexus_cost === 'number' ? `₪${v.nexus_cost}` : dash}</td>}
-                <td className={cn(cellCls, 'tabular-nums whitespace-nowrap')} dir="ltr">
-                  <span>{stockText}</span>
+                <td className={cn(cellCls, 'tabular-nums')}><span dir="ltr">{typeof v.face_value === 'number' ? `₪${v.face_value}` : dash}</span></td>
+                {showNexus && <td className={cn(cellCls, 'tabular-nums')}><span dir="ltr">{typeof v.nexus_cost === 'number' ? `₪${v.nexus_cost}` : dash}</span></td>}
+                <td className={cn(cellCls, 'tabular-nums whitespace-nowrap')}>
+                  <span dir="ltr">{stockText}</span>
                   {canEditPrice && (
                     <button type="button" onClick={(e) => { e.stopPropagation(); setManaging(v); }}
                       className="ms-2 text-xs font-medium text-primary hover:underline">{t('im_title')}</button>
@@ -264,7 +267,7 @@ function VariantDetailsTable({
                 </td>
                 <td className={cn(cellCls, 'whitespace-nowrap')}>{validityText}</td>
                 <td className={cellCls}>{typeof v.voucherStackable === 'boolean' ? (v.voucherStackable ? t('co_voucherStackableYes') : t('co_voucherStackableNo')) : dash}</td>
-                <td className={cellCls} dir="ltr">{v.sku || dash}</td>
+                <td className={cellCls}><span dir="ltr">{v.sku || dash}</span></td>
                 {/* Usage conditions + redemption method: truncated with a full-text hover tooltip. */}
                 <td className={cellCls}>
                   {v.terms && v.terms.trim()
