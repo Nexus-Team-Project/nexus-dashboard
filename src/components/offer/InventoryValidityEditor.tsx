@@ -31,7 +31,10 @@ interface Props {
 }
 
 export default function InventoryValidityEditor({ defaultType, unit, onSave, onCancel }: Props) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  // Value/date controls follow the active language: right-aligned + RTL order in
+  // Hebrew (unit dropdown opens its options to the right), left/LTR in English.
+  const dir = language === 'he' ? 'rtl' : 'ltr';
   const inferred: 'limit' | 'from_until' = unit?.validFrom != null ? 'from_until' : unit?.validityValue != null ? 'limit' : defaultType;
   const [vType, setVType] = useState<'limit' | 'from_until'>(inferred);
   const [val, setVal] = useState(unit?.validityValue != null ? String(unit.validityValue) : '5');
@@ -73,7 +76,7 @@ export default function InventoryValidityEditor({ defaultType, unit, onSave, onC
         ))}
       </div>
       {vType === 'limit' ? (
-        <div className="flex gap-2" dir="ltr">
+        <div className="flex gap-2" dir={dir}>
           <input type="number" min="1" step="1" value={val} onChange={(e) => setVal(e.target.value)} className={cn(inputCls, 'w-20')} />
           <select value={u} onChange={(e) => setU(e.target.value as 'days' | 'months' | 'years')} className={inputCls}>
             <option value="days">{t('co_validityUnitDays')}</option>
@@ -82,7 +85,7 @@ export default function InventoryValidityEditor({ defaultType, unit, onSave, onC
           </select>
         </div>
       ) : (
-        <div className="flex flex-wrap gap-2" dir="ltr">
+        <div className="flex flex-wrap gap-2" dir={dir}>
           <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={inputCls} />
           <input type="date" value={until} min={from || undefined} onChange={(e) => setUntil(e.target.value)} className={inputCls} />
         </div>

@@ -25,6 +25,21 @@ export function TrashIcon() {
   );
 }
 
+/**
+ * Single chevron for pager prev/next. Inline SVG (not a `‹`/`›` glyph) on purpose:
+ * those quotation marks are in Unicode's bidi-mirroring set and the browser flips
+ * them inside `dir="rtl"`, which inverts the arrow unpredictably. An SVG never
+ * auto-mirrors, so the caller decides the pointing direction explicitly per locale.
+ * Input: `dir` - which way the chevron points ('left' | 'right').
+ */
+export function ChevronIcon({ dir }: { dir: 'left' | 'right' }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={base} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d={dir === 'left' ? 'M15 6l-6 6 6 6' : 'M9 6l6 6-6 6'} />
+    </svg>
+  );
+}
+
 /** Counter-clockwise arrow (undo / revert a staged change). */
 export function UndoIcon() {
   return (

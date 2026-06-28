@@ -9,17 +9,19 @@
  *
  * z-[200], body-scroll-lock, RTL-aware. Presentational state only; no global state.
  */
-import { Fragment, useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 import { useLanguage } from '../../i18n/LanguageContext';
 import {
-  listVariantUnits, updateUnitValidity, bulkUpdateUnitValidity, deleteVariantUnit, addVariantInventory,
+  listVariantUnits, bulkUpdateUnitValidity, deleteVariantUnit, addVariantInventory,
   type InventoryUnitView, type UnitDateFilter, type OfferInventoryInput,
 } from '../../lib/api';
 import VoucherInventoryModal from './VoucherInventoryModal';
 import InventoryValidityEditor from './InventoryValidityEditor';
-import { EditIcon, TrashIcon } from './inventoryIcons';
+import ConfirmDeleteModal from '../ConfirmDeleteModal';
+import UnitRow from './VariantInventoryRow';
+import { ChevronIcon } from './inventoryIcons';
 import { SEARCH_DEBOUNCE_MS } from './inventoryConstants';
 
 type ExpiringChoice = 'all' | '1m' | '3m' | '1y' | 'none';
@@ -71,6 +73,9 @@ export default function VariantInventoryManagerModal({ offerId, variantId, varia
   const [showAddBatch, setShowAddBatch] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // The codeId pending delete-confirmation (null = modal closed) + in-flight flag.
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   // Debounce the search box so typing does not spam the server.
   useEffect(() => { const id = setTimeout(() => setSearch(searchInput), SEARCH_DEBOUNCE_MS); return () => clearTimeout(id); }, [searchInput]);
@@ -103,15 +108,53 @@ export default function VariantInventoryManagerModal({ offerId, variantId, varia
 
   const refresh = () => { void load(); onChanged?.(); };
 
-  const onDelete = async (codeId: string) => {
-    if (!window.confirm(t('im_deleteConfirm'))) return;
-    try { await deleteVariantUnit(offerId, variantId, codeId); toast.success(t('im_toastDeleted')); refresh(); }
-    catch { setError(t('im_loadError')); }
+  // Row delete just opens the shared confirm modal; the request runs on confirm.
+  const onDelete = (codeId: string) => setConfirmDeleteId(codeId);
+  const confirmDelete = async () => {
+    if (!confirmDeleteId) return;
+    setDeleteBusy(true);
+    try {
+      await deleteVariantUnit(offerId, variantId, confirmDeleteId);
+      toast.success(t('im_toastDeleted'));
+      setConfirmDeleteId(null);
+      refresh();
+    } catch {
+      setError(t('im_loadError'));
+    } finally {
+      setDeleteBusy(false);
+    }
   };
 
   /** The kind already in use (locks the add-batch popup to one kind). */
   const lockedKind = units[0]?.kind ?? null;
   const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const isRtl = language === 'he';
+
+  // Pagination pieces kept as elements so the footer can order them per language.
+  // The pager is pinned to the inline-right of the footer in BOTH languages; its
+  // internal page order and arrow glyphs mirror via the pager's own `dir`, so in
+  // Hebrew page 1 sits on the right and the chevrons flip to point the RTL way.
+  const pageSummary = (
+    <span className="text-xs text-slate-400 dark:text-slate-500" dir="ltr">
+      {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, total)} / {total}
+    </span>
+  );
+  const pager = (
+    <div dir={isRtl ? 'rtl' : 'ltr'} className="flex items-center gap-1">
+      <button type="button" aria-label={t('im_pagePrev')} disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}
+        className={`${pageBtnCls} inline-flex items-center justify-center text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800`}><ChevronIcon dir={isRtl ? 'right' : 'left'} /></button>
+      {buildPageList(page, lastPage).map((p, i) =>
+        p === 'gap'
+          ? <span key={`gap-${i}`} className="px-1 text-slate-400 dark:text-slate-500">&hellip;</span>
+          : <button key={p} type="button" aria-current={p === page ? 'page' : undefined} onClick={() => setPage(p)}
+              className={p === page
+                ? `${pageBtnCls} border-primary bg-primary font-semibold text-white`
+                : `${pageBtnCls} text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800`}>{p}</button>
+      )}
+      <button type="button" aria-label={t('im_pageNext')} disabled={page >= lastPage} onClick={() => setPage((p) => Math.min(lastPage, p + 1))}
+        className={`${pageBtnCls} inline-flex items-center justify-center text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800`}><ChevronIcon dir={isRtl ? 'left' : 'right'} /></button>
+    </div>
+  );
 
   return createPortal(
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}
@@ -206,26 +249,12 @@ export default function VariantInventoryManagerModal({ offerId, variantId, varia
           )}
         </div>
 
-        {/* Footer: paging (10 per page; first/last + current-neighbour window). */}
+        {/* Footer: paging (10 per page). justify-between keeps the summary on the
+            inline-left and the pager on the inline-right in both languages; the
+            per-language child order makes that hold under RTL too. */}
         {lastPage > 1 && (
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 p-4 text-sm dark:border-slate-800">
-            <span className="text-xs text-slate-400 dark:text-slate-500" dir="ltr">
-              {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, total)} / {total}
-            </span>
-            <div className="flex items-center gap-1">
-              <button type="button" aria-label={t('im_pagePrev')} disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className={`${pageBtnCls} hover:bg-slate-50 dark:hover:bg-slate-800`}>{language === 'he' ? '›' : '‹'}</button>
-              {buildPageList(page, lastPage).map((p, i) =>
-                p === 'gap'
-                  ? <span key={`gap-${i}`} className="px-1 text-slate-400 dark:text-slate-500">&hellip;</span>
-                  : <button key={p} type="button" aria-current={p === page ? 'page' : undefined} onClick={() => setPage(p)}
-                      className={p === page
-                        ? `${pageBtnCls} border-primary bg-primary font-semibold text-white`
-                        : `${pageBtnCls} text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800`}>{p}</button>
-              )}
-              <button type="button" aria-label={t('im_pageNext')} disabled={page >= lastPage} onClick={() => setPage((p) => Math.min(lastPage, p + 1))}
-                className={`${pageBtnCls} hover:bg-slate-50 dark:hover:bg-slate-800`}>{language === 'he' ? '‹' : '›'}</button>
-            </div>
+          <div dir={isRtl ? 'rtl' : 'ltr'} className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 p-4 text-sm dark:border-slate-800">
+            {isRtl ? <>{pager}{pageSummary}</> : <>{pageSummary}{pager}</>}
           </div>
         )}
       </div>
@@ -264,62 +293,20 @@ export default function VariantInventoryManagerModal({ offerId, variantId, varia
           </div>
         </div>
       )}
+
+      {/* Shared delete-confirm modal (replaces the native window.confirm). */}
+      {confirmDeleteId && (
+        <ConfirmDeleteModal
+          title={t('im_deleteTitle')}
+          message={t('im_deleteConfirm')}
+          confirmLabel={t('im_delete')}
+          cancelLabel={t('im_cancel')}
+          isDeleting={deleteBusy}
+          onConfirm={() => void confirmDelete()}
+          onCancel={() => { if (!deleteBusy) setConfirmDeleteId(null); }}
+        />
+      )}
     </div>,
     document.body,
-  );
-}
-
-// --- Row + inline editor (kept in-file; small + cohesive) ---------------------
-
-/** Formats a unit's validity for display (limit duration / window / "set at purchase"). */
-function useUnitValidityText() {
-  const { t } = useLanguage();
-  return (u: InventoryUnitView): string => {
-    if (u.validFrom && u.validUntil) {
-      const f = u.validFrom.slice(0, 10); const v = u.validUntil.slice(0, 10);
-      return `⁦${f} - ${v}⁩`;
-    }
-    if (u.validityValue && u.validityUnit) {
-      const unit = u.validityUnit === 'days' ? t('co_validityUnitDays') : u.validityUnit === 'months' ? t('co_validityUnitMonths') : t('co_validityUnitYears');
-      return `${u.validityValue} ${unit}`;
-    }
-    return t('im_noWindowYet');
-  };
-}
-
-interface UnitRowProps {
-  unit: InventoryUnitView; defaultType: 'limit' | 'from_until';
-  selected: boolean; onToggle: () => void;
-  editing: boolean; onEditStart: () => void; onEditCancel: () => void; onSaved: () => void;
-  onDelete: () => void; offerId: string; variantId: string;
-}
-
-function UnitRow({ unit, defaultType, selected, onToggle, editing, onEditStart, onEditCancel, onSaved, onDelete, offerId, variantId }: UnitRowProps) {
-  const { t } = useLanguage();
-  const validityText = useUnitValidityText();
-  const statusLabel = unit.status === 'available' ? t('im_statusAvailable') : unit.status === 'assigned' ? t('im_statusAssigned') : t('im_statusRedeemed');
-  return (
-    <Fragment>
-    <tr className="border-t border-slate-100 dark:border-slate-800">
-      <td className="p-2"><input type="checkbox" checked={selected} onChange={onToggle} className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" /></td>
-      <td className="p-2 text-start font-mono text-xs text-slate-700 dark:text-slate-200">{unit.value}</td>
-      <td className="p-2 text-start text-slate-600 dark:text-slate-300">{validityText(unit)}</td>
-      <td className="p-2 text-start text-slate-500 dark:text-slate-400">{statusLabel}</td>
-      <td className="p-2 text-start text-slate-400 dark:text-slate-500 text-xs whitespace-nowrap">{unit.createdAt ? unit.createdAt.slice(0, 10) : '-'}</td>
-      <td className="p-2 text-start text-slate-400 dark:text-slate-500 text-xs whitespace-nowrap">{unit.updatedAt ? unit.updatedAt.slice(0, 10) : '-'}</td>
-      <td className="p-2 text-end whitespace-nowrap">
-        <button type="button" onClick={onEditStart}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800"><EditIcon /></button>
-        <button type="button" onClick={onDelete} aria-label={t('im_delete')}
-          className="ms-1 inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-red-50 hover:text-red-600 dark:text-slate-400 dark:hover:bg-red-900/20"><TrashIcon /></button>
-      </td>
-    </tr>
-    {editing && (
-      <tr><td colSpan={7} className="p-0"><div className="px-2 pb-3">
-        <InventoryValidityEditor defaultType={defaultType} unit={unit} onCancel={onEditCancel}
-          onSave={async (patch) => { await updateUnitValidity(offerId, variantId, unit.codeId, patch); toast.success(t('im_toastUpdated').replace('{n}', '1')); onSaved(); }} />
-      </div></td></tr>
-    )}
-    </Fragment>
   );
 }
