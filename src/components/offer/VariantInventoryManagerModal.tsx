@@ -35,9 +35,26 @@ interface Props {
   onChanged?: () => void;
 }
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 10;
 const inputCls = 'rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white';
 const thCls = 'p-2 text-start text-xs font-semibold text-slate-500 dark:text-slate-400';
+const pageBtnCls = 'min-w-[2rem] rounded-lg border border-slate-200 px-2.5 py-1 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700';
+
+/**
+ * Build a compact, gap-aware page list for the pager: always shows the first and
+ * last page plus the current page and its immediate neighbours; collapses the
+ * rest into 'gap' markers. Keeps the control width bounded for large datasets.
+ * Inputs: current page (1-based), last page. Output: ordered list of page numbers
+ * interleaved with 'gap' sentinels.
+ */
+function buildPageList(current: number, last: number): (number | 'gap')[] {
+  const out: (number | 'gap')[] = [];
+  for (let p = 1; p <= last; p++) {
+    if (p === 1 || p === last || (p >= current - 1 && p <= current + 1)) out.push(p);
+    else if (out[out.length - 1] !== 'gap') out.push('gap');
+  }
+  return out;
+}
 
 export default function VariantInventoryManagerModal({ offerId, variantId, variantLabel, defaultType, onClose, onChanged }: Props) {
   const { t, language } = useLanguage();
@@ -127,15 +144,15 @@ export default function VariantInventoryManagerModal({ offerId, variantId, varia
           <button type="button" onClick={() => setShowAddBatch(true)}
             className="rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:opacity-90">{t('im_addBatch')}</button>
         </div>
-        {/* Created / Updated date ranges */}
-        <div className="flex flex-wrap items-end gap-3 px-5 pt-2" dir="ltr">
-          <label className="flex flex-col gap-0.5 text-[11px] text-slate-500 dark:text-slate-400">{t('im_filterCreated')} {t('im_filterFrom')}
+        {/* Created / Updated date ranges - direction follows the active language. */}
+        <div className="flex flex-wrap items-end gap-3 px-5 pt-2" dir={language === 'he' ? 'rtl' : 'ltr'}>
+          <label className="flex flex-col gap-0.5 text-start text-[11px] text-slate-500 dark:text-slate-400">{t('im_filterCreated')} {t('im_filterFrom')}
             <input type="date" value={createdFrom} onChange={(e) => setCreatedFrom(e.target.value)} className={inputCls} /></label>
-          <label className="flex flex-col gap-0.5 text-[11px] text-slate-500 dark:text-slate-400">{t('im_filterCreated')} {t('im_filterTo')}
+          <label className="flex flex-col gap-0.5 text-start text-[11px] text-slate-500 dark:text-slate-400">{t('im_filterCreated')} {t('im_filterTo')}
             <input type="date" value={createdTo} onChange={(e) => setCreatedTo(e.target.value)} className={inputCls} /></label>
-          <label className="flex flex-col gap-0.5 text-[11px] text-slate-500 dark:text-slate-400">{t('im_filterUpdated')} {t('im_filterFrom')}
+          <label className="flex flex-col gap-0.5 text-start text-[11px] text-slate-500 dark:text-slate-400">{t('im_filterUpdated')} {t('im_filterFrom')}
             <input type="date" value={updatedFrom} onChange={(e) => setUpdatedFrom(e.target.value)} className={inputCls} /></label>
-          <label className="flex flex-col gap-0.5 text-[11px] text-slate-500 dark:text-slate-400">{t('im_filterUpdated')} {t('im_filterTo')}
+          <label className="flex flex-col gap-0.5 text-start text-[11px] text-slate-500 dark:text-slate-400">{t('im_filterUpdated')} {t('im_filterTo')}
             <input type="date" value={updatedTo} onChange={(e) => setUpdatedTo(e.target.value)} className={inputCls} /></label>
         </div>
 
@@ -189,14 +206,26 @@ export default function VariantInventoryManagerModal({ offerId, variantId, varia
           )}
         </div>
 
-        {/* Footer: paging */}
+        {/* Footer: paging (10 per page; first/last + current-neighbour window). */}
         {lastPage > 1 && (
-          <div className="flex items-center justify-center gap-3 border-t border-slate-100 p-4 text-sm dark:border-slate-800">
-            <button type="button" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}
-              className="rounded-lg border border-slate-200 px-3 py-1 disabled:opacity-40 dark:border-slate-700">&lsaquo;</button>
-            <span dir="ltr">{page} / {lastPage}</span>
-            <button type="button" disabled={page >= lastPage} onClick={() => setPage((p) => p + 1)}
-              className="rounded-lg border border-slate-200 px-3 py-1 disabled:opacity-40 dark:border-slate-700">&rsaquo;</button>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 p-4 text-sm dark:border-slate-800">
+            <span className="text-xs text-slate-400 dark:text-slate-500" dir="ltr">
+              {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, total)} / {total}
+            </span>
+            <div className="flex items-center gap-1">
+              <button type="button" aria-label={t('im_pagePrev')} disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className={`${pageBtnCls} hover:bg-slate-50 dark:hover:bg-slate-800`}>{language === 'he' ? '›' : '‹'}</button>
+              {buildPageList(page, lastPage).map((p, i) =>
+                p === 'gap'
+                  ? <span key={`gap-${i}`} className="px-1 text-slate-400 dark:text-slate-500">&hellip;</span>
+                  : <button key={p} type="button" aria-current={p === page ? 'page' : undefined} onClick={() => setPage(p)}
+                      className={p === page
+                        ? `${pageBtnCls} border-primary bg-primary font-semibold text-white`
+                        : `${pageBtnCls} text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800`}>{p}</button>
+              )}
+              <button type="button" aria-label={t('im_pageNext')} disabled={page >= lastPage} onClick={() => setPage((p) => Math.min(lastPage, p + 1))}
+                className={`${pageBtnCls} hover:bg-slate-50 dark:hover:bg-slate-800`}>{language === 'he' ? '‹' : '›'}</button>
+            </div>
           </div>
         )}
       </div>
@@ -273,11 +302,11 @@ function UnitRow({ unit, defaultType, selected, onToggle, editing, onEditStart, 
     <Fragment>
     <tr className="border-t border-slate-100 dark:border-slate-800">
       <td className="p-2"><input type="checkbox" checked={selected} onChange={onToggle} className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" /></td>
-      <td className="p-2 font-mono text-xs text-slate-700 dark:text-slate-200" dir="ltr">{unit.value}</td>
-      <td className="p-2 text-slate-600 dark:text-slate-300" dir="ltr">{validityText(unit)}</td>
-      <td className="p-2 text-slate-500 dark:text-slate-400">{statusLabel}</td>
-      <td className="p-2 text-slate-400 dark:text-slate-500 text-xs whitespace-nowrap" dir="ltr">{unit.createdAt ? unit.createdAt.slice(0, 10) : '-'}</td>
-      <td className="p-2 text-slate-400 dark:text-slate-500 text-xs whitespace-nowrap" dir="ltr">{unit.updatedAt ? unit.updatedAt.slice(0, 10) : '-'}</td>
+      <td className="p-2 text-start font-mono text-xs text-slate-700 dark:text-slate-200">{unit.value}</td>
+      <td className="p-2 text-start text-slate-600 dark:text-slate-300">{validityText(unit)}</td>
+      <td className="p-2 text-start text-slate-500 dark:text-slate-400">{statusLabel}</td>
+      <td className="p-2 text-start text-slate-400 dark:text-slate-500 text-xs whitespace-nowrap">{unit.createdAt ? unit.createdAt.slice(0, 10) : '-'}</td>
+      <td className="p-2 text-start text-slate-400 dark:text-slate-500 text-xs whitespace-nowrap">{unit.updatedAt ? unit.updatedAt.slice(0, 10) : '-'}</td>
       <td className="p-2 text-end whitespace-nowrap">
         <button type="button" onClick={onEditStart}
           className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800"><EditIcon /></button>

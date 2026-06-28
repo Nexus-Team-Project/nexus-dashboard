@@ -50,7 +50,8 @@ function validityText(u: ValidityShape, t: (k: 'co_validityUnitDays' | 'co_valid
   return t('im_noWindowYet');
 }
 
-const thCls = 'p-2 text-start text-xs font-semibold text-slate-500 dark:text-slate-400';
+const thCls = 'border border-slate-200 p-2 text-start text-xs font-semibold text-slate-500 dark:border-slate-700 dark:text-slate-400';
+const tdCls = 'border border-slate-200 p-2 align-top dark:border-slate-700';
 
 export default function StagedInventoryModal({ variantLabel, defaultType, units, onChange, edits, onEditsChange, onClose, offerId, variantId }: Props) {
   const { t, language } = useLanguage();
@@ -166,12 +167,12 @@ export default function StagedInventoryModal({ variantLabel, defaultType, units,
           {shownSaved.length > 0 && (
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">{t('im_savedBadge')} ({savedTotal})</p>
-              <table className="w-full text-sm">
+              <table className="w-full border-collapse text-sm">
                 <thead>
                   <tr>
-                    <th className="w-8 p-2" /><th className={thCls}>{t('im_colValue')}</th><th className={thCls}>{t('im_colValidity')}</th>
+                    <th className={`${thCls} w-8`} /><th className={thCls}>{t('im_colValue')}</th><th className={thCls}>{t('im_colValidity')}</th>
                     <th className={thCls}>{t('im_colStatus')}</th><th className={thCls}>{t('im_colCreated')}</th><th className={thCls}>{t('im_colUpdated')}</th>
-                    <th className="p-2 text-end text-xs font-semibold text-slate-500 dark:text-slate-400">{t('im_colActions')}</th>
+                    <th className={thCls}>{t('im_colActions')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -180,18 +181,18 @@ export default function StagedInventoryModal({ variantLabel, defaultType, units,
                     const shown = ed ?? u;
                     return (
                       <Fragment key={u.codeId}>
-                      <tr className="border-t border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400 align-top">
-                        <td className="p-2">{renderCheck(`v:${u.codeId}`)}</td>
-                        <td className="p-2 font-mono text-xs" dir="ltr">{u.value}</td>
-                        <td className="p-2" dir="ltr">{validityText(shown, t)}</td>
-                        <td className="p-2">
+                      <tr className="text-slate-500 dark:text-slate-400">
+                        <td className={tdCls}>{renderCheck(`v:${u.codeId}`)}</td>
+                        <td className={`${tdCls} font-mono text-xs`}>{u.value}</td>
+                        <td className={tdCls}>{validityText(shown, t)}</td>
+                        <td className={tdCls}>
                           {ed
                             ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{t('im_unsavedBadge')}</span>
                             : <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400">{t('im_savedBadge')}</span>}
                         </td>
-                        <td className="p-2 text-xs whitespace-nowrap" dir="ltr">{u.createdAt ? u.createdAt.slice(0, 10) : '-'}</td>
-                        <td className="p-2 text-xs whitespace-nowrap" dir="ltr">{u.updatedAt ? u.updatedAt.slice(0, 10) : '-'}</td>
-                        <td className="p-2 text-end whitespace-nowrap">
+                        <td className={`${tdCls} text-xs whitespace-nowrap`}>{u.createdAt ? u.createdAt.slice(0, 10) : '-'}</td>
+                        <td className={`${tdCls} text-xs whitespace-nowrap`}>{u.updatedAt ? u.updatedAt.slice(0, 10) : '-'}</td>
+                        <td className={`${tdCls} whitespace-nowrap`}>
                           <button type="button" onClick={() => setEditingSaved(u.codeId)}
                             className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800"><EditIcon /></button>
                           {ed && <button type="button" onClick={() => onEditsChange(edits.filter((e) => e.codeId !== u.codeId))} aria-label={t('im_cancel')}
@@ -214,23 +215,23 @@ export default function StagedInventoryModal({ variantLabel, defaultType, units,
           {shownUnits.length === 0 ? (
             shownSaved.length === 0 ? <p className="py-8 text-center text-sm text-slate-400 dark:text-slate-500">{t('im_empty')}</p> : null
           ) : (
-            <table className="w-full text-sm">
+            <table className="w-full border-collapse text-sm">
               <thead>
                 <tr>
-                  <th className="w-8 p-2" /><th className={thCls}>{t('im_colValue')}</th><th className={thCls}>{t('im_colValidity')}</th>
+                  <th className={`${thCls} w-8`} /><th className={thCls}>{t('im_colValue')}</th><th className={thCls}>{t('im_colValidity')}</th>
                   <th className={thCls}>{t('im_colStatus')}</th>
-                  <th className="p-2 text-end text-xs font-semibold text-slate-500 dark:text-slate-400">{t('im_colActions')}</th>
+                  <th className={thCls}>{t('im_colActions')}</th>
                 </tr>
               </thead>
               <tbody>
                 {shownUnits.map((u) => (
                   <Fragment key={u.localId}>
-                  <tr className="border-t border-slate-100 dark:border-slate-800 align-top">
-                    <td className="p-2">{renderCheck(`s:${u.localId}`)}</td>
-                    <td className="p-2 font-mono text-xs text-slate-700 dark:text-slate-200" dir="ltr">{u.value}</td>
-                    <td className="p-2 text-slate-600 dark:text-slate-300" dir="ltr">{validityText(u, t)}</td>
-                    <td className="p-2"><span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{t('im_unsavedBadge')}</span></td>
-                    <td className="p-2 text-end whitespace-nowrap">
+                  <tr>
+                    <td className={tdCls}>{renderCheck(`s:${u.localId}`)}</td>
+                    <td className={`${tdCls} font-mono text-xs text-slate-700 dark:text-slate-200`}>{u.value}</td>
+                    <td className={`${tdCls} text-slate-600 dark:text-slate-300`}>{validityText(u, t)}</td>
+                    <td className={tdCls}><span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{t('im_unsavedBadge')}</span></td>
+                    <td className={`${tdCls} whitespace-nowrap`}>
                       <button type="button" onClick={() => setEditing(u.localId)}
                         className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800"><EditIcon /></button>
                       <button type="button" onClick={() => removeUnit(u.localId)} aria-label={t('im_delete')}
