@@ -67,10 +67,9 @@ function autoDetect(header: string): VoucherTarget {
   return '';
 }
 
-/** First two non-empty values of a column, for the example hint. */
+/** First non-empty value of a column, for the example hint (single row). */
 function sampleValues(rows: Record<string, string>[], header: string): string {
-  const vals = rows.map((r) => r[header]).filter(Boolean).slice(0, 2);
-  return vals.join(', ') || '-';
+  return rows.map((r) => r[header]).find(Boolean) || '-';
 }
 
 /** Builds the field -> column mapping from the per-column rows. */
@@ -156,7 +155,7 @@ export default function VoucherColumnMapping({ fileName, headers, rows, onBack, 
                   <select
                     value={row.target}
                     onChange={(e) => change(index, e.target.value as VoucherTarget)}
-                    className={`w-full bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-primary/40 focus:border-primary py-3 px-4 pe-10 transition-all cursor-pointer hover:shadow-md ${
+                    className={`w-full bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-primary/40 focus:border-primary py-3 ps-4 pe-10 transition-all cursor-pointer hover:shadow-md ${
                       row.target ? 'text-slate-900 dark:text-white font-medium' : 'text-slate-400 italic'
                     }`}
                     style={{ appearance: 'none', backgroundImage: 'none' }}
@@ -164,8 +163,13 @@ export default function VoucherColumnMapping({ fileName, headers, rows, onBack, 
                     <option value="">{t('cm_chooseColumn')}</option>
                     {FIELDS.map((f) => {
                       const claimedByOther = mapRows.some((m, i) => i !== index && m.target === f.key);
+                      // Inventory is one kind per voucher: block the opposite kind only when it is
+                      // mapped in another row, so this row can still switch between barcode and link.
+                      const kindBlocked =
+                        (f.key === 'barcode' && mapRows.some((m, i) => i !== index && m.target === 'link')) ||
+                        (f.key === 'link' && mapRows.some((m, i) => i !== index && m.target === 'barcode'));
                       return (
-                        <option key={f.key} value={f.key} disabled={claimedByOther}>
+                        <option key={f.key} value={f.key} disabled={claimedByOther || kindBlocked}>
                           {t(f.labelKey)}{claimedByOther ? ' ✓' : ''}
                         </option>
                       );
