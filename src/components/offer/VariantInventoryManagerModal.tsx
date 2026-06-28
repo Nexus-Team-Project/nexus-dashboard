@@ -20,6 +20,7 @@ import {
 import VoucherInventoryModal from './VoucherInventoryModal';
 import InventoryValidityEditor from './InventoryValidityEditor';
 import { EditIcon, TrashIcon } from './inventoryIcons';
+import { SEARCH_DEBOUNCE_MS } from './inventoryConstants';
 
 type ExpiringChoice = 'all' | '1m' | '3m' | '1y' | 'none';
 
@@ -54,8 +55,8 @@ export default function VariantInventoryManagerModal({ offerId, variantId, varia
   const [editing, setEditing] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  // Debounce the search box (300ms) so typing does not spam the server.
-  useEffect(() => { const id = setTimeout(() => setSearch(searchInput), 300); return () => clearTimeout(id); }, [searchInput]);
+  // Debounce the search box so typing does not spam the server.
+  useEffect(() => { const id = setTimeout(() => setSearch(searchInput), SEARCH_DEBOUNCE_MS); return () => clearTimeout(id); }, [searchInput]);
   // Any filter change resets to page 1.
   useEffect(() => { setPage(1); }, [choice, createdFrom, createdTo, updatedFrom, updatedTo, search]);
 

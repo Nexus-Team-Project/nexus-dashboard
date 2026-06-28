@@ -18,6 +18,7 @@ import { type StagedUnit, type StagedEdit, batchToStagedUnits } from '../../page
 import VoucherInventoryModal from './VoucherInventoryModal';
 import InventoryValidityEditor, { type ValidityPatch } from './InventoryValidityEditor';
 import { EditIcon, TrashIcon, UndoIcon } from './inventoryIcons';
+import { SEARCH_DEBOUNCE_MS } from './inventoryConstants';
 
 interface Props {
   variantLabel: string;
@@ -61,10 +62,10 @@ export default function StagedInventoryModal({ variantLabel, defaultType, units,
   const [saved, setSaved] = useState<InventoryUnitView[]>([]);
   const [savedTotal, setSavedTotal] = useState(0);
   // Debounced code search: the input drives searchInput; `search` (applied to the
-  // filter) trails it by 250ms so typing does not re-filter on every keystroke.
+  // filter) trails it by SEARCH_DEBOUNCE_MS so typing does not re-filter every keystroke.
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
-  useEffect(() => { const id = setTimeout(() => setSearch(searchInput), 250); return () => clearTimeout(id); }, [searchInput]);
+  useEffect(() => { const id = setTimeout(() => setSearch(searchInput), SEARCH_DEBOUNCE_MS); return () => clearTimeout(id); }, [searchInput]);
 
   useEffect(() => {
     const prev = document.body.style.overflow; document.body.style.overflow = 'hidden';
