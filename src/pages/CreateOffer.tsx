@@ -6,7 +6,7 @@
  * authored per variant (VariantsManager). A single shared toggle controls whether
  * redemption terms/method are shared or per variant. Non-voucher types are
  * unchanged. Field rendering is delegated to section components to stay under 350
- * lines. Vouchers also get a Manual | CSV mode toggle (`VoucherCsvBulk`).
+ * lines.
  * Guards: tenant-admin || platform-admin + service active.
  */
 import { useState, useEffect, useMemo } from 'react';
@@ -26,8 +26,6 @@ import VariantsManager from '../components/offer/VariantsManager';
 import VoucherRedemptionScopeCard from '../components/offer/VoucherRedemptionScopeCard';
 import VoucherValidityTypeCard from '../components/offer/VoucherValidityTypeCard';
 import PublishConfirmModal from '../components/offer/PublishConfirmModal';
-import CreationModeTabs, { type CreateMode } from '../components/offer/CreationModeTabs';
-import VoucherCsvBulk from '../components/offer/VoucherCsvBulk';
 import { type DraftVariant, stagedUnitsToBatches } from './voucherVariantDraft';
 import { buildCreateOfferFormData, computePublishBlockers, submitDateRangeError, type CreateOfferValues } from './createOfferFormData';
 
@@ -77,7 +75,6 @@ const CreateOffer = () => {
   const [defaultValidityType, setDefaultValidityType] = useState<'limit' | 'from_until'>('limit');
   const [variantEditing, setVariantEditing] = useState(false);
   const [showPublishConfirm, setShowPublishConfirm] = useState(false);
-  const [mode, setMode] = useState<CreateMode>('manual');
 
   useEffect(() => {
     if (me && !businessSetupComplete && !isPlatformAdmin) setVisibility('tenant_only');
@@ -115,7 +112,6 @@ const CreateOffer = () => {
   });
 
   const isVoucher = executionType === 'voucher';
-  const isCsv = isVoucher && mode === 'csv';
   // Single source of truth for "can publish": these hard blockers drive BOTH the
   // button's disabled state and the on-click guard, so they can never diverge.
   // The first blocker is shown as the button tooltip + inline hint.
@@ -189,11 +185,6 @@ const CreateOffer = () => {
 
   const leftColumn = (
     <>
-      {isVoucher && <CreationModeTabs mode={mode} onChange={setMode} disabled={isSubmitting} />}
-      {isCsv ? (
-        <VoucherCsvBulk />
-      ) : (
-      <>
       <OfferTypeField value={executionType} onChange={handleExecutionTypeChange} disabled={isSubmitting} />
       {isVoucher ? (
         <VoucherBackgroundField
@@ -252,12 +243,10 @@ const CreateOffer = () => {
           isSubmitting={isSubmitting}
         />
       )}
-      </>
-      )}
     </>
   );
 
-  const rightColumn = isCsv ? null : (
+  const rightColumn = (
     <OfferVisibilityCard
       isPlatformAdmin={isPlatformAdmin}
       businessSetupComplete={businessSetupComplete}
@@ -279,7 +268,6 @@ const CreateOffer = () => {
         onSave={handleSave}
         onCancel={() => navigate('/benefits-partnerships')}
         isSubmitting={isSubmitting}
-        hideSave={isCsv}
         saveDisabled={publishBlockers.length > 0}
         saveHint={publishBlockers[0]}
         error={error}
