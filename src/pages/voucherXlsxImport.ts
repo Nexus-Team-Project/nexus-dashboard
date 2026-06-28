@@ -54,7 +54,7 @@ function nextImportUnitId(): string {
 /** Parses a price cell, stripping currency/thousands separators. NaN when empty/invalid. */
 function parsePrice(raw: string | undefined): number {
   if (raw == null) return NaN;
-  const cleaned = raw.replace(/[^\d.\-]/g, '');
+  const cleaned = raw.replace(/[^\d.-]/g, '');
   if (cleaned === '') return NaN;
   return Number(cleaned);
 }
