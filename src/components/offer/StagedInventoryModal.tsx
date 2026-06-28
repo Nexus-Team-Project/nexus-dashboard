@@ -60,7 +60,11 @@ export default function StagedInventoryModal({ variantLabel, defaultType, units,
   const [sel, setSel] = useState<Set<string>>(new Set()); // keys: "s:<localId>" / "v:<codeId>"
   const [saved, setSaved] = useState<InventoryUnitView[]>([]);
   const [savedTotal, setSavedTotal] = useState(0);
+  // Debounced code search: the input drives searchInput; `search` (applied to the
+  // filter) trails it by 250ms so typing does not re-filter on every keystroke.
+  const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
+  useEffect(() => { const id = setTimeout(() => setSearch(searchInput), 250); return () => clearTimeout(id); }, [searchInput]);
 
   useEffect(() => {
     const prev = document.body.style.overflow; document.body.style.overflow = 'hidden';
@@ -136,7 +140,7 @@ export default function StagedInventoryModal({ variantLabel, defaultType, units,
 
         {/* Toolbar: search + select-all + add batch */}
         <div className="flex flex-wrap items-center gap-2 px-5 pt-4">
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('im_searchPlaceholder')}
+          <input value={searchInput} onChange={(e) => setSearchInput(e.target.value)} placeholder={t('im_searchPlaceholder')}
             className="flex-1 min-w-[160px] rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" />
           {allKeys.length > 0 && (
             <label className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
