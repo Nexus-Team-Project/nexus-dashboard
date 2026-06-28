@@ -16,7 +16,7 @@ import OfferImageCarousel from './OfferImageCarousel';
 import { buildOfferImageUrl, getImageCrop } from '../../lib/cloudinaryImage';
 import RichTextDisplay from '../RichTextDisplay';
 import ImageLightbox from '../ImageLightbox';
-import { variantValidityText } from '../../lib/voucherValidity';
+import { validityTypeLabel } from '../../lib/voucherValidity';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -106,16 +106,10 @@ function OfferDetails({ offer }: { offer: CatalogItem }) {
   const tags = (offer.tags ?? []).filter(Boolean);
   const hasTags = tags.length > 0 && !multiVariant;
 
-  // Voucher redemption window (amount + unit), shown only for vouchers that
-  // carry a validity duration. Reads e.g. "2 years from purchase".
-  const UNIT_KEYS = { days: 'co_validityUnitDays', months: 'co_validityUnitMonths', years: 'co_validityUnitYears' } as const;
-  const hasValidity =
-    offer.executionType === 'voucher'
-    && offer.voucherValidityValue != null
-    && offer.voucherValidityValue > 0
-    && !!offer.voucherValidityUnit;
-  const validityText = hasValidity
-    ? `${offer.voucherValidityValue} ${t(UNIT_KEYS[offer.voucherValidityUnit as keyof typeof UNIT_KEYS])} ${t('om_voucherValidityFromPurchase')}`
+  // Voucher validity TYPE (the per-code dates live on the inventory units now,
+  // voucher-validity-dating). Shows the offer's default type label for vouchers.
+  const validityText = offer.executionType === 'voucher'
+    ? validityTypeLabel(offer.defaultValidityType, t)
     : '';
 
   // Combine-with-promotions (כפל מבצעים), shown only for vouchers that carry an
@@ -244,7 +238,7 @@ function OfferDetails({ offer }: { offer: CatalogItem }) {
  * than one variant; single-variant offers show their details inline in OfferDetails.
  */
 function VariantsSummary({ offer }: { offer: CatalogItem }) {
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const variants = offer.variants ?? [];
   if (offer.executionType !== 'voucher' || variants.length <= 1) return null;
 
@@ -257,7 +251,7 @@ function VariantsSummary({ offer }: { offer: CatalogItem }) {
       </p>
       <ul className="mt-3 space-y-2.5">
         {variants.map((v, i) => {
-          const validity = variantValidityText(v, t, language);
+          const validity = validityTypeLabel(offer.defaultValidityType, t);
           const method = (v.implementationInstructions ?? '').trim();
           const terms = (v.terms ?? '').trim();
           const tags = (v.tags ?? []).filter(Boolean);

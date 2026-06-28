@@ -23,18 +23,6 @@ export interface DraftVariant {
   faceValue: string;
   /** The Nexus price - also the member-facing selling price. Must be < faceValue. */
   nexusCost: string;
-  /**
-   * Validity mode: 'duration' = purchase-anchored amount + unit; 'dates' = an
-   * absolute from/until range. Mutually exclusive - only the active mode's
-   * fields are validated and sent.
-   */
-  validityMode: 'duration' | 'dates';
-  /** Duration mode. Empty = never expires. */
-  validityValue: string;
-  validityUnit: string;
-  /** Date-range mode (YYYY-MM-DD strings from the date inputs). */
-  validFrom: string;
-  validUntil: string;
   /** Mandatory combine-with-promotions choice. */
   stackable: StackChoice;
   sku: string;
@@ -48,10 +36,46 @@ export interface DraftVariant {
   terms: string;
   /** Per-variant redemption method (אופן מימוש) - used only when customRedemption. */
   implementationInstructions: string;
-  /** Staged inventory choice (null = explicitly none/skip). */
-  inventory: OfferInventoryInput | null;
-  /** Whether the admin has chosen inventory or explicitly skipped for this variant. */
-  inventoryChoiceMade: boolean;
+  /**
+   * Inventory staged in memory on the authoring (create/edit) page. Each unit
+   * carries its own validity; they are grouped by kind+validity into batches and
+   * persisted only when the offer is published/saved (voucher-validity-dating).
+   * Empty = no inventory yet (the voucher publishes out of stock). On Benefits
+   * Partnerships inventory is written immediately instead (live mode).
+   */
+  stagedUnits: StagedUnit[];
+  /**
+   * Edits to ALREADY-SAVED units, staged in memory on the Edit page (keyed by the
+   * unit's server codeId). Applied via one bulk request per distinct validity on
+   * Publish/Save - never written before. Empty on Create (nothing saved yet).
+   */
+  stagedEdits: StagedEdit[];
+}
+
+/** A staged edit to a saved unit's validity (only the active type's fields are set). */
+export interface StagedEdit {
+  codeId: string;
+  validityValue?: number | null;
+  validityUnit?: 'days' | 'months' | 'years' | null;
+  validFrom?: string | null;
+  validUntil?: string | null;
+}
+
+/**
+ * One redeemable unit staged in memory before publish/save. Mirrors a stored
+ * `voucherCodes` unit's authoring-relevant fields plus a client-only id. Validity
+ * follows the variant's effective type: `limit` -> validityValue+validityUnit;
+ * `from_until` -> validFrom+validUntil (ISO date strings).
+ */
+export interface StagedUnit {
+  localId: string;
+  kind: 'barcode' | 'link';
+  value: string;
+  code?: string;
+  validityValue?: number | null;
+  validityUnit?: 'days' | 'months' | 'years' | null;
+  validFrom?: string | null;
+  validUntil?: string | null;
 }
 
 let localIdCounter = 0;
@@ -67,20 +91,94 @@ export function emptyDraftVariant(): DraftVariant {
     localId: nextLocalId(),
     faceValue: '',
     nexusCost: '',
-    validityMode: 'duration',
-    validityValue: '',
-    validityUnit: 'years',
-    validFrom: '',
-    validUntil: '',
     stackable: '',
     sku: '',
     tags: [],
     customRedemption: false,
     terms: '',
     implementationInstructions: '',
-    inventory: null,
-    inventoryChoiceMade: false,
+    stagedUnits: [],
+    stagedEdits: [],
   };
+}
+
+/** Local-id counter for staged units (client-only; never sent to the server). */
+let stagedUnitCounter = 0;
+function nextStagedUnitId(): string {
+  stagedUnitCounter += 1;
+  return `su_${stagedUnitCounter}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/**
+ * Expands an inventory batch (one kind + codes + one validity) into staged units,
+ * stamping the batch validity onto each. Used when the authoring "add batch" popup
+ * confirms - the batch becomes individual staged units so they list + edit uniformly.
+ */
+export function batchToStagedUnits(inv: OfferInventoryInput): StagedUnit[] {
+  const validity = {
+    validityValue: inv.validityValue ?? null,
+    validityUnit: inv.validityUnit ?? null,
+    validFrom: inv.validFrom ?? null,
+    validUntil: inv.validUntil ?? null,
+  };
+  if (inv.kind === 'barcode') {
+    return (inv.values ?? []).map((value) => ({ localId: nextStagedUnitId(), kind: 'barcode', value, ...validity }));
+  }
+  return (inv.links ?? []).map((l) => ({ localId: nextStagedUnitId(), kind: 'link', value: l.url, ...(l.code ? { code: l.code } : {}), ...validity }));
+}
+
+/**
+ * Groups staged units back into the minimal set of inventory batches (one per
+ * distinct kind+validity), so publish/save can apply each with a single
+ * `addVariantInventory` call. Pure.
+ */
+export function stagedUnitsToBatches(units: StagedUnit[]): OfferInventoryInput[] {
+  const groups = new Map<string, OfferInventoryInput>();
+  for (const u of units) {
+    const key = JSON.stringify([u.kind, u.validityValue ?? null, u.validityUnit ?? null, u.validFrom ?? null, u.validUntil ?? null]);
+    let batch = groups.get(key);
+    if (!batch) {
+      batch = {
+        kind: u.kind,
+        ...(u.kind === 'barcode' ? { values: [] } : { links: [] }),
+        ...(u.validityValue != null && { validityValue: u.validityValue }),
+        ...(u.validityUnit != null && { validityUnit: u.validityUnit }),
+        ...(u.validFrom != null && { validFrom: u.validFrom }),
+        ...(u.validUntil != null && { validUntil: u.validUntil }),
+      };
+      groups.set(key, batch);
+    }
+    if (u.kind === 'barcode') batch.values!.push(u.value);
+    else batch.links!.push({ url: u.value, ...(u.code ? { code: u.code } : {}) });
+  }
+  return Array.from(groups.values());
+}
+
+/** Minimal validity shape shared by staged units and staged edits. */
+type ValidityFields = { validityValue?: number | null; validityUnit?: 'days' | 'months' | 'years' | null; validFrom?: string | null; validUntil?: string | null };
+
+/**
+ * Groups staged edits to saved units into the minimal set of bulk-update calls -
+ * one per distinct validity (codeIds + that validity). Keeps Publish/Save to a few
+ * requests regardless of how many units were edited. Pure.
+ */
+export function stagedEditsToBulk(edits: StagedEdit[]): { codeIds: string[]; validity: ValidityFields }[] {
+  const groups = new Map<string, { codeIds: string[]; validity: ValidityFields }>();
+  for (const e of edits) {
+    const key = JSON.stringify([e.validityValue ?? null, e.validityUnit ?? null, e.validFrom ?? null, e.validUntil ?? null]);
+    let g = groups.get(key);
+    if (!g) {
+      const validity: ValidityFields = {};
+      if (e.validityValue != null) validity.validityValue = e.validityValue;
+      if (e.validityUnit != null) validity.validityUnit = e.validityUnit;
+      if (e.validFrom != null) validity.validFrom = e.validFrom;
+      if (e.validUntil != null) validity.validUntil = e.validUntil;
+      g = { codeIds: [], validity };
+      groups.set(key, g);
+    }
+    g.codeIds.push(e.codeId);
+  }
+  return Array.from(groups.values());
 }
 
 /**
@@ -104,12 +202,6 @@ export function variantToDraft(v: CatalogVariant, parentTerms?: string, parentMe
     variantId: v.variantId,
     faceValue: v.face_value != null ? String(v.face_value) : '',
     nexusCost: v.nexus_cost != null ? String(v.nexus_cost) : '',
-    // Date range present -> date-range mode; otherwise duration mode.
-    validityMode: (v.validFrom || v.validUntil) ? 'dates' : 'duration',
-    validityValue: v.voucherValidityValue != null ? String(v.voucherValidityValue) : '',
-    validityUnit: v.voucherValidityUnit ?? 'years',
-    validFrom: v.validFrom ? v.validFrom.slice(0, 10) : '',
-    validUntil: v.validUntil ? v.validUntil.slice(0, 10) : '',
     stackable: v.voucherStackable === true ? 'yes' : v.voucherStackable === false ? 'no' : '',
     sku: v.sku ?? '',
     tags: v.tags ?? [],
@@ -119,10 +211,12 @@ export function variantToDraft(v: CatalogVariant, parentTerms?: string, parentMe
     customRedemption: custom,
     terms: custom ? (v.terms ?? '') : '',
     implementationInstructions: custom ? (v.implementationInstructions ?? '') : '',
-    // Inventory is loaded separately per variant (links pre-fill); start "made"
-    // so an unchanged edit is publishable, matching the create-page gate.
-    inventory: null,
-    inventoryChoiceMade: true,
+    // Existing inventory is NOT loaded into the draft: the authoring inventory
+    // modal shows already-saved units (read-only) from the backend and stages only
+    // NEW units here. Start empty - publishing with no new units leaves the
+    // variant's stored inventory untouched.
+    stagedUnits: [],
+    stagedEdits: [],
   };
 }
 
@@ -143,19 +237,9 @@ export function validateVariantDraft(
   if (!d.nexusCost || isNaN(nc) || nc <= 0 || nc >= fv) {
     return language === 'he' ? 'מחיר NEXUS חייב להיות חיובי ופחות מהשווי' : 'Nexus price must be positive and less than the value';
   }
-  if (d.validityMode === 'dates') {
-    if (!d.validFrom || !d.validUntil) {
-      return language === 'he' ? 'יש להזין תאריך התחלה ותאריך סיום' : 'Enter both a from and an until date';
-    }
-    if (new Date(d.validUntil).getTime() < new Date(d.validFrom).getTime()) {
-      return language === 'he' ? 'תאריך הסיום חייב להיות באותו יום או אחרי ההתחלה' : 'The until date must be on or after the from date';
-    }
-  } else if (d.validityValue.trim() !== '') {
-    const vv = Number(d.validityValue);
-    if (!Number.isInteger(vv) || vv <= 0) {
-      return language === 'he' ? 'מגבלת התוקף חייבת להיות מספר שלם חיובי' : 'Validity limit must be a positive whole number';
-    }
-  }
+  // Validity VALUE is no longer entered on the variant (it is per inventory unit);
+  // only the optional TYPE override lives here and is a fixed enum, so there is
+  // nothing to validate. See voucher-validity-dating.
   if (d.stackable === '') return t('co_voucherStackableRequired');
   if (d.sku.trim() !== '' && !/^[A-Z0-9_-]{4,20}$/.test(d.sku.trim())) return t('co_errSku');
   return null;
@@ -173,11 +257,9 @@ export function draftSignature(d: DraftVariant): string {
     num(d.nexusCost),
     // member price equals the Nexus price (no separate field), so it adds nothing
     // to the signature beyond nexusCost above.
-    // Active validity mode only: duration OR date range distinguishes variants.
-    d.validityMode === 'dates' ? null : num(d.validityValue),
-    d.validityMode === 'dates' ? null : (d.validityValue.trim() === '' ? null : d.validityUnit),
-    d.validityMode === 'dates' ? (d.validFrom || null) : null,
-    d.validityMode === 'dates' ? (d.validUntil || null) : null,
+    // Validity is NOT part of the signature: the value lives on inventory units,
+    // and the type override does not make a distinct priced product. So two
+    // variants differing only by date are the same variant (voucher-validity-dating).
     d.stackable === 'yes',
     d.sku.trim().toUpperCase() || null,
     // Redemption text only distinguishes variants when this one overrides the shared text.
@@ -194,19 +276,13 @@ export function isDuplicateVariant(draft: DraftVariant, existing: DraftVariant[]
 
 /** Maps a draft variant to the API variant-input shape (numbers, server contract). */
 export function draftToPayload(d: DraftVariant): Record<string, unknown> {
-  const hasValidity = d.validityValue.trim() !== '';
-  const isDates = d.validityMode === 'dates';
   return {
     ...(d.variantId ? { variantId: d.variantId } : {}),
     face_value: Number(d.faceValue),
     nexus_cost: Number(d.nexusCost),
     // No member_price field: the backend defaults member_price to nexus_cost, so
     // the Nexus price is the member-facing selling price.
-    // Validity: send only the active mode's fields (the other side stays null).
-    voucherValidityValue: isDates ? null : (hasValidity ? Number(d.validityValue) : null),
-    voucherValidityUnit: isDates ? null : (hasValidity ? d.validityUnit : null),
-    validFrom: isDates && d.validFrom ? d.validFrom : null,
-    validUntil: isDates && d.validUntil ? d.validUntil : null,
+    // No validity on the variant - it lives per inventory unit (voucher-validity-dating).
     voucherStackable: d.stackable === 'yes',
     sku: d.sku.trim() !== '' ? d.sku.trim() : null,
     tags: d.tags,
@@ -236,13 +312,11 @@ export function nexusPriceError(faceValue: string, nexusCost: string, language: 
   return null;
 }
 
-/** Human summary of a variant's staged inventory choice (for the list + builder). */
+/** Human summary of a variant's staged (unsaved) inventory additions, for the list + builder. */
 export function variantInventorySummary(
   t: (key: TranslationKey) => string,
   d: DraftVariant,
 ): string {
-  if (!d.inventoryChoiceMade) return t('co_invSummaryNotSet');
-  if (d.inventory === null) return t('co_invSummarySkipped');
-  if (d.inventory.kind === 'barcode') return `${d.inventory.values?.length ?? 0} ${t('co_invSummaryBarcodes')}`;
-  return `${d.inventory.links?.length ?? 0} ${t('co_invSummaryLinks')}`;
+  if (d.stagedUnits.length === 0) return t('co_invSummaryNone');
+  return `${d.stagedUnits.length} ${t('co_invSummaryUnsaved')}`;
 }

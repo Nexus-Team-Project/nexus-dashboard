@@ -6,6 +6,7 @@
  *
  * Styling reuses existing card/list tokens; no new design language.
  */
+import { type ReactNode } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { type DraftVariant, variantInventorySummary } from '../../pages/voucherVariantDraft';
 
@@ -14,19 +15,32 @@ interface VariantListProps {
   onEdit: (localId: string) => void;
   onDelete: (localId: string) => void;
   disabled?: boolean;
+  /**
+   * localId of the variant currently being edited inline. When set, that
+   * variant's summary row is replaced by `editorSlot` so the editor opens under
+   * the clicked variant rather than at the bottom of the list. Null when no
+   * existing variant is being edited (e.g. creating a brand-new variant).
+   */
+  editingLocalId?: string | null;
+  /** The inline editor to render in place of the variant matching editingLocalId. */
+  editorSlot?: ReactNode;
 }
 
 /** Renders the saved-variant list (nothing when empty). */
-export default function VariantList({ variants, onEdit, onDelete, disabled = false }: VariantListProps) {
+export default function VariantList({
+  variants, onEdit, onDelete, disabled = false, editingLocalId = null, editorSlot = null,
+}: VariantListProps) {
   const { t, language } = useLanguage();
   if (variants.length === 0) return null;
-
-  const unitLabel = (u: string) =>
-    u === 'days' ? t('co_validityUnitDays') : u === 'months' ? t('co_validityUnitMonths') : t('co_validityUnitYears');
 
   return (
     <div className="space-y-2">
       {variants.map((v, i) => {
+        // When this variant is the one being edited, swap its summary row for the
+        // inline editor so it opens directly under (in place of) the clicked variant.
+        if (editingLocalId !== null && v.localId === editingLocalId) {
+          return <div key={v.localId}>{editorSlot}</div>;
+        }
         // The Nexus price is the member-facing selling price (no separate member price).
         const price = v.nexusCost;
         return (
@@ -44,9 +58,6 @@ export default function VariantList({ variants, onEdit, onDelete, disabled = fal
               <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
                 <span>{t('co_variantPriceLabel')}: ₪{price || '-'}</span>
                 <span>{t('fi_faceValue_label')}: ₪{v.faceValue || '-'}</span>
-                {v.validityValue.trim() !== '' && (
-                  <span>{t('co_fieldVoucherValidity')}: {v.validityValue} {unitLabel(v.validityUnit)}</span>
-                )}
                 <span>
                   {t('co_fieldVoucherStackable')}: {v.stackable === 'yes' ? t('co_voucherStackableYes') : v.stackable === 'no' ? t('co_voucherStackableNo') : '-'}
                 </span>

@@ -22,6 +22,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { cn } from '../../lib/utils';
 import type { OfferInventoryInput } from '../../lib/api';
+import FieldTooltip from '../FieldTooltip';
 import CodePreviewModal from './CodePreviewModal';
 import {
   INVENTORY_MAX, isHttpUrl, isSafeCode, splitPastedBarcodes, parsePastedLinkRows, buildLinkExample,
@@ -38,7 +39,13 @@ interface VoucherInventoryModalProps {
   initialLinks?: { url: string; code?: string }[];
   /** When set, the voucher already uses this kind — the other tab is disabled. */
   lockedKind?: 'barcode' | 'link' | null;
-  /** Record the chosen inventory (barcodes or links+codes). */
+  /** The variant's effective validity type - drives the per-batch date control. */
+  /** The batch's INITIAL validity type (the offer default); the admin can switch it
+   *  per batch via the in-modal toggle. */
+  defaultType: 'limit' | 'from_until';
+  /** Re-open pre-fill: a previously staged inventory choice (carries its validity). */
+  initialValidity?: OfferInventoryInput;
+  /** Record the chosen inventory (barcodes or links+codes) with its batch validity. */
   onConfirm: (inventory: OfferInventoryInput) => void;
   /** Record "no inventory". */
   onSkip: () => void;
@@ -54,8 +61,26 @@ function withTrailingLink(rows: LinkRow[]): LinkRow[] {
   return rows.length === 0 || rows[rows.length - 1].url.trim() !== '' ? [...rows, { url: '', code: '' }] : rows;
 }
 
-export default function VoucherInventoryModal({ busy = false, initialBarcodes, initialLinks, lockedKind, onConfirm, onSkip, onCancel }: VoucherInventoryModalProps) {
+export default function VoucherInventoryModal({ busy = false, initialBarcodes, initialLinks, lockedKind, defaultType, initialValidity, onConfirm, onSkip, onCancel }: VoucherInventoryModalProps) {
   const { t, language } = useLanguage();
+  // The batch's validity type, chosen per batch (defaults to the offer default, or
+  // the type implied by a re-opened staged choice).
+  const initialType: 'limit' | 'from_until' =
+    initialValidity?.validFrom != null ? 'from_until'
+      : initialValidity?.validityValue != null ? 'limit'
+        : defaultType;
+  const [validityType, setValidityType] = useState<'limit' | 'from_until'>(initialType);
+  // Per-batch validity (voucher-validity-dating): stamped onto every unit added in
+  // this batch. 'limit' defaults to 5 years; 'from_until' takes a window and warns
+  // (non-blocking) when the span is under the 5-year legal recommendation.
+  const [limitValue, setLimitValue] = useState<string>(
+    initialValidity?.validityValue != null ? String(initialValidity.validityValue) : (validityType === 'limit' ? '5' : ''),
+  );
+  const [limitUnit, setLimitUnit] = useState<'days' | 'months' | 'years'>(initialValidity?.validityUnit ?? 'years');
+  const [fromDate, setFromDate] = useState<string>(initialValidity?.validFrom ? initialValidity.validFrom.slice(0, 10) : '');
+  const [untilDate, setUntilDate] = useState<string>(initialValidity?.validUntil ? initialValidity.validUntil.slice(0, 10) : '');
+  // Validated batch validity captured at finish-time, attached to the onConfirm payload.
+  const [batchValidity, setBatchValidity] = useState<Partial<OfferInventoryInput> | null>(null);
   const hasInitialBarcodes = !!initialBarcodes && initialBarcodes.length > 0;
   const hasInitialLinks = !!initialLinks && initialLinks.length > 0;
   // Scrollbar side for the fixed-height row list: right in Hebrew, left in English.
@@ -101,6 +126,25 @@ export default function VoucherInventoryModal({ busy = false, initialBarcodes, i
   const filledBarcodes = barcodes.map((b) => b.trim()).filter(Boolean);
   const filledLinks = linkRows.filter((r) => r.url.trim() !== '');
 
+  // ── Per-batch validity ──────────────────────────────────────────────────────
+  const FIVE_YEARS_MS = 5 * 365.25 * 24 * 60 * 60 * 1000;
+  // Non-blocking legal advisory: a from-until span under 5 years.
+  const showAdvisory =
+    validityType === 'from_until' && !!fromDate && !!untilDate
+    && new Date(untilDate).getTime() >= new Date(fromDate).getTime()
+    && (new Date(untilDate).getTime() - new Date(fromDate).getTime()) < FIVE_YEARS_MS;
+  /** Validates + builds the batch validity for the variant's effective type. */
+  const resolveBatchValidity = (): { ok: true; v: Partial<OfferInventoryInput> } | { ok: false; err: string } => {
+    if (validityType === 'limit') {
+      const n = Number(limitValue);
+      if (!limitValue.trim() || !Number.isInteger(n) || n <= 0) return { ok: false, err: t('vi_errBatchValidity') };
+      return { ok: true, v: { validityValue: n, validityUnit: limitUnit } };
+    }
+    if (!fromDate || !untilDate) return { ok: false, err: t('vi_errBatchValidity') };
+    if (new Date(untilDate).getTime() < new Date(fromDate).getTime()) return { ok: false, err: t('vi_errBatchRange') };
+    return { ok: true, v: { validFrom: fromDate, validUntil: untilDate } };
+  };
+
   // ── Barcode rows ──────────────────────────────────────────────────────────
   const setBarcodeAt = (i: number, v: string) => setBarcodes((p) => withTrailingBarcode(p.map((b, idx) => (idx === i ? v : b))));
   const removeBarcodeAt = (i: number) => setBarcodes((p) => (p.length <= 1 ? p : p.filter((_, idx) => idx !== i)));
@@ -133,6 +177,9 @@ export default function VoucherInventoryModal({ busy = false, initialBarcodes, i
   const finishBarcodes = () => {
     setError(null);
     if (filledBarcodes.length === 0) { setError(t('vi_errBarcodesEmpty')); return; }
+    const bv = resolveBatchValidity();
+    if (!bv.ok) { setError(bv.err); return; }
+    setBatchValidity(bv.v);
     // Combine duplicates into one (keep first occurrence); the preview reports how
     // many were removed before the admin accepts.
     const unique = Array.from(new Set(filledBarcodes));
@@ -144,6 +191,8 @@ export default function VoucherInventoryModal({ busy = false, initialBarcodes, i
     setDupCodes(new Set());
     setDupUrls(new Set());
     if (filledLinks.length === 0) { setError(t('vi_errLinksEmpty')); return; }
+    const bv = resolveBatchValidity();
+    if (!bv.ok) { setError(bv.err); return; }
     if (filledLinks.some((r) => !isHttpUrl(r.url))) { setError(t('vi_errLinksInvalid')); return; }
     if (filledLinks.some((r) => !isSafeCode(r.code))) { setError(t('vi_errCodeInvalid')); return; }
     // Combine duplicate URLs into one (first row wins, keeping its code).
@@ -161,7 +210,7 @@ export default function VoucherInventoryModal({ busy = false, initialBarcodes, i
     // First click with duplicates: flag the repeated link rows (red border), show
     // the count, and wait for a confirming click to combine them.
     if (removed > 0 && !linkDup) { setDupUrls(findDuplicateUrls(filledLinks)); setLinkDup({ removed, unique: uniqueRows.length }); return; }
-    onConfirm({ kind: 'link', links: uniqueRows.map((r) => ({ url: r.url.trim(), ...(r.code.trim() ? { code: r.code.trim() } : {}) })) });
+    onConfirm({ kind: 'link', links: uniqueRows.map((r) => ({ url: r.url.trim(), ...(r.code.trim() ? { code: r.code.trim() } : {}) })), ...bv.v });
   };
 
   const downloadExample = () => {
@@ -208,6 +257,69 @@ export default function VoucherInventoryModal({ busy = false, initialBarcodes, i
           {/* Body */}
           <div className="flex-1 overflow-y-auto p-5 space-y-3">
             {lockedKind && <p className="text-xs text-amber-600 dark:text-amber-400">{t('vi_lockedNote')}</p>}
+
+            {/* Per-batch validity: stamped onto every code added in this batch. */}
+            <div className="rounded-lg border border-slate-200 dark:border-slate-700 p-3">
+              <p className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
+                {t('vi_batchValidityTitle')}
+                <FieldTooltip fieldKey="batchValidity" />
+              </p>
+              {/* Type toggle: this batch is a time limit OR a date range. */}
+              <div className="mb-2 inline-flex gap-1 rounded-lg border border-slate-200 p-0.5 dark:border-slate-700" role="group" aria-label={t('co_validityTypeCardTitle')}>
+                {([
+                  { v: 'limit', label: t('co_validityTypeLimit') },
+                  { v: 'from_until', label: t('co_validityTypeFromUntil') },
+                ] as const).map((opt) => (
+                  <button
+                    key={opt.v} type="button" disabled={busy}
+                    onClick={() => setValidityType(opt.v)}
+                    aria-pressed={validityType === opt.v}
+                    className={cn('rounded-md px-3 py-1 text-xs font-medium transition-colors',
+                      validityType === opt.v ? 'bg-primary text-white' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800')}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              {validityType === 'limit' ? (
+                <div className="flex gap-2" dir="ltr">
+                  <input
+                    type="number" min="1" step="1" value={limitValue}
+                    onChange={(e) => setLimitValue(e.target.value)} onWheel={(e) => e.currentTarget.blur()}
+                    disabled={busy} className={`w-24 ${inputCls}`} aria-label={t('vi_batchValidFor')}
+                  />
+                  <select
+                    value={limitUnit} onChange={(e) => setLimitUnit(e.target.value as 'days' | 'months' | 'years')}
+                    disabled={busy} className={`flex-1 ${inputCls}`} aria-label={t('vi_batchValidFor')}
+                  >
+                    <option value="days">{t('co_validityUnitDays')}</option>
+                    <option value="months">{t('co_validityUnitMonths')}</option>
+                    <option value="years">{t('co_validityUnitYears')}</option>
+                  </select>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <label className="flex-1 text-xs text-slate-500 dark:text-slate-400">
+                    {t('vi_batchValidFrom')}
+                    <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)}
+                      disabled={busy} dir="ltr" className={`mt-1 ${inputCls}`} />
+                  </label>
+                  <label className="flex-1 text-xs text-slate-500 dark:text-slate-400">
+                    {t('vi_batchValidUntil')}
+                    <input type="date" value={untilDate} min={fromDate || undefined} onChange={(e) => setUntilDate(e.target.value)}
+                      disabled={busy} dir="ltr" className={`mt-1 ${inputCls}`} />
+                  </label>
+                </div>
+              )}
+              <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">
+                {validityType === 'limit' ? t('vi_batchValidityHintLimit') : t('vi_batchValidityHintFromUntil')}
+              </p>
+              {showAdvisory && (
+                <p className="mt-2 rounded-md bg-amber-50 dark:bg-amber-900/20 p-2 text-xs text-amber-700 dark:text-amber-400">
+                  {t('vi_legalAdvisory')}
+                </p>
+              )}
+            </div>
 
             {/* Count + format help */}
             <div className="flex items-center justify-between gap-2 text-sm">
@@ -300,7 +412,7 @@ export default function VoucherInventoryModal({ busy = false, initialBarcodes, i
           count={previewValues.length}
           duplicatesRemoved={previewDup}
           busy={busy}
-          onConfirm={() => { onConfirm({ kind: 'barcode', values: previewValues }); setPreviewValues(null); }}
+          onConfirm={() => { onConfirm({ kind: 'barcode', values: previewValues, ...(batchValidity ?? {}) }); setPreviewValues(null); }}
           onCancel={() => { setPreviewValues(null); setPreviewDup(0); }}
         />
       )}

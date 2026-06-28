@@ -41,7 +41,8 @@ import OfferTypeBadge from '../components/catalog/OfferTypeBadge';
 import VoucherColorTile from '../components/offer/VoucherColorTile';
 import { buildOfferImageUrl, getImageCrop } from '../lib/cloudinaryImage';
 import { formatVoucherCardPrice } from '../lib/voucherPricing';
-import { variantValidityText } from '../lib/voucherValidity';
+import { validityTypeLabel } from '../lib/voucherValidity';
+import VariantInventoryManagerModal from '../components/offer/VariantInventoryManagerModal';
 
 interface Benefit {
   id: string;
@@ -144,11 +145,14 @@ function toBenefitType(executionType?: string): Benefit['benefitType'] {
 function VariantDetailsTable({
   offerId,
   variants,
+  defaultValidityType = null,
   canEditPrice = false,
   onEditVariantPrice,
 }: {
   offerId: string;
   variants: CatalogVariant[];
+  /** The offer's validity-type default, so a variant with no override shows the inherited type. */
+  defaultValidityType?: 'limit' | 'from_until' | null;
   canEditPrice?: boolean;
   onEditVariantPrice?: (variant: CatalogVariant, anchor: HTMLElement) => void;
 }) {
@@ -159,6 +163,8 @@ function VariantDetailsTable({
   // does not expose per-variant stock; owner-scoped, so failures fall back to "-".
   const [stock, setStock] = useState<Record<string, number>>({});
   const [stockLoading, setStockLoading] = useState(false);
+  // The variant whose inventory is being managed (opens the management modal).
+  const [managing, setManaging] = useState<CatalogVariant | null>(null);
   const variantKey = rows.map((v) => v.variantId).join(',');
   useEffect(() => {
     if (rows.length === 0) return;
@@ -190,8 +196,9 @@ function VariantDetailsTable({
   const headCls = 'px-3 py-2 text-start font-semibold whitespace-nowrap';
   const cellCls = 'px-3 py-2 align-top';
   const truncCls = 'block max-w-[160px] truncate';
-  // Duration ("2 years") or date range ("01/01/26 - 31/03/26"), per variant.
-  const validityText = (v: CatalogVariant) => variantValidityText(v, t, language) || dash;
+  // Validity is per inventory unit now; the offer default is the only variant-level
+  // hint to show here (each code carries its own type + date - see the manage modal).
+  const validityText = validityTypeLabel(defaultValidityType, t) || dash;
 
   return (
     <div dir={language === 'he' ? 'rtl' : 'ltr'} className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
@@ -248,8 +255,14 @@ function VariantDetailsTable({
                 </td>
                 <td className={cn(cellCls, 'tabular-nums')} dir="ltr">{typeof v.face_value === 'number' ? `₪${v.face_value}` : dash}</td>
                 {showNexus && <td className={cn(cellCls, 'tabular-nums')} dir="ltr">{typeof v.nexus_cost === 'number' ? `₪${v.nexus_cost}` : dash}</td>}
-                <td className={cn(cellCls, 'tabular-nums whitespace-nowrap')} dir="ltr">{stockText}</td>
-                <td className={cn(cellCls, 'whitespace-nowrap')}>{validityText(v)}</td>
+                <td className={cn(cellCls, 'tabular-nums whitespace-nowrap')} dir="ltr">
+                  <span>{stockText}</span>
+                  {canEditPrice && (
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setManaging(v); }}
+                      className="ms-2 text-xs font-medium text-primary hover:underline">{t('im_title')}</button>
+                  )}
+                </td>
+                <td className={cn(cellCls, 'whitespace-nowrap')}>{validityText}</td>
                 <td className={cellCls}>{typeof v.voucherStackable === 'boolean' ? (v.voucherStackable ? t('co_voucherStackableYes') : t('co_voucherStackableNo')) : dash}</td>
                 <td className={cellCls} dir="ltr">{v.sku || dash}</td>
                 {/* Usage conditions + redemption method: truncated with a full-text hover tooltip. */}
@@ -277,6 +290,15 @@ function VariantDetailsTable({
           })}
         </tbody>
       </table>
+      {managing && (
+        <VariantInventoryManagerModal
+          offerId={offerId}
+          variantId={managing.variantId}
+          variantLabel={`${t('co_variantLabel')} ${variants.indexOf(managing) + 1}`}
+          defaultType={defaultValidityType ?? 'limit'}
+          onClose={() => setManaging(null)}
+        />
+      )}
     </div>
   );
 }
@@ -1141,9 +1163,17 @@ const BenefitsPartnerships = () => {
                                 )}
                               </td>
 
-                              {/* 2. Image — cover thumbnail; click for full-screen lightbox. */}
+                              {/* 2. Image — cover thumbnail; click for full-screen lightbox.
+                                  Color-mode vouchers store the default placeholder as
+                                  imageUrl, so check the color first or the placeholder
+                                  would mask the chosen color (parity with the cards). */}
                               <td className="px-4 py-4 align-top">
-                                {item.imageUrl ? (
+                                {isVoucher && item.voucherBackgroundColor ? (
+                                  <VoucherColorTile
+                                    color={item.voucherBackgroundColor}
+                                    className="w-14 h-14 rounded-lg border border-slate-200 dark:border-slate-700"
+                                  />
+                                ) : item.imageUrl ? (
                                   <div className="relative inline-block">
                                     <img
                                       src={buildOfferImageUrl(item.imageUrl, getImageCrop(item.imageCrops, item.imageUrl), 'card')}
@@ -1326,6 +1356,7 @@ const BenefitsPartnerships = () => {
                                   <VariantDetailsTable
                                     offerId={item.offerId}
                                     variants={item.variants!}
+                                    defaultValidityType={item.defaultValidityType ?? null}
                                     canEditPrice={canEditTenantPrice(item)}
                                     onEditVariantPrice={(v, anchor) => openVariantPriceEditor(item, v, anchor)}
                                   />
@@ -1800,6 +1831,7 @@ const BenefitsPartnerships = () => {
                   <VariantDetailsTable
                     offerId={selectedCatalogItem.offerId}
                     variants={selectedCatalogItem.variants!}
+                    defaultValidityType={selectedCatalogItem.defaultValidityType ?? null}
                     canEditPrice={canEditTenantPrice(selectedCatalogItem)}
                     onEditVariantPrice={(v, anchor) => openVariantPriceEditor(selectedCatalogItem, v, anchor)}
                   />

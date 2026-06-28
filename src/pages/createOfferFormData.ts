@@ -26,8 +26,6 @@ export interface CreateOfferValues {
   implementationLink: string;
   /** For vouchers, the parent-level redemption method (shared scope only). */
   implementationInstructions: string;
-  voucherValidityValue: string;
-  voucherValidityUnit: string;
   voucherStackable: '' | 'yes' | 'no';
   bgMode: BgMode;
   voucherBackgroundColor: string;
@@ -39,6 +37,9 @@ export interface CreateOfferValues {
   tags: string[];
   /** Voucher variants (voucher executionType only). */
   variants: DraftVariant[];
+  /** Voucher validity TYPE default for the offer ('limit' | 'from_until'). The
+   *  per-unit VALUE is set in the inventory flow. Voucher-only. */
+  defaultValidityType: 'limit' | 'from_until';
 }
 
 export function buildCreateOfferFormData(v: CreateOfferValues): FormData {
@@ -73,6 +74,9 @@ export function buildCreateOfferFormData(v: CreateOfferValues): FormData {
     // the shared text (vestigial but kept accurate).
     const perVariant = v.variants.some((d) => d.customRedemption);
     fd.append('redemptionScope', perVariant ? 'per_variant' : 'shared');
+    // Validity TYPE default for the whole offer; the per-unit VALUE is set in the
+    // inventory flow (voucher-validity-dating).
+    fd.append('defaultValidityType', v.defaultValidityType);
     fd.append('variants', JSON.stringify(v.variants.map((d) => draftToPayload(d))));
     if (v.bgMode === 'color' && v.voucherBackgroundColor) fd.append('voucherBackgroundColor', v.voucherBackgroundColor);
     // The shared redemption terms + method always live on the parent; a variant
@@ -129,6 +133,9 @@ export function computePublishBlockers(
   if (v.executionType === 'voucher') {
     if (v.variants.length === 0) blockers.push(t('co_variantsRequired'));
     else if (v.variantEditing) blockers.push(t('of_publishBlockVariantEditing'));
+    // No validity-type gate: each staged unit/edit already carries a complete,
+    // self-typed validity (the upload modal enforces it), so there is nothing to
+    // re-validate at publish - the type is per batch, not per variant.
   }
   return blockers;
 }

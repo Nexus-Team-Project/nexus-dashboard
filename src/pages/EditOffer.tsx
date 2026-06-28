@@ -15,7 +15,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import {
-  getOfferDetails, updateOfferApi, addVariantInventory, getVariantInventory,
+  getOfferDetails, updateOfferApi, addVariantInventory, bulkUpdateUnitValidity,
   type CatalogItem,
 } from '../lib/api';
 import CreateOfferDetailsSection from './CreateOfferDetailsSection';
@@ -27,8 +27,9 @@ import OfferTypeField from '../components/offer/OfferTypeField';
 import VoucherBackgroundField, { type BgMode } from '../components/offer/VoucherBackgroundField';
 import VariantsManager from '../components/offer/VariantsManager';
 import VoucherRedemptionScopeCard from '../components/offer/VoucherRedemptionScopeCard';
+import VoucherValidityTypeCard from '../components/offer/VoucherValidityTypeCard';
 import { OfferFormSkeleton, OfferFormErrorState } from '../components/offer/OfferFormStates';
-import { type DraftVariant, variantToDraft, draftToPayload } from './voucherVariantDraft';
+import { type DraftVariant, variantToDraft, draftToPayload, stagedUnitsToBatches, stagedEditsToBulk } from './voucherVariantDraft';
 import { computePublishBlockers, submitDateRangeError } from './createOfferFormData';
 
 const EditOffer = () => {
@@ -59,8 +60,7 @@ const EditOffer = () => {
   const [implementationInstructions, setImplementationInstructions] = useState('');
   const [validFrom, setValidFrom] = useState('');
   const [validUntil, setValidUntil] = useState('');
-  const [voucherValidityValue, setVoucherValidityValue] = useState('');
-  const [voucherValidityUnit, setVoucherValidityUnit] = useState('years');
+  const [defaultValidityType, setDefaultValidityType] = useState<'limit' | 'from_until'>('limit');
   const [voucherStackable, setVoucherStackable] = useState<'' | 'yes' | 'no'>('');
   const [bgMode, setBgMode] = useState<BgMode>('image');
   const [voucherBackgroundColor, setVoucherBackgroundColor] = useState('');
@@ -97,8 +97,7 @@ const EditOffer = () => {
         setImplementationInstructions(detail.implementationInstructions ?? '');
         setValidFrom(detail.validFrom ? detail.validFrom.slice(0, 10) : '');
         setValidUntil(detail.validUntil ? detail.validUntil.slice(0, 10) : '');
-        setVoucherValidityValue(detail.voucherValidityValue != null ? String(detail.voucherValidityValue) : '');
-        setVoucherValidityUnit(detail.voucherValidityUnit ?? 'years');
+        setDefaultValidityType(detail.defaultValidityType ?? 'limit');
         setVoucherStackable(detail.voucherStackable === true ? 'yes' : detail.voucherStackable === false ? 'no' : '');
         setTerms(detail.terms ?? '');
         setTags(detail.tags ?? []);
@@ -155,17 +154,6 @@ const EditOffer = () => {
     }
   };
 
-  /** Edit-page inventory loader for the variants manager (existing barcodes +
-   *  links + the locked kind), so the popup re-shows the stored inventory. */
-  const loadExistingInventory = async (variantId: string) => {
-    if (!offerId) return { barcodes: [], links: [], lockedKind: null as 'barcode' | 'link' | null };
-    const inv = await getVariantInventory(offerId, variantId);
-    return {
-      barcodes: inv.barcodes,
-      links: inv.links,
-      lockedKind: inv.counts.barcode > 0 ? 'barcode' : inv.counts.link > 0 ? 'link' : null,
-    } as { barcodes: string[]; links: string[]; lockedKind: 'barcode' | 'link' | null };
-  };
 
   // Single source of truth for "can publish": same hard-blocker helper as Create.
   // Drives both the button's disabled state and the on-click guard.
@@ -189,6 +177,7 @@ const EditOffer = () => {
       if (isVoucher) {
         const perVariant = variants.some((d) => d.customRedemption);
         fd.append('redemptionScope', perVariant ? 'per_variant' : 'shared');
+        fd.append('defaultValidityType', defaultValidityType);
         fd.append('variants', JSON.stringify(variants.map((d) => draftToPayload(d))));
         fd.append('voucherBackgroundColor', bgMode === 'color' && voucherBackgroundColor ? voucherBackgroundColor : '');
         // Shared redemption text always lives on the parent; per-variant overrides
@@ -219,19 +208,24 @@ const EditOffer = () => {
       const updated = await updateOfferApi(offerId, fd);
       saved = true;
       // Apply any newly staged inventory to each variant (matched by order).
-      let units = 0; let invFailed = false;
+      let units = 0; let invError: string | null = null;
       if (isVoucher) {
         const created = updated.variants ?? [];
         for (let i = 0; i < variants.length; i++) {
-          const inv = variants[i].inventory;
           const variantId = created[i]?.variantId;
-          if (inv && variantId) {
-            try { const r = await addVariantInventory(offerId, variantId, inv); units += r.created; }
-            catch { invFailed = true; }
+          if (!variantId) continue;
+          for (const batch of stagedUnitsToBatches(variants[i].stagedUnits)) {
+            try { const r = await addVariantInventory(offerId, variantId, batch); units += r.created; }
+            catch (e) { if (!invError) invError = e instanceof Error ? e.message : String(e); }
+          }
+          // Apply staged edits to already-saved units, one bulk request per distinct validity.
+          for (const grp of stagedEditsToBulk(variants[i].stagedEdits)) {
+            try { await bulkUpdateUnitValidity(offerId, variantId, grp.codeIds, grp.validity); }
+            catch (e) { if (!invError) invError = e instanceof Error ? e.message : String(e); }
           }
         }
       }
-      if (invFailed) toast.error(t('co_toastInventoryFailedSave'));
+      if (invError) toast.error(`${t('co_toastInventoryFailedSave')}: ${invError}`);
       else if (units > 0) toast.success(`${t('co_toastSaved')} · ${units} ${t('co_toastUnits')}`);
       else toast.success(t('co_toastSaved'));
       navigate('/benefits-partnerships');
@@ -285,6 +279,11 @@ const EditOffer = () => {
       />
       {isVoucher ? (
         <>
+          <VoucherValidityTypeCard
+            value={defaultValidityType}
+            setValue={setDefaultValidityType}
+            isSubmitting={isSubmitting}
+          />
           <VoucherRedemptionScopeCard
             terms={terms} setTerms={setTerms}
             method={implementationInstructions} setMethod={setImplementationInstructions}
@@ -293,8 +292,9 @@ const EditOffer = () => {
           <VariantsManager
             variants={variants} setVariants={setVariants}
             sharedTerms={terms} sharedMethod={implementationInstructions}
+            defaultValidityType={defaultValidityType}
             onEditingChange={setVariantEditing}
-            loadExistingInventory={loadExistingInventory}
+            offerId={offerId}
             isSubmitting={isSubmitting}
           />
         </>
@@ -305,8 +305,6 @@ const EditOffer = () => {
           validFrom={validFrom} setValidFrom={setValidFrom}
           validUntil={validUntil} setValidUntil={setValidUntil}
           executionType={executionType}
-          voucherValidityValue={voucherValidityValue} setVoucherValidityValue={setVoucherValidityValue}
-          voucherValidityUnit={voucherValidityUnit} setVoucherValidityUnit={setVoucherValidityUnit}
           voucherStackable={voucherStackable} setVoucherStackable={setVoucherStackable}
           terms={terms} setTerms={setTerms}
           tagInput={tagInput} setTagInput={setTagInput}

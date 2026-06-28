@@ -15,7 +15,7 @@ import { useEffect, useState } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import VariantBuilder from './VariantBuilder';
 import VariantList from './VariantList';
-import VoucherInventoryModal from './VoucherInventoryModal';
+import StagedInventoryModal from './StagedInventoryModal';
 import {
   type DraftVariant, emptyDraftVariant, validateVariantDraft, isDuplicateVariant,
 } from '../../pages/voucherVariantDraft';
@@ -26,58 +26,30 @@ interface VariantsManagerProps {
   /** Shared redemption terms/method - seed a variant's override when enabled. */
   sharedTerms: string;
   sharedMethod: string;
+  /** The offer's default validity type; combined with a variant's override to get
+   *  the effective type the inventory popup uses for its per-batch date control. */
+  defaultValidityType: 'limit' | 'from_until';
   /** Reports whether a draft is currently open (parent uses it to gate Publish). */
   onEditingChange?: (editing: boolean) => void;
-  /**
-   * Edit-page only: loads an existing variant's stored inventory so the popup
-   * pre-fills its links and locks to the kind already in use. Omitted on Create
-   * (a new variant has no backend inventory yet).
-   */
-  loadExistingInventory?: (variantId: string) => Promise<{ barcodes: string[]; links: string[]; lockedKind: 'barcode' | 'link' | null }>;
+  /** Offer id when editing an existing offer; lets the staged modal load a
+   *  persisted variant's already-saved units for read-only reference. Omitted on Create. */
+  offerId?: string;
   isSubmitting?: boolean;
-}
-
-/** What the inventory popup is pre-filled + locked with when it opens. */
-interface InventoryPrefill {
-  initialBarcodes?: string[];
-  initialLinks?: { url: string; code?: string }[];
-  lockedKind: 'barcode' | 'link' | null;
 }
 
 /** Renders the Create-Variant button, the builder, the saved list, and the inventory popup. */
 export default function VariantsManager({
-  variants, setVariants, sharedTerms, sharedMethod, onEditingChange, loadExistingInventory, isSubmitting = false,
+  variants, setVariants, sharedTerms, sharedMethod, defaultValidityType, onEditingChange, offerId, isSubmitting = false,
 }: VariantsManagerProps) {
   const { t, language } = useLanguage();
   const [draft, setDraft] = useState<DraftVariant | null>(null);
   const [builderError, setBuilderError] = useState<string | null>(null);
   const [showInventory, setShowInventory] = useState(false);
-  const [prefill, setPrefill] = useState<InventoryPrefill>({ lockedKind: null });
 
   useEffect(() => { onEditingChange?.(draft !== null); }, [draft, onEditingChange]);
 
-  /** Opens the inventory popup, pre-filling from this session's staged choice or
-   *  (for an existing variant on Edit) from the backend, locking the used kind. */
-  const openInventory = async () => {
-    if (!draft) return;
-    if (draft.inventory || !draft.variantId || !loadExistingInventory) {
-      setPrefill({
-        initialBarcodes: draft.inventory?.kind === 'barcode' ? draft.inventory.values : undefined,
-        initialLinks: draft.inventory?.kind === 'link' ? draft.inventory.links : undefined,
-        lockedKind: null,
-      });
-    } else {
-      try {
-        const inv = await loadExistingInventory(draft.variantId);
-        setPrefill({
-          initialBarcodes: inv.barcodes,
-          initialLinks: inv.links.map((url) => ({ url })),
-          lockedKind: inv.lockedKind,
-        });
-      } catch { setPrefill({ lockedKind: null }); }
-    }
-    setShowInventory(true);
-  };
+  /** Opens the staged inventory modal for the current draft variant. */
+  const openInventory = () => { if (draft) setShowInventory(true); };
 
   const startCreate = () => { setBuilderError(null); setDraft(emptyDraftVariant()); };
   const startEdit = (localId: string) => {
@@ -91,7 +63,6 @@ export default function VariantsManager({
     if (!draft) return;
     const err = validateVariantDraft(draft, t, language);
     if (err) { setBuilderError(err); return; }
-    if (!draft.inventoryChoiceMade) { setBuilderError(t('co_invRequiredHint')); return; }
     if (isDuplicateVariant(draft, variants)) { setBuilderError(t('co_variantDuplicate')); return; }
     setVariants((prev) => {
       const idx = prev.findIndex((v) => v.localId === draft.localId);
@@ -122,21 +93,39 @@ export default function VariantsManager({
       </div>
 
       <div className="space-y-4">
-        <VariantList variants={variants} onEdit={startEdit} onDelete={deleteVariant} disabled={isSubmitting || draft !== null} />
-
-        {draft !== null && (
-          <VariantBuilder
-            draft={draft}
-            onChange={patchDraft}
-            sharedTerms={sharedTerms}
-            sharedMethod={sharedMethod}
-            onOpenInventory={() => { void openInventory(); }}
-            onSave={saveDraft}
-            onCancel={cancelDraft}
-            error={builderError}
-            isSubmitting={isSubmitting}
-          />
-        )}
+        {(() => {
+          // An open draft that matches an existing variant is an inline edit: the
+          // builder is rendered in place of that variant's row by VariantList.
+          // A draft with no matching variant is a brand-new variant: render the
+          // builder below the list.
+          const editingExisting = draft !== null && variants.some((v) => v.localId === draft.localId);
+          const builder = draft !== null && (
+            <VariantBuilder
+              draft={draft}
+              onChange={patchDraft}
+              sharedTerms={sharedTerms}
+              sharedMethod={sharedMethod}
+              onOpenInventory={() => { void openInventory(); }}
+              onSave={saveDraft}
+              onCancel={cancelDraft}
+              error={builderError}
+              isSubmitting={isSubmitting}
+            />
+          );
+          return (
+            <>
+              <VariantList
+                variants={variants}
+                onEdit={startEdit}
+                onDelete={deleteVariant}
+                disabled={isSubmitting || draft !== null}
+                editingLocalId={editingExisting ? draft!.localId : null}
+                editorSlot={builder}
+              />
+              {!editingExisting && builder}
+            </>
+          );
+        })()}
 
         {variants.length === 0 && draft === null && (
           <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-400">
@@ -146,14 +135,16 @@ export default function VariantsManager({
       </div>
 
       {showInventory && draft !== null && (
-        <VoucherInventoryModal
-          busy={isSubmitting}
-          initialBarcodes={prefill.initialBarcodes}
-          initialLinks={prefill.initialLinks}
-          lockedKind={prefill.lockedKind}
-          onConfirm={(inv) => { patchDraft({ inventory: inv, inventoryChoiceMade: true }); setShowInventory(false); }}
-          onSkip={() => { patchDraft({ inventory: null, inventoryChoiceMade: true }); setShowInventory(false); }}
-          onCancel={() => setShowInventory(false)}
+        <StagedInventoryModal
+          variantLabel={t('co_variantBuilderTitle')}
+          defaultType={defaultValidityType}
+          units={draft.stagedUnits}
+          onChange={(units) => patchDraft({ stagedUnits: units })}
+          edits={draft.stagedEdits}
+          onEditsChange={(edits) => patchDraft({ stagedEdits: edits })}
+          onClose={() => setShowInventory(false)}
+          offerId={offerId}
+          variantId={draft.variantId}
         />
       )}
     </section>

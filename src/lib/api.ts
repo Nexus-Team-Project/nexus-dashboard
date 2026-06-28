@@ -996,10 +996,9 @@ export interface CatalogItem {
   validFrom?: string | null;
   /** Offer expiry date as ISO string (serialised from backend Date). Always null for vouchers. */
   validUntil?: string | null;
-  /** Voucher redemption window amount (with voucherValidityUnit). null = never expires. Voucher-only. */
-  voucherValidityValue?: number | null;
-  /** Voucher redemption window unit. null = never expires. Voucher-only. */
-  voucherValidityUnit?: 'days' | 'months' | 'years' | null;
+  /** Voucher validity TYPE default ('limit' | 'from_until'). Voucher-only; null
+   *  otherwise. The validity VALUE is per inventory unit (voucher-validity-dating). */
+  defaultValidityType?: 'limit' | 'from_until' | null;
   /** Whether the voucher may be combined with other promotions. Voucher-only; null otherwise. */
   voucherStackable?: boolean | null;
   /** Voucher card background color ("#rrggbb"). Voucher-only; null otherwise. */
@@ -1045,11 +1044,6 @@ export interface CatalogVariant {
   face_value?: number;
   nexus_cost?: number;
   member_price?: number;
-  voucherValidityValue?: number | null;
-  voucherValidityUnit?: 'days' | 'months' | 'years' | null;
-  /** Absolute validity window (date-range mode); mutually exclusive with the duration. */
-  validFrom?: string | null;
-  validUntil?: string | null;
   voucherStackable?: boolean | null;
   sku?: string | null;
   tags?: string[];
@@ -1101,12 +1095,11 @@ export interface NexusOffer {
   implementationInstructions?: string;
   /** Date the offer becomes visible to members (ISO string). null = immediately. */
   validFrom?: string | null;
-  /** Offer expiry date. Always null for vouchers (they use voucherValidity* instead). */
+  /** Offer expiry date. Always null for vouchers (they use unit-level dating instead). */
   validUntil?: string | null;
-  /** Voucher redemption window amount (with voucherValidityUnit). null = never expires. Voucher-only. */
-  voucherValidityValue?: number | null;
-  /** Voucher redemption window unit. null = never expires. Voucher-only. */
-  voucherValidityUnit?: 'days' | 'months' | 'years' | null;
+  /** Voucher validity TYPE default ('limit' | 'from_until'). Voucher-only; null
+   *  otherwise. The validity VALUE is per inventory unit (voucher-validity-dating). */
+  defaultValidityType?: 'limit' | 'from_until' | null;
   /** Whether the voucher may be combined with other promotions. Voucher-only; null otherwise. */
   voucherStackable?: boolean | null;
   /** Voucher card background color ("#rrggbb"). Voucher-only; null otherwise. */
@@ -1365,6 +1358,15 @@ export interface OfferInventoryInput {
   values?: string[];
   /** Required when kind === 'link': the links, each with an optional code. */
   links?: OfferLinkItem[];
+  /**
+   * Per-batch validity stamped onto every unit (voucher-validity-dating). Supply
+   * the set matching the variant's effective type: `limit` -> validityValue +
+   * validityUnit; `from_until` -> validFrom + validUntil (ISO date strings).
+   */
+  validityValue?: number | null;
+  validityUnit?: 'days' | 'months' | 'years' | null;
+  validFrom?: string | null;
+  validUntil?: string | null;
 }
 
 /** Result of an inventory call: units created + the offer's new stock total. */
@@ -1403,6 +1405,148 @@ export async function addVariantInventory(
     'POST',
     `/api/v1/offers/${offerId}/variants/${variantId}/inventory`,
     input,
+  );
+}
+
+/** One inventory unit as shown in the management surface (dates are ISO strings). */
+export interface InventoryUnitView {
+  codeId: string;
+  kind: 'barcode' | 'link';
+  value: string;
+  code?: string;
+  status: 'available' | 'assigned' | 'redeemed';
+  validityValue?: number | null;
+  validityUnit?: 'days' | 'months' | 'years' | null;
+  validFrom?: string | null;
+  validUntil?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+/** A page of a variant's inventory units plus the total matching the filter. */
+export interface InventoryUnitPage {
+  units: InventoryUnitView[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/** Date filter for the management list. Expiring choices are fixed windows. */
+export interface UnitDateFilter {
+  from?: string;
+  until?: string;
+  expiringWithin?: '1m' | '3m' | '1y';
+  noWindow?: boolean;
+  /** Created-at range (ISO date strings). */
+  createdFrom?: string;
+  createdTo?: string;
+  /** Updated-at range (ISO date strings). */
+  updatedFrom?: string;
+  updatedTo?: string;
+  /** Case-insensitive substring match on the code value / link code. */
+  search?: string;
+}
+
+/**
+ * Lists a variant's inventory units (paged + date-filtered) for the management
+ * surface. Matches GET /api/v1/offers/:offerId/variants/:variantId/inventory/units.
+ */
+export async function listVariantUnits(
+  offerId: string,
+  variantId: string,
+  filter: UnitDateFilter = {},
+  page = 1,
+  pageSize = 50,
+): Promise<InventoryUnitPage> {
+  const u = new URLSearchParams();
+  if (filter.from) u.set('from', filter.from);
+  if (filter.until) u.set('until', filter.until);
+  if (filter.expiringWithin) u.set('expiringWithin', filter.expiringWithin);
+  if (filter.noWindow) u.set('noWindow', 'true');
+  if (filter.createdFrom) u.set('createdFrom', filter.createdFrom);
+  if (filter.createdTo) u.set('createdTo', filter.createdTo);
+  if (filter.updatedFrom) u.set('updatedFrom', filter.updatedFrom);
+  if (filter.updatedTo) u.set('updatedTo', filter.updatedTo);
+  if (filter.search && filter.search.trim()) u.set('search', filter.search.trim());
+  u.set('page', String(page));
+  u.set('pageSize', String(pageSize));
+  return request<InventoryUnitPage>(
+    'GET',
+    `/api/v1/offers/${offerId}/variants/${variantId}/inventory/units?${u.toString()}`,
+  );
+}
+
+/** The validity to set on one unit (the set matching its variant's effective type). */
+export interface UnitValidityPatch {
+  validityValue?: number | null;
+  validityUnit?: 'days' | 'months' | 'years' | null;
+  validFrom?: string | null;
+  validUntil?: string | null;
+}
+
+/**
+ * Edits ONE unit's validity. Matches
+ * PATCH /api/v1/offers/:offerId/variants/:variantId/inventory/:codeId.
+ */
+export async function updateUnitValidity(
+  offerId: string,
+  variantId: string,
+  codeId: string,
+  validity: UnitValidityPatch,
+): Promise<{ unit: InventoryUnitView }> {
+  return request<{ unit: InventoryUnitView }>(
+    'PATCH',
+    `/api/v1/offers/${offerId}/variants/${variantId}/inventory/${codeId}`,
+    validity,
+  );
+}
+
+/** One unit's before -> after validity in a bulk-update response. */
+export interface UnitValidityChange {
+  codeId: string;
+  value: string;
+  before: UnitValidityPatch;
+  after: UnitValidityPatch;
+}
+
+/** Bulk-update response: count + per-unit from->to + who/when (audit). */
+export interface BulkUpdateResult {
+  updated: number;
+  changes: UnitValidityChange[];
+  updatedBy: { identityId: string; tenantId: string };
+  updatedAt: string;
+}
+
+/**
+ * Re-stamps the validity of MANY units in one request. Matches
+ * PATCH /api/v1/offers/:offerId/variants/:variantId/inventory (bulk). The response
+ * reports how many changed, the per-unit before->after, and who/when (audit).
+ */
+export async function bulkUpdateUnitValidity(
+  offerId: string,
+  variantId: string,
+  codeIds: string[],
+  validity: UnitValidityPatch,
+): Promise<BulkUpdateResult> {
+  return request<BulkUpdateResult>(
+    'PATCH',
+    `/api/v1/offers/${offerId}/variants/${variantId}/inventory`,
+    { codeIds, ...validity },
+  );
+}
+
+/**
+ * Deletes ONE inventory unit. Matches
+ * DELETE /api/v1/offers/:offerId/variants/:variantId/inventory/:codeId.
+ */
+export async function deleteVariantUnit(
+  offerId: string,
+  variantId: string,
+  codeId: string,
+): Promise<{ deleted: boolean; stockLimit: number }> {
+  return request<{ deleted: boolean; stockLimit: number }>(
+    'DELETE',
+    `/api/v1/offers/${offerId}/variants/${variantId}/inventory/${codeId}`,
   );
 }
 
