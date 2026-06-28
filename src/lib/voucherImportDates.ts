@@ -101,36 +101,76 @@ export function normalizeExpiry(raw: string | number | null | undefined): string
   return null;
 }
 
-/** Adds `years` to a `YYYY-MM-DD` string, clamping an invalid day (e.g. Feb 29) down. */
-function addYears(ymd: string, years: number): string {
-  const [y, mo, d] = ymd.split('-').map(Number);
-  const targetYear = y + years;
-  // Clamp the day to the target month's length (handles Feb 29 -> Feb 28).
-  const lastDay = new Date(Date.UTC(targetYear, mo, 0)).getUTCDate();
-  return fmt(targetYear, mo, Math.min(d, lastDay));
+/** A validity unit for the `limit` (duration-from-purchase) recipe. */
+export type ValidityUnit = 'days' | 'months' | 'years';
+
+/** A parsed duration: an amount plus its unit. */
+export interface ParsedDuration {
+  value: number;
+  unit: ValidityUnit;
 }
 
-/** A redeemable window for an imported unit (from_until type), as ISO date strings. */
-export interface UnitWindow {
-  validFrom: string;
-  validUntil: string;
+/** Maps a duration unit word (EN + HE, with single-letter aliases) to a ValidityUnit. */
+function durationUnit(word: string | undefined): ValidityUnit {
+  const w = (word ?? '').toLowerCase();
+  if (/^d|day|days|יום|ימים/.test(w)) return 'days';
+  if (/^mo|month|months|חודש|חודשים/.test(w)) return 'months';
+  // 'm' alone is treated as months (minutes are not a voucher unit); default is years.
+  if (w === 'm') return 'months';
+  return 'years';
 }
 
 /**
- * Resolves one imported row's redeemable window.
- *
- * Input: the raw date cell and the import date (`YYYY-MM-DD`, e.g. today).
- * Output: { validFrom, validUntil } where validFrom is the import date and
- *   validUntil is the parsed expiry, or import-date + 5 years when the cell is
- *   missing/blank/unparseable. Per-row, so one bad cell never blocks the import.
+ * Parses a duration cell into amount + unit, or null when there is no number.
+ * Accepts "5", "5 years", "30 days", "12 months", "2y", "‎6 חודשים". A bare
+ * number defaults to years (matching the manual form's 5-year default).
  */
-export function resolveUnitWindow(
-  raw: string | number | null | undefined,
+export function parseDuration(raw: string | number | null | undefined): ParsedDuration | null {
+  if (raw == null) return null;
+  const s = String(raw).trim();
+  const m = s.match(/^(\d+)\s*([A-Za-z֐-׿]*)/);
+  if (!m) return null;
+  const value = Number(m[1]);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  return { value, unit: durationUnit(m[2]) };
+}
+
+/** A unit's resolved validity: a from/until window (from_until) OR a limit recipe. */
+export interface UnitValidity {
+  validityValue: number | null;
+  validityUnit: ValidityUnit | null;
+  validFrom: string | null;
+  validUntil: string | null;
+}
+
+/**
+ * Resolves one imported row's validity from its Start / End / Duration cells.
+ *
+ * Rules (per the import spec):
+ * - End date present -> `from_until` window [Start (or import date), End].
+ * - else Duration present -> `limit` recipe (amount + unit).
+ * - else -> `limit` of 5 years (the fixed lifespan fallback).
+ * Per-row, so a single bad/blank cell never blocks the import.
+ */
+export function resolveUnitValidity(
+  startRaw: string | number | null | undefined,
+  endRaw: string | number | null | undefined,
+  durationRaw: string | number | null | undefined,
   importDate: string,
-): UnitWindow {
-  const parsed = normalizeExpiry(raw);
-  return {
-    validFrom: importDate,
-    validUntil: parsed ?? addYears(importDate, 5),
-  };
+): UnitValidity {
+  const end = normalizeExpiry(endRaw);
+  if (end) {
+    return {
+      validityValue: null,
+      validityUnit: null,
+      validFrom: normalizeExpiry(startRaw) ?? importDate,
+      validUntil: end,
+    };
+  }
+  const dur = parseDuration(durationRaw);
+  if (dur) {
+    return { validityValue: dur.value, validityUnit: dur.unit, validFrom: null, validUntil: null };
+  }
+  // No end date and no duration -> fixed 5-year limit lifespan.
+  return { validityValue: 5, validityUnit: 'years', validFrom: null, validUntil: null };
 }

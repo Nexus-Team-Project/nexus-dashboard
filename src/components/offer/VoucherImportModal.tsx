@@ -26,11 +26,6 @@ interface VoucherImportModalProps {
 
 type Step = 'upload' | 'map' | 'match';
 
-/** Today as YYYY-MM-DD, used as every imported unit's validFrom + the 5-year fallback base. */
-function today(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
 export default function VoucherImportModal({ onClose, onImport }: VoucherImportModalProps) {
   const { t } = useLanguage();
   const [step, setStep] = useState<Step>('upload');
@@ -62,7 +57,7 @@ export default function VoucherImportModal({ onClose, onImport }: VoucherImportM
 
   const finalize = (m: VoucherImportMapping, valueMap: Record<string, 'yes' | 'no'>) => {
     if (!parsed) return;
-    onImport(rowsToDraftVariants(parsed.rows, m, valueMap, today()));
+    onImport(rowsToDraftVariants(parsed.rows, m, valueMap));
   };
 
   const onMapNext = (m: VoucherImportMapping, stackableDistinct: string[]) => {

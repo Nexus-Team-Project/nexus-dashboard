@@ -179,6 +179,7 @@ const CreateOffer = () => {
     setVariants((prev) => [...prev, ...outcome.variants]);
     toast.success(`${t('vxi_toastImported')} ${outcome.variants.length} ${t('co_variantsCountLabel')}, ${outcome.unitCount} ${t('vxi_codes')}`);
     if (outcome.duplicateBarcodes.length > 0) toast.warning(`${outcome.duplicateBarcodes.length} ${t('vxi_toastDupBarcodes')}`);
+    if (outcome.conflictingKindRows > 0) toast.warning(`${outcome.conflictingKindRows} ${t('vxi_toastConflictKind')}`);
     if (outcome.skippedRows > 0) toast.warning(`${outcome.skippedRows} ${t('vxi_toastSkipped')}`);
   };
 

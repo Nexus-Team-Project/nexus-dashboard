@@ -1,47 +1,56 @@
 /**
  * Pure transform from parsed spreadsheet rows to voucher draft variants for the
- * XLSX import on /supply/create. One row = one barcoded inventory unit; rows are
- * grouped into variants by (Value, Sale Price, Allow Stackable Promotions), and
- * each variant carries one staged unit per row with its own normalized expiry.
+ * XLSX import on /supply/create. One row = one inventory unit; rows are grouped
+ * into variants by their full variant signature, and each variant carries one
+ * staged unit per row with its own resolved validity.
  *
- * No React here so CreateOffer stays under the line cap and the logic is testable.
- * The grouping key is kept identical to `draftSignature` (no SKU/redemption is
- * imported) so two generated variants can never be mutual duplicates.
+ * No field is required in the mapping UI - the admin maps whatever columns the
+ * file has and completes the rest in the form. Every "Create Variant" field is a
+ * mapping target: price, SKU, stackable, tags, redemption terms/method, the
+ * Start/End/Duration validity, and inventory as barcodes OR links.
+ *
+ * No React here so CreateOffer stays small and the logic is testable. The group
+ * key is the real `draftSignature`, so two generated variants are never duplicates.
  */
-import { type DraftVariant, type StackChoice, type StagedUnit, emptyDraftVariant } from './voucherVariantDraft';
-import { resolveUnitWindow } from '../lib/voucherImportDates';
+import {
+  type DraftVariant,
+  type StackChoice,
+  type StagedUnit,
+  emptyDraftVariant,
+  draftSignature,
+} from './voucherVariantDraft';
+import { resolveUnitValidity } from '../lib/voucherImportDates';
 
-/** Which spreadsheet column header feeds each target field. Undefined = unmapped. */
+/** Which spreadsheet column header feeds each target field. All optional. */
 export interface VoucherImportMapping {
-  /** Header for Value (face_value). Required unless salePrice is mapped (coupling). */
   value?: string;
-  /** Header for Sale Price (nexus_cost). Required unless value is mapped (coupling). */
   salePrice?: string;
-  /** Header for Allow Stackable Promotions. Optional. */
+  sku?: string;
   stackable?: string;
-  /** Header for the per-unit Barcode value. Required. */
+  tags?: string;
+  terms?: string;
+  method?: string;
+  startDate?: string;
+  endDate?: string;
+  duration?: string;
   barcode?: string;
-  /** Header for the per-unit expiry date. Optional. */
-  date?: string;
+  link?: string;
 }
 
-/**
- * Resolution of each distinct stackable free-text value to the binary choice,
- * keyed by the trimmed + lower-cased text (built by the value-matching step).
- */
+/** Resolution of each distinct stackable free-text value, keyed by lower-cased text. */
 export type StackableValueMap = Record<string, 'yes' | 'no'>;
 
 /** Outcome of the transform: the variants plus counts and issues to surface. */
 export interface VoucherImportOutcome {
   variants: DraftVariant[];
-  /** Rows that produced a unit. */
   rowCount: number;
-  /** Total staged units across all variants. */
   unitCount: number;
   /** Barcode values that appear more than once across the file (backend rejects dups). */
   duplicateBarcodes: string[];
-  /** Rows dropped because a required cell (value/sale price/barcode) was missing or invalid. */
+  /** Rows with nothing usable (all mapped cells blank). */
   skippedRows: number;
+  /** Units dropped because their variant already uses the other inventory kind. */
+  conflictingKindRows: number;
 }
 
 /** Local-id counter for imported staged units (client-only React keys). */
@@ -59,10 +68,20 @@ function parsePrice(raw: string | undefined): number {
   return Number(cleaned);
 }
 
+/** Splits a tags cell on comma/semicolon into trimmed, de-duplicated tags. */
+function parseTags(raw: string | undefined): string[] {
+  if (!raw) return [];
+  const out: string[] = [];
+  for (const part of raw.split(/[,;]/)) {
+    const tag = part.trim();
+    if (tag && !out.includes(tag)) out.push(tag);
+  }
+  return out;
+}
+
 /**
  * Collects the distinct, non-empty values of a column (trimmed; de-duplicated
- * case-insensitively, keeping the first-seen original text). Used by the
- * stackable value-matching step to know what the user must map to yes/no.
+ * case-insensitively, keeping the first-seen text). Drives the stackable matcher.
  */
 export function collectColumnValues(rows: Record<string, string>[], header: string): string[] {
   const seen = new Set<string>();
@@ -90,98 +109,122 @@ function resolveStackable(
   return valueMap[raw.toLowerCase()] ?? '';
 }
 
-/** Accumulator for one variant group while scanning rows. */
-interface Group {
-  face: number;
-  sale: number;
-  /** Whether this group's effective stackable is "yes" (part of the group identity). */
-  stackableBool: boolean;
-  /** True only when at least one row in the group was explicitly resolved to "no". */
-  anyExplicitNo: boolean;
-  units: StagedUnit[];
+/** Builds the variant-shaped fields for one row (no inventory unit yet). */
+function rowToDraft(
+  row: Record<string, string>,
+  mapping: VoucherImportMapping,
+  valueMap: StackableValueMap,
+): DraftVariant {
+  // Coupling: when only one of Value / Sale price is mapped, both read that column.
+  const valueCol = mapping.value ?? mapping.salePrice;
+  const saleCol = mapping.salePrice ?? mapping.value;
+  const face = parsePrice(valueCol ? row[valueCol] : undefined);
+  const sale = parsePrice(saleCol ? row[saleCol] : undefined);
+
+  const terms = mapping.terms ? (row[mapping.terms] ?? '').trim() : '';
+  const method = mapping.method ? (row[mapping.method] ?? '').trim() : '';
+
+  const draft = emptyDraftVariant();
+  draft.faceValue = Number.isFinite(face) ? String(face) : '';
+  draft.nexusCost = Number.isFinite(sale) ? String(sale) : '';
+  draft.stackable = resolveStackable(row, mapping, valueMap);
+  draft.sku = mapping.sku ? (row[mapping.sku] ?? '').trim().toUpperCase() : '';
+  draft.tags = mapping.tags ? parseTags(row[mapping.tags]) : [];
+  draft.customRedemption = terms !== '' || method !== '';
+  draft.terms = terms;
+  draft.implementationInstructions = method;
+  return draft;
+}
+
+/** Builds one row's staged inventory unit (barcode preferred over link), or null. */
+function rowToUnit(row: Record<string, string>, mapping: VoucherImportMapping): StagedUnit | null {
+  const barcode = mapping.barcode ? (row[mapping.barcode] ?? '').trim() : '';
+  const link = mapping.link ? (row[mapping.link] ?? '').trim() : '';
+  const value = barcode || link;
+  if (value === '') return null;
+  const v = resolveUnitValidity(
+    mapping.startDate ? row[mapping.startDate] : '',
+    mapping.endDate ? row[mapping.endDate] : '',
+    mapping.duration ? row[mapping.duration] : '',
+    new Date().toISOString().slice(0, 10),
+  );
+  return {
+    localId: nextImportUnitId(),
+    kind: barcode ? 'barcode' : 'link',
+    value,
+    validityValue: v.validityValue,
+    validityUnit: v.validityUnit,
+    validFrom: v.validFrom,
+    validUntil: v.validUntil,
+  };
+}
+
+/** True when a draft carries no usable variant data and no inventory value. */
+function isEmptyRow(draft: DraftVariant, unit: StagedUnit | null): boolean {
+  return (
+    !unit &&
+    draft.faceValue === '' &&
+    draft.nexusCost === '' &&
+    draft.stackable === '' &&
+    draft.sku === '' &&
+    draft.tags.length === 0 &&
+    draft.terms === '' &&
+    draft.implementationInstructions === ''
+  );
 }
 
 /**
- * Transforms parsed rows into draft variants with staged barcoded inventory.
+ * Transforms parsed rows into draft variants with staged inventory.
  *
- * Inputs:
- * - rows: header->cell maps from the XLSX reader.
- * - mapping: which column feeds each target field.
- * - valueMap: distinct stackable text -> yes/no (empty when stackable unmapped).
- * - importDate: today as `YYYY-MM-DD`; seeds each unit's validFrom and the 5-year fallback.
- *
- * Output: VoucherImportOutcome. Value/Sale Price coupling is applied (mapping one
- * fills both); a row missing a required value/price/barcode is skipped and counted.
- * The group key mirrors `draftSignature` (face, sale, stackable-as-yes) so unmapped
- * or blank stackable collapses into the same (Value, Sale Price) variant.
+ * Inputs: parsed rows, the column mapping, the stackable value-match table (empty
+ * when stackable is unmapped), and `importDate` is taken as today per unit. The
+ * group key is `draftSignature`, so variants are never mutual duplicates; stackable
+ * '' and 'no' collapse together (a group keeps 'no' if any row said no). Tags are
+ * unioned across a group. A unit whose kind differs from its variant's existing
+ * kind is dropped and counted (one kind per variant).
  */
 export function rowsToDraftVariants(
   rows: Record<string, string>[],
   mapping: VoucherImportMapping,
   valueMap: StackableValueMap,
-  importDate: string,
 ): VoucherImportOutcome {
-  // Coupling: when only one of Value / Sale Price is mapped, both read that column.
-  const valueCol = mapping.value ?? mapping.salePrice;
-  const saleCol = mapping.salePrice ?? mapping.value;
-  const barcodeCol = mapping.barcode;
-
-  const groups = new Map<string, Group>();
+  const groups = new Map<string, DraftVariant>();
   const barcodeCounts = new Map<string, number>();
   let rowCount = 0;
   let skippedRows = 0;
+  let conflictingKindRows = 0;
 
   for (const row of rows) {
-    const face = parsePrice(valueCol ? row[valueCol] : undefined);
-    const sale = parsePrice(saleCol ? row[saleCol] : undefined);
-    const barcode = (barcodeCol ? row[barcodeCol] ?? '' : '').trim();
+    const draft = rowToDraft(row, mapping, valueMap);
+    const unit = rowToUnit(row, mapping);
+    if (isEmptyRow(draft, unit)) { skippedRows += 1; continue; }
+    rowCount += 1;
 
-    // Required cells must be present and valid for the row to become a unit.
-    if (!Number.isFinite(face) || face <= 0 || !Number.isFinite(sale) || sale <= 0 || barcode === '') {
-      skippedRows += 1;
-      continue;
-    }
-
-    const stk = resolveStackable(row, mapping, valueMap);
-    const stackableBool = stk === 'yes';
-    const key = JSON.stringify([face, sale, stackableBool]);
-
+    const key = draftSignature(draft);
     let group = groups.get(key);
     if (!group) {
-      group = { face, sale, stackableBool, anyExplicitNo: false, units: [] };
-      groups.set(key, group);
+      groups.set(key, draft);
+      group = draft;
+    } else {
+      // Same variant: keep an explicit "no" over an unset choice, union tags.
+      if (group.stackable === '' && draft.stackable === 'no') group.stackable = 'no';
+      for (const tag of draft.tags) if (!group.tags.includes(tag)) group.tags.push(tag);
     }
-    if (stk === 'no') group.anyExplicitNo = true;
 
-    const window = resolveUnitWindow(mapping.date ? row[mapping.date] : '', importDate);
-    group.units.push({
-      localId: nextImportUnitId(),
-      kind: 'barcode',
-      value: barcode,
-      validityValue: null,
-      validityUnit: null,
-      validFrom: window.validFrom,
-      validUntil: window.validUntil,
-    });
-
-    barcodeCounts.set(barcode, (barcodeCounts.get(barcode) ?? 0) + 1);
-    rowCount += 1;
+    if (unit) {
+      const existingKind = group.stagedUnits[0]?.kind;
+      if (existingKind && existingKind !== unit.kind) {
+        conflictingKindRows += 1; // one kind per variant - drop the odd one out, surfaced as a warning
+      } else {
+        group.stagedUnits.push(unit);
+        if (unit.kind === 'barcode') barcodeCounts.set(unit.value, (barcodeCounts.get(unit.value) ?? 0) + 1);
+      }
+    }
   }
 
-  const variants: DraftVariant[] = [];
-  let unitCount = 0;
-  for (const group of groups.values()) {
-    const draft = emptyDraftVariant();
-    draft.faceValue = String(group.face);
-    draft.nexusCost = String(group.sale);
-    // yes -> 'yes'; otherwise 'no' if any row said no, else unset (mandatory choice later).
-    draft.stackable = group.stackableBool ? 'yes' : group.anyExplicitNo ? 'no' : '';
-    draft.stagedUnits = group.units;
-    variants.push(draft);
-    unitCount += group.units.length;
-  }
-
+  const variants = [...groups.values()];
+  const unitCount = variants.reduce((n, v) => n + v.stagedUnits.length, 0);
   const duplicateBarcodes = [...barcodeCounts.entries()].filter(([, n]) => n > 1).map(([v]) => v);
 
-  return { variants, rowCount, unitCount, duplicateBarcodes, skippedRows };
+  return { variants, rowCount, unitCount, duplicateBarcodes, skippedRows, conflictingKindRows };
 }

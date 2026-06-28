@@ -1,12 +1,14 @@
 /**
  * Voucher column-mapping screen for the XLSX import. Cloned from the contacts
  * `ColumnMapping` look (same modal shell, two-column grid, footer) but targets
- * the voucher-variant fields: Value, Sale price, Barcode (required), plus
- * Allow-stackable and Expiry date (optional). Leaves `/users` ColumnMapping
- * untouched, following the existing `RecipientColumnMapping` clone precedent.
+ * the full voucher "Create Variant" field set. Nothing is required: the admin
+ * maps whatever columns the file has and completes the rest in the form, so the
+ * UI shows no mandatory/optional markers and never blocks on a missing field.
+ * The one hard stop is a stackable column with more than two distinct values.
  *
- * It only maps columns -> fields and gates Next; turning rows into variants is
- * done by `voucherXlsxImport`, and the stackable value-matching is a later step.
+ * It only maps columns -> fields; turning rows into variants is done by
+ * `voucherXlsxImport`, and the stackable value-matching is a later step. Leaves
+ * `/users` ColumnMapping untouched (clone, per the `RecipientColumnMapping` precedent).
  */
 import { useState, useMemo } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -14,15 +16,22 @@ import { collectColumnValues, type VoucherImportMapping } from '../../pages/vouc
 import type { TranslationKey } from '../../i18n/translations';
 
 /** A voucher mapping target, or '' (ignore this column). */
-type VoucherTarget = 'value' | 'salePrice' | 'stackable' | 'barcode' | 'date' | '';
+type VoucherTarget = keyof VoucherImportMapping | '';
 
-/** Target fields offered in each column's dropdown, in display order. */
-const FIELDS: { key: Exclude<VoucherTarget, ''>; labelKey: TranslationKey; required: boolean }[] = [
-  { key: 'value', labelKey: 'vxi_fieldValue', required: true },
-  { key: 'salePrice', labelKey: 'vxi_fieldSalePrice', required: true },
-  { key: 'barcode', labelKey: 'vxi_fieldBarcode', required: true },
-  { key: 'stackable', labelKey: 'vxi_fieldStackable', required: false },
-  { key: 'date', labelKey: 'vxi_fieldDate', required: false },
+/** Target fields offered in each column's dropdown, in display order. No required flags. */
+const FIELDS: { key: keyof VoucherImportMapping; labelKey: TranslationKey }[] = [
+  { key: 'value', labelKey: 'vxi_fieldValue' },
+  { key: 'salePrice', labelKey: 'vxi_fieldSalePrice' },
+  { key: 'sku', labelKey: 'vxi_fieldSku' },
+  { key: 'stackable', labelKey: 'vxi_fieldStackable' },
+  { key: 'tags', labelKey: 'vxi_fieldTags' },
+  { key: 'terms', labelKey: 'vxi_fieldTerms' },
+  { key: 'method', labelKey: 'vxi_fieldMethod' },
+  { key: 'startDate', labelKey: 'vxi_fieldStartDate' },
+  { key: 'endDate', labelKey: 'vxi_fieldEndDate' },
+  { key: 'duration', labelKey: 'vxi_fieldDuration' },
+  { key: 'barcode', labelKey: 'vxi_fieldBarcode' },
+  { key: 'link', labelKey: 'vxi_fieldLink' },
 ];
 
 interface MapRow {
@@ -35,18 +44,23 @@ interface VoucherColumnMappingProps {
   fileName?: string;
   headers: string[];
   rows: Record<string, string>[];
-  /** Back to the upload step. */
   onBack: () => void;
-  /** Proceed with the chosen mapping and the distinct values of the stackable column (if mapped). */
   onNext: (mapping: VoucherImportMapping, stackableDistinct: string[]) => void;
 }
 
 /** Auto-maps a header to a voucher field by name (EN + HE), or '' when unsure. */
 function autoDetect(header: string): VoucherTarget {
   const h = header.toLowerCase().trim();
+  if (/link|url|קישור|כתובת אתר/.test(h)) return 'link';
+  if (/barcode|serial|voucher|ברקוד|שובר/.test(h)) return 'barcode';
+  if (/duration|length|lifespan|משך|תקופה/.test(h)) return 'duration';
+  if (/start|valid.?from|from date|מתאריך|תאריך התחל/.test(h)) return 'startDate';
+  if (/end|expir|until|valid.?to|תפוג|בתוקף עד|עד תאריך/.test(h)) return 'endDate';
+  if (/sku|מק.?ט/.test(h)) return 'sku';
   if (/stack|combin|promo|כפל|מבצע/.test(h)) return 'stackable';
-  if (/barcode|serial|voucher|ברקוד|שובר|קוד/.test(h)) return 'barcode';
-  if (/date|expir|valid|until|תאריך|תוקף|פג/.test(h)) return 'date';
+  if (/tag|תגי/.test(h)) return 'tags';
+  if (/terms|condition|תנאי/.test(h)) return 'terms';
+  if (/method|redempt|מימוש|אופן/.test(h)) return 'method';
   if (/sale|sell|מכיר/.test(h)) return 'salePrice';
   if (/price|מחיר/.test(h)) return 'salePrice';
   if (/value|face|amount|שווי|ערך/.test(h)) return 'value';
@@ -59,16 +73,15 @@ function sampleValues(rows: Record<string, string>[], header: string): string {
   return vals.join(', ') || '-';
 }
 
-/** Builds the field -> column mapping object from the per-column rows. */
+/** Builds the field -> column mapping from the per-column rows. */
 function toMapping(mapRows: MapRow[]): VoucherImportMapping {
-  const colFor = (target: VoucherTarget) => mapRows.find((r) => r.target === target)?.column;
-  return {
-    value: colFor('value'),
-    salePrice: colFor('salePrice'),
-    stackable: colFor('stackable'),
-    barcode: colFor('barcode'),
-    date: colFor('date'),
-  };
+  const colFor = (target: keyof VoucherImportMapping) => mapRows.find((r) => r.target === target)?.column;
+  const mapping: VoucherImportMapping = {};
+  for (const f of FIELDS) {
+    const col = colFor(f.key);
+    if (col) mapping[f.key] = col;
+  }
+  return mapping;
 }
 
 /** Renders the voucher column-mapping screen. */
@@ -86,15 +99,11 @@ export default function VoucherColumnMapping({ fileName, headers, rows, onBack, 
     () => (mapping.stackable ? collectColumnValues(rows, mapping.stackable) : []),
     [mapping.stackable, rows],
   );
-
-  // Coupling: one of Value/Sale price is enough (the other mirrors it). Barcode is required.
-  const priceMapped = !!mapping.value || !!mapping.salePrice;
-  const barcodeMapped = !!mapping.barcode;
   const stackTooMany = stackableDistinct.length > 2;
-  const canProceed = priceMapped && barcodeMapped && !stackTooMany;
+  const mappedCount = mapRows.filter((r) => r.target !== '').length;
 
   const proceed = () => {
-    if (!canProceed) return;
+    if (stackTooMany) return;
     onNext(mapping, stackableDistinct);
   };
 
@@ -155,10 +164,9 @@ export default function VoucherColumnMapping({ fileName, headers, rows, onBack, 
                     <option value="">{t('cm_chooseColumn')}</option>
                     {FIELDS.map((f) => {
                       const claimedByOther = mapRows.some((m, i) => i !== index && m.target === f.key);
-                      const label = `${t(f.labelKey)}${f.required ? ' *' : ` (${t('vxi_optional')})`}`;
                       return (
                         <option key={f.key} value={f.key} disabled={claimedByOther}>
-                          {label}{claimedByOther ? ' ✓' : ''}
+                          {t(f.labelKey)}{claimedByOther ? ' ✓' : ''}
                         </option>
                       );
                     })}
@@ -174,19 +182,9 @@ export default function VoucherColumnMapping({ fileName, headers, rows, onBack, 
       </div>
 
       <div className="mt-12 pt-8 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center gap-4">
-        <div className="text-sm">
-          {canProceed ? (
-            <span className="flex items-center gap-2 text-green-600 dark:text-green-500">
-              <span className="material-icons text-lg">check_circle</span>
-              {t('vxi_readyToReview')}
-            </span>
-          ) : (
-            <span className="flex items-center gap-2 text-amber-600 dark:text-amber-500">
-              <span className="material-icons text-lg">warning_amber</span>
-              {t('vxi_needRequired')}
-            </span>
-          )}
-        </div>
+        <span className="text-sm text-slate-500 dark:text-slate-400">
+          {mappedCount > 0 ? `${mappedCount} ${t('vxi_mappedCount')}` : t('vxi_mapHint')}
+        </span>
         <div className="flex items-center gap-4">
           <button
             onClick={onBack}
@@ -196,7 +194,7 @@ export default function VoucherColumnMapping({ fileName, headers, rows, onBack, 
           </button>
           <button
             onClick={proceed}
-            disabled={!canProceed}
+            disabled={stackTooMany}
             className="bg-primary text-white px-10 py-2.5 font-semibold rounded-lg shadow-lg shadow-primary/20 hover:opacity-90 transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {t('cm_next')}
