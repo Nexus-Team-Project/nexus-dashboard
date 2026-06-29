@@ -86,7 +86,6 @@ export default function VoucherColumnMapping({ fileName, headers, rows, onBack, 
     [mapping.stackable, rows],
   );
   const mappedCount = mapRows.filter((r) => r.target !== '').length;
-  const linkMapped = mapRows.some((r) => r.target === 'link');
 
   // Link codes cannot outnumber links (a code with no link is invalid).
   const codesExceedLinks = useMemo(() => {
@@ -164,15 +163,13 @@ export default function VoucherColumnMapping({ fileName, headers, rows, onBack, 
                     {FIELDS.map((f) => {
                       const claimedByOther = mapRows.some((m, i) => i !== index && m.target === f.key);
                       // Inventory is one kind per voucher. Barcode is one family; Link + Link codes
-                      // are the other. Block the opposite family when it is mapped in another row
-                      // (so this row can still switch within its choice). Link codes additionally
-                      // require Link to be mapped somewhere - a code has no meaning without links.
+                      // are the other (both unlocked by default). Mapping Barcode blocks the whole
+                      // link family, and mapping either Link or Link codes blocks Barcode.
                       const otherBarcode = mapRows.some((m, i) => i !== index && m.target === 'barcode');
                       const otherLinkFamily = mapRows.some((m, i) => i !== index && (m.target === 'link' || m.target === 'linkCode'));
                       const kindBlocked =
                         (f.key === 'barcode' && otherLinkFamily) ||
-                        (f.key === 'link' && otherBarcode) ||
-                        (f.key === 'linkCode' && (otherBarcode || !linkMapped));
+                        ((f.key === 'link' || f.key === 'linkCode') && otherBarcode);
                       return (
                         <option key={f.key} value={f.key} disabled={claimedByOther || kindBlocked}>
                           {t(f.labelKey)}{claimedByOther ? ' ✓' : ''}
