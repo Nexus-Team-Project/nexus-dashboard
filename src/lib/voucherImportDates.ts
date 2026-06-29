@@ -82,23 +82,30 @@ export function normalizeExpiry(raw: string | number | null | undefined): string
     return isRealDate(+y, +mo, +d) ? fmt(+y, +mo, +d) : null;
   }
 
-  // D-MMM-YYYY (e.g. 28-Apr-2026 / 8-Aug-2030), separators - or space.
-  m = s.match(/^(\d{1,2})[-\s]([A-Za-z]{3,})[-\s](\d{4})$/);
+  // D-MMM-YYYY (e.g. 28-Apr-2026 / 8-Aug-2030), 2- or 4-digit year, sep - or space.
+  m = s.match(/^(\d{1,2})[-\s]([A-Za-z]{3,})[-\s](\d{2}|\d{4})$/);
   if (m) {
     const [, d, monName, y] = m;
     const mo = MONTHS[monName.slice(0, 3).toLowerCase()];
-    if (mo && isRealDate(+y, mo, +d)) return fmt(+y, mo, +d);
+    const year = fullYear(y);
+    if (mo && isRealDate(year, mo, +d)) return fmt(year, mo, +d);
     return null;
   }
 
-  // US M/D/YYYY with an optional time component (e.g. 8/31/2030 12:00:00 AM).
-  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s.*)?$/);
+  // US M/D/Y with an optional time component (e.g. 8/31/2030 12:00:00 AM), 2- or 4-digit year.
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})(?:\s.*)?$/);
   if (m) {
     const [, mo, d, y] = m;
-    return isRealDate(+y, +mo, +d) ? fmt(+y, +mo, +d) : null;
+    const year = fullYear(y);
+    return isRealDate(year, +mo, +d) ? fmt(year, +mo, +d) : null;
   }
 
   return null;
+}
+
+/** Expands a 2-digit year to 20YY; leaves a 4-digit year as-is. */
+function fullYear(y: string): number {
+  return y.length === 2 ? 2000 + Number(y) : Number(y);
 }
 
 /** A validity unit for the `limit` (duration-from-purchase) recipe. */

@@ -43,7 +43,8 @@ export async function readXlsx(file: File): Promise<ParsedCsv> {
   let workbook: XLSX.WorkBook;
   try {
     const buffer = await file.arrayBuffer();
-    workbook = XLSX.read(buffer, { type: 'array', cellDates: false });
+    // cellNF keeps each cell's number format so we can tell real date cells apart.
+    workbook = XLSX.read(buffer, { type: 'array', cellNF: true });
   } catch {
     throw new Error('Could not read the Excel file. It may be corrupted or not a real .xlsx file.');
   }
@@ -54,34 +55,45 @@ export async function readXlsx(file: File): Promise<ParsedCsv> {
     throw new Error('The Excel file has no sheets.');
   }
 
-  // header: 1 yields an array-of-arrays; raw: false applies each cell's number
-  // format so date cells become readable strings; defval keeps column alignment.
-  const matrix = XLSX.utils.sheet_to_json<(string | number)[]>(sheet, {
-    header: 1,
-    raw: false,
-    defval: '',
-    blankrows: false,
-  });
-
-  if (matrix.length === 0) {
+  const ref = sheet['!ref'];
+  if (!ref) {
     throw new Error('The Excel file is empty.');
   }
+  const range = XLSX.utils.decode_range(ref);
 
-  const headers = (matrix[0] ?? [])
-    .map((h) => String(h ?? '').trim())
-    .filter((h) => h.length > 0);
+  // Read one cell as a string. A real date cell (numeric with a date number-format)
+  // is emitted as its Excel serial so `normalizeExpiry` converts it via the UTC epoch
+  // - this avoids ambiguous displayed formats (e.g. 2-digit years like "1/15/27").
+  // Every other cell keeps its formatted text, preserving e.g. leading-zero barcodes.
+  const cellAt = (r: number, c: number): string => {
+    const cell = sheet[XLSX.utils.encode_cell({ r, c })] as XLSX.CellObject | undefined;
+    if (!cell || cell.v == null) return '';
+    if (cell.t === 'n' && typeof cell.v === 'number' && cell.z && XLSX.SSF.is_date(String(cell.z))) {
+      return String(cell.v);
+    }
+    return String(cell.w ?? cell.v).trim();
+  };
+
+  const headers: string[] = [];
+  for (let c = range.s.c; c <= range.e.c; c++) {
+    const h = cellAt(range.s.r, c);
+    if (h !== '') headers.push(h);
+  }
   if (headers.length === 0) {
     throw new Error('The first row of the Excel file has no column headers.');
   }
 
-  const dataRows = matrix.slice(1, MAX_ROWS + 1);
-  const rows: Record<string, string>[] = dataRows.map((cells) => {
+  const rows: Record<string, string>[] = [];
+  for (let r = range.s.r + 1; r <= range.e.r && rows.length < MAX_ROWS; r++) {
     const row: Record<string, string> = {};
+    let hasValue = false;
     headers.forEach((header, idx) => {
-      row[header] = String(cells[idx] ?? '').trim();
+      const v = cellAt(r, range.s.c + idx);
+      row[header] = v;
+      if (v !== '') hasValue = true;
     });
-    return row;
-  });
+    if (hasValue) rows.push(row); // skip fully-blank rows
+  }
 
   return { headers, rows };
 }
