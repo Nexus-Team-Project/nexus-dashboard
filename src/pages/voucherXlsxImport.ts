@@ -117,11 +117,10 @@ function rowToDraft(
   mapping: VoucherImportMapping,
   valueMap: StackableValueMap,
 ): DraftVariant {
-  // Coupling: when only one of Value / Sale price is mapped, both read that column.
-  const valueCol = mapping.value ?? mapping.salePrice;
-  const saleCol = mapping.salePrice ?? mapping.value;
-  const face = parsePrice(valueCol ? row[valueCol] : undefined);
-  const sale = parsePrice(saleCol ? row[saleCol] : undefined);
+  // Each price comes only from its own mapped column - no coupling/default. An
+  // unmapped Value or Sale price stays empty for the admin to fill in the form.
+  const face = parsePrice(mapping.value ? row[mapping.value] : undefined);
+  const sale = parsePrice(mapping.salePrice ? row[mapping.salePrice] : undefined);
 
   const terms = mapping.terms ? (row[mapping.terms] ?? '').trim() : '';
   const method = mapping.method ? (row[mapping.method] ?? '').trim() : '';
