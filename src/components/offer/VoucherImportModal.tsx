@@ -10,7 +10,7 @@ import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { readXlsx, isXlsxFile } from '../../lib/xlsxReader';
-import type { ParsedCsv } from '../../lib/csvParser';
+import { parseCsv, type ParsedCsv } from '../../lib/csvParser';
 import {
   rowsToDraftVariants,
   type VoucherImportMapping,
@@ -50,10 +50,13 @@ export default function VoucherImportModal({ onClose, onImport }: VoucherImportM
   const handleFile = async (file: File | undefined) => {
     if (!file) return;
     setError(null);
-    if (!isXlsxFile(file)) { setError(t('vxi_readError')); return; }
+    const isCsv = file.name.toLowerCase().endsWith('.csv');
+    if (!isCsv && !isXlsxFile(file)) { setError(t('vxi_readError')); return; }
     setReading(true);
     try {
-      const result = await readXlsx(file);
+      // CSV and XLSX both produce the same { headers, rows } shape, so the rest of
+      // the flow (mapping, matching, transform) is identical for either format.
+      const result = isCsv ? parseCsv(await file.text()) : await readXlsx(file);
       if (result.rows.length === 0) { setError(t('vxi_emptyFile')); return; }
       setParsed(result);
       setFileName(file.name);
@@ -117,7 +120,7 @@ export default function VoucherImportModal({ onClose, onImport }: VoucherImportM
                   dragging ? 'border-primary bg-primary/5 scale-[1.01]' : 'border-slate-300 dark:border-slate-700 hover:border-primary/50'
                 }`}
               >
-                <input type="file" accept=".xlsx,.xls" className="hidden" onChange={(e) => void handleFile(e.target.files?.[0])} />
+                <input type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={(e) => void handleFile(e.target.files?.[0])} />
                 <div className="py-16 flex flex-col items-center justify-center text-center px-6">
                   <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-lg flex items-center justify-center mb-6 text-primary border border-slate-200 dark:border-slate-700">
                     <span className="material-icons text-3xl">{reading ? 'hourglass_top' : 'upload_file'}</span>

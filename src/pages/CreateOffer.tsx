@@ -203,7 +203,7 @@ const CreateOffer = () => {
 
   const leftColumn = (
     <>
-      {isVoucher && <VoucherImportControls onImportXlsx={() => setShowImport(true)} disabled={isSubmitting} />}
+      {isVoucher && <VoucherImportControls onOpenImport={() => setShowImport(true)} disabled={isSubmitting} />}
       <OfferTypeField value={executionType} onChange={handleExecutionTypeChange} disabled={isSubmitting} />
       {isVoucher ? (
         <VoucherBackgroundField
