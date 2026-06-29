@@ -245,6 +245,26 @@ export function validateVariantDraft(
   return null;
 }
 
+/** The three mandatory variant fields surfaced on the summary card. */
+export type RequiredVariantField = 'value' | 'salePrice' | 'stackable';
+
+/**
+ * Returns which of the three required variant fields are missing or invalid, so
+ * the saved-variant card can flag exactly what needs attention (Value, Sale Price,
+ * Allow Stackable Promotions). Empty array = the variant's required fields are complete.
+ * Mirrors the price/stackable rules in `validateVariantDraft`.
+ */
+export function missingVariantFields(d: DraftVariant): RequiredVariantField[] {
+  const out: RequiredVariantField[] = [];
+  const fv = Number(d.faceValue);
+  const nc = Number(d.nexusCost);
+  if (!d.faceValue || isNaN(fv) || fv <= 0) out.push('value');
+  // Sale price must be a positive number and not exceed the value.
+  if (!d.nexusCost || isNaN(nc) || nc <= 0 || (Number.isFinite(fv) && fv > 0 && nc > fv)) out.push('salePrice');
+  if (d.stackable === '') out.push('stackable');
+  return out;
+}
+
 /**
  * Deterministic signature over a variant's configurable values - the shared
  * definition of "identical" used to block duplicate variants (mirrors the
