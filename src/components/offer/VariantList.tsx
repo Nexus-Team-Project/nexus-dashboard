@@ -67,18 +67,20 @@ export default function VariantList({
             }`}
           >
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                {t('co_variantLabel')} {i + 1}
-                {v.sku.trim() !== '' && (
-                  <span className="ms-2 font-normal text-slate-400">· {v.sku.trim()}</span>
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                  {t('co_variantLabel')} {i + 1}
+                  {v.sku.trim() !== '' && (
+                    <span className="ms-2 font-normal text-slate-400">· {v.sku.trim()}</span>
+                  )}
+                </p>
+                {incomplete && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 dark:bg-red-900/20 dark:text-red-400">
+                    <span className="material-icons text-sm">error_outline</span>
+                    {t('co_variantMissingFields')}: {missing.map((f) => t(REQUIRED_FIELD_LABEL[f])).join(', ')}
+                  </span>
                 )}
-              </p>
-              {incomplete && (
-                <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 dark:bg-red-900/20 dark:text-red-400">
-                  <span className="material-icons text-sm">error_outline</span>
-                  {t('co_variantMissingFields')}: {missing.map((f) => t(REQUIRED_FIELD_LABEL[f])).join(', ')}
-                </span>
-              )}
+              </div>
               <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
                 <span className={fieldCls(miss('salePrice'))}>{t('co_variantPriceLabel')}: ₪{price || '-'}</span>
                 <span className={fieldCls(miss('value'))}>{t('fi_faceValue_label')}: ₪{v.faceValue || '-'}</span>
