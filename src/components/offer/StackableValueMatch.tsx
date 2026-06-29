@@ -12,6 +12,7 @@
 import { useState } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import type { StackableValueMap } from '../../pages/voucherXlsxImport';
+import ImportScrollPanel from './ImportScrollPanel';
 
 interface StackableValueMatchProps {
   /** Distinct, non-empty values found in the mapped stackable column. */
@@ -44,7 +45,7 @@ export default function StackableValueMatch({ values, onBack, onConfirm }: Stack
   };
 
   return (
-    <div className="flex-1 p-8 lg:p-12 flex flex-col overflow-y-auto custom-scrollbar">
+    <ImportScrollPanel>
       <div className="flex items-center gap-2 text-slate-400 mb-10">
         <span className="material-icons text-lg">rule</span>
         <span className="text-xs font-medium uppercase tracking-wider">{t('vxi_matchEyebrow')}</span>
@@ -101,6 +102,6 @@ export default function StackableValueMatch({ values, onBack, onConfirm }: Stack
           {t('vxi_addToForm')}
         </button>
       </div>
-    </div>
+    </ImportScrollPanel>
   );
 }

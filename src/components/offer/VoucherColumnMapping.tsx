@@ -14,6 +14,7 @@ import { useState, useMemo } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { collectColumnValues, type VoucherImportMapping } from '../../pages/voucherXlsxImport';
 import type { TranslationKey } from '../../i18n/translations';
+import ImportScrollPanel from './ImportScrollPanel';
 
 /** A voucher mapping target, or '' (ignore this column). */
 type VoucherTarget = keyof VoucherImportMapping | '';
@@ -102,7 +103,7 @@ export default function VoucherColumnMapping({ fileName, headers, rows, onBack, 
   };
 
   return (
-    <div className="flex-1 p-8 lg:p-12 flex flex-col overflow-y-auto custom-scrollbar">
+    <ImportScrollPanel>
       <div className="flex justify-between items-center mb-10">
         <div className="flex items-center gap-2 text-slate-400">
           <span className="material-icons text-lg">table_view</span>
@@ -215,6 +216,6 @@ export default function VoucherColumnMapping({ fileName, headers, rows, onBack, 
           </button>
         </div>
       </div>
-    </div>
+    </ImportScrollPanel>
   );
 }

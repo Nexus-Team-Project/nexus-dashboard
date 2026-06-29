@@ -6,7 +6,7 @@
  * stackable column's values to yes/no (`StackableValueMatch`), and groups rows
  * into variants (`voucherXlsxImport`). No backend call happens here.
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { readXlsx, isXlsxFile } from '../../lib/xlsxReader';
@@ -18,6 +18,7 @@ import {
 } from '../../pages/voucherXlsxImport';
 import VoucherColumnMapping from './VoucherColumnMapping';
 import StackableValueMatch from './StackableValueMatch';
+import ImportScrollPanel from './ImportScrollPanel';
 
 interface VoucherImportModalProps {
   onClose: () => void;
@@ -37,6 +38,14 @@ export default function VoucherImportModal({ onClose, onImport }: VoucherImportM
   const [error, setError] = useState<string | null>(null);
   const [reading, setReading] = useState(false);
   const [dragging, setDragging] = useState(false);
+
+  // Lock background scroll while the modal is open, so the page behind never
+  // scrolls or shifts - even when the cursor is outside the modal. Restored on close.
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
 
   const handleFile = async (file: File | undefined) => {
     if (!file) return;
@@ -82,7 +91,7 @@ export default function VoucherImportModal({ onClose, onImport }: VoucherImportM
         <div className="w-full max-w-6xl bg-white dark:bg-slate-900 shadow-2xl rounded-2xl flex flex-col md:flex-row overflow-hidden border border-slate-200 dark:border-slate-800 max-h-[90vh] animate-in fade-in zoom-in duration-300">
 
           {step === 'upload' && (
-            <div className="flex-1 p-8 lg:p-12 flex flex-col overflow-y-auto custom-scrollbar">
+            <ImportScrollPanel>
               <div className="flex justify-between items-center mb-10">
                 <div className="flex items-center gap-2 text-slate-400">
                   <span className="material-icons text-lg">upload_file</span>
@@ -126,7 +135,7 @@ export default function VoucherImportModal({ onClose, onImport }: VoucherImportM
                   <span>{error}</span>
                 </div>
               )}
-            </div>
+            </ImportScrollPanel>
           )}
 
           {step === 'map' && parsed && (
