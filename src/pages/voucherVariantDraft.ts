@@ -234,8 +234,8 @@ export function validateVariantDraft(
   if (!d.faceValue || isNaN(fv) || fv <= 0) {
     return language === 'he' ? 'יש להזין שווי שובר תקין וחיובי' : 'Face value must be a positive number';
   }
-  if (!d.nexusCost || isNaN(nc) || nc <= 0 || nc >= fv) {
-    return language === 'he' ? 'מחיר NEXUS חייב להיות חיובי ופחות מהשווי' : 'Nexus price must be positive and less than the value';
+  if (!d.nexusCost || isNaN(nc) || nc <= 0 || nc > fv) {
+    return language === 'he' ? 'מחיר NEXUS חייב להיות חיובי ולא גבוה מהשווי' : 'Nexus price must be positive and not greater than the value';
   }
   // Validity VALUE is no longer entered on the variant (it is per inventory unit);
   // only the optional TYPE override lives here and is a fixed enum, so there is
@@ -243,6 +243,26 @@ export function validateVariantDraft(
   if (d.stackable === '') return t('co_voucherStackableRequired');
   if (d.sku.trim() !== '' && !/^[A-Z0-9_-]{4,20}$/.test(d.sku.trim())) return t('co_errSku');
   return null;
+}
+
+/** The three mandatory variant fields surfaced on the summary card. */
+export type RequiredVariantField = 'value' | 'salePrice' | 'stackable';
+
+/**
+ * Returns which of the three required variant fields are missing or invalid, so
+ * the saved-variant card can flag exactly what needs attention (Value, Sale Price,
+ * Allow Stackable Promotions). Empty array = the variant's required fields are complete.
+ * Mirrors the price/stackable rules in `validateVariantDraft`.
+ */
+export function missingVariantFields(d: DraftVariant): RequiredVariantField[] {
+  const out: RequiredVariantField[] = [];
+  const fv = Number(d.faceValue);
+  const nc = Number(d.nexusCost);
+  if (!d.faceValue || isNaN(fv) || fv <= 0) out.push('value');
+  // Sale price must be a positive number and not exceed the value.
+  if (!d.nexusCost || isNaN(nc) || nc <= 0 || (Number.isFinite(fv) && fv > 0 && nc > fv)) out.push('salePrice');
+  if (d.stackable === '') out.push('stackable');
+  return out;
 }
 
 /**
@@ -296,18 +316,19 @@ export function draftToPayload(d: DraftVariant): Record<string, unknown> {
 
 /**
  * Live price check for the builder: returns a localized error when the Nexus
- * price is not strictly below the value, or null. Only fires once both fields
- * hold a number so the user is not nagged while still typing the first field.
+ * price is greater than the value, or null. The Nexus price may equal the value
+ * (sell at face value); it may never exceed it. Only fires once both fields hold
+ * a number so the user is not nagged while still typing the first field.
  */
 export function nexusPriceError(faceValue: string, nexusCost: string, language: string): string | null {
   if (faceValue.trim() === '' || nexusCost.trim() === '') return null;
   const fv = Number(faceValue);
   const nc = Number(nexusCost);
   if (isNaN(fv) || isNaN(nc)) return null;
-  if (nc >= fv) {
+  if (nc > fv) {
     return language === 'he'
-      ? 'מחיר NEXUS חייב להיות נמוך מהשווי'
-      : 'The Nexus price must be lower than the value';
+      ? 'מחיר NEXUS לא יכול להיות גבוה מהשווי'
+      : 'The Nexus price cannot be greater than the value';
   }
   return null;
 }

@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { updateUnitValidity, type InventoryUnitView } from '../../lib/api';
 import { cn } from '../../lib/utils';
+import { formatDmy } from '../../lib/voucherValidity';
 import InventoryValidityEditor from './InventoryValidityEditor';
 import { EditIcon, TrashIcon } from './inventoryIcons';
 
@@ -18,8 +19,7 @@ function useUnitValidityText() {
   const { t } = useLanguage();
   return (u: InventoryUnitView): string => {
     if (u.validFrom && u.validUntil) {
-      const f = u.validFrom.slice(0, 10); const v = u.validUntil.slice(0, 10);
-      return `⁦${f} - ${v}⁩`;
+      return `⁦${formatDmy(u.validFrom)} - ${formatDmy(u.validUntil)}⁩`;
     }
     if (u.validityValue && u.validityUnit) {
       const unit = u.validityUnit === 'days' ? t('co_validityUnitDays') : u.validityUnit === 'months' ? t('co_validityUnitMonths') : t('co_validityUnitYears');
@@ -47,8 +47,8 @@ export default function UnitRow({ unit, defaultType, selected, onToggle, editing
       <td className="p-2 text-start font-mono text-xs text-slate-700 dark:text-slate-200">{unit.value}</td>
       <td className="p-2 text-start text-slate-600 dark:text-slate-300">{validityText(unit)}</td>
       <td className="p-2 text-start text-slate-500 dark:text-slate-400">{statusLabel}</td>
-      <td className="p-2 text-start text-slate-400 dark:text-slate-500 text-xs whitespace-nowrap">{unit.createdAt ? unit.createdAt.slice(0, 10) : '-'}</td>
-      <td className="p-2 text-start text-slate-400 dark:text-slate-500 text-xs whitespace-nowrap">{unit.updatedAt ? unit.updatedAt.slice(0, 10) : '-'}</td>
+      <td className="p-2 text-start text-slate-400 dark:text-slate-500 text-xs whitespace-nowrap">{formatDmy(unit.createdAt)}</td>
+      <td className="p-2 text-start text-slate-400 dark:text-slate-500 text-xs whitespace-nowrap">{formatDmy(unit.updatedAt)}</td>
       <td className="p-2 text-end whitespace-nowrap">
         <button type="button" onClick={onEditStart} aria-pressed={editing}
           className={cn('inline-flex h-7 w-7 items-center justify-center rounded-md',

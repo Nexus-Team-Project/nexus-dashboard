@@ -240,7 +240,9 @@ function OfferDetails({ offer }: { offer: CatalogItem }) {
 function VariantsSummary({ offer }: { offer: CatalogItem }) {
   const { t } = useLanguage();
   const variants = offer.variants ?? [];
-  if (offer.executionType !== 'voucher' || variants.length <= 1) return null;
+  // Show the variants list for any voucher with at least one variant (single-variant
+  // vouchers must still expose their variant, not only multi-variant offers).
+  if (offer.executionType !== 'voucher' || variants.length < 1) return null;
 
   const chip = 'rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[11px] text-white/70';
 

@@ -13,6 +13,7 @@
  */
 import { useLanguage } from '../../i18n/LanguageContext';
 import { cn } from '../../lib/utils';
+import { defaultOfferImageUrl } from '../../lib/cloudinaryImage';
 import FieldTooltip from '../FieldTooltip';
 import OfferImageGallery, { type GalleryItem } from './OfferImageGallery';
 import BrandColorPicker from '../common/BrandColorPicker';
@@ -108,7 +109,13 @@ export default function VoucherBackgroundField({
       </div>
 
       {mode === 'image' ? (
-        <OfferImageGallery value={gallery} onChange={setGallery} maxImages={1} disabled={disabled} />
+        <OfferImageGallery
+          value={gallery}
+          onChange={setGallery}
+          maxImages={1}
+          disabled={disabled}
+          fallbackPreviewUrl={defaultOfferImageUrl()}
+        />
       ) : (
         <BrandColorPicker value={color || defaultColor} onChange={setColor} />
       )}

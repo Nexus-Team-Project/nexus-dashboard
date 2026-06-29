@@ -47,6 +47,13 @@ interface OfferImageGalleryProps {
   maxImages?: number;
   /** Disable add/remove/crop/drag — used while saving. */
   disabled?: boolean;
+  /**
+   * Optional default/placeholder image shown faded inside the empty "add" tile,
+   * so the field previews the fallback the card will use when no image is set
+   * (e.g. the tenant-level default offer image). Only shown when the gallery is
+   * empty; omit it to keep the plain add tile (non-voucher offers).
+   */
+  fallbackPreviewUrl?: string;
 }
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
@@ -58,6 +65,7 @@ export default function OfferImageGallery({
   onChange,
   maxImages = 6,
   disabled = false,
+  fallbackPreviewUrl,
 }: OfferImageGalleryProps) {
   const { t } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -342,18 +350,27 @@ export default function OfferImageGallery({
               handleFilesPicked(e.dataTransfer.files);
             }}
             className={cn(
-              'aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition',
+              'relative overflow-hidden aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition',
               isFileDragOver
                 ? 'border-primary bg-primary/5 text-primary scale-[1.02] shadow-sm'
                 : 'border-slate-300 bg-slate-50 hover:bg-slate-100 hover:border-primary text-slate-500 hover:text-primary',
             )}
           >
+            {/* When the gallery is empty, preview the default fallback image faded
+                behind the add prompt so the user sees what the card will use. */}
+            {value.length === 0 && fallbackPreviewUrl && !isFileDragOver && (
+              <img
+                src={fallbackPreviewUrl}
+                alt=""
+                className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-30"
+              />
+            )}
             <svg
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
               strokeWidth={1.8}
-              className="w-7 h-7 pointer-events-none"
+              className="relative z-10 w-7 h-7 pointer-events-none"
             >
               {isFileDragOver ? (
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V4.5m0 0L7.5 9M12 4.5 16.5 9M4.5 19.5h15" />
@@ -361,7 +378,7 @@ export default function OfferImageGallery({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
               )}
             </svg>
-            <span className="text-xs font-medium pointer-events-none">
+            <span className="relative z-10 text-xs font-medium pointer-events-none">
               {isFileDragOver ? t('of_dropHere') : t('of_addImage')}
             </span>
           </button>

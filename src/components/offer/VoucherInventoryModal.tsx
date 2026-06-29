@@ -25,7 +25,7 @@ import type { OfferInventoryInput } from '../../lib/api';
 import FieldTooltip from '../FieldTooltip';
 import CodePreviewModal from './CodePreviewModal';
 import {
-  INVENTORY_MAX, isHttpUrl, isSafeCode, splitPastedBarcodes, parsePastedLinkRows, buildLinkExample,
+  INVENTORY_MAX, isSafeCode, splitPastedBarcodes, parsePastedLinkRows, buildLinkExample,
   findDuplicateCodes, findDuplicateUrls, type LinkRow,
 } from './voucherInventoryPaste';
 
@@ -193,7 +193,7 @@ export default function VoucherInventoryModal({ busy = false, initialBarcodes, i
     if (filledLinks.length === 0) { setError(t('vi_errLinksEmpty')); return; }
     const bv = resolveBatchValidity();
     if (!bv.ok) { setError(bv.err); return; }
-    if (filledLinks.some((r) => !isHttpUrl(r.url))) { setError(t('vi_errLinksInvalid')); return; }
+    // A "link" may be any non-empty string - the http(s) URL requirement was removed.
     if (filledLinks.some((r) => !isSafeCode(r.code))) { setError(t('vi_errCodeInvalid')); return; }
     // Combine duplicate URLs into one (first row wins, keeping its code).
     const seen = new Set<string>();
