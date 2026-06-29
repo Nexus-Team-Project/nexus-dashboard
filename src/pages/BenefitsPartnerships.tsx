@@ -1224,7 +1224,7 @@ const BenefitsPartnerships = () => {
                                 <span className="block text-sm font-semibold text-slate-900 dark:text-slate-100 line-clamp-1 max-w-[200px]">
                                   {item.title}
                                 </span>
-                                {isVoucher && (item.variants?.length ?? 0) > 1 && (
+                                {isVoucher && (item.variants?.length ?? 0) > 0 && (
                                   <button
                                     type="button"
                                     onClick={(e) => { e.stopPropagation(); toggleRow(item.offerId); }}
@@ -1494,7 +1494,7 @@ const BenefitsPartnerships = () => {
                             {benefit.discount}
                           </div>
                           {/* Variant count chip - voucher offers with >1 variant. */}
-                          {catalogItem?.executionType === 'voucher' && (catalogItem.variants?.length ?? 0) > 1 && (
+                          {catalogItem?.executionType === 'voucher' && (catalogItem.variants?.length ?? 0) > 0 && (
                             <span className="mb-1 inline-block rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
                               {catalogItem.variants!.length} {t('co_variantsCountLabel')}
                             </span>
@@ -1646,7 +1646,7 @@ const BenefitsPartnerships = () => {
                           </p>
 
                           {/* Variant count chip - voucher offers with >1 variant. */}
-                          {catalogItem?.executionType === 'voucher' && (catalogItem.variants?.length ?? 0) > 1 && (
+                          {catalogItem?.executionType === 'voucher' && (catalogItem.variants?.length ?? 0) > 0 && (
                             <span className="inline-block w-fit rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
                               {catalogItem.variants!.length} {t('co_variantsCountLabel')}
                             </span>
@@ -1817,7 +1817,7 @@ const BenefitsPartnerships = () => {
               {/* Variant breakdown - voucher offers with >1 variant. Lists every
                   variant's per-variant detail (price/value/validity/SKU/tags) plus
                   whether redemption terms are shared or per variant. */}
-              {selectedCatalogItem?.executionType === 'voucher' && (selectedCatalogItem.variants?.length ?? 0) > 1 && (
+              {selectedCatalogItem?.executionType === 'voucher' && (selectedCatalogItem.variants?.length ?? 0) > 0 && (
                 <div>
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                     <h3 className="text-sm font-bold text-slate-900 dark:text-white">
