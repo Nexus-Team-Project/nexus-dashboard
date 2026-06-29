@@ -60,6 +60,21 @@ const CONTEXT_SIZE: Record<'card' | 'hero', { width: number; height: number }> =
 /** Upper bound for the full (click/expand) view so payloads never get absurd. */
 const FULL_MAX_WIDTH = 2000;
 
+// ─── Default placeholder ─────────────────────────────────────────────────────────
+
+/** Public Cloudinary cloud name (NOT a secret); falls back to the dev cloud. */
+const CLOUDINARY_CLOUD_NAME = (import.meta.env.VITE_CLOUDINARY_CLOUD_NAME as string | undefined) ?? 'dyqjvjdlq';
+
+/**
+ * The tenant-level default offer placeholder image, shown when an offer/voucher
+ * has no cover image of its own (same asset used in the create-page banner and
+ * matching backend `defaultOfferImageUrl()`). Version-less, so re-uploading the
+ * asset swaps it with no code change.
+ */
+export function defaultOfferImageUrl(): string {
+  return `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/nexus/defaults/offer-placeholder.png`;
+}
+
 // ─── Crop lookup ───────────────────────────────────────────────────────────────
 
 /**

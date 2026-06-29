@@ -15,21 +15,14 @@
 import { type ReactNode } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { cn } from '../../lib/utils';
+import { defaultOfferImageUrl } from '../../lib/cloudinaryImage';
 
 /**
- * Default offer placeholder shown in the banner background and thumbnail when
- * the offer has no cover image and no cover color yet.
- *
- * The cloud name comes from the public `VITE_CLOUDINARY_CLOUD_NAME` env var so
- * dev and prod each serve their own account's copy of the asset. Only the cloud
- * name is used - it is NOT a secret (it appears in every Cloudinary delivery
- * URL); the api key/secret stay backend-only. Falls back to the dev cloud when
- * the var is unset (local dev convenience). Version-less, so re-uploading the
- * asset swaps the image with no code change. Matches backend `defaultOfferImageUrl()`.
+ * Default offer placeholder shown in the banner background and thumbnail when the
+ * offer has no cover image and no cover color yet. Shared with the image field's
+ * empty-state preview via `defaultOfferImageUrl()` (lib/cloudinaryImage).
  */
-const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME ?? 'dyqjvjdlq';
-const DEFAULT_ORGANIZATION_IMAGE_URL =
-  `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/nexus/defaults/offer-placeholder.png`;
+const DEFAULT_ORGANIZATION_IMAGE_URL = defaultOfferImageUrl();
 
 interface OfferFormLayoutProps {
   /** Page title shown in the breadcrumb and inside the banner business chip. */
