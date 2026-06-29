@@ -256,6 +256,12 @@ function AppRoutes() {
   /** True when the authenticated user is a NEXUS platform admin.
    *  Platform admins can access supply creation regardless of tenant context. */
   const isPlatformAdmin = me.authorization.isPlatformAdmin === true;
+  /** True when the user may view/manage their tenant's own uploaded offers
+   *  (Product Catalog page). Backed by supply.manage_offers / supply.ingest, so
+   *  it resolves to owner, admin, and supply_manager (plus platform admins).
+   *  This is UX only - the backend enforces the same gate on the ownedOnly view
+   *  of GET /api/v1/offers/platform. */
+  const canManageCatalog = me.authorization.canManageSupply === true || isPlatformAdmin;
   const firstName = user?.fullName?.split(/\s+/)[0] ?? me?.user.name?.split(/\s+/)[0];
 
   // Setup states: always show the full tenant admin dashboard behind a wizard overlay.
@@ -278,7 +284,7 @@ function AppRoutes() {
             <Route path="points-gifts" element={<PointsGifts />} />
             <Route path="benefits-partnerships" element={<BenefitsPartnerships />} />
             <Route path="benefits-partnerships/edit-offer/:offerId" element={<EditOffer />} />
-            <Route path="product-catalog" element={<ProductCatalog />} />
+            <Route path="product-catalog" element={canManageCatalog ? <ProductCatalog /> : <Navigate to="/" replace />} />
             <Route
               path="supply/create"
               element={isTenantAdmin || isPlatformAdmin ? <CreateOffer /> : <Navigate to="/" replace />}
@@ -344,7 +350,7 @@ function AppRoutes() {
         <Route path="points-gifts" element={<PointsGifts />} />
         <Route path="benefits-partnerships" element={<BenefitsPartnerships />} />
         <Route path="benefits-partnerships/edit-offer/:offerId" element={<EditOffer />} />
-        <Route path="product-catalog" element={isTenantAdmin ? <ProductCatalog /> : <Navigate to="/" replace />} />
+        <Route path="product-catalog" element={canManageCatalog ? <ProductCatalog /> : <Navigate to="/" replace />} />
         <Route
           path="supply/create"
           element={isTenantAdmin || isPlatformAdmin ? <CreateOffer /> : <Navigate to="/" replace />}
