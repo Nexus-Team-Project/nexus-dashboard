@@ -7,6 +7,7 @@
  * into variants (`voucherXlsxImport`). No backend call happens here.
  */
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { readXlsx, isXlsxFile } from '../../lib/xlsxReader';
 import type { ParsedCsv } from '../../lib/csvParser';
@@ -57,7 +58,15 @@ export default function VoucherImportModal({ onClose, onImport }: VoucherImportM
 
   const finalize = (m: VoucherImportMapping, valueMap: Record<string, 'yes' | 'no'>) => {
     if (!parsed) return;
-    onImport(rowsToDraftVariants(parsed.rows, m, valueMap));
+    const outcome = rowsToDraftVariants(parsed.rows, m, valueMap);
+    // A mapped Start/End column with an unparseable date fails the whole load - we do
+    // not silently default those rows to a 5-year limit. Keep the modal open so the
+    // admin can go back, fix the file's dates, and re-upload.
+    if (outcome.dateErrors.length > 0) {
+      toast.error(`${t('vxi_loadFailedDates')} ${outcome.dateErrors.slice(0, 3).join(', ')}`);
+      return;
+    }
+    onImport(outcome);
   };
 
   const onMapNext = (m: VoucherImportMapping, stackableDistinct: string[]) => {

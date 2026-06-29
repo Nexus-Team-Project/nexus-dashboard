@@ -19,7 +19,7 @@ import {
   emptyDraftVariant,
   draftSignature,
 } from './voucherVariantDraft';
-import { resolveUnitValidity } from '../lib/voucherImportDates';
+import { resolveUnitValidity, normalizeExpiry } from '../lib/voucherImportDates';
 
 /** Which spreadsheet column header feeds each target field. All optional. */
 export interface VoucherImportMapping {
@@ -53,6 +53,9 @@ export interface VoucherImportOutcome {
   skippedRows: number;
   /** Units dropped because their variant already uses the other inventory kind. */
   conflictingKindRows: number;
+  /** Unparseable values found in a mapped Start/End date column (deduped sample). When
+   *  non-empty the load MUST be failed - we do not silently fall back to the 5-year limit. */
+  dateErrors: string[];
 }
 
 /** Local-id counter for imported staged units (client-only React keys). */
@@ -194,15 +197,26 @@ export function rowsToDraftVariants(
 ): VoucherImportOutcome {
   const groups = new Map<string, DraftVariant>();
   const barcodeCounts = new Map<string, number>();
+  const dateErrorSet = new Set<string>();
   let rowCount = 0;
   let skippedRows = 0;
   let conflictingKindRows = 0;
 
+  // A non-empty value in a mapped Start/End column that cannot be parsed is a hard
+  // error: when a from-until date column is mapped we never silently fall back to
+  // the 5-year limit. A deduped sample is collected so the load can be failed.
   for (const row of rows) {
     const draft = rowToDraft(row, mapping, valueMap);
     const unit = rowToUnit(row, mapping);
     if (isEmptyRow(draft, unit)) { skippedRows += 1; continue; }
     rowCount += 1;
+
+    // Flag unparseable mapped from/until dates (Hebrew month, bad format, etc.).
+    for (const col of [mapping.startDate, mapping.endDate]) {
+      if (!col) continue;
+      const v = (row[col] ?? '').trim();
+      if (v !== '' && normalizeExpiry(v) === null && dateErrorSet.size < 10) dateErrorSet.add(v);
+    }
 
     const key = draftSignature(draft);
     let group = groups.get(key);
@@ -230,5 +244,5 @@ export function rowsToDraftVariants(
   const unitCount = variants.reduce((n, v) => n + v.stagedUnits.length, 0);
   const duplicateBarcodes = [...barcodeCounts.entries()].filter(([, n]) => n > 1).map(([v]) => v);
 
-  return { variants, rowCount, unitCount, duplicateBarcodes, skippedRows, conflictingKindRows };
+  return { variants, rowCount, unitCount, duplicateBarcodes, skippedRows, conflictingKindRows, dateErrors: [...dateErrorSet] };
 }
