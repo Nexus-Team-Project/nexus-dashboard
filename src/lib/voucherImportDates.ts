@@ -100,6 +100,16 @@ export function normalizeExpiry(raw: string | number | null | undefined): string
     return isRealDate(year, +mo, +d) ? fmt(year, +mo, +d) : null;
   }
 
+  // Last resort: let the engine try (e.g. "Jan 15 2027", "January 15, 2027").
+  // Only trusted when the text carries a 4-digit year, to avoid wild guesses.
+  if (/\d{4}/.test(s)) {
+    const t = Date.parse(s);
+    if (!Number.isNaN(t)) {
+      const dt = new Date(t);
+      return fmt(dt.getFullYear(), dt.getMonth() + 1, dt.getDate());
+    }
+  }
+
   return null;
 }
 
