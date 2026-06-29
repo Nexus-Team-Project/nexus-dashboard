@@ -21,10 +21,11 @@ export default function ImportScrollPanel({ children, className }: ImportScrollP
   return (
     <div
       dir={isHe ? 'ltr' : 'rtl'}
-      className={cn('flex-1 p-8 lg:p-12 flex flex-col overflow-y-auto custom-scrollbar', className)}
+      className={cn('flex-1 min-h-0 overflow-y-auto custom-scrollbar', className)}
     >
-      {/* display:contents keeps the flex layout intact while restoring real content flow */}
-      <div className="contents" dir={isHe ? 'rtl' : 'ltr'}>
+      {/* Real inner box (not display:contents) carries the padding, flex layout, and
+          the true content direction; the outer box only owns the scroll + scrollbar side. */}
+      <div dir={isHe ? 'rtl' : 'ltr'} className="p-8 lg:p-12 flex flex-col min-h-full">
         {children}
       </div>
     </div>

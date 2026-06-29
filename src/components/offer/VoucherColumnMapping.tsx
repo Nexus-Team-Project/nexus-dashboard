@@ -125,7 +125,8 @@ export default function VoucherColumnMapping({ fileName, headers, rows, onBack, 
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar ps-4 -ms-4">
+      <div dir={isHe ? 'ltr' : 'rtl'} className="flex-1 overflow-y-auto custom-scrollbar">
+        <div dir={isHe ? 'rtl' : 'ltr'} className="ps-4 -ms-4">
         <div className="grid grid-cols-2 gap-4 mb-4 text-[11px] font-bold uppercase tracking-widest text-slate-400 px-2">
           <div className="text-start">{t('cm_excelColumns')}</div>
           <div className="text-start">{t('vxi_voucherFields')}</div>
@@ -184,6 +185,7 @@ export default function VoucherColumnMapping({ fileName, headers, rows, onBack, 
               </div>
             </div>
           ))}
+        </div>
         </div>
       </div>
 
