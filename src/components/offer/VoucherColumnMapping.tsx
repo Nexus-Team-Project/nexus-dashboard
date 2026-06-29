@@ -85,7 +85,6 @@ export default function VoucherColumnMapping({ fileName, headers, rows, onBack, 
     () => (mapping.stackable ? collectColumnValues(rows, mapping.stackable) : []),
     [mapping.stackable, rows],
   );
-  const stackTooMany = stackableDistinct.length > 2;
   const mappedCount = mapRows.filter((r) => r.target !== '').length;
   const linkMapped = mapRows.some((r) => r.target === 'link');
 
@@ -96,7 +95,9 @@ export default function VoucherColumnMapping({ fileName, headers, rows, onBack, 
     return nonEmpty(mapping.linkCode) > nonEmpty(mapping.link);
   }, [mapping.linkCode, mapping.link, rows]);
 
-  const blocked = stackTooMany || codesExceedLinks;
+  // Stackable never blocks: however many distinct values the column has, the admin
+  // maps each to yes/no in the next step. The only hard stop is more codes than links.
+  const blocked = codesExceedLinks;
   const proceed = () => {
     if (blocked) return;
     onNext(mapping, stackableDistinct);
@@ -117,13 +118,6 @@ export default function VoucherColumnMapping({ fileName, headers, rows, onBack, 
 
       <h1 className="text-3xl font-semibold mb-2 tracking-tight">{t('vxi_mapTitle')}</h1>
       <p className="text-slate-500 dark:text-slate-400 mb-8">{t('vxi_mapDesc')}</p>
-
-      {stackTooMany && (
-        <div className="mb-6 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-400">
-          <span className="material-icons text-base">error_outline</span>
-          <span>{t('vxi_stackTooMany')}</span>
-        </div>
-      )}
 
       {codesExceedLinks && (
         <div className="mb-6 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-400">
