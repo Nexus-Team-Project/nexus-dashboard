@@ -59,3 +59,15 @@ export function validityTypeLabel(
   if (effType === 'from_until') return t('co_validityTypeFromUntil');
   return '';
 }
+
+/**
+ * Formats an ISO date string (`YYYY-MM-DD...`) as `dd/mm/yy` for display, so the
+ * only hyphen on screen is the separator between a from/until pair. Returns '-'
+ * for an empty value. Display only - do not feed this to a date <input>.
+ */
+export function formatDmy(iso: string | null | undefined): string {
+  if (!iso) return '-';
+  const [y, m, d] = iso.slice(0, 10).split('-');
+  if (!y || !m || !d) return iso.slice(0, 10);
+  return `${d}/${m}/${y.slice(2)}`;
+}

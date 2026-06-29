@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { updateUnitValidity, type InventoryUnitView } from '../../lib/api';
 import { cn } from '../../lib/utils';
-import { formatUnitValidity } from '../../lib/voucherValidity';
+import { formatUnitValidity, formatDmy } from '../../lib/voucherValidity';
 import InventoryValidityEditor from './InventoryValidityEditor';
 import { EditIcon, TrashIcon } from './inventoryIcons';
 
@@ -40,8 +40,8 @@ export default function UnitRow({ unit, defaultType, selected, onToggle, editing
       <td className="p-2 text-start font-mono text-xs text-slate-700 dark:text-slate-200">{unit.value}</td>
       <td className="p-2 text-start text-slate-600 dark:text-slate-300">{validityText(unit)}</td>
       <td className="p-2 text-start text-slate-500 dark:text-slate-400">{statusLabel}</td>
-      <td className="p-2 text-start text-slate-400 dark:text-slate-500 text-xs whitespace-nowrap">{unit.createdAt ? unit.createdAt.slice(0, 10) : '-'}</td>
-      <td className="p-2 text-start text-slate-400 dark:text-slate-500 text-xs whitespace-nowrap">{unit.updatedAt ? unit.updatedAt.slice(0, 10) : '-'}</td>
+      <td className="p-2 text-start text-slate-400 dark:text-slate-500 text-xs whitespace-nowrap">{formatDmy(unit.createdAt)}</td>
+      <td className="p-2 text-start text-slate-400 dark:text-slate-500 text-xs whitespace-nowrap">{formatDmy(unit.updatedAt)}</td>
       <td className="p-2 text-end whitespace-nowrap">
         <button type="button" onClick={onEditStart} aria-pressed={editing}
           className={cn('inline-flex h-7 w-7 items-center justify-center rounded-md',

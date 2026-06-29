@@ -386,7 +386,7 @@ function App() {
   return (
     <DevModeProvider>
     <LanguageProvider>
-      <Toaster richColors position="top-center" />
+      <Toaster richColors position="top-center" expand visibleToasts={5} />
       <BrowserRouter>
         <AuthProvider>
           <AppRoutes />

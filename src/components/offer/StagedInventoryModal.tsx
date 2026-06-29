@@ -19,6 +19,7 @@ import VoucherInventoryModal from './VoucherInventoryModal';
 import InventoryValidityEditor, { type ValidityPatch } from './InventoryValidityEditor';
 import { EditIcon, TrashIcon, UndoIcon } from './inventoryIcons';
 import { SEARCH_DEBOUNCE_MS } from './inventoryConstants';
+import { formatDmy } from '../../lib/voucherValidity';
 
 interface Props {
   variantLabel: string;
@@ -42,7 +43,7 @@ type ValidityShape = { validFrom?: string | null; validUntil?: string | null; va
 
 /** Short validity text for a unit (limit duration / window / not-yet-set). */
 function validityText(u: ValidityShape, t: (k: 'co_validityUnitDays' | 'co_validityUnitMonths' | 'co_validityUnitYears' | 'im_noWindowYet') => string): string {
-  if (u.validFrom && u.validUntil) return `⁦${u.validFrom.slice(0, 10)} - ${u.validUntil.slice(0, 10)}⁩`;
+  if (u.validFrom && u.validUntil) return `⁦${formatDmy(u.validFrom)} - ${formatDmy(u.validUntil)}⁩`;
   if (u.validityValue && u.validityUnit) {
     const unit = u.validityUnit === 'days' ? t('co_validityUnitDays') : u.validityUnit === 'months' ? t('co_validityUnitMonths') : t('co_validityUnitYears');
     return `${u.validityValue} ${unit}`;
@@ -190,8 +191,8 @@ export default function StagedInventoryModal({ variantLabel, defaultType, units,
                             ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{t('im_unsavedBadge')}</span>
                             : <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400">{t('im_savedBadge')}</span>}
                         </td>
-                        <td className={`${tdCls} text-xs whitespace-nowrap`}>{u.createdAt ? u.createdAt.slice(0, 10) : '-'}</td>
-                        <td className={`${tdCls} text-xs whitespace-nowrap`}>{u.updatedAt ? u.updatedAt.slice(0, 10) : '-'}</td>
+                        <td className={`${tdCls} text-xs whitespace-nowrap`}>{formatDmy(u.createdAt)}</td>
+                        <td className={`${tdCls} text-xs whitespace-nowrap`}>{formatDmy(u.updatedAt)}</td>
                         <td className={`${tdCls} whitespace-nowrap`}>
                           <button type="button" onClick={() => setEditingSaved(u.codeId)}
                             className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800"><EditIcon /></button>

@@ -158,8 +158,9 @@ const EditOffer = () => {
   // Single source of truth for "can publish": same hard-blocker helper as Create.
   // Drives both the button's disabled state and the on-click guard.
   const publishBlockers = computePublishBlockers(
-    { title, marketPrice, executionType, variants, variantEditing },
+    { title, category, marketPrice, executionType, variants, variantEditing },
     t,
+    language,
   );
 
   /** Builds the PATCH FormData and saves, then appends any staged per-variant inventory. */

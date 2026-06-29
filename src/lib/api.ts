@@ -5,6 +5,7 @@
  * mirroring the website API client to prevent concurrent-refresh races.
  */
 import type { ImageCropEntry } from './cloudinaryImage';
+import { extractApiError } from './apiError';
 
 const AUTH_BASE = (import.meta.env.VITE_AUTH_URL as string | undefined) ?? (import.meta.env.VITE_API_URL as string | undefined) ?? '';
 const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '';
@@ -100,7 +101,10 @@ async function request<T>(
   if (res.status === 204) return undefined as T;
 
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
+  // The backend `error` can be a string OR a Zod validation object (flatten/format,
+  // incl. nested fieldErrors.variants). extractApiError pulls out the real message(s)
+  // so we never throw an Error whose message renders as "[object Object]".
+  if (!res.ok) throw new Error(extractApiError(data?.error, `HTTP ${res.status}`));
   return data as T;
 }
 
@@ -1548,31 +1552,6 @@ export async function deleteVariantUnit(
     'DELETE',
     `/api/v1/offers/${offerId}/variants/${variantId}/inventory/${codeId}`,
   );
-}
-
-/** One row's outcome from a bulk voucher create. */
-export interface BulkVoucherRowResult {
-  index: number;
-  status: 'created' | 'failed';
-  offerId?: string;
-  error?: string;
-}
-
-/** Aggregate result of a bulk voucher create. */
-export interface BulkVoucherResult {
-  results: BulkVoucherRowResult[];
-  created: number;
-  failed: number;
-}
-
-/**
- * Bulk-creates voucher offers from parsed CSV rows (one row = one voucher).
- * Matches POST /api/v1/offers/bulk (admin-gated; tenant from session). Each row
- * is a header→cell string map; the backend validates every row and returns a
- * per-row result, so a single bad row does not fail the request.
- */
-export async function bulkCreateVouchers(offers: Record<string, string>[]): Promise<BulkVoucherResult> {
-  return request<BulkVoucherResult>('POST', '/api/v1/offers/bulk', { offers });
 }
 
 /** Summary of an offer's existing inventory: code values + per-kind counts. */
