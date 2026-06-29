@@ -10,23 +10,16 @@ import { toast } from 'sonner';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { updateUnitValidity, type InventoryUnitView } from '../../lib/api';
 import { cn } from '../../lib/utils';
+import { formatUnitValidity } from '../../lib/voucherValidity';
 import InventoryValidityEditor from './InventoryValidityEditor';
 import { EditIcon, TrashIcon } from './inventoryIcons';
 
 /** Formats a unit's validity for display (limit duration / window / "set at purchase"). */
 function useUnitValidityText() {
   const { t } = useLanguage();
-  return (u: InventoryUnitView): string => {
-    if (u.validFrom && u.validUntil) {
-      const f = u.validFrom.slice(0, 10); const v = u.validUntil.slice(0, 10);
-      return `⁦${f} - ${v}⁩`;
-    }
-    if (u.validityValue && u.validityUnit) {
-      const unit = u.validityUnit === 'days' ? t('co_validityUnitDays') : u.validityUnit === 'months' ? t('co_validityUnitMonths') : t('co_validityUnitYears');
-      return `${u.validityValue} ${unit}`;
-    }
-    return t('im_noWindowYet');
-  };
+  // Reuse the shared formatter; fall back to the "no window yet" label for a
+  // limit unit whose dates have not been stamped (filled at purchase).
+  return (u: InventoryUnitView): string => formatUnitValidity(u, t) || t('im_noWindowYet');
 }
 
 interface UnitRowProps {

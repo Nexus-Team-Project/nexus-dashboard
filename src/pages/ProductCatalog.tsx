@@ -22,7 +22,7 @@ import OfferModal from '../components/catalog/OfferModal';
 import FieldTooltip from '../components/FieldTooltip';
 import VoucherColorTile from '../components/offer/VoucherColorTile';
 import { buildOfferImageUrl, getImageCrop } from '../lib/cloudinaryImage';
-import { formatVoucherCardPrice, variantMemberPriceRange } from '../lib/voucherPricing';
+import { formatVoucherCardPrice } from '../lib/voucherPricing';
 
 // ----------------------------------------------------------------
 // Types
@@ -319,17 +319,16 @@ const ProductCatalog = () => {
                         ? (item.member_price ?? item.face_value)
                         : (item.market_price ?? item.member_price ?? item.face_value));
                 if (price === undefined) return null;
-                // Multi-variant vouchers show the member_price range (lowest -
-                // highest), matching the benefits cards. A range has no single
-                // face_value to strike through.
-                const range = isVoucher ? variantMemberPriceRange(item) : null;
-                const isRange = !!(range && range.count > 1 && range.min !== range.max);
                 return (
                   <>
                     <span className="text-base font-bold text-slate-950" dir="ltr">
                       {isVoucher ? formatVoucherCardPrice(item, price) : `₪${price}`}
                     </span>
-                    {!isRange && item.face_value !== undefined && item.face_value !== price && (
+                    {/* Vouchers show the selling price only - a single-variant
+                        voucher renders one plain price (no face_value strike-through),
+                        and a multi-variant voucher already renders a min-max range.
+                        Non-voucher offers keep the discounted-vs-original comparison. */}
+                    {!isVoucher && item.face_value !== undefined && item.face_value !== price && (
                       <span className="text-xs text-slate-400 line-through">
                         &#8362;{item.face_value}
                       </span>

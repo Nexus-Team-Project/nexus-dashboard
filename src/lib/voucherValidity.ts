@@ -12,6 +12,41 @@ import type { TranslationKey } from '../i18n/translations';
 /** A voucher validity type, or null when none is set (non-voucher / unmigrated). */
 export type ValidityTypeValue = 'limit' | 'from_until' | null | undefined;
 
+/** The validity-bearing fields of an inventory unit (subset of InventoryUnitView). */
+export interface UnitValidityFields {
+  validityValue?: number | null;
+  validityUnit?: 'days' | 'months' | 'years' | null;
+  validFrom?: string | null;
+  validUntil?: string | null;
+}
+
+/**
+ * Formats one inventory unit's concrete validity for display: an absolute
+ * "from - until" window (LRI/PDI wrapped so the date pair never reorders in
+ * RTL) for a from_until unit, or "N <unit>" for a purchase-anchored limit unit.
+ * Input: the unit's validity fields + the translator.
+ * Output: the formatted string, or '' when neither window nor limit is set.
+ */
+export function formatUnitValidity(
+  u: UnitValidityFields,
+  t: (key: TranslationKey) => string,
+): string {
+  if (u.validFrom && u.validUntil) {
+    const f = u.validFrom.slice(0, 10);
+    const v = u.validUntil.slice(0, 10);
+    return `⁦${f} - ${v}⁩`;
+  }
+  if (u.validityValue && u.validityUnit) {
+    const unit = u.validityUnit === 'days'
+      ? t('co_validityUnitDays')
+      : u.validityUnit === 'months'
+        ? t('co_validityUnitMonths')
+        : t('co_validityUnitYears');
+    return `${u.validityValue} ${unit}`;
+  }
+  return '';
+}
+
 /**
  * Returns a short localized label for a validity type, or '' when none is set.
  * Input: the effective validity type and the translator. Output: label text.

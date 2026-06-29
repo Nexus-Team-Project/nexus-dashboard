@@ -10,13 +10,13 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
-import { EXECUTION_TYPE_LABELS, OFFER_CATEGORIES } from '../../lib/api';
+import { EXECUTION_TYPE_LABELS, OFFER_CATEGORIES, listVariantUnits } from '../../lib/api';
 import type { CatalogItem } from '../../lib/api';
 import OfferImageCarousel from './OfferImageCarousel';
 import { buildOfferImageUrl, getImageCrop } from '../../lib/cloudinaryImage';
 import RichTextDisplay from '../RichTextDisplay';
 import ImageLightbox from '../ImageLightbox';
-import { validityTypeLabel } from '../../lib/voucherValidity';
+import { validityTypeLabel, formatUnitValidity } from '../../lib/voucherValidity';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -232,15 +232,57 @@ function OfferDetails({ offer }: { offer: CatalogItem }) {
 
 /**
  * Variants summary - one card per voucher variant carrying everything that is
- * per variant: price, plus a chip row (validity, combine-with-promotions, SKU,
- * tags) and a collapsible "usage & terms" disclosure (redemption method +
- * terms, each hidden when empty). Rendered only for voucher offers with more
- * than one variant; single-variant offers show their details inline in OfferDetails.
+ * per variant: price, available stock, plus a chip row (validity,
+ * combine-with-promotions, SKU, tags) and a collapsible "usage & terms"
+ * disclosure (redemption method + terms, each hidden when empty). Rendered for
+ * any voucher offer that exposes at least one variant - including the
+ * single-variant case, so that variant's row is shown rather than skipped.
  */
 function VariantsSummary({ offer }: { offer: CatalogItem }) {
   const { t } = useLanguage();
   const variants = offer.variants ?? [];
-  if (offer.executionType !== 'voucher' || variants.length <= 1) return null;
+  const offerId = offer.offerId;
+
+  // Per-variant inventory: the total available unit count plus the distinct
+  // concrete validity descriptors of those units (the exact from-until window
+  // or purchase limit, which live on the units - not the variant). The catalog
+  // read does not expose either, so they are fetched lazily from the
+  // owner-scoped units endpoint; failures (e.g. a non-owner viewing an adopted
+  // ecosystem offer) fall back to hiding the stock chip + date tooltip silently.
+  const [info, setInfo] = useState<Record<string, { count: number; validity: string[] }>>({});
+  const variantKey = variants.map((v) => v.variantId).join(',');
+  useEffect(() => {
+    if (offer.executionType !== 'voucher' || variants.length < 1) return;
+    let cancelled = false;
+    Promise.all(
+      variants.map((v) =>
+        // One page (up to 200 units) is enough to summarise the distinct
+        // validity windows/limits for the hover tooltip; `total` is the exact
+        // stock count regardless of the page size.
+        listVariantUnits(offerId, v.variantId, {}, 1, 200)
+          .then((page) => {
+            const seen = new Set<string>();
+            const validity: string[] = [];
+            for (const u of page.units) {
+              const text = formatUnitValidity(u, t);
+              if (text && !seen.has(text)) { seen.add(text); validity.push(text); }
+            }
+            return [v.variantId, { count: page.total, validity }] as const;
+          })
+          .catch(() => null),
+      ),
+    ).then((pairs) => {
+      if (cancelled) return;
+      const next: Record<string, { count: number; validity: string[] }> = {};
+      for (const p of pairs) if (p) next[p[0]] = p[1];
+      setInfo(next);
+    });
+    return () => { cancelled = true; };
+    // offerId + the variant-id list fully identify the data to fetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offerId, variantKey]);
+
+  if (offer.executionType !== 'voucher' || variants.length < 1) return null;
 
   const chip = 'rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[11px] text-white/70';
 
@@ -255,6 +297,16 @@ function VariantsSummary({ offer }: { offer: CatalogItem }) {
           const method = (v.implementationInstructions ?? '').trim();
           const terms = (v.terms ?? '').trim();
           const tags = (v.tags ?? []).filter(Boolean);
+          // Available inventory units + their concrete validity for this variant
+          // (undefined until the lazy fetch resolves, or when it is not visible
+          // to this caller).
+          const variantInfo = info[v.variantId];
+          const unitCount = variantInfo?.count;
+          const hasStock = typeof unitCount === 'number';
+          // Concrete validity (exact from-until window or limit) shown on hover
+          // over the validity-type chip. Distinct values joined when a variant
+          // holds mixed-dated batches; empty when no units carry a window yet.
+          const validityDetail = (variantInfo?.validity ?? []).join('  •  ');
           return (
             <li key={v.variantId} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
               {/* Header: variant label + its own selling price. */}
@@ -267,11 +319,28 @@ function VariantsSummary({ offer }: { offer: CatalogItem }) {
                 )}
               </div>
 
-              {/* Chips: validity, combine, SKU. Only the SKU value is isolated
-                  LTR (so its Hebrew label still flows RTL and is not broken). */}
-              {(validity || typeof v.voucherStackable === 'boolean' || v.sku) && (
+              {/* Chips: stock, validity, combine, SKU. Only the SKU value and
+                  the stock count are isolated LTR (so their Hebrew labels still
+                  flow RTL and are not broken). */}
+              {(hasStock || validity || typeof v.voucherStackable === 'boolean' || v.sku) && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
-                  {validity && <span className={chip}>{validity}</span>}
+                  {hasStock && (
+                    <span className={chip}>
+                      {t('bp_variantStock')}: <span dir="ltr">{unitCount.toLocaleString()}</span>
+                    </span>
+                  )}
+                  {validity && (
+                    validityDetail ? (
+                      // Hovering the validity-type badge reveals the concrete
+                      // value: the from-until window for a date-range voucher or
+                      // the duration for a purchase-limit voucher.
+                      <span className={`${chip} cursor-help underline decoration-dotted underline-offset-2`} title={validityDetail}>
+                        {validity}
+                      </span>
+                    ) : (
+                      <span className={chip}>{validity}</span>
+                    )
+                  )}
                   {typeof v.voucherStackable === 'boolean' && (
                     <span className={chip}>
                       {t('om_voucherStackableLabel')}: {v.voucherStackable ? t('om_voucherStackableYes') : t('om_voucherStackableNo')}
@@ -341,6 +410,14 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
   const isLive = catalogMode === 'live';
   /** Only show the coupon tear-line and redemption section to eligible users. */
   const showRedeemSection = canPurchase;
+  /**
+   * True when this is a voucher offer that exposes a variants array. The
+   * per-variant breakdown (VariantsSummary) then becomes the single source of
+   * detail and the parent offer-details block is hidden. Single-variant vouchers
+   * also satisfy this, so their one variant row renders rather than being
+   * collapsed into the offer-level details.
+   */
+  const hasVariants = offer.executionType === 'voucher' && (offer.variants?.length ?? 0) >= 1;
 
   /** Ephemeral in-flight state for the mock "Redeem Now" button animation. */
   const [mockingRedeem, setMockingRedeem] = useState(false);
@@ -560,10 +637,14 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
             </p>
           )}
 
-          {/* Offer details first (offer-wide info), then the per-variant
-              breakdown below it. Each renders only when it has content, so the
-              modal stays tight for sparse offers. */}
-          <OfferDetails offer={offer} />
+          {/* Voucher offers carry their data per variant, so for any voucher
+              that exposes a variants array we show ONLY the per-variant
+              breakdown (VariantsSummary) and hide the parent offer-details block
+              along with its global terms - the view stays focused on the
+              specific variant(s), including the single-variant case. Non-voucher
+              offers (and legacy vouchers with no variants array) keep the
+              offer-level details. */}
+          {!hasVariants && <OfferDetails offer={offer} />}
           <VariantsSummary offer={offer} />
           </div>
         </div>
