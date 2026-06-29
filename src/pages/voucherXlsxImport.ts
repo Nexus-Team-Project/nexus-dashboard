@@ -35,6 +35,8 @@ export interface VoucherImportMapping {
   duration?: string;
   barcode?: string;
   link?: string;
+  /** Optional per-link code; only meaningful when `link` is mapped. */
+  linkCode?: string;
 }
 
 /** Resolution of each distinct stackable free-text value, keyed by lower-cased text. */
@@ -148,10 +150,13 @@ function rowToUnit(row: Record<string, string>, mapping: VoucherImportMapping): 
     mapping.duration ? row[mapping.duration] : '',
     new Date().toISOString().slice(0, 10),
   );
+  // A link may carry an optional code; barcodes never do.
+  const code = !barcode && mapping.linkCode ? (row[mapping.linkCode] ?? '').trim() : '';
   return {
     localId: nextImportUnitId(),
     kind: barcode ? 'barcode' : 'link',
     value,
+    ...(code ? { code } : {}),
     validityValue: v.validityValue,
     validityUnit: v.validityUnit,
     validFrom: v.validFrom,

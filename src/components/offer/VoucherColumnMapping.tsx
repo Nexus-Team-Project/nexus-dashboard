@@ -32,6 +32,7 @@ const FIELDS: { key: keyof VoucherImportMapping; labelKey: TranslationKey }[] = 
   { key: 'duration', labelKey: 'vxi_fieldDuration' },
   { key: 'barcode', labelKey: 'vxi_fieldBarcode' },
   { key: 'link', labelKey: 'vxi_fieldLink' },
+  { key: 'linkCode', labelKey: 'vxi_fieldLinkCode' },
 ];
 
 interface MapRow {
@@ -101,9 +102,18 @@ export default function VoucherColumnMapping({ fileName, headers, rows, onBack, 
   );
   const stackTooMany = stackableDistinct.length > 2;
   const mappedCount = mapRows.filter((r) => r.target !== '').length;
+  const linkMapped = mapRows.some((r) => r.target === 'link');
 
+  // Link codes cannot outnumber links (a code with no link is invalid).
+  const codesExceedLinks = useMemo(() => {
+    if (!mapping.linkCode) return false;
+    const nonEmpty = (col?: string) => (col ? rows.filter((r) => (r[col] ?? '').trim() !== '').length : 0);
+    return nonEmpty(mapping.linkCode) > nonEmpty(mapping.link);
+  }, [mapping.linkCode, mapping.link, rows]);
+
+  const blocked = stackTooMany || codesExceedLinks;
   const proceed = () => {
-    if (stackTooMany) return;
+    if (blocked) return;
     onNext(mapping, stackableDistinct);
   };
 
@@ -127,6 +137,13 @@ export default function VoucherColumnMapping({ fileName, headers, rows, onBack, 
         <div className="mb-6 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-400">
           <span className="material-icons text-base">error_outline</span>
           <span>{t('vxi_stackTooMany')}</span>
+        </div>
+      )}
+
+      {codesExceedLinks && (
+        <div className="mb-6 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-400">
+          <span className="material-icons text-base">error_outline</span>
+          <span>{t('vxi_codesExceedLinks')}</span>
         </div>
       )}
 
@@ -167,11 +184,16 @@ export default function VoucherColumnMapping({ fileName, headers, rows, onBack, 
                     <option value="">{t('cm_chooseColumn')}</option>
                     {FIELDS.map((f) => {
                       const claimedByOther = mapRows.some((m, i) => i !== index && m.target === f.key);
-                      // Inventory is one kind per voucher: block the opposite kind only when it is
-                      // mapped in another row, so this row can still switch between barcode and link.
+                      // Inventory is one kind per voucher. Barcode is one family; Link + Link codes
+                      // are the other. Block the opposite family when it is mapped in another row
+                      // (so this row can still switch within its choice). Link codes additionally
+                      // require Link to be mapped somewhere - a code has no meaning without links.
+                      const otherBarcode = mapRows.some((m, i) => i !== index && m.target === 'barcode');
+                      const otherLinkFamily = mapRows.some((m, i) => i !== index && (m.target === 'link' || m.target === 'linkCode'));
                       const kindBlocked =
-                        (f.key === 'barcode' && mapRows.some((m, i) => i !== index && m.target === 'link')) ||
-                        (f.key === 'link' && mapRows.some((m, i) => i !== index && m.target === 'barcode'));
+                        (f.key === 'barcode' && otherLinkFamily) ||
+                        (f.key === 'link' && otherBarcode) ||
+                        (f.key === 'linkCode' && (otherBarcode || !linkMapped));
                       return (
                         <option key={f.key} value={f.key} disabled={claimedByOther || kindBlocked}>
                           {t(f.labelKey)}{claimedByOther ? ' ✓' : ''}
@@ -202,7 +224,7 @@ export default function VoucherColumnMapping({ fileName, headers, rows, onBack, 
           </button>
           <button
             onClick={proceed}
-            disabled={stackTooMany}
+            disabled={blocked}
             className="bg-primary text-white px-10 py-2.5 font-semibold rounded-lg shadow-lg shadow-primary/20 hover:opacity-90 transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {t('cm_next')}
