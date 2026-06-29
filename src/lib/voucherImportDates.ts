@@ -135,6 +135,14 @@ export function parseDuration(raw: string | number | null | undefined): ParsedDu
   return { value, unit: durationUnit(m[2]) };
 }
 
+/** Adds `years` to a `YYYY-MM-DD` string, clamping an invalid day (e.g. Feb 29) down. */
+function addYears(ymd: string, years: number): string {
+  const [y, mo, d] = ymd.split('-').map(Number);
+  const targetYear = y + years;
+  const lastDay = new Date(Date.UTC(targetYear, mo, 0)).getUTCDate();
+  return fmt(targetYear, mo, Math.min(d, lastDay));
+}
+
 /** A unit's resolved validity: a from/until window (from_until) OR a limit recipe. */
 export interface UnitValidity {
   validityValue: number | null;
@@ -149,6 +157,7 @@ export interface UnitValidity {
  * Rules (per the import spec):
  * - End date present -> `from_until` window [Start (or import date), End].
  * - else Duration present -> `limit` recipe (amount + unit).
+ * - else when only a Start date is present -> `from_until` window [Start .. Start + 5 years].
  * - else -> `limit` of 5 years (the fixed lifespan fallback).
  * Per-row, so a single bad/blank cell never blocks the import.
  */
@@ -158,19 +167,19 @@ export function resolveUnitValidity(
   durationRaw: string | number | null | undefined,
   importDate: string,
 ): UnitValidity {
+  const start = normalizeExpiry(startRaw);
   const end = normalizeExpiry(endRaw);
   if (end) {
-    return {
-      validityValue: null,
-      validityUnit: null,
-      validFrom: normalizeExpiry(startRaw) ?? importDate,
-      validUntil: end,
-    };
+    return { validityValue: null, validityUnit: null, validFrom: start ?? importDate, validUntil: end };
   }
   const dur = parseDuration(durationRaw);
   if (dur) {
     return { validityValue: dur.value, validityUnit: dur.unit, validFrom: null, validUntil: null };
   }
-  // No end date and no duration -> fixed 5-year limit lifespan.
+  // Only a start date (no end, no duration) -> a 5-year window from that start.
+  if (start) {
+    return { validityValue: null, validityUnit: null, validFrom: start, validUntil: addYears(start, 5) };
+  }
+  // Nothing mapped/usable -> fixed 5-year limit lifespan.
   return { validityValue: 5, validityUnit: 'years', validFrom: null, validUntil: null };
 }
