@@ -120,8 +120,9 @@ const CreateOffer = () => {
   // button's disabled state and the on-click guard, so they can never diverge.
   // The first blocker is shown as the button tooltip + inline hint.
   const publishBlockers = computePublishBlockers(
-    { title, marketPrice, executionType, variants, variantEditing },
+    { title, category, marketPrice, executionType, variants, variantEditing },
     t,
+    language,
   );
 
   /** Creates the offer, then applies each variant's staged inventory to its

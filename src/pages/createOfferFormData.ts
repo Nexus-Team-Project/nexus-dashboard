@@ -9,7 +9,7 @@ import type { GalleryItem } from '../components/offer/OfferImageGallery';
 import type { BgMode } from '../components/offer/VoucherBackgroundField';
 import type { OfferInventoryInput } from '../lib/api';
 import type { TranslationKey } from '../i18n/translations';
-import { type DraftVariant, draftToPayload } from './voucherVariantDraft';
+import { type DraftVariant, draftToPayload, validateVariantDraft } from './voucherVariantDraft';
 
 export interface CreateOfferValues {
   title: string;
@@ -101,6 +101,8 @@ export function buildCreateOfferFormData(v: CreateOfferValues): FormData {
  */
 export interface PublishGateInput {
   title: string;
+  /** Required global field (backend requires a category on create). */
+  category: string;
   marketPrice: string;
   executionType: string;
   /** Voucher variants (voucher executionType only). */
@@ -117,25 +119,33 @@ export interface PublishGateInput {
  * on-click guard, so the two can never disagree about whether publishing is
  * allowed. Pure - the caller owns rendering.
  *
- * Per-variant pricing/validity/stackable/SKU are validated when each variant is
- * saved (VariantsManager), so here a voucher only needs at least one saved
- * variant and no draft mid-edit.
+ * Required global fields (title, category) AND every variant's required fields are
+ * re-validated here, so variants added programmatically (e.g. the XLSX import,
+ * which bypasses the per-variant Save) can never publish while incomplete.
  */
 export function computePublishBlockers(
   v: PublishGateInput,
   t: (key: TranslationKey) => string,
+  language: string,
 ): string[] {
   const blockers: string[] = [];
   if (!v.title.trim()) blockers.push(t('co_errTitleRequired'));
+  if (!v.category) blockers.push(t('co_errCategoryRequired'));
   if (v.marketPrice && (isNaN(Number(v.marketPrice)) || Number(v.marketPrice) <= 0)) {
     blockers.push(t('co_errMarketPrice'));
   }
   if (v.executionType === 'voucher') {
     if (v.variants.length === 0) blockers.push(t('co_variantsRequired'));
     else if (v.variantEditing) blockers.push(t('of_publishBlockVariantEditing'));
-    // No validity-type gate: each staged unit/edit already carries a complete,
-    // self-typed validity (the upload modal enforces it), so there is nothing to
-    // re-validate at publish - the type is per batch, not per variant.
+    else {
+      // Re-validate every variant's required fields (price, mandatory stackable, SKU
+      // format). Catches imported variants that never went through "Save Variant".
+      for (const d of v.variants) {
+        const err = validateVariantDraft(d, t, language);
+        if (err) { blockers.push(err); break; }
+      }
+    }
+    // Validity VALUE is per unit (set in the inventory flow), so nothing to gate here.
   }
   return blockers;
 }

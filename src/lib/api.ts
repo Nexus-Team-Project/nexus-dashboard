@@ -5,6 +5,7 @@
  * mirroring the website API client to prevent concurrent-refresh races.
  */
 import type { ImageCropEntry } from './cloudinaryImage';
+import { extractApiError } from './apiError';
 
 const AUTH_BASE = (import.meta.env.VITE_AUTH_URL as string | undefined) ?? (import.meta.env.VITE_API_URL as string | undefined) ?? '';
 const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '';
@@ -100,7 +101,10 @@ async function request<T>(
   if (res.status === 204) return undefined as T;
 
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
+  // The backend `error` can be a string OR a Zod validation object (flatten/format,
+  // incl. nested fieldErrors.variants). extractApiError pulls out the real message(s)
+  // so we never throw an Error whose message renders as "[object Object]".
+  if (!res.ok) throw new Error(extractApiError(data?.error, `HTTP ${res.status}`));
   return data as T;
 }
 
