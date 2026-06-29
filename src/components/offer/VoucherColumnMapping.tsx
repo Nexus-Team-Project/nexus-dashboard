@@ -49,24 +49,8 @@ interface VoucherColumnMappingProps {
   onNext: (mapping: VoucherImportMapping, stackableDistinct: string[]) => void;
 }
 
-/** Auto-maps a header to a voucher field by name (EN + HE), or '' when unsure. */
-function autoDetect(header: string): VoucherTarget {
-  const h = header.toLowerCase().trim();
-  if (/link|url|קישור|כתובת אתר/.test(h)) return 'link';
-  if (/barcode|serial|voucher|ברקוד|שובר/.test(h)) return 'barcode';
-  if (/duration|length|lifespan|משך|תקופה/.test(h)) return 'duration';
-  if (/start|valid.?from|from date|מתאריך|תאריך התחל/.test(h)) return 'startDate';
-  if (/end|expir|until|valid.?to|תפוג|בתוקף עד|עד תאריך/.test(h)) return 'endDate';
-  if (/sku|מק.?ט/.test(h)) return 'sku';
-  if (/stack|combin|promo|כפל|מבצע/.test(h)) return 'stackable';
-  if (/tag|תגי/.test(h)) return 'tags';
-  if (/terms|condition|תנאי/.test(h)) return 'terms';
-  if (/method|redempt|מימוש|אופן/.test(h)) return 'method';
-  if (/sale|sell|מכיר/.test(h)) return 'salePrice';
-  if (/price|מחיר/.test(h)) return 'salePrice';
-  if (/value|face|amount|שווי|ערך/.test(h)) return 'value';
-  return '';
-}
+// No auto-detection for now: every column starts unmapped and the admin maps it
+// explicitly. (Header/content-based auto-mapping may be added later.)
 
 /** First non-empty value of a column, for the example hint (single row). */
 function sampleValues(rows: Record<string, string>[], header: string): string {
@@ -89,7 +73,7 @@ export default function VoucherColumnMapping({ fileName, headers, rows, onBack, 
   const { t, language } = useLanguage();
   const isHe = language === 'he';
   const [mapRows, setMapRows] = useState<MapRow[]>(() =>
-    headers.map((column) => ({ column, target: autoDetect(column), sample: sampleValues(rows, column) })),
+    headers.map((column) => ({ column, target: '', sample: sampleValues(rows, column) })),
   );
 
   const change = (index: number, target: VoucherTarget) =>
