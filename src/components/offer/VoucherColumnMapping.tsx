@@ -85,7 +85,8 @@ function toMapping(mapRows: MapRow[]): VoucherImportMapping {
 
 /** Renders the voucher column-mapping screen. */
 export default function VoucherColumnMapping({ fileName, headers, rows, onBack, onNext }: VoucherColumnMappingProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const isHe = language === 'he';
   const [mapRows, setMapRows] = useState<MapRow[]>(() =>
     headers.map((column) => ({ column, target: autoDetect(column), sample: sampleValues(rows, column) })),
   );
@@ -155,10 +156,13 @@ export default function VoucherColumnMapping({ fileName, headers, rows, onBack, 
                   <select
                     value={row.target}
                     onChange={(e) => change(index, e.target.value as VoucherTarget)}
-                    className={`w-full bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-primary/40 focus:border-primary py-3 ps-4 pe-10 transition-all cursor-pointer hover:shadow-md ${
+                    dir={isHe ? 'rtl' : 'ltr'}
+                    className={`w-full bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-primary/40 focus:border-primary py-3 transition-all cursor-pointer hover:shadow-md ${
+                      isHe ? 'pl-10 pr-4 text-right' : 'pr-10 pl-4 text-left'
+                    } ${
                       row.target ? 'text-slate-900 dark:text-white font-medium' : 'text-slate-400 italic'
                     }`}
-                    style={{ appearance: 'none', backgroundImage: 'none' }}
+                    style={{ appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundImage: 'none' }}
                   >
                     <option value="">{t('cm_chooseColumn')}</option>
                     {FIELDS.map((f) => {
@@ -175,7 +179,7 @@ export default function VoucherColumnMapping({ fileName, headers, rows, onBack, 
                       );
                     })}
                   </select>
-                  <span className="material-icons absolute end-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-lg">
+                  <span className={`material-icons absolute ${isHe ? 'left-3' : 'right-3'} top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-lg`}>
                     expand_more
                   </span>
                 </div>
