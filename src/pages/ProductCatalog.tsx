@@ -1,11 +1,16 @@
 /**
- * ProductCatalog page - shows the tenant admin which offers they have adopted
- * for their members. Allows removing adopted offers and navigating to the
- * platform catalog (BenefitsPartnerships) to add more.
+ * ProductCatalog page - shows the offers THIS tenant created/uploaded
+ * (createdByTenantId === own tenant), NOT offers adopted from the ecosystem.
+ * Lets the user remove an offer and jump to the platform catalog
+ * (BenefitsPartnerships) to browse/adopt more.
  *
  * Route: /product-catalog
- * Access: tenant admin only (isTenantAdmin guard in App.tsx)
- * Data source: getPlatformOffers() filtered to isAdopted === true
+ * Access: owner/admin + catalog-editing roles (supply_manager). The backend is
+ *   the real gate - the ownedOnly view of GET /api/v1/offers/platform requires
+ *   supply.manage_offers; the App.tsx route guard (canManageCatalog) is UX only.
+ * Data source: getPlatformOffers({ ownedOnly: true }) - the server filters to
+ *   createdByTenantId === the caller's server-derived tenant, so adopted /
+ *   imported / other-tenant offers can never appear here.
  */
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -22,7 +27,7 @@ import OfferModal from '../components/catalog/OfferModal';
 import FieldTooltip from '../components/FieldTooltip';
 import VoucherColorTile from '../components/offer/VoucherColorTile';
 import { buildOfferImageUrl, getImageCrop } from '../lib/cloudinaryImage';
-import { formatVoucherCardPrice, variantMemberPriceRange } from '../lib/voucherPricing';
+import { formatVoucherCardPrice } from '../lib/voucherPricing';
 
 // ----------------------------------------------------------------
 // Types
@@ -120,19 +125,29 @@ const ProductCatalog = () => {
   /**
    * Fetches the offers THIS org created (uploaded), not adopted ecosystem
    * offers. Server-side `ownedOnly` filter (createdByTenantId === tenant), so
-   * pagination counts only the org's own offers. Sets isLoading while in-flight
+   * the result counts only the org's own offers. Sets isLoading while in-flight
    * and records any error message.
    */
   const loadAdoptedOffers = useCallback(async () => {
     setIsLoading(true);
     setFetchError(null);
     try {
-      // Server-side filter to the org's own uploaded offers only — the page is
-      // capped at 100 (backend hard limit). Orgs with more than 100 of their own
-      // offers will not see the overflow here; if that becomes a real case we
-      // switch to a pagination loop. Single page keeps this page simple for now.
-      const page = await getPlatformOffers({ page: 1, limit: 100, ownedOnly: true });
-      setItems(page.items);
+      // Server-side filter to the org's own uploaded offers only. The backend
+      // hard-caps a page at 100, so we accumulate pages until we have the full
+      // set. The data is the tenant's own offers (a bounded set), and the loop
+      // has a hard 50-page safety cap (5000 offers) so a backend total/items
+      // mismatch can never spin forever.
+      const PAGE_LIMIT = 100;
+      const MAX_PAGES = 50;
+      const all: CatalogItem[] = [];
+      for (let pageNum = 1; pageNum <= MAX_PAGES; pageNum++) {
+        const page = await getPlatformOffers({ page: pageNum, limit: PAGE_LIMIT, ownedOnly: true });
+        all.push(...page.items);
+        // Stop when we have everything the server reports, or the server returns
+        // an empty/short page (no more rows to fetch).
+        if (all.length >= page.pagination.total || page.items.length < PAGE_LIMIT) break;
+      }
+      setItems(all);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load catalog';
       setFetchError(message);
@@ -319,17 +334,16 @@ const ProductCatalog = () => {
                         ? (item.member_price ?? item.face_value)
                         : (item.market_price ?? item.member_price ?? item.face_value));
                 if (price === undefined) return null;
-                // Multi-variant vouchers show the member_price range (lowest -
-                // highest), matching the benefits cards. A range has no single
-                // face_value to strike through.
-                const range = isVoucher ? variantMemberPriceRange(item) : null;
-                const isRange = !!(range && range.count > 1 && range.min !== range.max);
                 return (
                   <>
                     <span className="text-base font-bold text-slate-950" dir="ltr">
                       {isVoucher ? formatVoucherCardPrice(item, price) : `₪${price}`}
                     </span>
-                    {!isRange && item.face_value !== undefined && item.face_value !== price && (
+                    {/* Vouchers show the selling price only - a single-variant
+                        voucher renders one plain price (no face_value strike-through),
+                        and a multi-variant voucher already renders a min-max range.
+                        Non-voucher offers keep the discounted-vs-original comparison. */}
+                    {!isVoucher && item.face_value !== undefined && item.face_value !== price && (
                       <span className="text-xs text-slate-400 line-through">
                         &#8362;{item.face_value}
                       </span>
