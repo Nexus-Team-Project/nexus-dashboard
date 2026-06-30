@@ -18,6 +18,7 @@ import {
   EXECUTION_TYPE_LABELS,
 } from '../lib/api';
 import RichTextDisplay from '../components/RichTextDisplay';
+import OfferDescriptionModal from '../components/OfferDescriptionModal';
 import OfferModal from '../components/catalog/OfferModal';
 import FieldTooltip from '../components/FieldTooltip';
 import VoucherColorTile from '../components/offer/VoucherColorTile';
@@ -101,6 +102,9 @@ const ProductCatalog = () => {
   const [confirmRemove, setConfirmRemove] = useState<ConfirmState | null>(null);
   // Currently opened offer in the detail modal, or null when closed.
   const [detailOffer, setDetailOffer] = useState<CatalogItem | null>(null);
+  // Offer whose full HTML description is shown in OfferDescriptionModal, opened
+  // directly from a card (without opening the full offer detail panel).
+  const [descriptionOffer, setDescriptionOffer] = useState<CatalogItem | null>(null);
 
   /**
    * Looks up the localized label for an offer category. Falls back to the
@@ -299,8 +303,25 @@ const ProductCatalog = () => {
           <RichTextDisplay
             html={item.description}
             compact
-            className="text-xs text-slate-500 flex-1"
+            className="text-xs text-slate-600 flex-1"
           />
+
+          {/* View full description - opens the formatted HTML in a dialog without
+              opening the full offer detail panel. stopPropagation so the card's
+              own click (open details) does not also fire. */}
+          {item.description && item.description.trim() !== '' && item.description !== '<p></p>' && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setDescriptionOffer(item); }}
+              className="mt-1.5 inline-flex w-fit items-center gap-1 text-xs font-semibold text-primary hover:opacity-80 transition-opacity"
+              aria-label={`${t('desc_viewDescription')}: ${item.title}`}
+            >
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-3.5 h-3.5 shrink-0" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.5 4.5h11M2.5 8h11M2.5 11.5h7" />
+              </svg>
+              {t('desc_viewDescription')}
+            </button>
+          )}
 
           {/* Pricing row. Voucher offers don't carry market_price; fall back
               to member_price (what members pay), then face_value, so the card
@@ -520,6 +541,15 @@ const ProductCatalog = () => {
           catalogMode="inactive"
           canPurchase={false}
           onClose={() => setDetailOffer(null)}
+        />
+      )}
+
+      {/* Description-only modal - opened from a card's "view description" button. */}
+      {descriptionOffer && (
+        <OfferDescriptionModal
+          title={descriptionOffer.title}
+          html={descriptionOffer.description ?? ''}
+          onClose={() => setDescriptionOffer(null)}
         />
       )}
     </main>

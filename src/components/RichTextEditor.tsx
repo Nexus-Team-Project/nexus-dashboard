@@ -360,11 +360,21 @@ export default function RichTextEditor({
         </div>
       )}
 
-      {/* Editor content area - ProseMirror styles applied via global CSS */}
+      {/* Editor content area.
+          The `prose` typography classes are essential here, not cosmetic:
+          Tailwind's preflight resets <h1>-<h3> to inherit font-size/weight and
+          strips list markers from <ul>/<ol>. Without prose, toggling a heading
+          or a list changes the underlying HTML but looks identical to a
+          paragraph in the editor - so the toolbar buttons appear to "do
+          nothing". prose restores visible heading sizes and list bullets/numbers
+          so the formatting is seen as it is applied. Mirrors RichTextDisplay so
+          the editing view matches the rendered output. */}
       <EditorContent
         editor={editor}
         className={cn(
           'min-h-[120px] px-3 py-2 text-sm',
+          'prose prose-sm max-w-none',
+          'prose-headings:my-2 prose-p:my-1 prose-ul:my-1 prose-ol:my-1',
           '[&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[100px]',
           disabled && 'opacity-60 pointer-events-none',
         )}

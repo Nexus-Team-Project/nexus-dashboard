@@ -205,6 +205,8 @@ Every service page must show a professional teaser when `serviceMode === 'inacti
 
 Do not ship a backend change to offer types or offer fields without circling back to `OfferModal.tsx` so the admin detail modal stays in sync with the new shape.
 
+**Note (2026-06-29c) - rich-text description: editor renders prose; descriptions render readably everywhere.** Offer descriptions are author-controlled HTML (TipTap). Two standing facts: (1) `RichTextEditor.tsx`'s `EditorContent` MUST carry `prose` classes - Tailwind preflight neutralizes `<h1>-<h3>` + list markers, so without prose the H1/H2/H3 and list toolbar buttons modify the HTML but look like they do nothing in the editor. Do not remove the prose classes. (2) The full description is shown ONLY through the one shared, offer-type-agnostic dialog `components/OfferDescriptionModal.tsx` (presentational: full HTML on a clean white panel; portal/Escape/focus-trap/scroll-lock/RTL, `z-[300]` so it stacks above any open detail modal). Reuse it - do not hand-roll a per-surface renderer. Every surface opens it via a "View description" button: the Benefits table cell, the Benefits card detail modal, the Product Catalog grid card, and the Product Catalog detail modal (`OfferModal`). Both detail modals open the description in this SEPARATE dialog rather than rendering it inline. **Never render a description over an image/overlay or force its color (`[&_*]:!text-white`)** - that destroys the author's custom HTML colors; always put it on a high-contrast light surface. i18n keys are `desc_*` (EN+HE).
+
 ## Coding Standards
 
 - **Production-grade always.** No prototype shortcuts, demo branches, silent failures, or hardcoded secrets.
