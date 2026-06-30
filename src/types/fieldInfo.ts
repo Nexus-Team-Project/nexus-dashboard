@@ -19,7 +19,6 @@ export type FieldInfoKey =
   | 'validFrom'
   | 'validUntil'
   | 'voucherValidity'
-  | 'validityType'
   | 'validityTypeOverride'
   | 'batchValidity'
   | 'voucherStackable'
