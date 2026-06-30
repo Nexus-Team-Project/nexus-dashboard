@@ -141,7 +141,11 @@ export default function RichTextEditor({
 
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      // StarterKit v3 bundles Link + Underline; disable them here so our
+      // explicitly-configured Underline + Link (below) are the single source and
+      // we don't register duplicate extension names (which TipTap warns about and
+      // can leave the schema in an inconsistent state).
+      StarterKit.configure({ link: false, underline: false }),
       Underline,
       TextStyle,
       Color,
@@ -360,7 +364,11 @@ export default function RichTextEditor({
         </div>
       )}
 
-      {/* Editor content area - ProseMirror styles applied via global CSS */}
+      {/* Editor content area. Heading + list visibility is provided by explicit
+          `.ProseMirror` rules in index.css (Tailwind preflight otherwise
+          neutralizes heading sizes and list markers, making the H1-H3 / list
+          toolbar buttons look like they do nothing). Those rules mirror the
+          rendered RichTextDisplay output. */}
       <EditorContent
         editor={editor}
         className={cn(

@@ -26,12 +26,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
-import { stripHtml } from '../lib/stripHtml';
 import ServiceActivationBanner from '../components/ServiceActivationBanner';
 import BenefitsCatalogTeaser from '../components/BenefitsCatalogTeaser';
 import ImageLightbox from '../components/ImageLightbox';
 import DeleteOfferConfirmModal from '../components/DeleteOfferConfirmModal';
 import RichTextDisplay from '../components/RichTextDisplay';
+import OfferDescriptionModal from '../components/OfferDescriptionModal';
 import CatalogTopBar from '../components/catalog/CatalogTopBar';
 import CatalogFilterPanel from '../components/catalog/CatalogFilterPanel';
 import FieldTooltip from '../components/FieldTooltip';
@@ -408,6 +408,11 @@ const BenefitsPartnerships = () => {
 
   /** CatalogItem pending deletion confirmation, or null when no deletion is in progress. */
   const [deletingOffer, setDeletingOffer] = useState<CatalogItem | null>(null);
+
+  /** Offer description shown in the separate OfferDescriptionModal - opened from
+      the table "view description" cell and from the card detail modal. Holds just
+      the title + HTML so either source can populate it; null when closed. */
+  const [descriptionTarget, setDescriptionTarget] = useState<{ title: string; html: string } | null>(null);
 
   /** CatalogItem pending denial in DenyOfferModal, or null when the modal is closed. */
   const [denyTarget, setDenyTarget] = useState<CatalogItem | null>(null);
@@ -1101,7 +1106,9 @@ const BenefitsPartnerships = () => {
                             : isVoucher
                               ? (item.member_price ?? null)
                               : (item.market_price ?? null);
-                          const descPlain = stripHtml(item.description);
+                          const hasDescription = !!item.description
+                            && item.description.trim() !== ''
+                            && item.description !== '<p></p>';
                           const tagsList = item.tags ?? [];
                           const visibility = item.visibility;
                           const isExpanded = expandedRows.has(item.offerId);
@@ -1243,14 +1250,27 @@ const BenefitsPartnerships = () => {
                                 )}
                               </td>
 
-                              {/* 4. Description — HTML stripped to plain text for table display. */}
+                              {/* 4. Description — opens the full formatted HTML in a
+                                  dialog. A table cell is too narrow to render rich
+                                  HTML (and stripping it to plain text loses the
+                                  author's formatting/colors), so we surface a clear
+                                  action that renders the description at full fidelity. */}
                               <td className="px-4 py-4 align-top">
-                                <span className={cn(
-                                  'block text-sm line-clamp-2 max-w-[300px]',
-                                  descPlain ? 'text-slate-600 dark:text-slate-300' : 'text-slate-400 italic',
-                                )}>
-                                  {descPlain || np}
-                                </span>
+                                {hasDescription ? (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); setDescriptionTarget({ title: item.title, html: item.description ?? '' }); }}
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 px-2.5 py-1 text-xs font-medium transition-colors whitespace-nowrap"
+                                    aria-label={`${t('desc_viewDescription')}: ${item.title}`}
+                                  >
+                                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-3.5 h-3.5 shrink-0" aria-hidden="true">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.5 4.5h11M2.5 8h11M2.5 11.5h7" />
+                                    </svg>
+                                    {t('desc_viewDescription')}
+                                  </button>
+                                ) : (
+                                  <span className="block text-sm text-slate-400 italic">{np}</span>
+                                )}
                               </td>
 
                               {/* 5. Category — colored chip. */}
@@ -1515,7 +1535,22 @@ const BenefitsPartnerships = () => {
                           )}
                         </div>
                         <div className="pt-6 border-t border-slate-100 dark:border-slate-800">
-                          <RichTextDisplay html={benefit.description} compact className="text-sm text-slate-400" />
+                          <RichTextDisplay html={benefit.description} compact className="text-sm text-slate-600 dark:text-slate-300" />
+                          {/* View full description - opens the formatted HTML in the
+                              shared dialog (stopPropagation so the card's own click,
+                              which opens the detail modal, does not also fire). */}
+                          {benefit.description && benefit.description.trim() !== '' && benefit.description !== '<p></p>' && (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setDescriptionTarget({ title: benefit.title, html: benefit.description }); }}
+                              className="mt-2 inline-flex w-fit items-center gap-1 text-xs font-semibold text-primary hover:opacity-80 transition-opacity"
+                            >
+                              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-3.5 h-3.5 shrink-0" aria-hidden="true">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M2.5 4.5h11M2.5 8h11M2.5 11.5h7" />
+                              </svg>
+                              {t('desc_viewDescription')}
+                            </button>
+                          )}
                           {/* Implementation link */}
                           {benefit.implementationLink && (() => {
                             const displayUrl = benefit.implementationLink.replace(/^https?:\/\//, '');
@@ -1645,6 +1680,22 @@ const BenefitsPartnerships = () => {
                             {benefit.discount}
                           </p>
 
+                          {/* View full description - opens the formatted HTML in the
+                              shared dialog (stopPropagation so the card's own click,
+                              which opens the detail modal, does not also fire). */}
+                          {benefit.description && benefit.description.trim() !== '' && benefit.description !== '<p></p>' && (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setDescriptionTarget({ title: benefit.title, html: benefit.description }); }}
+                              className="inline-flex w-fit items-center gap-1 text-xs font-semibold text-primary hover:opacity-80 transition-opacity"
+                            >
+                              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-3.5 h-3.5 shrink-0" aria-hidden="true">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M2.5 4.5h11M2.5 8h11M2.5 11.5h7" />
+                              </svg>
+                              {t('desc_viewDescription')}
+                            </button>
+                          )}
+
                           {/* Variant count chip - voucher offers with >1 variant. */}
                           {catalogItem?.executionType === 'voucher' && (catalogItem.variants?.length ?? 0) > 0 && (
                             <span className="inline-block w-fit rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
@@ -1768,9 +1819,12 @@ const BenefitsPartnerships = () => {
             <div className="p-6 overflow-y-auto flex-1 space-y-6">
               {/* Price hero - colored by the offer's own background (image or
                   color, parent-level), matching the card. A dark scrim keeps the
-                  white price + description legible on any image/color. The price
-                  is the member_price range (selectedBenefit.discount already
-                  resolves to "min - max" for multi-variant vouchers). */}
+                  white price legible on any image/color. The price is the
+                  member_price range (selectedBenefit.discount already resolves to
+                  "min - max" for multi-variant vouchers). The description is no
+                  longer rendered over this hero - author HTML colors were forced
+                  to white and overlaid on the image, making it unreadable; it now
+                  has its own clean, high-contrast section below. */}
               {(() => {
                 // Color-mode vouchers store the default placeholder as imageUrl,
                 // so check color first or the placeholder would mask it.
@@ -1800,19 +1854,33 @@ const BenefitsPartnerships = () => {
                     {/* Legibility scrim (same treatment as other image-backed surfaces). */}
                     <div aria-hidden className="absolute inset-0 bg-black/45" />
                     <div className="relative p-6 text-center">
-                      <div className="mb-2 text-4xl font-black text-white drop-shadow-sm" dir="ltr">
+                      <div className="text-4xl font-black text-white drop-shadow-sm" dir="ltr">
                         {selectedCatalogItem?.executionType === 'voucher'
                           ? formatVoucherCardPrice(selectedCatalogItem, selectedCatalogItem.member_price ?? 0)
                           : selectedBenefit.discount}
                       </div>
-                      <RichTextDisplay
-                        html={selectedBenefit.description}
-                        className="text-white/90 [&_*]:!text-white/90 [&_a]:!text-white [&_a]:underline"
-                      />
                     </div>
                   </div>
                 );
               })()}
+
+              {/* Description opens in its own separate dialog rather than inline,
+                  so the author's custom HTML styling shows on a clean surface and
+                  this modal stays compact. */}
+              {selectedBenefit.description
+                && selectedBenefit.description.trim() !== ''
+                && selectedBenefit.description !== '<p></p>' && (
+                <button
+                  type="button"
+                  onClick={() => setDescriptionTarget({ title: selectedBenefit.title, html: selectedBenefit.description })}
+                  className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 px-3 py-1.5 text-sm font-medium transition-colors"
+                >
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4 shrink-0" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.5 4.5h11M2.5 8h11M2.5 11.5h7" />
+                  </svg>
+                  {t('desc_viewDescription')}
+                </button>
+              )}
 
               {/* Variant breakdown - voucher offers with >1 variant. Lists every
                   variant's per-variant detail (price/value/validity/SKU/tags) plus
@@ -1896,6 +1964,16 @@ const BenefitsPartnerships = () => {
           initialIndex={lightboxGallery.initialIndex}
           alt={t('bp_imageMissingAlt')}
           onClose={() => setLightboxGallery(null)}
+        />
+      )}
+
+      {/* Offer description dialog — opens from the table "view description" cell
+          and from the card detail modal (stacks above it via portal at z-[300]). */}
+      {descriptionTarget && (
+        <OfferDescriptionModal
+          title={descriptionTarget.title}
+          html={descriptionTarget.html}
+          onClose={() => setDescriptionTarget(null)}
         />
       )}
 

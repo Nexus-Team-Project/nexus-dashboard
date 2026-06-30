@@ -15,6 +15,7 @@ import type { CatalogItem } from '../../lib/api';
 import OfferImageCarousel from './OfferImageCarousel';
 import { buildOfferImageUrl, getImageCrop } from '../../lib/cloudinaryImage';
 import RichTextDisplay from '../RichTextDisplay';
+import OfferDescriptionModal from '../OfferDescriptionModal';
 import ImageLightbox from '../ImageLightbox';
 import { validityTypeLabel, formatUnitValidity } from '../../lib/voucherValidity';
 
@@ -423,6 +424,8 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
   const [mockingRedeem, setMockingRedeem] = useState(false);
   /** Currently zoomed image URL, or null when the lightbox is closed. */
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  /** Whether the full description is shown in its own separate dialog. */
+  const [showDescription, setShowDescription] = useState(false);
 
   /** Ref for initial focus trap - close button is focused on mount. */
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -576,13 +579,25 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
         >
           <div dir={language === 'he' ? 'rtl' : 'ltr'} className="px-5 pt-4 pb-2">
           <h2 className="text-xl font-bold text-white leading-tight break-words">{offer.title}</h2>
-          {/* Long HTML descriptions are allowed to flow vertically inside
-              the scrollable body. break-words prevents long URLs / Hebrew
-              compound strings from forcing horizontal overflow. */}
-          <RichTextDisplay
-            html={offer.description}
-            className="mt-2 text-sm text-white/70 leading-relaxed break-words [&_*]:!text-white/70 [&_a]:!text-indigo-300 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-lg"
-          />
+          {/* Description opens in its own separate dialog (OfferDescriptionModal)
+              rather than rendering inline. The modal body is dark, and rendering
+              the author's custom HTML here either washed it out (forced white) or
+              fought the dark theme; a dedicated high-contrast dialog shows the real
+              formatting/colors cleanly. */}
+          {offer.description
+            && offer.description.trim() !== ''
+            && offer.description !== '<p></p>' && (
+            <button
+              type="button"
+              onClick={() => setShowDescription(true)}
+              className="mt-3 inline-flex w-fit items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/80 hover:bg-white/10 transition-colors"
+            >
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-3.5 h-3.5 shrink-0" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.5 4.5h11M2.5 8h11M2.5 11.5h7" />
+              </svg>
+              {t('desc_viewDescription')}
+            </button>
+          )}
 
           {/* Price display.
               - Vouchers: show member_price (nexus price + tenant margin) only.
@@ -722,6 +737,15 @@ const OfferModal = ({ offer, catalogMode, canPurchase, onClose }: OfferModalProp
           src={lightboxSrc}
           alt={offer.title}
           onClose={() => setLightboxSrc(null)}
+        />
+      )}
+
+      {/* Description shown in its own dialog (sits above this modal via portal). */}
+      {showDescription && (
+        <OfferDescriptionModal
+          title={offer.title}
+          html={offer.description ?? ''}
+          onClose={() => setShowDescription(false)}
         />
       )}
     </div>
