@@ -306,8 +306,8 @@ const BenefitsPartnerships = () => {
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [showBenefitModal, setShowBenefitModal] = useState(false);
   const [selectedBenefit, setSelectedBenefit] = useState<Benefit | null>(null);
-  // Cards vs Table tab. Replaces the prior displayMode state.
-  const [activeTab, setActiveTab] = useState<CatalogTab>('cards');
+  // Table vs Cards tab. The page opens on Table view by default.
+  const [activeTab, setActiveTab] = useState<CatalogTab>('table');
   const [benefitActiveStates, setBenefitActiveStates] = useState<Record<string, boolean>>({});
   // Offer rows whose variant sub-table is expanded in the table view (by offerId).
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
