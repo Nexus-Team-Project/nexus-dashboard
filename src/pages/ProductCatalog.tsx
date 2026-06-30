@@ -284,8 +284,9 @@ const ProductCatalog = () => {
                   {language === 'he' ? EXECUTION_TYPE_LABELS[item.executionType].labelHe : EXECUTION_TYPE_LABELS[item.executionType].label}
                 </span>
               )}
-              {/* Variant count - voucher offers with more than one variant. */}
-              {item.executionType === 'voucher' && (item.variants?.length ?? 0) > 1 && (
+              {/* Variant count - shown for any voucher carrying variants, including
+                  the single-variant case, so the card mirrors the Benefits views. */}
+              {item.executionType === 'voucher' && (item.variants?.length ?? 0) > 0 && (
                 <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary whitespace-nowrap">
                   {item.variants!.length} {t('co_variantsCountLabel')}
                 </span>
