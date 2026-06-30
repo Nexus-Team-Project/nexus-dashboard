@@ -845,7 +845,6 @@ export const translations = {
     co_voucherValidityHint: 'Counted from the moment the customer buys the voucher. Leave blank for no expiry.',
     // Voucher validity TYPE (parent default + per-variant override). The VALUE is per unit.
     co_validityTypeCardTitle: 'Voucher validity type',
-    co_validityTypeCardHint: 'Choose how every voucher in this offer expires. A single variant can override this below.',
     co_validityTypeOverrideLabel: 'Validity type for this variant',
     co_validityTypeOverrideHint: 'Leave on "Same as offer" unless this variant should expire differently. The actual date is set per code when you add inventory.',
     co_validityTypeInherit: 'Same as offer',
@@ -902,10 +901,6 @@ export const translations = {
     im_statusAssigned: 'Assigned',
     im_statusRedeemed: 'Redeemed',
     // Field tooltips for the new validity fields (label/short/detail/example).
-    fi_validityType_label: 'Voucher validity type',
-    fi_validityType_short: 'How every voucher in this offer expires - a time limit from purchase, or a fixed date range. Applies to all variants unless one overrides it.',
-    fi_validityType_detail: 'Time limit = each voucher stays valid for a length of time counted from the day the customer buys it (for example, 5 years from purchase). Date range = each voucher is valid only between two calendar dates you set. You pick one style here for the whole offer; any single variant can switch to the other style. The actual date or limit is entered per code when you add inventory, so you can load new batches with different dates over time.',
-    fi_validityType_example: 'Time limit: valid 5 years after purchase. Date range: valid 01/01/2026 - 31/03/2026.',
     fi_validityTypeOverride_label: 'Validity type for this variant',
     fi_validityTypeOverride_short: 'By default this variant uses the offer\'s validity type. Switch it here only if this variant should expire differently.',
     fi_validityTypeOverride_detail: 'Leave it on "Same as offer" to follow the offer-wide validity type. Choose Time limit or Date range to make just this variant behave differently - useful when one variant runs on a fixed campaign window while the rest expire a set time after purchase.',
@@ -2253,7 +2248,6 @@ export const translations = {
     co_voucherValidityHint: 'נספר מרגע רכישת השובר על ידי הלקוח. השאר ריק לשובר ללא תפוגה.',
     // סוג תוקף השובר (ברירת מחדל ברמת ההצעה + דריסה לכל וריאנט). הערך נשמר ליחידה.
     co_validityTypeCardTitle: 'סוג תוקף השובר',
-    co_validityTypeCardHint: 'בחר כיצד יפוג כל שובר בהצעה זו. וריאנט בודד יכול לדרוס זאת בהמשך.',
     co_validityTypeOverrideLabel: 'סוג תוקף לוריאנט זה',
     co_validityTypeOverrideHint: 'השאר על "כמו ההצעה" אלא אם וריאנט זה אמור לפוג אחרת. התאריך עצמו נקבע לכל ברקוד בעת הוספת מלאי.',
     co_validityTypeInherit: 'כמו ההצעה',
@@ -2310,10 +2304,6 @@ export const translations = {
     im_statusAssigned: 'משויך',
     im_statusRedeemed: 'מומש',
     // תיאורי שדה (label/short/detail/example) לשדות התוקף החדשים.
-    fi_validityType_label: 'סוג תוקף השובר',
-    fi_validityType_short: 'כיצד יפוג כל שובר בהצעה זו - הגבלת זמן מרגע הרכישה, או טווח תאריכים קבוע. חל על כל הוריאנטים אלא אם אחד דורס.',
-    fi_validityType_detail: 'הגבלת זמן = כל שובר נשאר בתוקף למשך פרק זמן הנספר מיום רכישת הלקוח (למשל 5 שנים מהרכישה). טווח תאריכים = כל שובר תקף רק בין שני תאריכים שתקבע. בוחרים סגנון אחד כאן לכל ההצעה; כל וריאנט בודד יכול לעבור לסגנון השני. התאריך או המגבלה עצמם נקבעים לכל ברקוד בעת הוספת מלאי, כך שניתן לטעון אצוות חדשות עם תאריכים שונים לאורך זמן.',
-    fi_validityType_example: 'הגבלת זמן: תקף 5 שנים מהרכישה. טווח תאריכים: תקף 01/01/2026 - 31/03/2026.',
     fi_validityTypeOverride_label: 'סוג תוקף לוריאנט זה',
     fi_validityTypeOverride_short: 'כברירת מחדל וריאנט זה משתמש בסוג התוקף של ההצעה. שנה כאן רק אם וריאנט זה אמור לפוג אחרת.',
     fi_validityTypeOverride_detail: 'השאר על "כמו ההצעה" כדי לעקוב אחר סוג התוקף של ההצעה. בחר הגבלת זמן או טווח תאריכים כדי שרק וריאנט זה יתנהג אחרת - שימושי כשוריאנט אחד פועל בחלון מבצע קבוע בעוד השאר פגים זמן מסוים אחרי הרכישה.',
