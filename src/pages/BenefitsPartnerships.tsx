@@ -189,9 +189,6 @@ function VariantDetailsTable({
   }, [offerId, variantKey]);
 
   if (rows.length === 0) return null;
-  // nexus_cost is privileged (creating tenant / platform admin only); show the
-  // column only when at least one variant actually carries it.
-  const showNexus = rows.some((v) => typeof v.nexus_cost === 'number');
   const dash = '-';
   const headCls = 'px-3 py-2 text-start font-semibold whitespace-nowrap';
   // text-start (logical) keeps every cell value under its header: right edge in
@@ -209,15 +206,12 @@ function VariantDetailsTable({
         <thead className="bg-slate-50 text-xs text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
           <tr>
             <th className={headCls}>{t('co_variantLabel')}</th>
-            <th className={headCls}>{t('co_variantPriceLabel')}</th>
+            <th className={headCls}>
+              <span className="inline-flex items-center gap-1">{t('fi_nexusCost_label')}<FieldTooltip fieldKey="nexusCost" /></span>
+            </th>
             <th className={headCls}>
               <span className="inline-flex items-center gap-1">{t('fi_faceValue_label')}<FieldTooltip fieldKey="faceValue" /></span>
             </th>
-            {showNexus && (
-              <th className={headCls}>
-                <span className="inline-flex items-center gap-1">{t('fi_nexusCost_label')}<FieldTooltip fieldKey="nexusCost" /></span>
-              </th>
-            )}
             <th className={headCls}>{t('bp_variantStock')}</th>
             <th className={headCls}>{t('co_fieldVoucherValidity')}</th>
             <th className={headCls}>{t('co_fieldVoucherStackable')}</th>
@@ -236,7 +230,9 @@ function VariantDetailsTable({
             return (
               <tr key={v.variantId} className="text-slate-700 dark:text-slate-300">
                 <td className={cn(cellCls, 'font-semibold text-slate-900 dark:text-white')}>{i + 1}</td>
-                {/* Member price - the selling price members pay; editable per variant. */}
+                {/* Sale price - the price customers pay; editable per variant (starts at the
+                    base nexus price, adjustable up to face value). The separate nexus column
+                    is intentionally gone; the base price is only the slider's lower bound. */}
                 <td className={cn(cellCls, 'whitespace-nowrap')}>
                   {editable ? (
                     <button
@@ -257,7 +253,6 @@ function VariantDetailsTable({
                   )}
                 </td>
                 <td className={cn(cellCls, 'tabular-nums')}><span dir="ltr">{typeof v.face_value === 'number' ? `₪${v.face_value}` : dash}</span></td>
-                {showNexus && <td className={cn(cellCls, 'tabular-nums')}><span dir="ltr">{typeof v.nexus_cost === 'number' ? `₪${v.nexus_cost}` : dash}</span></td>}
                 <td className={cn(cellCls, 'tabular-nums whitespace-nowrap')}>
                   <span dir="ltr">{stockText}</span>
                   {canEditPrice && (
@@ -311,8 +306,8 @@ const BenefitsPartnerships = () => {
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [showBenefitModal, setShowBenefitModal] = useState(false);
   const [selectedBenefit, setSelectedBenefit] = useState<Benefit | null>(null);
-  // Cards vs Table tab. Replaces the prior displayMode state.
-  const [activeTab, setActiveTab] = useState<CatalogTab>('cards');
+  // Table vs Cards tab. The page opens on Table view by default.
+  const [activeTab, setActiveTab] = useState<CatalogTab>('table');
   const [benefitActiveStates, setBenefitActiveStates] = useState<Record<string, boolean>>({});
   // Offer rows whose variant sub-table is expanded in the table view (by offerId).
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());

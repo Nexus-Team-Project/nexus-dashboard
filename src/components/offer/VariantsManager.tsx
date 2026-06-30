@@ -31,12 +31,16 @@ interface VariantsManagerProps {
   /** Offer id when editing an existing offer; lets the staged modal load a
    *  persisted variant's already-saved units for read-only reference. Omitted on Create. */
   offerId?: string;
+  /** When true, the variant's deal-price fields (sale price + face value) are
+   *  read-only. Set on Edit for ecosystem offers a non-admin may not reprice;
+   *  tenant_only offers leave it false so the owning tenant can edit. */
+  pricingLocked?: boolean;
   isSubmitting?: boolean;
 }
 
 /** Renders the Create-Variant button, the builder, the saved list, and the inventory popup. */
 export default function VariantsManager({
-  variants, setVariants, sharedTerms, sharedMethod, onEditingChange, offerId, isSubmitting = false,
+  variants, setVariants, sharedTerms, sharedMethod, onEditingChange, offerId, pricingLocked = false, isSubmitting = false,
 }: VariantsManagerProps) {
   const { t, language } = useLanguage();
   const [draft, setDraft] = useState<DraftVariant | null>(null);
@@ -106,6 +110,7 @@ export default function VariantsManager({
               onSave={saveDraft}
               onCancel={cancelDraft}
               error={builderError}
+              pricingLocked={pricingLocked}
               isSubmitting={isSubmitting}
             />
           );

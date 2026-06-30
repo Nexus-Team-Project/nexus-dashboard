@@ -202,20 +202,8 @@ const CatalogTopBar = ({
           {/* Divider between filter controls and the view toggle. */}
           <span aria-hidden className="mx-0.5 h-5 w-px bg-slate-200 dark:bg-slate-700" />
 
-          {/* View toggle - cards / table. Active view uses the same purple-fill
-              treatment as the active filter icon. */}
-          <button
-            type="button"
-            onClick={() => onTabChange('cards')}
-            aria-label={t('bp_tabCards')}
-            title={t('bp_tabCards')}
-            aria-pressed={activeTab === 'cards'}
-            className={activeTab === 'cards' ? iconButtonActive : iconButton}
-          >
-            <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]" aria-hidden="true">
-              <path d="M3 3h6v6H3V3zm8 0h6v6h-6V3zM3 11h6v6H3v-6zm8 0h6v6h-6v-6z" />
-            </svg>
-          </button>
+          {/* View toggle - table / cards (table first, the default view). Active view
+              uses the same purple-fill treatment as the active filter icon. */}
           <button
             type="button"
             onClick={() => onTabChange('table')}
@@ -226,6 +214,18 @@ const CatalogTopBar = ({
           >
             <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]" aria-hidden="true">
               <path d="M3 4h14v2.5H3V4zm0 5.25h14v2.5H3v-2.5zM3 14.5h14V17H3v-2.5z" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={() => onTabChange('cards')}
+            aria-label={t('bp_tabCards')}
+            title={t('bp_tabCards')}
+            aria-pressed={activeTab === 'cards'}
+            className={activeTab === 'cards' ? iconButtonActive : iconButton}
+          >
+            <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]" aria-hidden="true">
+              <path d="M3 3h6v6H3V3zm8 0h6v6h-6V3zM3 11h6v6H3v-6zm8 0h6v6h-6v-6z" />
             </svg>
           </button>
 

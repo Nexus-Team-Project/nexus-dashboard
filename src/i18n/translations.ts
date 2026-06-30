@@ -1008,8 +1008,6 @@ export const translations = {
     co_skuPlaceholder: 'e.g. SUMMER-2026',
     co_errSku: 'SKU must be 4–20 characters using only uppercase letters, numbers, hyphens, or underscores.',
     // Voucher variants
-    co_fieldMemberPrice: 'Member price',
-    co_variantMemberPriceHint: 'What members pay. Leave blank to default to the Nexus price; each adopting tenant can set their own.',
     co_variantNexusPriceHint: 'This is the price members pay (the selling price). Must be lower than the value.',
     co_sharedRedemptionHint: 'These apply to every variant by default. A variant can override them below.',
     co_variantCustomRedemption: 'Use custom redemption text for this variant',
@@ -1025,7 +1023,6 @@ export const translations = {
     co_variantsEmpty: 'No variants yet. Click "Create variant" to add the first one.',
     co_variantLabel: 'Variant',
     co_variantMissingFields: 'Missing required',
-    co_variantPriceLabel: 'Member price',
     co_variantEdit: 'Edit',
     co_variantDelete: 'Delete',
     co_variantDuplicate: 'A variant with identical values already exists.',
@@ -1285,16 +1282,16 @@ export const translations = {
     fi_faceValue_detail: "This is the nominal value printed on the voucher. For example, a ₪100 gift card has a face value of ₪100. This is what members see as the voucher's worth.",
     fi_faceValue_example: 'A ₪100 Coffee Time gift card has face value ₪100.',
 
-    fi_nexusCost_label: 'Nexus Price',
-    fi_nexusCost_short: 'The base price agreed with NEXUS — the minimum members will pay.',
-    fi_nexusCost_detail: "The price your organization and NEXUS agreed to display on the platform. This is the real base price members pay. If you want to add margin you can raise the member price above this figure, but never above the face value (שווי). Setting the member price equal to this means no extra profit; setting it higher up to the face value adds the difference as your profit.",
-    fi_nexusCost_example: 'Face value ₪100, Nexus Price ₪80. Member price must be between ₪80 and ₪100. Setting it to ₪90 gives your organization a ₪10 profit per voucher.',
+    fi_nexusCost_label: 'Sale Price',
+    fi_nexusCost_short: 'The price this voucher is sold to customers for on the platform.',
+    fi_nexusCost_detail: "The price customers pay for this voucher on the platform. It can be set between the base price agreed with NEXUS and the face value (שווי), never above the face value. Setting it equal to the base price means no extra margin; setting it higher, up to the face value, adds the difference as your profit.",
+    fi_nexusCost_example: 'Face value ₪100, base price ₪80. The sale price can be set between ₪80 and ₪100. Setting it to ₪90 gives your organization a ₪10 profit per voucher.',
 
 
     // ── BenefitsPartnerships page - tab tooltips ──
     fi_tabCards_label: 'Cards view',
     fi_tabCards_short: 'Visual grid of offer cards with images, prices, and quick actions.',
-    fi_tabCards_detail: 'The Cards tab shows every offer that matches your current filters as a visual card with its background image, title, member price, and an adopt/unadopt toggle. Best for browsing the catalog and spotting offers visually.',
+    fi_tabCards_detail: 'The Cards tab shows every offer that matches your current filters as a visual card with its background image, title, sale price, and an adopt/unadopt toggle. Best for browsing the catalog and spotting offers visually.',
     fi_tabCards_example: 'Use Cards view when you want to see what offers look like to members before adopting them.',
     fi_tabTable_label: 'Table view',
     fi_tabTable_short: 'Spreadsheet-style read-only table mirroring the offer form fields.',
@@ -1390,16 +1387,16 @@ export const translations = {
     co_denyModalCancel: 'Cancel',
 
     // Voucher price popover
-    vp_title: 'Set member price',
+    vp_title: 'Set sale price',
     vp_minLabel: 'Min ({{value}})',
     vp_maxLabel: 'Max ({{value}})',
-    vp_membersPay: 'Members pay',
+    vp_membersPay: 'Customers pay',
     vp_yourProfit: 'Your profit',
     vp_save: 'Save',
     vp_cancel: 'Cancel',
     vp_error_bounds: 'Price must be between {{min}} and {{max}}',
     vp_error_generic: "Couldn't save price. Try again.",
-    vp_clickToEdit: 'Click to set member price',
+    vp_clickToEdit: 'Click to set sale price',
     vp_priceEditableHint: 'Editable',
   },
   he: {
@@ -2411,8 +2408,6 @@ export const translations = {
     co_skuPlaceholder: 'לדוגמה: SUMMER-2026',
     co_errSku: 'מק"ט חייב להכיל 4–20 תווים, ורק אותיות גדולות באנגלית, מספרים, מקפים או קווים תחתונים.',
     // Voucher variants
-    co_fieldMemberPrice: 'מחיר לחבר',
-    co_variantMemberPriceHint: 'המחיר שחברים משלמים. השאירו ריק כדי להשתמש במחיר NEXUS כברירת מחדל; כל ארגון מאמץ יכול לקבוע מחיר משלו.',
     co_variantNexusPriceHint: 'זהו המחיר שחברים משלמים (מחיר המכירה). חייב להיות נמוך מהשווי.',
     co_sharedRedemptionHint: 'חלים על כל הוריאנטים כברירת מחדל. ניתן לעקוף אותם בכל וריאנט בנפרד.',
     co_variantCustomRedemption: 'השתמש בטקסט מימוש מותאם לוריאנט זה',
@@ -2428,7 +2423,6 @@ export const translations = {
     co_variantsEmpty: 'אין עדיין וריאנטים. לחצו על "צור וריאנט" כדי להוסיף את הראשון.',
     co_variantLabel: 'וריאנט',
     co_variantMissingFields: 'חסרים שדות חובה',
-    co_variantPriceLabel: 'מחיר לחבר',
     co_variantEdit: 'עריכה',
     co_variantDelete: 'מחיקה',
     co_variantDuplicate: 'כבר קיים וריאנט עם ערכים זהים.',
@@ -2689,16 +2683,16 @@ export const translations = {
     fi_faceValue_detail: 'זהו הערך הנקוב של השובר. לדוגמה, כרטיס מתנה של ₪100 שווה ₪100. זה מה שחברים רואים כערך השובר.',
     fi_faceValue_example: 'כרטיס מתנה לקפה טיים בשווי ₪100 יש לו ערך נקוב של ₪100.',
 
-    fi_nexusCost_label: 'מחיר מכירה לנקסוס',
-    fi_nexusCost_short: 'המחיר הבסיסי שהוסכם עם NEXUS - המינימום שחברים ישלמו.',
-    fi_nexusCost_detail: 'המחיר שהארגון שלך ו-NEXUS הסכימו להציג בפלטפורמה. זהו המחיר הבסיסי האמיתי שהחברים משלמים. אם ברצונך להוסיף רווח, ניתן להעלות את מחיר החבר מעל סכום זה, אך לעולם לא מעל הערך הנקוב (שווי). אם תקבע את מחיר החבר שווה לסכום הזה - אין רווח נוסף; אם תקבע אותו גבוה יותר עד שווי השובר - ההפרש הוא הרווח של הארגון.',
-    fi_nexusCost_example: 'שווי ₪100, מחיר מכירה לנקסוס ₪80. מחיר החבר חייב להיות בין ₪80 ל-₪100. הגדרה ל-₪90 נותנת לארגון רווח של ₪10 לשובר.',
+    fi_nexusCost_label: 'מחיר מכירה',
+    fi_nexusCost_short: 'המחיר שבו השובר נמכר ללקוחות בפלטפורמה.',
+    fi_nexusCost_detail: 'המחיר שהלקוחות משלמים עבור השובר בפלטפורמה. ניתן לקבוע אותו בין המחיר הבסיסי שהוסכם עם NEXUS לבין הערך הנקוב (שווי), אך לעולם לא מעל הערך הנקוב. קביעה השווה למחיר הבסיסי - אין רווח נוסף; קביעה גבוהה יותר, עד שווי השובר, מוסיפה את ההפרש כרווח של הארגון.',
+    fi_nexusCost_example: 'שווי ₪100, מחיר בסיסי ₪80. ניתן לקבוע מחיר מכירה בין ₪80 ל-₪100. הגדרה ל-₪90 נותנת לארגון רווח של ₪10 לשובר.',
 
 
     // ── דף שיתופי פעולה והטבות - טיפים לטאבים ──
     fi_tabCards_label: 'תצוגת כרטיסים',
     fi_tabCards_short: 'תצוגת רשת ויזואלית של הצעות עם תמונות, מחירים ופעולות מהירות.',
-    fi_tabCards_detail: 'הטאב כרטיסים מציג כל הצעה התואמת לסינון הנוכחי בכרטיס ויזואלי עם תמונת הרקע, הכותרת, המחיר לחבר ומתג אימוץ. מתאים לעיון בקטלוג ולזיהוי הצעות במבט.',
+    fi_tabCards_detail: 'הטאב כרטיסים מציג כל הצעה התואמת לסינון הנוכחי בכרטיס ויזואלי עם תמונת הרקע, הכותרת, מחיר המכירה ומתג אימוץ. מתאים לעיון בקטלוג ולזיהוי הצעות במבט.',
     fi_tabCards_example: 'השתמש בתצוגת כרטיסים כשאתה רוצה לראות איך הצעות יראו לחברים לפני אימוצן.',
     fi_tabTable_label: 'תצוגת טבלה',
     fi_tabTable_short: 'טבלה בסגנון גיליון לקריאה בלבד התואמת לשדות טופס ההצעה.',
@@ -2794,16 +2788,16 @@ export const translations = {
     co_denyModalCancel: 'ביטול',
 
     // Voucher price popover
-    vp_title: 'הגדרת מחיר לחבר',
+    vp_title: 'הגדרת מחיר מכירה',
     vp_minLabel: 'מינ׳ ({{value}})',
     vp_maxLabel: 'מקס׳ ({{value}})',
-    vp_membersPay: 'חברים משלמים',
+    vp_membersPay: 'הלקוח משלם',
     vp_yourProfit: 'הרווח שלך',
     vp_save: 'שמירה',
     vp_cancel: 'ביטול',
     vp_error_bounds: 'המחיר חייב להיות בין {{min}} ל-{{max}}',
     vp_error_generic: 'לא ניתן היה לשמור את המחיר. נסה שוב.',
-    vp_clickToEdit: 'לחץ להגדרת מחיר לחבר',
+    vp_clickToEdit: 'לחץ להגדרת מחיר מכירה',
     vp_priceEditableHint: 'ניתן לעריכה',
   }
 };
