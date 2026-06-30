@@ -26,9 +26,6 @@ interface VariantsManagerProps {
   /** Shared redemption terms/method - seed a variant's override when enabled. */
   sharedTerms: string;
   sharedMethod: string;
-  /** The offer's default validity type; combined with a variant's override to get
-   *  the effective type the inventory popup uses for its per-batch date control. */
-  defaultValidityType: 'limit' | 'from_until';
   /** Reports whether a draft is currently open (parent uses it to gate Publish). */
   onEditingChange?: (editing: boolean) => void;
   /** Offer id when editing an existing offer; lets the staged modal load a
@@ -39,7 +36,7 @@ interface VariantsManagerProps {
 
 /** Renders the Create-Variant button, the builder, the saved list, and the inventory popup. */
 export default function VariantsManager({
-  variants, setVariants, sharedTerms, sharedMethod, defaultValidityType, onEditingChange, offerId, isSubmitting = false,
+  variants, setVariants, sharedTerms, sharedMethod, onEditingChange, offerId, isSubmitting = false,
 }: VariantsManagerProps) {
   const { t, language } = useLanguage();
   const [draft, setDraft] = useState<DraftVariant | null>(null);
@@ -137,7 +134,7 @@ export default function VariantsManager({
       {showInventory && draft !== null && (
         <StagedInventoryModal
           variantLabel={t('co_variantBuilderTitle')}
-          defaultType={defaultValidityType}
+          defaultType="limit"
           units={draft.stagedUnits}
           onChange={(units) => patchDraft({ stagedUnits: units })}
           edits={draft.stagedEdits}
