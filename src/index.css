@@ -408,3 +408,24 @@ body {
   pointer-events: none;
   height: 0;
 }
+
+/* TipTap editor block formatting (RichTextEditor).
+   Tailwind's preflight resets <h1>-<h3> to inherit font-size/weight and strips
+   list markers from <ul>/<ol>. Without explicit styling the H1/H2/H3 and list
+   toolbar buttons change the underlying HTML but look identical to a paragraph,
+   so they appear "broken". These element-level rules (specificity 0,1,1) sit
+   above preflight and are never purged, guaranteeing a visible effect as the
+   formatting is applied. They mirror the rendered RichTextDisplay output. */
+.ProseMirror h1 { font-size: 1.5rem; font-weight: 700; line-height: 1.3; margin: 0.5rem 0; }
+.ProseMirror h2 { font-size: 1.25rem; font-weight: 700; line-height: 1.35; margin: 0.5rem 0; }
+.ProseMirror h3 { font-size: 1.125rem; font-weight: 600; line-height: 1.4; margin: 0.4rem 0; }
+.ProseMirror ul { list-style: disc; padding-inline-start: 1.5rem; margin: 0.4rem 0; }
+.ProseMirror ol { list-style: decimal; padding-inline-start: 1.5rem; margin: 0.4rem 0; }
+.ProseMirror li { margin: 0.15rem 0; }
+.ProseMirror li > p { margin: 0; }
+.ProseMirror blockquote {
+  border-inline-start: 3px solid #cbd5e1;
+  padding-inline-start: 0.75rem;
+  color: #64748b;
+  margin: 0.5rem 0;
+}
