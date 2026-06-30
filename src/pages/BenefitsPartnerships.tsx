@@ -1536,6 +1536,21 @@ const BenefitsPartnerships = () => {
                         </div>
                         <div className="pt-6 border-t border-slate-100 dark:border-slate-800">
                           <RichTextDisplay html={benefit.description} compact className="text-sm text-slate-600 dark:text-slate-300" />
+                          {/* View full description - opens the formatted HTML in the
+                              shared dialog (stopPropagation so the card's own click,
+                              which opens the detail modal, does not also fire). */}
+                          {benefit.description && benefit.description.trim() !== '' && benefit.description !== '<p></p>' && (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setDescriptionTarget({ title: benefit.title, html: benefit.description }); }}
+                              className="mt-2 inline-flex w-fit items-center gap-1 text-xs font-semibold text-primary hover:opacity-80 transition-opacity"
+                            >
+                              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-3.5 h-3.5 shrink-0" aria-hidden="true">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M2.5 4.5h11M2.5 8h11M2.5 11.5h7" />
+                              </svg>
+                              {t('desc_viewDescription')}
+                            </button>
+                          )}
                           {/* Implementation link */}
                           {benefit.implementationLink && (() => {
                             const displayUrl = benefit.implementationLink.replace(/^https?:\/\//, '');
@@ -1664,6 +1679,22 @@ const BenefitsPartnerships = () => {
                           <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
                             {benefit.discount}
                           </p>
+
+                          {/* View full description - opens the formatted HTML in the
+                              shared dialog (stopPropagation so the card's own click,
+                              which opens the detail modal, does not also fire). */}
+                          {benefit.description && benefit.description.trim() !== '' && benefit.description !== '<p></p>' && (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setDescriptionTarget({ title: benefit.title, html: benefit.description }); }}
+                              className="inline-flex w-fit items-center gap-1 text-xs font-semibold text-primary hover:opacity-80 transition-opacity"
+                            >
+                              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-3.5 h-3.5 shrink-0" aria-hidden="true">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M2.5 4.5h11M2.5 8h11M2.5 11.5h7" />
+                              </svg>
+                              {t('desc_viewDescription')}
+                            </button>
+                          )}
 
                           {/* Variant count chip - voucher offers with >1 variant. */}
                           {catalogItem?.executionType === 'voucher' && (catalogItem.variants?.length ?? 0) > 1 && (
