@@ -82,7 +82,7 @@ export default function VariantList({
                 )}
               </div>
               <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
-                <span className={fieldCls(miss('salePrice'))}>{t('co_variantPriceLabel')}: ₪{price || '-'}</span>
+                <span className={fieldCls(miss('salePrice'))}>{t('bp_variantSellingPrice')}: ₪{price || '-'}</span>
                 <span className={fieldCls(miss('value'))}>{t('fi_faceValue_label')}: ₪{v.faceValue || '-'}</span>
                 <span className={fieldCls(miss('stackable'))}>
                   {t('co_fieldVoucherStackable')}: {v.stackable === 'yes' ? t('co_voucherStackableYes') : v.stackable === 'no' ? t('co_voucherStackableNo') : '-'}

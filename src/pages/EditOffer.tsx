@@ -39,7 +39,7 @@ const EditOffer = () => {
   const { t, language } = useLanguage();
 
   const isPlatformAdmin = me?.authorization?.isPlatformAdmin === true;
-  const pricingLocked = !isPlatformAdmin;
+  const canManageSupply = me?.authorization?.canManageSupply === true;
 
   const [offer, setOffer] = useState<CatalogItem | null>(null);
   const [loading, setLoading] = useState(true);
@@ -139,6 +139,11 @@ const EditOffer = () => {
 
   const defaultBrandColor = me?.context?.tenantBrandColor ?? '#635bff';
   const isVoucher = executionType === 'voucher';
+  // Deal pricing (sale price + face value) is platform-admin-only for ecosystem
+  // offers, but a tenant_only offer is sold solely to the owning tenant's members,
+  // so its catalog managers (canManageSupply) may edit those fields. Mirrors the
+  // backend canEditDealPricing gate (which also re-checks ownership server-side).
+  const pricingLocked = !(isPlatformAdmin || (offer?.visibility === 'tenant_only' && canManageSupply));
   const coverColor = isVoucher && bgMode === 'color' && !coverUrl
     ? (voucherBackgroundColor || defaultBrandColor)
     : undefined;
@@ -296,6 +301,7 @@ const EditOffer = () => {
             defaultValidityType={defaultValidityType}
             onEditingChange={setVariantEditing}
             offerId={offerId}
+            pricingLocked={pricingLocked}
             isSubmitting={isSubmitting}
           />
         </>

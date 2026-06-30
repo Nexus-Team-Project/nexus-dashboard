@@ -35,6 +35,9 @@ interface VariantBuilderProps {
   onCancel: () => void;
   /** Inline error from the parent (validation / duplicate). */
   error?: string | null;
+  /** When true, the deal-price fields (sale price + face value) are read-only.
+   *  Used on Edit for ecosystem offers a non-admin may not reprice. */
+  pricingLocked?: boolean;
   /** Disable inputs while submitting. */
   isSubmitting?: boolean;
 }
@@ -49,6 +52,7 @@ export default function VariantBuilder({
   onSave,
   onCancel,
   error,
+  pricingLocked = false,
   isSubmitting = false,
 }: VariantBuilderProps) {
   const { t, language } = useLanguage();
@@ -89,7 +93,7 @@ export default function VariantBuilder({
             type="number" min="0.01" step="0.01" value={draft.faceValue}
             onChange={(e) => onChange({ faceValue: e.target.value })}
             onWheel={(e) => e.currentTarget.blur()}
-            placeholder="0.00" disabled={isSubmitting} className={inputCls}
+            placeholder="0.00" disabled={isSubmitting || pricingLocked} className={inputCls}
           />
         </div>
         <div>
@@ -101,7 +105,7 @@ export default function VariantBuilder({
             type="number" min="0.01" step="0.01" value={draft.nexusCost}
             onChange={(e) => onChange({ nexusCost: e.target.value })}
             onWheel={(e) => e.currentTarget.blur()}
-            placeholder="0.00" disabled={isSubmitting}
+            placeholder="0.00" disabled={isSubmitting || pricingLocked}
             aria-invalid={priceErr ? true : undefined}
             className={priceErr ? `${inputCls} border-red-400 focus:border-red-500` : inputCls}
           />
