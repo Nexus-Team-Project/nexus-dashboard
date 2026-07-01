@@ -354,6 +354,17 @@ body {
   opacity: 1;
 }
 
+/*
+ * Collapse the desktop sidebar while the voucher import modal is open.
+ * The modal (VoucherImportModal) adds `voucher-import-modal-open` to <body> on
+ * mount and removes it on close. Higher specificity than Tailwind's `lg:block`
+ * on the sidebar wrapper, so the sidebar is fully removed (no ghost beside/behind
+ * the modal overlay) and restored the moment the modal closes.
+ */
+body.voucher-import-modal-open .dashboard-sidebar {
+  display: none;
+}
+
 /* Border Highlight - top edge only (for bottom-docked bars) */
 .border-highlight-top {
   isolation: isolate;
