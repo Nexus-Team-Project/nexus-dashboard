@@ -1,13 +1,15 @@
 /**
  * Renders the dashboard sidebar navigation, recent shortcuts, and gated Dev Mode entry.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useLanguage } from '../i18n/LanguageContext';
 import type { TranslationKey } from '../i18n/translations';
 import { useRecentPages, PAGE_META } from '../hooks/useRecentPages';
 import { useDevMode } from '../contexts/DevModeContext';
 import { useAuth } from '../contexts/AuthContext';
+import { adminOffersApi } from '../lib/api';
+import { subscribePendingApprovals } from '../lib/pendingApprovals';
 import SidebarTooltip from './SidebarTooltip';
 
 export type SidebarState = 'open' | 'collapsed' | 'closed';
@@ -27,6 +29,8 @@ interface NavItem {
   submenu?: { to: string; icon: string; label: string }[];
   isSectionHeader?: boolean;
   moreButton?: boolean;
+  /** Optional numeric badge (e.g. count of pending offer approvals). */
+  badge?: number;
 }
 
 const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: SidebarProps) => {
@@ -43,6 +47,20 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
   const canViewMembers = me?.authorization.canViewMembers === true || me?.authorization.canManageMembers === true;
   /** True for NEXUS platform admins - gates the Admin section (approvals + trusted tenants). */
   const isPlatformAdmin = me?.authorization.isPlatformAdmin === true;
+  // Count of offers awaiting approval, shown as a badge on the approvals link.
+  // Fetched only for platform admins (the endpoint is admin-gated + rate-limited).
+  const [pendingApprovals, setPendingApprovals] = useState(0);
+  // Fetch the count once, then re-fetch whenever an offer is approved/denied
+  // (the Offer Approvals page notifies via subscribePendingApprovals) so the
+  // badge stays in sync in real time.
+  const refetchPending = useCallback(() => {
+    if (!isPlatformAdmin) return;
+    adminOffersApi.pendingCount()
+      .then((r) => setPendingApprovals(r.count))
+      .catch(() => { /* badge is best-effort; ignore failures */ });
+  }, [isPlatformAdmin]);
+  useEffect(() => { refetchPending(); }, [refetchPending]);
+  useEffect(() => subscribePendingApprovals(refetchPending), [refetchPending]);
 
   const DEFAULT_SHORTCUTS_COUNT = 5;
   const permittedRecentPages = recentPages.filter((page) =>
@@ -177,10 +195,23 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
       >
         {({ isActive }) => (
           <>
-            <span className={`material-symbols-rounded !text-[16px] ${isActive ? 'text-primary' : ''}`}>
+            <span className={`material-symbols-rounded !text-[16px] ${isActive ? 'text-primary' : ''} relative`}>
               {item.icon}
+              {/* Collapsed sidebar: a small dot on the icon signals a nonzero badge. */}
+              {isCollapsed && !!item.badge && item.badge > 0 && (
+                <span className="absolute -top-1 -end-1 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" aria-hidden="true" />
+              )}
             </span>
             {isOpen && <span className="text-[13px] flex-1 truncate">{item.label}</span>}
+            {/* Expanded sidebar: numeric badge (e.g. offers awaiting approval). */}
+            {isOpen && !!item.badge && item.badge > 0 && (
+              <span
+                className="ms-auto shrink-0 rounded-full bg-red-500 px-1.5 py-0.5 text-[11px] font-semibold leading-none text-white"
+                aria-label={`${item.badge}`}
+              >
+                {item.badge > 99 ? '99+' : item.badge}
+              </span>
+            )}
           </>
         )}
       </NavLink>
@@ -267,7 +298,7 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
               </div>
             )}
             {[
-              { to: '/admin/offer-approvals', icon: 'fact_check', label: t('nav_offerApprovals') },
+              { to: '/admin/offer-approvals', icon: 'fact_check', label: t('nav_offerApprovals'), badge: pendingApprovals },
               { to: '/admin/trusted-tenants', icon: 'verified_user', label: t('nav_trustedTenants') },
             ].map((item) => renderNavLink(item))}
           </div>

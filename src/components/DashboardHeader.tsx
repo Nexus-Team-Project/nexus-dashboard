@@ -47,6 +47,9 @@ const DashboardHeader = ({ onLogout, isChatOpen, onChatToggle, onMenuToggle }: D
   const tenantName = me?.context.tenantName ?? '';
   const tenantLogoUrl = me?.context.tenantLogoUrl ?? null;
   const tenantLogoCrop = me?.context.tenantLogoCrop ?? null;
+  // A NEXUS platform admin has no tenant, so the avatar shows the Nexus logo
+  // instead of the "N" initials fallback.
+  const isPlatformAdmin = me?.authorization?.isPlatformAdmin === true;
   const [isLogoPreviewOpen, setIsLogoPreviewOpen] = useState(false);
   const [isLogoHovered, setIsLogoHovered] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -139,7 +142,7 @@ const DashboardHeader = ({ onLogout, isChatOpen, onChatToggle, onMenuToggle }: D
               aria-label={isRTL ? 'לוגו הארגון' : 'Organization logo'}
               title={tenantName}
             >
-              <TenantLogo name={tenantName || 'N'} logoUrl={tenantLogoUrl} logoCrop={tenantLogoCrop} size={14} />
+              <TenantLogo name={tenantName || 'N'} logoUrl={tenantLogoUrl} logoCrop={tenantLogoCrop} size={14} nexusLogo={isPlatformAdmin} />
             </button>
           </div>
           <UserPanel
@@ -250,6 +253,7 @@ const DashboardHeader = ({ onLogout, isChatOpen, onChatToggle, onMenuToggle }: D
               name={tenantName || 'N'}
               logoUrl={tenantLogoUrl}
               logoCrop={tenantLogoCrop}
+              nexusLogo={isPlatformAdmin}
               size={240}
               rounded="rounded-3xl"
               className="shadow-2xl"
