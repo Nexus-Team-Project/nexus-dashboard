@@ -975,7 +975,7 @@ const BenefitsPartnerships = () => {
 
         {/* Top bar - Transactions/Users-style tabs + toolbar.
             Replaces the prior category-button row + benefits/businesses toggle +
-            display-mode icons + results count + Create-Offer block. */}
+            display-mode icons + results count. */}
         <section className="pb-6">
           <CatalogTopBar
             activeTab={activeTab}
@@ -987,8 +987,6 @@ const BenefitsPartnerships = () => {
             activeFilterCount={activeFilterCount}
             onOpenFilters={() => setIsFilterPanelOpen(true)}
             resultsCount={catalogTotal}
-            showCreateOffer={isPlatformAdmin || catalogMode !== 'inactive'}
-            onCreateOffer={() => navigate('/supply/create')}
           />
         </section>
 
