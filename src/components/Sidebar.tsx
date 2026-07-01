@@ -155,7 +155,7 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
     return (
       <button
         onClick={() => onStateChange('open')}
-        className="fixed top-[56px] end-[20px] z-50 w-6 h-6 bg-white border border-slate-200 rounded-full shadow-sm flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all"
+        className="fixed top-[56px] start-[20px] z-50 w-6 h-6 bg-white border border-slate-200 rounded-full shadow-sm flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all"
         aria-label={t('sb_openMenu')}
       >
         <span className="material-symbols-rounded !text-sm">menu</span>
