@@ -40,11 +40,17 @@ export default function VoucherImportModal({ onClose, onImport }: VoucherImportM
   const [dragging, setDragging] = useState(false);
 
   // Lock background scroll while the modal is open, so the page behind never
-  // scrolls or shifts - even when the cursor is outside the modal. Restored on close.
+  // scrolls or shifts - even when the cursor is outside the modal. The body class
+  // additionally collapses the dashboard sidebar (via a CSS rule in index.css) so
+  // the full-screen import modal owns the whole viewport. Both are restored on close.
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
+    document.body.classList.add('voucher-import-modal-open');
+    return () => {
+      document.body.style.overflow = prev;
+      document.body.classList.remove('voucher-import-modal-open');
+    };
   }, []);
 
   const handleFile = async (file: File | undefined) => {
