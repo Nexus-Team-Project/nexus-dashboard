@@ -156,7 +156,7 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
       <button
         onClick={() => onStateChange('open')}
         className="fixed top-[56px] end-[20px] z-50 w-6 h-6 bg-white border border-slate-200 rounded-full shadow-sm flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all"
-        title={t('sb_openMenu')}
+        aria-label={t('sb_openMenu')}
       >
         <span className="material-symbols-rounded !text-sm">menu</span>
       </button>
@@ -224,7 +224,7 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
           onClick={() => onStateChange('collapsed')}
           className={edgeToggleClass}
           style={{ top: '1.5rem', insetInlineEnd: '-12px' }}
-          title={t('sb_collapseMenu')}
+          aria-label={t('sb_collapseMenu')}
         >
           <span className="material-symbols-rounded !text-sm rtl:rotate-180">chevron_left</span>
         </button>
@@ -235,7 +235,7 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
             onClick={() => onStateChange('open')}
             className={edgeToggleClass}
             style={{ top: '1.5rem', insetInlineEnd: '-12px' }}
-            title={t('sb_expandMenu')}
+            aria-label={t('sb_expandMenu')}
           >
             <span className="material-symbols-rounded !text-sm rtl:rotate-180">chevron_right</span>
           </button>
@@ -243,7 +243,7 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
             onClick={() => onStateChange('closed')}
             className={edgeToggleClass}
             style={{ top: '4rem', insetInlineEnd: '-12px' }}
-            title={t('sb_closeMenu')}
+            aria-label={t('sb_closeMenu')}
           >
             <span className="material-symbols-rounded !text-sm">close</span>
           </button>
