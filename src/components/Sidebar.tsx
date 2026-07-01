@@ -234,7 +234,10 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
         style={{ insetInlineEnd: '-12px' }}
         title={getToggleTooltip()}
       >
-        <span className="material-symbols-rounded !text-sm">{getToggleIcon()}</span>
+        {/* rtl:rotate-180 mirrors the collapse chevron so it points toward the
+            edge the sidebar collapses to (left in LTR, right in RTL). The close/menu
+            glyphs are symmetric, so the flip is a no-op for them. */}
+        <span className="material-symbols-rounded !text-sm rtl:rotate-180">{getToggleIcon()}</span>
       </button>
       )}
 
