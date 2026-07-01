@@ -1,19 +1,55 @@
 /**
- * LogoCropUpload - pick an image file, crop it to a square (reusing
- * ImageCropModal with aspect=1), and hand back the cropped Blob + a local
- * preview URL. Validates type (PNG/JPG/WebP) and size (<= 5MB).
+ * LogoCropUpload - pick an image file and choose a FREE crop (no forced aspect)
+ * via ImageCropModal in metadata mode. Hands back the PRISTINE File + the crop
+ * fractions + a local preview URL; the crop is stored as metadata and applied at
+ * display time, so it can later be adjusted or reverted without re-uploading.
+ * Validates type (PNG/JPG/WebP) and size (<= 5MB).
  *
  * Render-prop: `children(open)` lets the caller place its own trigger button.
  */
 import { useRef, useState, type ReactNode } from 'react';
 import ImageCropModal from '../ImageCropModal';
+import type { ImageCrop } from '../../lib/cloudinaryImage';
 
 const ALLOWED = ['image/png', 'image/jpeg', 'image/webp'];
 const MAX_BYTES = 5 * 1024 * 1024;
 
+/**
+ * Bake an EXACT cropped preview (object URL) from the pristine file + crop
+ * fractions, so the preview before Save matches what will be shown after upload.
+ * This is display-only; the upload still sends the pristine file + crop metadata.
+ * Falls back to a full-image object URL if the canvas draw fails.
+ */
+async function cropToPreviewUrl(file: File, crop: ImageCrop): Promise<string> {
+  const tmp = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = reject;
+      i.src = tmp;
+    });
+    const nw = img.naturalWidth;
+    const nh = img.naturalHeight;
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(crop.width * nw));
+    canvas.height = Math.max(1, Math.round(crop.height * nh));
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.drawImage(img, crop.x * nw, crop.y * nh, crop.width * nw, crop.height * nh, 0, 0, canvas.width, canvas.height);
+      const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/png'));
+      if (blob) { URL.revokeObjectURL(tmp); return URL.createObjectURL(blob); }
+    }
+  } catch {
+    // fall through to the full-image fallback
+  }
+  URL.revokeObjectURL(tmp);
+  return URL.createObjectURL(file);
+}
+
 interface LogoCropUploadProps {
-  /** Called with the square-cropped Blob + an object-URL preview to display. */
-  onCropped: (blob: Blob, previewUrl: string) => void;
+  /** Called with the pristine File, the chosen crop (fractions), and an object-URL preview. */
+  onCropped: (file: File, crop: ImageCrop, previewUrl: string) => void;
   /** Validation error: 'invalid_type' | 'too_large'. */
   onError?: (code: 'invalid_type' | 'too_large') => void;
   children: (open: () => void) => ReactNode;
@@ -22,21 +58,24 @@ interface LogoCropUploadProps {
 export default function LogoCropUpload({ onCropped, onError, children }: LogoCropUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [src, setSrc] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(null);
 
   const open = (): void => inputRef.current?.click();
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>): void => {
-    const file = e.target.files?.[0];
+    const f = e.target.files?.[0];
     e.target.value = ''; // allow re-picking the same file
-    if (!file) return;
-    if (!ALLOWED.includes(file.type)) { onError?.('invalid_type'); return; }
-    if (file.size > MAX_BYTES) { onError?.('too_large'); return; }
-    setSrc(URL.createObjectURL(file));
+    if (!f) return;
+    if (!ALLOWED.includes(f.type)) { onError?.('invalid_type'); return; }
+    if (f.size > MAX_BYTES) { onError?.('too_large'); return; }
+    setFile(f);
+    setSrc(URL.createObjectURL(f));
   };
 
   const closeCrop = (): void => {
     if (src) URL.revokeObjectURL(src);
     setSrc(null);
+    setFile(null);
   };
 
   return (
@@ -49,15 +88,18 @@ export default function LogoCropUpload({ onCropped, onError, children }: LogoCro
         className="hidden"
         onChange={handleFile}
       />
-      {src && (
+      {src && file && (
         <ImageCropModal
           src={src}
-          aspect={1}
           allowFullImage
-          onCrop={(blob) => {
-            const preview = URL.createObjectURL(blob);
-            closeCrop();
-            onCropped(blob, preview);
+          onCropMeta={(crop) => {
+            const pristine = file;
+            void (async () => {
+              // Bake an exact cropped preview; upload still sends the pristine file + crop.
+              const preview = await cropToPreviewUrl(pristine, crop);
+              closeCrop();
+              onCropped(pristine, crop, preview);
+            })();
           }}
           onCancel={closeCrop}
         />

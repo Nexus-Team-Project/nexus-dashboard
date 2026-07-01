@@ -5,6 +5,7 @@
  * logo show initials here.
  */
 import { tenantColor } from '../../lib/tenantColor';
+import { buildOfferImageUrl, type ImageCrop } from '../../lib/cloudinaryImage';
 
 /** Two-letter initials from a name (single word -> first two chars). */
 function initials(name: string): string {
@@ -16,8 +17,10 @@ function initials(name: string): string {
 interface TenantLogoProps {
   /** Tenant name - used for the initials + the deterministic tile color. */
   name: string;
-  /** Cloudinary logo URL, or null/undefined -> initials tile. */
+  /** Cloudinary logo URL (pristine), or null/undefined -> initials tile. */
   logoUrl?: string | null;
+  /** Crop of the logo (normalized fractions), applied at display time via Cloudinary. */
+  logoCrop?: ImageCrop | null;
   /** Square size in px. */
   size?: number;
   /** Tailwind rounding class (default rounded-full). */
@@ -28,15 +31,18 @@ interface TenantLogoProps {
 export default function TenantLogo({
   name,
   logoUrl,
+  logoCrop,
   size = 28,
   rounded = 'rounded-full',
   className = '',
 }: TenantLogoProps) {
   const dim = { width: size, height: size } as const;
   if (logoUrl) {
+    // The stored logoUrl is the pristine original; apply the crop (if any) at
+    // display time via a Cloudinary transform. A null crop = the full logo.
     return (
       <img
-        src={logoUrl}
+        src={buildOfferImageUrl(logoUrl, logoCrop ?? null, 'full')}
         alt={name}
         style={dim}
         className={`${rounded} bg-white object-contain ${className}`}

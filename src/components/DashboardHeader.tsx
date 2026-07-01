@@ -46,6 +46,7 @@ const DashboardHeader = ({ onLogout, isChatOpen, onChatToggle, onMenuToggle }: D
   const navigate = useNavigate();
   const tenantName = me?.context.tenantName ?? '';
   const tenantLogoUrl = me?.context.tenantLogoUrl ?? null;
+  const tenantLogoCrop = me?.context.tenantLogoCrop ?? null;
   const [isLogoPreviewOpen, setIsLogoPreviewOpen] = useState(false);
   const [isLogoHovered, setIsLogoHovered] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -138,7 +139,7 @@ const DashboardHeader = ({ onLogout, isChatOpen, onChatToggle, onMenuToggle }: D
               aria-label={isRTL ? 'לוגו הארגון' : 'Organization logo'}
               title={tenantName}
             >
-              <TenantLogo name={tenantName || 'N'} logoUrl={tenantLogoUrl} size={14} />
+              <TenantLogo name={tenantName || 'N'} logoUrl={tenantLogoUrl} logoCrop={tenantLogoCrop} size={14} />
             </button>
           </div>
           <UserPanel
@@ -248,6 +249,7 @@ const DashboardHeader = ({ onLogout, isChatOpen, onChatToggle, onMenuToggle }: D
             <TenantLogo
               name={tenantName || 'N'}
               logoUrl={tenantLogoUrl}
+              logoCrop={tenantLogoCrop}
               size={240}
               rounded="rounded-3xl"
               className="shadow-2xl"

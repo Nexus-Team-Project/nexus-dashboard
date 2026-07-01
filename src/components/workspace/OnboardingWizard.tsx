@@ -9,6 +9,7 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import { PhoneInputField } from '../ui/PhoneInputField';
 import TenantLogo from '../common/TenantLogo';
 import LogoCropUpload from '../common/LogoCropUpload';
+import type { ImageCrop } from '../../lib/cloudinaryImage';
 import InfoTooltip from '../common/InfoTooltip';
 import BrandColorPicker from '../common/BrandColorPicker';
 import { DEFAULT_BRAND_COLOR } from '../../lib/brandColor';
@@ -25,7 +26,8 @@ export interface OnboardingData {
   role: string;
   /** Optional square-cropped logo, uploaded by the parent after the workspace
    *  is created (the tenant must exist first). */
-  logoBlob?: Blob;
+  logoFile?: File;
+  logoCrop?: ImageCrop | null;
   /** Optional brand color ("#rrggbb"), saved by the parent after the workspace
    *  is created. Omitted when the admin left the default untouched. */
   brandColor?: string;
@@ -206,7 +208,8 @@ export default function OnboardingWizard({ onComplete, onSkip, onSkipWithDraft, 
   const [orgName, setOrgName]           = useState((draft?.orgName as string | undefined) ?? '');
   // Logo is optional and not draft-persisted (a Blob can't be serialized); it is
   // uploaded by the parent after the workspace is created.
-  const [logoBlob, setLogoBlob]         = useState<Blob | null>(null);
+  const [logoFile, setLogoFile]         = useState<File | null>(null);
+  const [logoCrop, setLogoCrop]         = useState<ImageCrop | null>(null);
   const [logoPreview, setLogoPreview]   = useState<string | null>(null);
   // Brand color (wallet first-login accent). Defaults to the shared default and
   // is only saved by the parent when the admin changes it from that default.
@@ -291,7 +294,7 @@ export default function OnboardingWizard({ onComplete, onSkip, onSkipWithDraft, 
       clearOnboardingDraft();
       onComplete({
         org_name: orgName, website, business_desc: businessDesc, primary_use_cases: primarySelected,
-        phone, role, logoBlob: logoBlob ?? undefined,
+        phone, role, logoFile: logoFile ?? undefined, logoCrop: logoCrop ?? undefined,
         // Only send the color when the admin moved it off the default.
         brandColor: brandColor.toLowerCase() !== DEFAULT_BRAND_COLOR ? brandColor : undefined,
       });
@@ -416,7 +419,7 @@ export default function OnboardingWizard({ onComplete, onSkip, onSkipWithDraft, 
                     <TenantLogo name={orgName || 'N'} size={56} rounded="rounded-2xl" />
                   )}
                   <LogoCropUpload
-                    onCropped={(b, p) => { if (logoPreview) URL.revokeObjectURL(logoPreview); setLogoBlob(b); setLogoPreview(p); }}
+                    onCropped={(f, crop, p) => { if (logoPreview) URL.revokeObjectURL(logoPreview); setLogoFile(f); setLogoCrop(crop); setLogoPreview(p); }}
                     onError={(code) => toast.error(code === 'too_large' ? c.logoTooLarge : c.logoInvalidType)}
                   >
                     {(open) => (
@@ -426,7 +429,7 @@ export default function OnboardingWizard({ onComplete, onSkip, onSkipWithDraft, 
                     )}
                   </LogoCropUpload>
                   {logoPreview && (
-                    <button type="button" onClick={() => { URL.revokeObjectURL(logoPreview); setLogoBlob(null); setLogoPreview(null); }} className="text-xs font-medium text-slate-500 hover:text-red-600">
+                    <button type="button" onClick={() => { URL.revokeObjectURL(logoPreview); setLogoFile(null); setLogoCrop(null); setLogoPreview(null); }} className="text-xs font-medium text-slate-500 hover:text-red-600">
                       {c.logoRemove}
                     </button>
                   )}

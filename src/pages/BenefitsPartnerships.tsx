@@ -40,7 +40,7 @@ import VoucherPricePopover from '../components/catalog/VoucherPricePopover';
 import OfferUploaderBadge from '../components/catalog/OfferUploaderBadge';
 import OfferTypeBadge from '../components/catalog/OfferTypeBadge';
 import VoucherColorTile from '../components/offer/VoucherColorTile';
-import { buildOfferImageUrl, getImageCrop } from '../lib/cloudinaryImage';
+import { buildOfferImageUrl, getImageCrop, type ImageCrop } from '../lib/cloudinaryImage';
 import { formatVoucherCardPrice, variantMemberPriceRange } from '../lib/voucherPricing';
 import { validityTypeLabel } from '../lib/voucherValidity';
 import VariantInventoryManagerModal from '../components/offer/VariantInventoryManagerModal';
@@ -57,6 +57,8 @@ interface Benefit {
   uploaderLogo?: string;
   /** Uploading tenant's brand color, for an initials fallback. */
   uploaderBrandColor?: string;
+  /** Uploading tenant's logo crop (normalized fractions), applied at display time. */
+  uploaderCrop?: ImageCrop | null;
   backgroundImage?: string;
   /** Full ordered gallery URLs from NexusOffer.imageUrls. Used by the lightbox. */
   galleryImages?: string[];
@@ -758,6 +760,7 @@ const BenefitsPartnerships = () => {
     uploaderName: item.createdByTenantName,
     uploaderLogo: item.createdByTenantLogoUrl,
     uploaderBrandColor: item.createdByTenantBrandColor,
+    uploaderCrop: item.createdByTenantLogoCrop,
     // Crop is applied at the mapping boundary: card-context for the thumbnail,
     // full-context for the gallery (the lightbox shows the crop at full size).
     backgroundImage: item.imageUrl
@@ -1201,6 +1204,7 @@ const BenefitsPartnerships = () => {
                                   <OfferUploaderBadge
                                     name={item.createdByTenantName}
                                     logoUrl={item.createdByTenantLogoUrl}
+                                    logoCrop={item.createdByTenantLogoCrop}
                                     brandColor={item.createdByTenantBrandColor}
                                     showPrefix={false}
                                   />
@@ -1546,6 +1550,7 @@ const BenefitsPartnerships = () => {
                           <OfferUploaderBadge
                             name={benefit.uploaderName}
                             logoUrl={benefit.uploaderLogo}
+                            logoCrop={benefit.uploaderCrop}
                             brandColor={benefit.uploaderBrandColor}
                             className="-mt-2 mb-4"
                           />
@@ -1719,6 +1724,7 @@ const BenefitsPartnerships = () => {
                           <OfferUploaderBadge
                             name={benefit.uploaderName}
                             logoUrl={benefit.uploaderLogo}
+                            logoCrop={benefit.uploaderCrop}
                             brandColor={benefit.uploaderBrandColor}
                             className="-mt-4 mb-4"
                           />
