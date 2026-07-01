@@ -16,6 +16,7 @@ import { type ReactNode } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { cn } from '../../lib/utils';
 import { defaultOfferImageUrl } from '../../lib/cloudinaryImage';
+import ActionTooltip from './ActionTooltip';
 
 /**
  * Default offer placeholder shown in the banner background and thumbnail when the
@@ -89,7 +90,8 @@ export default function OfferFormLayout({
 
   // Cancel + Publish/Save group. Rendered identically in the hero top bar and in
   // the bottom action bar (same design in both places). The disabled reason shows
-  // only as a hover tooltip on the Save button (no inline text).
+  // as a hover/focus tooltip ABOVE the Save button (ActionTooltip - portalled so it
+  // is never clipped or hidden beneath the sidebar cards, and updates live).
   const actionButtons = (
     <div className="flex items-center gap-3">
       <button
@@ -101,18 +103,19 @@ export default function OfferFormLayout({
         {cancelLabel}
       </button>
       {!hideSave && (
-        <button
-          type="button"
-          onClick={onSave}
-          disabled={isSubmitting || saveDisabled}
-          title={saveDisabled && saveHint ? saveHint : undefined}
-          className={cn(
-            'px-6 py-2 text-sm font-semibold bg-white text-slate-900 rounded-xl shadow-lg transition-opacity',
-            isSubmitting || saveDisabled ? 'opacity-60 cursor-not-allowed' : 'hover:opacity-90',
-          )}
-        >
-          {isSubmitting ? t('of_saving') : saveLabel}
-        </button>
+        <ActionTooltip text={saveDisabled && !isSubmitting ? saveHint : undefined}>
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={isSubmitting || saveDisabled}
+            className={cn(
+              'px-6 py-2 text-sm font-semibold bg-white text-slate-900 rounded-xl shadow-lg transition-opacity',
+              isSubmitting || saveDisabled ? 'opacity-60 cursor-not-allowed' : 'hover:opacity-90',
+            )}
+          >
+            {isSubmitting ? t('of_saving') : saveLabel}
+          </button>
+        </ActionTooltip>
       )}
     </div>
   );
