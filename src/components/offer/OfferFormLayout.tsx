@@ -56,8 +56,6 @@ interface OfferFormLayoutProps {
   saveDisabled?: boolean;
   /** Tooltip explaining why Save is disabled (shown on the button when saveDisabled). */
   saveHint?: string;
-  /** Optional error string rendered as a sticky banner above the grid. */
-  error?: string | null;
   /** Optional denial-reason banner (Edit page resubmit flow). */
   denialReason?: string | null;
   /** Left column content — main form cards. */
@@ -83,7 +81,6 @@ export default function OfferFormLayout({
   hideSave = false,
   saveDisabled = false,
   saveHint,
-  error,
   denialReason,
   leftColumn,
   rightColumn,
@@ -200,13 +197,6 @@ export default function OfferFormLayout({
           <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-sm">
             <strong className="font-semibold">{t('of_denialReasonTitle')}: </strong>
             {denialReason}
-          </div>
-        </div>
-      )}
-      {error && (
-        <div className="px-4 sm:px-8 mt-4 relative z-10">
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-sm">
-            {error}
           </div>
         </div>
       )}

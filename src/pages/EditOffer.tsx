@@ -44,7 +44,6 @@ const EditOffer = () => {
   const [offer, setOffer] = useState<CatalogItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   // ─── Form state ─────────────────────────────────────────────────────────────
   const [title, setTitle] = useState('');
@@ -170,7 +169,6 @@ const EditOffer = () => {
   const finalizeSave = async () => {
     if (!offerId) return;
     setIsSubmitting(true);
-    setError(null);
     let saved = false;
     try {
       const fd = new FormData();
@@ -234,7 +232,7 @@ const EditOffer = () => {
       navigate('/benefits-partnerships');
     } catch (err: unknown) {
       if (saved) { toast.error(t('co_toastInventoryFailedSave')); navigate('/benefits-partnerships'); }
-      else { setError(localizedApiError(err, language, t('co_errPublish'))); }
+      else { toast.error(localizedApiError(err, language, t('co_errPublish'))); }
     } finally {
       setIsSubmitting(false);
     }
@@ -244,8 +242,7 @@ const EditOffer = () => {
     if (!offerId) return;
     if (publishBlockers.length > 0) return; // button is disabled; defensive
     const dateErr = submitDateRangeError({ executionType, validFrom, validUntil }, language);
-    if (dateErr) { setError(dateErr); return; }
-    setError(null);
+    if (dateErr) { toast.error(dateErr); return; }
     void finalizeSave();
   };
 
@@ -326,7 +323,6 @@ const EditOffer = () => {
       isSubmitting={isSubmitting}
       saveDisabled={publishBlockers.length > 0}
       saveHint={publishBlockers[0]}
-      error={error}
       denialReason={offer?.approval_status === 'denied' ? (offer?.denial_reason ?? null) : null}
       leftColumn={leftColumn}
       rightColumn={null}
