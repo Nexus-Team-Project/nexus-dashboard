@@ -150,9 +150,11 @@ const CreateOffer = () => {
       if (invError) toast.error(`${t('co_toastInventoryFailed')}: ${invError}`);
       else if (units > 0) toast.success(`${publishedMsg} · ${units} ${t('co_toastUnits')}`);
       else toast.success(publishedMsg);
-      navigate('/benefits-partnerships');
+      // After publishing, land on Product Catalog - it lists the tenant's own
+      // offers (any visibility), so the just-created offer is visible there.
+      navigate('/product-catalog');
     } catch (err: unknown) {
-      if (offerCreated) { toast.error(t('co_toastInventoryFailed')); navigate('/benefits-partnerships'); }
+      if (offerCreated) { toast.error(t('co_toastInventoryFailed')); navigate('/product-catalog'); }
       else { toast.error(localizedApiError(err, language, t('co_errPublish'))); setShowPublishConfirm(false); }
     } finally {
       setIsSubmitting(false);
@@ -191,7 +193,7 @@ const CreateOffer = () => {
           <p className="text-sm text-slate-600 mb-6">{t('co_serviceInactiveBody')}</p>
           <button
             type="button"
-            onClick={() => navigate('/benefits-partnerships')}
+            onClick={() => navigate('/product-catalog')}
             className="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-opacity"
           >
             {t('co_serviceInactiveBtn')}
@@ -280,7 +282,7 @@ const CreateOffer = () => {
         saveLabel={t('of_saveCreate')}
         cancelLabel={t('of_cancel')}
         onSave={handleSave}
-        onCancel={() => navigate('/benefits-partnerships')}
+        onCancel={() => navigate('/product-catalog')}
         isSubmitting={isSubmitting}
         saveDisabled={publishBlockers.length > 0}
         saveHint={publishBlockers[0]}
