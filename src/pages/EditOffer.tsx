@@ -30,6 +30,7 @@ import VoucherRedemptionScopeCard from '../components/offer/VoucherRedemptionSco
 import { OfferFormSkeleton, OfferFormErrorState } from '../components/offer/OfferFormStates';
 import { type DraftVariant, variantToDraft, draftToPayload, stagedUnitsToBatches, stagedEditsToBulk } from './voucherVariantDraft';
 import { computePublishBlockers, submitDateRangeError } from './createOfferFormData';
+import { localizedApiError } from '../lib/apiError';
 
 const EditOffer = () => {
   const navigate = useNavigate();
@@ -218,12 +219,12 @@ const EditOffer = () => {
           if (!variantId) continue;
           for (const batch of stagedUnitsToBatches(variants[i].stagedUnits)) {
             try { const r = await addVariantInventory(offerId, variantId, batch); units += r.created; }
-            catch (e) { if (!invError) invError = e instanceof Error ? e.message : String(e); }
+            catch (e) { if (!invError) invError = localizedApiError(e, language); }
           }
           // Apply staged edits to already-saved units, one bulk request per distinct validity.
           for (const grp of stagedEditsToBulk(variants[i].stagedEdits)) {
             try { await bulkUpdateUnitValidity(offerId, variantId, grp.codeIds, grp.validity); }
-            catch (e) { if (!invError) invError = e instanceof Error ? e.message : String(e); }
+            catch (e) { if (!invError) invError = localizedApiError(e, language); }
           }
         }
       }
@@ -233,7 +234,7 @@ const EditOffer = () => {
       navigate('/benefits-partnerships');
     } catch (err: unknown) {
       if (saved) { toast.error(t('co_toastInventoryFailedSave')); navigate('/benefits-partnerships'); }
-      else { setError(err instanceof Error ? err.message : t('co_errPublish')); }
+      else { setError(localizedApiError(err, language, t('co_errPublish'))); }
     } finally {
       setIsSubmitting(false);
     }

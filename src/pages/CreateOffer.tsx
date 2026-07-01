@@ -30,6 +30,7 @@ import VoucherImportModal from '../components/offer/VoucherImportModal';
 import { type DraftVariant, stagedUnitsToBatches } from './voucherVariantDraft';
 import type { VoucherImportOutcome } from './voucherXlsxImport';
 import { buildCreateOfferFormData, computePublishBlockers, submitDateRangeError, type CreateOfferValues } from './createOfferFormData';
+import { localizedApiError } from '../lib/apiError';
 
 /** Visibility options for a platform offer. */
 type OfferVisibility = 'ecosystem' | 'tenant_only';
@@ -140,7 +141,7 @@ const CreateOffer = () => {
         // Group this variant's staged units into batches (one per kind+validity) and apply each.
         for (const batch of stagedUnitsToBatches(variants[i].stagedUnits)) {
           try { const r = await addVariantInventory(offer.offerId, variantId, batch); units += r.created; }
-          catch (e) { if (!invError) invError = e instanceof Error ? e.message : String(e); }
+          catch (e) { if (!invError) invError = localizedApiError(e, language); }
         }
       }
       if (invError) toast.error(`${t('co_toastInventoryFailed')}: ${invError}`);
@@ -149,7 +150,7 @@ const CreateOffer = () => {
       navigate('/benefits-partnerships');
     } catch (err: unknown) {
       if (offerCreated) { toast.error(t('co_toastInventoryFailed')); navigate('/benefits-partnerships'); }
-      else { setError(err instanceof Error ? err.message : t('co_errPublish')); setShowPublishConfirm(false); }
+      else { setError(localizedApiError(err, language, t('co_errPublish'))); setShowPublishConfirm(false); }
     } finally {
       setIsSubmitting(false);
     }
