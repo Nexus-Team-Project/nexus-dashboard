@@ -40,7 +40,7 @@ import VoucherPricePopover from '../components/catalog/VoucherPricePopover';
 import OfferTypeBadge from '../components/catalog/OfferTypeBadge';
 import VoucherColorTile from '../components/offer/VoucherColorTile';
 import { buildOfferImageUrl, getImageCrop } from '../lib/cloudinaryImage';
-import { formatVoucherCardPrice } from '../lib/voucherPricing';
+import { formatVoucherCardPrice, variantMemberPriceRange } from '../lib/voucherPricing';
 import { validityTypeLabel } from '../lib/voucherValidity';
 import VariantInventoryManagerModal from '../components/offer/VariantInventoryManagerModal';
 
@@ -367,7 +367,8 @@ const BenefitsPartnerships = () => {
     variantId?: string;
     faceValue: number;
     nexusCost: number;
-    currentMemberPrice: number;
+    baseSalePrice: number;
+    currentMarkupPct: number;
     anchor: HTMLElement;
   }>(null);
 
@@ -581,7 +582,8 @@ const BenefitsPartnerships = () => {
       variantId: variant.variantId,
       faceValue: variant.face_value,
       nexusCost: variant.nexus_cost,
-      currentMemberPrice: variant.member_price ?? variant.nexus_cost,
+      baseSalePrice: variant.baseMemberPrice ?? variant.member_price ?? variant.nexus_cost,
+      currentMarkupPct: variant.tenantMarkupPct ?? 0,
       anchor,
     });
   };
@@ -850,22 +852,27 @@ const BenefitsPartnerships = () => {
     setShowBenefitModal(true);
   };
 
-  // Full CatalogItem behind the open modal - carries variants + redemptionScope
-  // that the mapped Benefit shape does not. Null when no modal is open. Any
-  // optimistic per-variant price edits are folded into the variants so the modal
-  // (hero range + variant table) reflects them instantly.
-  const selectedCatalogItem = (() => {
-    if (!selectedBenefit) return null;
-    const base = catalogItems.find((c) => c.offerId === selectedBenefit.id) ?? null;
-    if (!base) return null;
-    const overrides = variantPriceOverrides[base.offerId];
-    if (!overrides || !base.variants) return base;
+  // Fold any optimistic per-variant price edit into an item's variants so every
+  // surface (modal hero range, table price cell, variant table) reflects a just-
+  // saved markup instantly, before the next catalog refetch returns it.
+  const applyVariantOverrides = (item: CatalogItem): CatalogItem => {
+    const overrides = variantPriceOverrides[item.offerId];
+    if (!overrides || !item.variants) return item;
     return {
-      ...base,
-      variants: base.variants.map((v) =>
+      ...item,
+      variants: item.variants.map((v) =>
         overrides[v.variantId] !== undefined ? { ...v, member_price: overrides[v.variantId] } : v,
       ),
     };
+  };
+
+  // Full CatalogItem behind the open modal - carries variants + redemptionScope
+  // that the mapped Benefit shape does not. Null when no modal is open. Optimistic
+  // per-variant price edits are folded in so the modal reflects them instantly.
+  const selectedCatalogItem = (() => {
+    if (!selectedBenefit) return null;
+    const base = catalogItems.find((c) => c.offerId === selectedBenefit.id) ?? null;
+    return base ? applyVariantOverrides(base) : null;
   })();
 
   // When the catalog service is inactive, show the teaser page instead of the full catalog UI.
@@ -1297,21 +1304,32 @@ const BenefitsPartnerships = () => {
                                 </span>
                               </td>
 
-                              {/* 8. Price - READ-ONLY. Multi-variant vouchers show the
-                                  member_price range (lowest-highest); per-variant editing
+                              {/* 8. Price - READ-ONLY. Vouchers show the per-variant
+                                  effective member_price range (lowest-highest); a single
+                                  variant shows its one effective price. Per-variant editing
                                   lives in the expandable variant table. Non-vouchers show
                                   market_price; a per-tenant override still wins. */}
                               <td className="px-4 py-4 align-top">
-                                <span className={cn(
-                                  'text-sm font-semibold tabular-nums whitespace-nowrap',
-                                  priceValue == null
-                                    ? 'text-slate-400 italic font-normal'
-                                    : 'text-slate-900 dark:text-slate-100',
-                                )}>
-                                  {isVoucher && (item.variants?.length ?? 0) > 1
-                                    ? formatVoucherCardPrice(item, priceValue ?? item.member_price ?? 0)
-                                    : formatPrice(priceValue)}
-                                </span>
+                                {(() => {
+                                  // For vouchers, resolve the price from the variant effective
+                                  // prices (optimistic override folded in) so the row matches
+                                  // the variant table and updates the moment a markup is saved.
+                                  const priceItem = isVoucher ? applyVariantOverrides(item) : item;
+                                  const vRange = isVoucher ? variantMemberPriceRange(priceItem) : null;
+                                  const hasPrice = vRange != null || priceValue != null;
+                                  return (
+                                    <span className={cn(
+                                      'text-sm font-semibold tabular-nums whitespace-nowrap',
+                                      !hasPrice
+                                        ? 'text-slate-400 italic font-normal'
+                                        : 'text-slate-900 dark:text-slate-100',
+                                    )}>
+                                      {vRange
+                                        ? formatVoucherCardPrice(priceItem, vRange.min)
+                                        : formatPrice(priceValue)}
+                                    </span>
+                                  );
+                                })()}
                               </td>
                               {/* Stock + validity columns removed - now per-variant in the expander. */}
 
@@ -1999,7 +2017,8 @@ const BenefitsPartnerships = () => {
           variantId={pricePopover.variantId}
           faceValue={pricePopover.faceValue}
           nexusCost={pricePopover.nexusCost}
-          currentMemberPrice={pricePopover.currentMemberPrice}
+          baseSalePrice={pricePopover.baseSalePrice}
+          currentMarkupPct={pricePopover.currentMarkupPct}
           anchor={pricePopover.anchor}
           onSaved={(newPrice) => {
             // Optimistically reflect the new price right away (the modal range +

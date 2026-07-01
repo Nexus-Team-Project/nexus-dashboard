@@ -1053,6 +1053,10 @@ export interface CatalogVariant {
   face_value?: number;
   nexus_cost?: number;
   member_price?: number;
+  /** Raw offer base sale price (member_price) before this tenant's markup. */
+  baseMemberPrice?: number;
+  /** This tenant's stored markup % (0 when none). */
+  tenantMarkupPct?: number;
   voucherStackable?: boolean | null;
   sku?: string | null;
   tags?: string[];
@@ -1287,24 +1291,25 @@ export async function excludeOffer(offerId: string): Promise<void> {
 }
 
 /**
- * Set the caller-tenant's voucher member price for one offer.
+ * Set the caller-tenant's voucher markup percentage for one offer/variant.
  * Backend resolves the tenant from the session - the caller never
- * supplies tenantId.
+ * supplies tenantId. The % is applied to the offer's base sale price and
+ * the effective price is recomputed + cached server-side.
  *
  * Matches PATCH /api/v1/offers/:offerId/tenant-price.
- * Input:  offerId, memberPrice (positive number in shekels).
+ * Input:  offerId, markupPct (>= 0), optional variantId.
  * Output: updated TenantOfferConfig row.
  * Errors: 400 (bounds / non-voucher), 403 (not adopted), 404 (offer gone).
  */
 export async function updateTenantVoucherPrice(
   offerId: string,
-  memberPrice: number,
+  markupPct: number,
   variantId?: string,
 ): Promise<{ config: TenantOfferConfig }> {
   return request<{ config: TenantOfferConfig }>(
     'PATCH',
     `/api/v1/offers/${encodeURIComponent(offerId)}/tenant-price`,
-    { memberPrice, ...(variantId !== undefined && { variantId }) },
+    { markupPct, ...(variantId !== undefined && { variantId }) },
   );
 }
 
