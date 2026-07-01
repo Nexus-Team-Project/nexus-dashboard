@@ -30,6 +30,7 @@ import VoucherImportModal from '../components/offer/VoucherImportModal';
 import { type DraftVariant, stagedUnitsToBatches } from './voucherVariantDraft';
 import type { VoucherImportOutcome } from './voucherXlsxImport';
 import { buildCreateOfferFormData, computePublishBlockers, submitDateRangeError, type CreateOfferValues } from './createOfferFormData';
+import { localizedApiError } from '../lib/apiError';
 
 /** Visibility options for a platform offer. */
 type OfferVisibility = 'ecosystem' | 'tenant_only';
@@ -69,7 +70,6 @@ const CreateOffer = () => {
   const [tags, setTags] = useState<string[]>([]);
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   // Voucher variants: at least one is required to publish. `variantEditing` is
   // true while a variant draft is open (blocks publish until saved/cancelled).
   const [variants, setVariants] = useState<DraftVariant[]>([]);
@@ -126,7 +126,6 @@ const CreateOffer = () => {
    *  server variantId (matched by order), and navigates back. */
   const finalizePublish = async () => {
     setIsSubmitting(true);
-    setError(null);
     let offerCreated = false;
     try {
       const offer = await createOfferApi(buildCreateOfferFormData(formValues()));
@@ -140,7 +139,7 @@ const CreateOffer = () => {
         // Group this variant's staged units into batches (one per kind+validity) and apply each.
         for (const batch of stagedUnitsToBatches(variants[i].stagedUnits)) {
           try { const r = await addVariantInventory(offer.offerId, variantId, batch); units += r.created; }
-          catch (e) { if (!invError) invError = e instanceof Error ? e.message : String(e); }
+          catch (e) { if (!invError) invError = localizedApiError(e, language); }
         }
       }
       if (invError) toast.error(`${t('co_toastInventoryFailed')}: ${invError}`);
@@ -149,7 +148,7 @@ const CreateOffer = () => {
       navigate('/benefits-partnerships');
     } catch (err: unknown) {
       if (offerCreated) { toast.error(t('co_toastInventoryFailed')); navigate('/benefits-partnerships'); }
-      else { setError(err instanceof Error ? err.message : t('co_errPublish')); setShowPublishConfirm(false); }
+      else { toast.error(localizedApiError(err, language, t('co_errPublish'))); setShowPublishConfirm(false); }
     } finally {
       setIsSubmitting(false);
     }
@@ -158,8 +157,7 @@ const CreateOffer = () => {
   const handleSave = () => {
     if (publishBlockers.length > 0) return; // button is disabled; defensive
     const dateErr = submitDateRangeError({ executionType, validFrom, validUntil }, language);
-    if (dateErr) { setError(dateErr); return; }
-    setError(null);
+    if (dateErr) { toast.error(dateErr); return; }
     if (executionType === 'voucher') {
       setShowPublishConfirm(true);
       return;
@@ -281,7 +279,6 @@ const CreateOffer = () => {
         isSubmitting={isSubmitting}
         saveDisabled={publishBlockers.length > 0}
         saveHint={publishBlockers[0]}
-        error={error}
         leftColumn={leftColumn}
         rightColumn={rightColumn}
       />

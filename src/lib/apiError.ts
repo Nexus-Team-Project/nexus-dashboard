@@ -9,6 +9,44 @@
  * message(s), so callers never surface a raw object.
  */
 
+import type { Language } from '../i18n/translations';
+
+/**
+ * Error thrown by the API client for a non-ok response. Carries the English
+ * message (`.message`, so any `err.message` caller keeps working) plus the
+ * backend's localized Hebrew message (`.messageHe`, from the `errorHe` field)
+ * when the backend supplied one. Use `localizedApiError(err, language)` at the
+ * display site to pick the language-appropriate string.
+ */
+export class ApiError extends Error {
+  /** Backend `errorHe` (Hebrew) message, when present. */
+  readonly messageHe?: string;
+
+  constructor(message: string, messageHe?: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.messageHe = messageHe;
+  }
+}
+
+/**
+ * Picks the language-appropriate message from a caught error for display.
+ * In Hebrew mode it prefers an `ApiError`'s `messageHe` (the backend `errorHe`),
+ * then falls back to the English message, then `fallback`. Any non-`ApiError`
+ * value falls back to `extractApiError`, so callers may pass any caught value.
+ *
+ * Inputs: `err` (any caught value), `language` ('en' | 'he'), optional `fallback`.
+ * Output: a clean, non-empty display string in the active language when available.
+ */
+export function localizedApiError(err: unknown, language: Language, fallback = 'Something went wrong'): string {
+  if (err instanceof ApiError) {
+    if (language === 'he' && err.messageHe && err.messageHe.trim()) return err.messageHe.trim();
+    return err.message.trim() || fallback;
+  }
+  if (err instanceof Error) return err.message.trim() || fallback;
+  return extractApiError(err, fallback);
+}
+
 /** Max distinct messages to join, so a huge validation tree stays readable. */
 const MAX_MESSAGES = 5;
 /** Recursion guard against pathological/cyclic structures. */

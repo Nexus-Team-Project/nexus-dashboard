@@ -8,6 +8,7 @@ import type { TranslationKey } from '../i18n/translations';
 import { useRecentPages, PAGE_META } from '../hooks/useRecentPages';
 import { useDevMode } from '../contexts/DevModeContext';
 import { useAuth } from '../contexts/AuthContext';
+import SidebarTooltip from './SidebarTooltip';
 
 export type SidebarState = 'open' | 'collapsed' | 'closed';
 
@@ -146,30 +147,17 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
   const isCollapsed = state === 'collapsed';
   const isClosed = state === 'closed';
 
-  const cycleState = () => {
-    if (isOpen) onStateChange('collapsed');
-    else if (isCollapsed) onStateChange('closed');
-    else onStateChange('open');
-  };
-
-  const getToggleIcon = () => {
-    if (isOpen) return 'chevron_left';
-    if (isCollapsed) return 'close';
-    return 'menu';
-  };
-
-  const getToggleTooltip = () => {
-    if (isOpen) return t('sb_collapseMenu');
-    if (isCollapsed) return t('sb_closeMenu');
-    return t('sb_openMenu');
-  };
+  // Shared style for the hover-revealed circular edge toggles. Each caller sets its
+  // own vertical offset (`top`) via inline style so multiple can stack on the edge.
+  const edgeToggleClass =
+    '!absolute w-6 h-6 bg-white rounded-full border border-slate-200 shadow-sm flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all z-30 opacity-0 group-hover/sidebar:opacity-100';
 
   if (isClosed) {
     return (
       <button
         onClick={() => onStateChange('open')}
-        className="fixed top-[56px] end-[20px] z-50 w-6 h-6 bg-white border border-slate-200 rounded-full shadow-sm flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all"
-        title={t('sb_openMenu')}
+        className="fixed top-[68px] start-[20px] z-50 w-6 h-6 bg-white border border-slate-200 rounded-full shadow-sm flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all"
+        aria-label={t('sb_openMenu')}
       >
         <span className="material-symbols-rounded !text-sm">menu</span>
       </button>
@@ -177,31 +165,31 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
   }
 
   const renderNavLink = (item: NavItem) => (
-    <NavLink
-      key={item.to}
-      to={item.to!}
-      onClick={onNavigate}
-      className={({ isActive }) =>
-        `flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 ${
-          isCollapsed ? 'justify-center' : ''
-        } ${
-          isActive
-            ? 'hover:bg-violet-50 text-primary font-medium'
-            : 'text-[#676879] hover:bg-slate-200'
-        }`
-      }
-      end={item.to === '/'}
-      title={isCollapsed ? item.label : undefined}
-    >
-      {({ isActive }) => (
-        <>
-          <span className={`material-symbols-rounded !text-[16px] ${isActive ? 'text-primary' : ''}`}>
-            {item.icon}
-          </span>
-          {isOpen && <span className="text-[13px] flex-1 truncate">{item.label}</span>}
-        </>
-      )}
-    </NavLink>
+    <SidebarTooltip key={item.to} label={isCollapsed ? item.label : ''}>
+      <NavLink
+        to={item.to!}
+        onClick={onNavigate}
+        className={({ isActive }) =>
+          `flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 ${
+            isCollapsed ? 'justify-center' : ''
+          } ${
+            isActive
+              ? 'hover:bg-violet-50 text-primary font-medium'
+              : 'text-[#676879] hover:bg-slate-200'
+          }`
+        }
+        end={item.to === '/'}
+      >
+        {({ isActive }) => (
+          <>
+            <span className={`material-symbols-rounded !text-[16px] ${isActive ? 'text-primary' : ''}`}>
+              {item.icon}
+            </span>
+            {isOpen && <span className="text-[13px] flex-1 truncate">{item.label}</span>}
+          </>
+        )}
+      </NavLink>
+    </SidebarTooltip>
   );
 
   return (
@@ -226,16 +214,41 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
       )}
 
 
-      {/* Toggle Button — z-30 so it sits ABOVE the resize handle (z-20) */}
-      {!isMobile && (
-      <button
-        onClick={cycleState}
-        className="!absolute top-6 w-6 h-6 bg-white rounded-full border border-slate-200 shadow-sm flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all z-30 opacity-0 group-hover/sidebar:opacity-100"
-        style={{ insetInlineEnd: '-12px' }}
-        title={getToggleTooltip()}
-      >
-        <span className="material-symbols-rounded !text-sm">{getToggleIcon()}</span>
-      </button>
+      {/* Edge toggles - z-30 so they sit ABOVE the resize handle (z-20). Hover-revealed
+          circular buttons on the sidebar's inner edge. `rtl:rotate-180` mirrors the
+          chevrons so they point the correct way per direction (the close X is symmetric,
+          so the flip is a no-op for it). Open collapses the menu; collapsed offers BOTH
+          expand (back to open) AND fully-close, so the half-closed menu can reopen without
+          being removed first; the fully-closed state is the floating button handled above. */}
+      {!isMobile && isOpen && (
+        <button
+          onClick={() => onStateChange('collapsed')}
+          className={edgeToggleClass}
+          style={{ top: '1.5rem', insetInlineEnd: '-12px' }}
+          aria-label={t('sb_collapseMenu')}
+        >
+          <span className="material-symbols-rounded !text-sm rtl:rotate-180">chevron_left</span>
+        </button>
+      )}
+      {!isMobile && isCollapsed && (
+        <>
+          <button
+            onClick={() => onStateChange('open')}
+            className={edgeToggleClass}
+            style={{ top: '1.5rem', insetInlineEnd: '-12px' }}
+            aria-label={t('sb_expandMenu')}
+          >
+            <span className="material-symbols-rounded !text-sm rtl:rotate-180">chevron_right</span>
+          </button>
+          <button
+            onClick={() => onStateChange('closed')}
+            className={edgeToggleClass}
+            style={{ top: '4rem', insetInlineEnd: '-12px' }}
+            aria-label={t('sb_closeMenu')}
+          >
+            <span className="material-symbols-rounded !text-sm">close</span>
+          </button>
+        </>
       )}
 
       {/* Navigation */}
@@ -263,9 +276,11 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
             )}
             {isCollapsed && (
               <div className="flex justify-center mb-1">
-                <span className="material-symbols-rounded !text-[14px] text-[#676879]" title={t('shortcuts')}>
-                  bolt
-                </span>
+                <SidebarTooltip label={t('shortcuts')}>
+                  <span className="material-symbols-rounded !text-[14px] text-[#676879]">
+                    bolt
+                  </span>
+                </SidebarTooltip>
               </div>
             )}
             <div>
@@ -274,6 +289,7 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
                 if (!meta) return null;
                 return (
                   <div key={page.path} className="group/shortcut">
+                    <SidebarTooltip label={isCollapsed ? t(meta.labelKey as TranslationKey) : ''}>
                     <NavLink
                       to={page.path}
                       end
@@ -287,7 +303,6 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
                             : 'text-[#676879] hover:bg-slate-200'
                         }`
                       }
-                      title={isCollapsed ? t(meta.labelKey as TranslationKey) : undefined}
                     >
                       {({ isActive }) => (
                         <>
@@ -317,6 +332,7 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
                         </>
                       )}
                     </NavLink>
+                    </SidebarTooltip>
                   </div>
                 );
               })}
@@ -341,49 +357,51 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
           )}
           {isCollapsed && (
             <div className="flex justify-center mb-1">
-              <span className="material-symbols-rounded !text-[14px] text-[#676879]" title={t('products')}>
-                widgets
-              </span>
+              <SidebarTooltip label={t('products')}>
+                <span className="material-symbols-rounded !text-[14px] text-[#676879]">
+                  widgets
+                </span>
+              </SidebarTooltip>
             </div>
           )}
           <div>
             {productItems.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                onClick={onNavigate}
-                className={({ isActive }) =>
-                  `flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 text-[13px] ${
-                    isCollapsed ? 'justify-center' : ''
-                  } ${
-                    isActive
-                      ? 'hover:bg-violet-50 text-primary font-medium'
-                      : 'text-[#676879] hover:bg-slate-200'
-                  }`
-                }
-                title={isCollapsed ? item.label : undefined}
-              >
-                {({ isActive }) => (
-                  <>
-                    <span className={`material-symbols-rounded !text-[16px] ${isActive ? 'text-primary' : 'text-[#676879]'}`}>
-                      {item.icon}
-                    </span>
-                    {isOpen && <span className="flex-1 truncate">{item.label}</span>}
-                  </>
-                )}
-              </NavLink>
+              <SidebarTooltip key={item.to} label={isCollapsed ? item.label : ''}>
+                <NavLink
+                  to={item.to}
+                  onClick={onNavigate}
+                  className={({ isActive }) =>
+                    `flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 text-[13px] ${
+                      isCollapsed ? 'justify-center' : ''
+                    } ${
+                      isActive
+                        ? 'hover:bg-violet-50 text-primary font-medium'
+                        : 'text-[#676879] hover:bg-slate-200'
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <span className={`material-symbols-rounded !text-[16px] ${isActive ? 'text-primary' : 'text-[#676879]'}`}>
+                        {item.icon}
+                      </span>
+                      {isOpen && <span className="flex-1 truncate">{item.label}</span>}
+                    </>
+                  )}
+                </NavLink>
+              </SidebarTooltip>
             ))}
 
             {/* More products */}
             {showMoreProducts && moreProductItems.map((item) => (
               item.to === '/marketing' ? (
                 <div key={item.to}>
+                  <SidebarTooltip label={isCollapsed ? item.label : ''}>
                   <button
                     onClick={() => toggleSubmenu('marketing')}
                     className={`w-full flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 text-[13px] text-[#676879] hover:bg-slate-200 ${
                       isCollapsed ? 'justify-center' : ''
                     }`}
-                    title={isCollapsed ? item.label : undefined}
                   >
                     <span className="material-symbols-rounded !text-[16px]">{item.icon}</span>
                     {isOpen && (
@@ -395,6 +413,7 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
                       </>
                     )}
                   </button>
+                  </SidebarTooltip>
                   {isOpen && expandedMenus.includes('marketing') && (
                     <div className="ms-4">
                       {marketingSubItems.map((sub) => (
@@ -424,30 +443,30 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
                   )}
                 </div>
               ) : (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  onClick={onNavigate}
-                  className={({ isActive }) =>
-                    `flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 text-[13px] ${
-                      isCollapsed ? 'justify-center' : ''
-                    } ${
-                      isActive
-                        ? 'hover:bg-violet-50 text-primary font-medium'
-                        : 'text-[#676879] hover:bg-slate-200'
-                    }`
-                  }
-                  title={isCollapsed ? item.label : undefined}
-                >
-                  {({ isActive }) => (
-                    <>
-                      <span className={`material-symbols-rounded !text-[16px] ${isActive ? 'text-primary' : 'text-[#676879]'}`}>
-                        {item.icon}
-                      </span>
-                      {isOpen && <span className="flex-1 truncate">{item.label}</span>}
-                    </>
-                  )}
-                </NavLink>
+                <SidebarTooltip key={item.to} label={isCollapsed ? item.label : ''}>
+                  <NavLink
+                    to={item.to}
+                    onClick={onNavigate}
+                    className={({ isActive }) =>
+                      `flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 text-[13px] ${
+                        isCollapsed ? 'justify-center' : ''
+                      } ${
+                        isActive
+                          ? 'hover:bg-violet-50 text-primary font-medium'
+                          : 'text-[#676879] hover:bg-slate-200'
+                      }`
+                    }
+                  >
+                    {({ isActive }) => (
+                      <>
+                        <span className={`material-symbols-rounded !text-[16px] ${isActive ? 'text-primary' : 'text-[#676879]'}`}>
+                          {item.icon}
+                        </span>
+                        {isOpen && <span className="flex-1 truncate">{item.label}</span>}
+                      </>
+                    )}
+                  </NavLink>
+                </SidebarTooltip>
               )
             ))}
 
@@ -457,12 +476,12 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
         {/* Dev Mode Toggle */}
         {canSeeDevMode && (
         <div className="pt-4 mt-3">
+          <SidebarTooltip label={isCollapsed ? 'Dev Mode' : ''}>
           <button
             onClick={toggleDevMode}
             className={`w-full flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 ${
               isCollapsed ? 'justify-center' : ''
             } ${isDevMode ? 'text-purple-600 hover:bg-purple-50' : 'text-[#676879] hover:bg-slate-200'}`}
-            title={isCollapsed ? 'Dev Mode' : undefined}
           >
             <span className={`material-symbols-rounded !text-[16px] transition-colors ${isDevMode ? 'text-purple-500' : ''}`}>
               code_blocks
@@ -476,9 +495,11 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
               </>
             )}
           </button>
+          </SidebarTooltip>
 
           {/* Dev Playground Link — visible only when Dev Mode is on */}
           {isDevMode && (
+            <SidebarTooltip label={isCollapsed ? 'Dev Playground' : ''}>
             <NavLink
               to="/dev"
               onClick={onNavigate}
@@ -491,7 +512,6 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
                     : 'text-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20'
                 }`
               }
-              title={isCollapsed ? 'Dev Playground' : undefined}
             >
               {({ isActive }) => (
                 <>
@@ -502,6 +522,7 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
                 </>
               )}
             </NavLink>
+            </SidebarTooltip>
           )}
         </div>
         )}

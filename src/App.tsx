@@ -178,10 +178,18 @@ function DeferredWorkspaceScreen({
 function AppRoutes() {
   const { user, isAuthenticated, isLoading, logout, me, reloadMe } = useAuth();
   const [isDeferredSetupOpen, setIsDeferredSetupOpen] = useState(false);
-  // Convert title attributes to data-tooltip for modern black tooltips
+  // Convert title attributes to data-tooltip for modern black tooltips (single
+  // tooltip, styled + z-9999 so it sits above everything). We must reconvert EVERY
+  // element that still carries a `title`, not only those without a `data-tooltip`:
+  // React re-applies `title` in the DOM whenever the prop value changes (e.g. a
+  // sidebar item toggling between collapsed label and undefined). With the old
+  // `:not([data-tooltip])` guard that re-added `title` was left in place next to the
+  // existing `data-tooltip`, so the element showed BOTH the native and the modern
+  // tooltip. Always moving `title` -> `data-tooltip` keeps exactly one (and refreshes
+  // the text when it changes, e.g. on language switch).
   useEffect(() => {
     const convertTitles = () => {
-      document.querySelectorAll('[title]:not([data-tooltip])').forEach(el => {
+      document.querySelectorAll('[title]').forEach(el => {
         const title = el.getAttribute('title');
         if (title) {
           el.setAttribute('data-tooltip', title);
