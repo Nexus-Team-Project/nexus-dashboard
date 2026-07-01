@@ -989,6 +989,12 @@ export interface CatalogItem {
   isAdopted: boolean;
   adoptedAt?: string;
   createdByTenantId: string;
+  /** Creating tenant's org name (NEXUS for platform-created offers). */
+  createdByTenantName?: string;
+  /** Creating tenant's logo URL, when set. */
+  createdByTenantLogoUrl?: string;
+  /** Creating tenant's brand color (#rrggbb), for an initials avatar fallback. */
+  createdByTenantBrandColor?: string;
   /** Delivery mechanism for this offer (voucher, coupon, gift_card, product, service). */
   executionType: string;
   /** Maximum number of units that can be redeemed. Null means unlimited. */
