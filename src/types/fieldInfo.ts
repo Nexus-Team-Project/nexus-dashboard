@@ -28,6 +28,8 @@ export type FieldInfoKey =
   | 'tags'
   | 'faceValue'
   | 'nexusCost'
+  // BenefitsPartnerships - per-tenant voucher markup % popover.
+  | 'voucherMarkupPct'
   // BenefitsPartnerships page - tab tooltips
   | 'tabCards'
   | 'tabTable'
