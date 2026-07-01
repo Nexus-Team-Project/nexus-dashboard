@@ -445,7 +445,10 @@ const BenefitsPartnerships = () => {
       // offers.routes.ts POST /:offerId/adopt (own-offer skips the check).
       const isOwnOffer =
         !!me?.context?.tenantId && target?.createdByTenantId === me.context.tenantId;
-      if (!isOwnOffer && !me?.authorization.businessSetupComplete) {
+      // In development the business-setup gate is relaxed (mirrors the backend
+      // dev relax) so the global adopt flow can be tested. import.meta.env.DEV is
+      // false in production builds, so prod keeps the gate.
+      if (!isOwnOffer && !me?.authorization.businessSetupComplete && !import.meta.env.DEV) {
         toast.error(
           language === 'he'
             ? 'יש להשלים את הגדרת העסק לפני אימוץ הצעות'
