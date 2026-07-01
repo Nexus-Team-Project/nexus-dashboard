@@ -4,29 +4,50 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Nexus Admin</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Heebo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet"/>
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"/>
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet"/>
+    <title>Nexus Dashboard</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Heebo:wght@400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons+Round"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"
+      rel="stylesheet"
+    />
     <script>
       // Set lang/dir before React mounts to avoid FOUC.
       (function () {
         try {
-          var saved = localStorage.getItem('language');
-          var lang = saved === 'en' || saved === 'he'
-            ? saved
-            : ((navigator.language || 'he').toLowerCase().indexOf('he') === 0 ? 'he' : 'en');
+          var saved = localStorage.getItem("language");
+          var lang =
+            saved === "en" || saved === "he"
+              ? saved
+              : (navigator.language || "he").toLowerCase().indexOf("he") === 0
+                ? "he"
+                : "en";
           document.documentElement.lang = lang;
-          document.documentElement.dir = lang === 'he' ? 'rtl' : 'ltr';
+          document.documentElement.dir = lang === "he" ? "rtl" : "ltr";
         } catch (e) {
-          document.documentElement.lang = 'he';
-          document.documentElement.dir = 'rtl';
+          document.documentElement.lang = "he";
+          document.documentElement.dir = "rtl";
         }
         // Force light mode in development so dark Tailwind classes don't interfere.
-        if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
-          document.documentElement.classList.remove('dark');
+        if (
+          location.hostname === "localhost" ||
+          location.hostname === "127.0.0.1"
+        ) {
+          document.documentElement.classList.remove("dark");
         }
       })();
     </script>
