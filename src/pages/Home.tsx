@@ -295,7 +295,7 @@ function getWelcomeHeadline(isRTL: boolean, fullName?: string, email?: string): 
 
 const Home = () => {
   const { isRTL, t } = useLanguage();
-  const { user } = useAuth();
+  const { user, me } = useAuth();
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange>('last30days');
   const [showDateRangeMenu, setShowDateRangeMenu] = useState(false);
@@ -655,6 +655,14 @@ const Home = () => {
           background: linear-gradient(135deg, rgba(15, 23, 42, 0.7) 0%, rgba(30, 41, 59, 0.6) 100%);
         }
       `}</style>
+
+      {/* Platform-admin welcome - shown when a NEXUS admin (no tenant) lands on Home. */}
+      {me?.context.mode === 'platform_admin' && (
+        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <h1 className="text-xl font-bold text-slate-900 dark:text-white">{t('home_adminWelcomeTitle')}</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('home_adminWelcomeSubtitle')}</p>
+        </div>
+      )}
 
       {/* Time-based greeting banner */}
       {!bannerDismissed && (

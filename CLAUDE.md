@@ -70,6 +70,7 @@ Identity has two layers:
   - **Other non-admin staff roles** (finance, hr_manager, supply_manager, developer, support_agent, billing_manager, payments_manager, back_office_manager) use the full `DashboardLayout`, permission-gated per route.
 - `regular_user` — skipped workspace setup; routes to the workspace-setup wizard (no dedicated member screen in this app).
 - `workspace_setup_deferred` — chose complete later; locked/deferred screen.
+- `platform_admin` — (2026-07-01, Phase 2 M1) a NEXUS platform admin with no tenant. `App.tsx` excludes `mode === 'platform_admin'` from `showWorkspaceOnboarding`/`forceWorkspaceWizardOpen`, so the admin skips the workspace wizard and lands on Home (which shows a "Welcome, Admin" banner). `DashboardMode` includes `'platform_admin'`.
 
 **Workspace setup** (`POST /api/onboarding/workspace`): creates Mongo `tenants` + `tenantMembers` (role `admin`) + `onboardingStates` (`business_setup_required`).
 
