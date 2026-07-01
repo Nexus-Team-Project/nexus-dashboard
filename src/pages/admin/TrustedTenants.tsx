@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { adminTenantsApi, type AdminTenantRow } from '../../lib/api';
 import TenantLogo from '../../components/common/TenantLogo';
+import ConfirmDeleteModal from '../../components/ConfirmDeleteModal';
 
 /** Tenants loaded per page. */
 const PAGE_SIZE = 20;
@@ -27,6 +28,10 @@ export default function TrustedTenants() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [busyId, setBusyId] = useState<string | null>(null);
+  // When enabling trust on a tenant that has pending offers, we confirm first
+  // (the action approves those offers platform-wide + emails the org). Holds the
+  // tenant awaiting confirmation, or null when no confirm is open.
+  const [confirmRow, setConfirmRow] = useState<AdminTenantRow | null>(null);
 
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -56,11 +61,13 @@ export default function TrustedTenants() {
   }, [debouncedSearch, page, language]);
   useEffect(() => { void load(); }, [load]);
 
-  const toggle = async (row: AdminTenantRow) => {
+  // Runs the actual toggle request. Called directly for the harmless cases and
+  // from the confirm dialog when enabling a tenant that has pending offers.
+  const applyToggle = async (row: AdminTenantRow) => {
     const next = !row.autoApproveOffers;
     setBusyId(row.tenantId);
     try {
-      const res = await adminTenantsApi.setAutoApprove(row.tenantId, next);
+      const res = await adminTenantsApi.setAutoApprove(row.tenantId, next, language);
       setRows((r) => r.map((x) => (
         x.tenantId === row.tenantId
           ? { ...x, autoApproveOffers: next, pendingOfferCount: next ? 0 : x.pendingOfferCount }
@@ -73,7 +80,16 @@ export default function TrustedTenants() {
       toast.error(language === 'he' ? 'הפעולה נכשלה' : 'Action failed');
     } finally {
       setBusyId(null);
+      setConfirmRow(null);
     }
+  };
+
+  // Decides whether to confirm first: enabling a tenant with pending offers
+  // approves + notifies, so it asks first; every other case toggles immediately.
+  const requestToggle = (row: AdminTenantRow) => {
+    const enabling = !row.autoApproveOffers;
+    if (enabling && row.pendingOfferCount > 0) { setConfirmRow(row); return; }
+    void applyToggle(row);
   };
 
   return (
@@ -99,31 +115,51 @@ export default function TrustedTenants() {
       ) : (
         <>
           <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-900">
-            {rows.map((row) => (
-              <li key={row.tenantId} className="flex items-center justify-between gap-4 px-4 py-3">
-                <div className="flex min-w-0 items-center gap-3">
-                  <TenantLogo name={row.organizationName} logoUrl={row.logoUrl} size={36} rounded="rounded-lg" />
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{row.organizationName}</p>
-                    <p className="text-xs text-slate-400">
-                      {row.status}
-                      {row.pendingOfferCount > 0 ? ` · ${row.pendingOfferCount} ${t('trusted_pending')}` : ''}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => void toggle(row)}
-                  disabled={busyId === row.tenantId}
-                  className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50 ${
-                    row.autoApproveOffers
-                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                      : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-                  }`}
-                >
-                  {row.autoApproveOffers ? t('trusted_on') : t('trusted_off')}
-                </button>
-              </li>
-            ))}
+            {rows.map((row) => {
+              const on = row.autoApproveOffers;
+              const busy = busyId === row.tenantId;
+              return (
+                <li key={row.tenantId}>
+                  {/* The whole row is the control: a full-width switch so it is
+                      obvious the box is pressable and toggles allowed / not
+                      allowed. role="switch" + aria-checked expose the state. */}
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={on}
+                    title={t('trusted_toggleHint')}
+                    onClick={() => requestToggle(row)}
+                    disabled={busy}
+                    className="flex w-full items-center justify-between gap-4 px-4 py-3 text-start transition-colors hover:bg-slate-50 disabled:opacity-50 dark:hover:bg-slate-800/50"
+                  >
+                    <span className="flex min-w-0 items-center gap-3">
+                      <TenantLogo name={row.organizationName} logoUrl={row.logoUrl} size={36} rounded="rounded-lg" />
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-semibold text-slate-900 dark:text-white">{row.organizationName}</span>
+                        {row.pendingOfferCount > 0 && (
+                          <span className="block text-xs text-slate-400">{row.pendingOfferCount} {t('trusted_pending')}</span>
+                        )}
+                      </span>
+                    </span>
+
+                    {/* State label + switch track. The track is dir="ltr" so the
+                        thumb slides the same visual way in RTL and LTR. */}
+                    <span className="flex shrink-0 items-center gap-2.5">
+                      <span className={`text-xs font-semibold ${on ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                        {on ? t('trusted_on') : t('trusted_off')}
+                      </span>
+                      <span
+                        dir="ltr"
+                        aria-hidden="true"
+                        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${on ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}
+                      >
+                        <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${on ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
 
           {/* Pagination - shown only when there is more than one page. */}
@@ -150,6 +186,23 @@ export default function TrustedTenants() {
             </nav>
           )}
         </>
+      )}
+
+      {/* Confirm before enabling trust on a tenant with pending offers - the
+          action approves them platform-wide and emails the org. */}
+      {confirmRow && (
+        <ConfirmDeleteModal
+          tone="primary"
+          title={t('trusted_confirmTitle')}
+          message={t('trusted_confirmMsg')
+            .replace('{org}', confirmRow.organizationName)
+            .replace('{count}', String(confirmRow.pendingOfferCount))}
+          confirmLabel={t('trusted_confirmYes')}
+          cancelLabel={t('u_cancel')}
+          isDeleting={busyId === confirmRow.tenantId}
+          onConfirm={() => void applyToggle(confirmRow)}
+          onCancel={() => setConfirmRow(null)}
+        />
       )}
     </main>
   );

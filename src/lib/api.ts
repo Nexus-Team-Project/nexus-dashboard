@@ -1672,8 +1672,8 @@ export const adminTenantsApi = {
     if (params.limit) q.set('limit', String(params.limit));
     return request<{ tenants: AdminTenantRow[]; total: number }>('GET', `/api/v1/admin/tenants?${q.toString()}`);
   },
-  setAutoApprove: (tenantId: string, enabled: boolean) =>
-    request<{ approvedOfferIds: string[] }>('PATCH', `/api/v1/admin/tenants/${encodeURIComponent(tenantId)}/auto-approve`, { enabled }),
+  setAutoApprove: (tenantId: string, enabled: boolean, language?: 'he' | 'en') =>
+    request<{ approvedOfferIds: string[] }>('PATCH', `/api/v1/admin/tenants/${encodeURIComponent(tenantId)}/auto-approve`, { enabled, language }),
 };
 
 /**
