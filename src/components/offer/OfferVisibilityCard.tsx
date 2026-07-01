@@ -28,6 +28,9 @@ export default function OfferVisibilityCard({
   isSubmitting,
 }: OfferVisibilityCardProps) {
   const { t, language } = useLanguage();
+  // In development the ecosystem option is available without completed business setup
+  // so the global-upload flow can be tested. import.meta.env.DEV is false in prod builds.
+  const ecosystemEnabled = businessSetupComplete || import.meta.env.DEV;
 
   if (isPlatformAdmin) {
     return (
@@ -46,12 +49,12 @@ export default function OfferVisibilityCard({
       <fieldset>
         <legend className="sr-only">{t('co_visibilityLegend')}</legend>
         <div className="space-y-4">
-          <label className={`flex items-start gap-3 ${!businessSetupComplete ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+          <label className={`flex items-start gap-3 ${!ecosystemEnabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
             <input
               type="radio" name="visibility" value="ecosystem"
               checked={visibility === 'ecosystem'}
-              onChange={() => businessSetupComplete && setVisibility('ecosystem')}
-              disabled={isSubmitting || !businessSetupComplete}
+              onChange={() => ecosystemEnabled && setVisibility('ecosystem')}
+              disabled={isSubmitting || !ecosystemEnabled}
               className="mt-0.5 accent-primary"
             />
             <span>
@@ -59,7 +62,9 @@ export default function OfferVisibilityCard({
               <span className="mt-0.5 block text-xs text-amber-600">
                 {businessSetupComplete
                   ? t('co_visEcosystemApproval')
-                  : (language === 'he' ? 'יש להשלים הגדרת עסק כדי לפרסם לכל הפלטפורמה' : 'Complete business setup to publish to the full platform')}
+                  : import.meta.env.DEV
+                    ? (language === 'he' ? 'מצב פיתוח: מאופשר ללא הגדרת עסק' : 'Dev only: enabled without business setup')
+                    : (language === 'he' ? 'יש להשלים הגדרת עסק כדי לפרסם לכל הפלטפורמה' : 'Complete business setup to publish to the full platform')}
               </span>
             </span>
           </label>
