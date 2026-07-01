@@ -242,6 +242,9 @@ function AppRoutes() {
   const requiresWorkspaceSetup = me.onboarding.required === true && me.onboarding.step === 'workspace_setup';
   const isWorkspaceSetupDeferred = me.context.mode === 'workspace_setup_deferred';
   const hasTenantWorkspace = me.context.isTenant === true;
+  // A NEXUS platform admin with no tenant is not an onboarding case - the backend
+  // reports mode 'platform_admin'. Never force them into the workspace wizard.
+  const isPlatformAdminNoTenant = me.context.mode === 'platform_admin';
   const isTenantAdmin = hasTenantWorkspace && (me.context.role === 'admin' || me.context.role === 'owner');
   // Pure members and skipped-setup users no longer get a member dashboard. They are offered
   // the workspace-setup wizard so they can still create their own workspace if they want.
@@ -250,7 +253,8 @@ function AppRoutes() {
   // Show the onboarding wizard for: new users, deferred setup, pure members, skipped-setup
   // users, and any authenticated user that has no tenant workspace at all.
   const showWorkspaceOnboarding =
-    requiresWorkspaceSetup || isWorkspaceSetupDeferred || isPureMember || isRegularUser || !hasTenantWorkspace;
+    requiresWorkspaceSetup || isWorkspaceSetupDeferred || isPureMember || isRegularUser ||
+    (!hasTenantWorkspace && !isPlatformAdminNoTenant);
   // The wizard is force-open (no dismiss) for every entry except the deferred case, which keeps
   // its transparent click-interceptor so the header sign-out stays reachable.
   // A user who chose "complete later" has NO tenant yet, so `!hasTenantWorkspace` would otherwise
@@ -258,7 +262,8 @@ function AppRoutes() {
   // deferred state so the skip actually escapes to the (dismissible) deferred dashboard.
   const forceWorkspaceWizardOpen =
     !isWorkspaceSetupDeferred &&
-    (requiresWorkspaceSetup || isPureMember || isRegularUser || !hasTenantWorkspace);
+    (requiresWorkspaceSetup || isPureMember || isRegularUser ||
+     (!hasTenantWorkspace && !isPlatformAdminNoTenant));
   const canViewMembers = me.authorization.canViewMembers === true || me.authorization.canManageMembers === true;
   const canManageMembers = me.authorization.canManageMembers === true;
   /** True when the authenticated user is a NEXUS platform admin.

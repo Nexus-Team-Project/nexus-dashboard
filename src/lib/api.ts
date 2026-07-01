@@ -259,7 +259,7 @@ export interface AdminUser {
 }
 
 export type OnboardingStep = 'workspace_setup' | 'workspace_setup_deferred' | 'business_setup' | null;
-export type DashboardMode = 'tenant' | 'regular_user' | 'workspace_setup_deferred' | 'needs_workspace_setup';
+export type DashboardMode = 'tenant' | 'regular_user' | 'workspace_setup_deferred' | 'needs_workspace_setup' | 'platform_admin';
 export type SkipReason = 'regular_user' | 'complete_later';
 
 export type TenantPlan = 'basic' | 'advanced' | 'premium';
