@@ -4,7 +4,7 @@
  * Includes in-flight deduplication for refresh calls and automatic 401 retry,
  * mirroring the website API client to prevent concurrent-refresh races.
  */
-import type { ImageCropEntry } from './cloudinaryImage';
+import type { ImageCrop, ImageCropEntry } from './cloudinaryImage';
 import { extractApiError, ApiError } from './apiError';
 
 const AUTH_BASE = (import.meta.env.VITE_AUTH_URL as string | undefined) ?? (import.meta.env.VITE_API_URL as string | undefined) ?? '';
@@ -283,8 +283,10 @@ export interface DashboardMe {
     mode: DashboardMode;
     tenantId: string | null;
     tenantName: string | null;
-    /** Cloudinary URL of the tenant logo, or null -> show the name initials. */
+    /** Cloudinary URL of the tenant logo (pristine), or null -> show the name initials. */
     tenantLogoUrl?: string | null;
+    /** Crop of the logo (normalized fractions), or null -> show the full logo. */
+    tenantLogoCrop?: ImageCrop | null;
     /** Org brand color ("#rrggbb"), or null -> wallet derives one from the id. */
     tenantBrandColor?: string | null;
     memberId: string | null;
@@ -797,12 +799,16 @@ export interface TenantJoinRequestItem {
 
 /** Organization logo upload/remove (Cloudinary, tenant-admin only). */
 export const tenantLogoApi = {
-  /** Upload a square-cropped logo. Returns the new Cloudinary URL. */
-  upload: (blob: Blob) => {
+  /** Upload the pristine logo + an optional crop (applied at display time). */
+  upload: (file: File, crop?: ImageCrop | null) => {
     const fd = new FormData();
-    fd.append('logo', blob, 'logo.jpg');
-    return request<{ logoUrl: string }>('POST', '/api/v1/tenant/logo', fd);
+    fd.append('logo', file, file.name || 'logo');
+    if (crop) fd.append('crop', JSON.stringify(crop));
+    return request<{ logoUrl: string; logoCrop: ImageCrop | null }>('POST', '/api/v1/tenant/logo', fd);
   },
+  /** Set or clear the logo crop without re-uploading (adjust, or revert to full photo). */
+  setCrop: (crop: ImageCrop | null) =>
+    request<{ logoCrop: ImageCrop | null }>('PATCH', '/api/v1/tenant/logo/crop', { crop }),
   /** Remove the logo (revert to the tenant-name initials). */
   remove: () => request<{ ok: true }>('DELETE', '/api/v1/tenant/logo'),
 };
@@ -995,6 +1001,8 @@ export interface CatalogItem {
   createdByTenantLogoUrl?: string;
   /** Creating tenant's brand color (#rrggbb), for an initials avatar fallback. */
   createdByTenantBrandColor?: string;
+  /** Crop of the creating tenant's logo (normalized fractions), applied at display time. */
+  createdByTenantLogoCrop?: ImageCrop | null;
   /** Delivery mechanism for this offer (voucher, coupon, gift_card, product, service). */
   executionType: string;
   /** Maximum number of units that can be redeemed. Null means unlimited. */

@@ -99,8 +99,8 @@ const WorkspaceSetupModal = ({ onClose, onFinished, firstName, forceOpen = false
       });
       // The tenant now exists -> upload the optional logo (best-effort; a logo
       // failure must not block onboarding completion).
-      if (data.logoBlob) {
-        await tenantLogoApi.upload(data.logoBlob).catch((e) => {
+      if (data.logoFile) {
+        await tenantLogoApi.upload(data.logoFile, data.logoCrop).catch((e) => {
           console.error('[onboarding] logo upload failed (non-fatal):', e);
         });
       }
