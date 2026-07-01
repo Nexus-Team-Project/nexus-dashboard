@@ -13,7 +13,6 @@ import {
   activateBenefitsCatalog,
   deactivateBenefitsCatalog,
   deleteOffer,
-  approveOfferApi,
   getVariantInventory,
   EXECUTION_TYPE_LABELS,
   type CatalogItem,
@@ -21,7 +20,6 @@ import {
 } from '../lib/api';
 import { useCatalogList } from '../hooks/useCatalogList';
 import Pagination from '../components/Pagination';
-import DenyOfferModal from '../components/DenyOfferModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import { toast } from 'sonner';
@@ -419,8 +417,6 @@ const BenefitsPartnerships = () => {
       the title + HTML so either source can populate it; null when closed. */
   const [descriptionTarget, setDescriptionTarget] = useState<{ title: string; html: string } | null>(null);
 
-  /** CatalogItem pending denial in DenyOfferModal, or null when the modal is closed. */
-  const [denyTarget, setDenyTarget] = useState<CatalogItem | null>(null);
 
   /** True when the authenticated user is a NEXUS platform admin. */
   const isPlatformAdmin = me?.authorization?.isPlatformAdmin === true;
@@ -619,22 +615,6 @@ const BenefitsPartnerships = () => {
       toast.error('מחיקה נכשלה. נסה שוב.');
     } finally {
       setIsDeleting(false);
-    }
-  };
-
-  /**
-   * Approves a pending ecosystem voucher offer (platform admin only).
-   * Transitions the offer from 'pending_approval' to 'active' status.
-   * Input: offerId - the offer to approve.
-   * Output: void; reloads catalog on success; shows toast on failure.
-   */
-  const handleApproveOffer = async (offerId: string) => {
-    try {
-      await approveOfferApi(offerId);
-      toast.success(language === 'he' ? 'ההצעה אושרה בהצלחה' : 'Offer approved successfully');
-      await loadCatalog();
-    } catch {
-      toast.error(language === 'he' ? 'שגיאה באישור ההצעה' : 'Failed to approve offer');
     }
   };
 
@@ -1144,39 +1124,25 @@ const BenefitsPartnerships = () => {
                               {/* 1. Status — toggle (tenant) or approve/deny (platform admin pending) or badge. */}
                               <td className="px-4 py-4 sticky right-0 bg-white dark:bg-slate-900 z-10 align-top">
                                 {isPlatformAdmin ? (
-                                  item.approval_status === 'pending_approval' ? (
-                                    <div className="flex flex-col gap-1.5">
-                                      <button
-                                        type="button"
-                                        onClick={(e) => { e.stopPropagation(); void handleApproveOffer(item.offerId); }}
-                                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap"
-                                      >
-                                        {t('co_allowOffer')}
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => { e.stopPropagation(); setDenyTarget(item); }}
-                                        className="bg-red-600 hover:bg-red-700 text-white px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap"
-                                      >
-                                        {t('co_denyOffer')}
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    <span className={cn(
-                                      'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold',
-                                      item.approval_status === 'denied'
-                                        ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                  // Approvals moved to the Admin > Offer approvals page; here just a status badge.
+                                  <span className={cn(
+                                    'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold',
+                                    item.approval_status === 'denied'
+                                      ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                      : item.approval_status === 'pending_approval'
+                                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
                                         : item.approval_status === 'active'
                                           ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
                                           : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-                                    )}>
-                                      {item.approval_status === 'denied'
-                                        ? t('co_denied')
+                                  )}>
+                                    {item.approval_status === 'denied'
+                                      ? t('co_denied')
+                                      : item.approval_status === 'pending_approval'
+                                        ? (language === 'he' ? 'ממתין לאישור' : 'Pending')
                                         : item.approval_status === 'active'
                                           ? (language === 'he' ? 'פעיל' : 'Active')
                                           : (language === 'he' ? 'לא פעיל' : 'Inactive')}
-                                    </span>
-                                  )
+                                  </span>
                                 ) : (
                                   <button
                                     onClick={(e) => {
@@ -2039,18 +2005,6 @@ const BenefitsPartnerships = () => {
           isDeleting={isDeleting}
           onConfirm={() => void handleDeleteOffer()}
           onCancel={() => { if (!isDeleting) setDeletingOffer(null); }}
-        />
-      )}
-
-      {/* Deny offer modal — platform admin only, shown for pending_approval ecosystem vouchers */}
-      {denyTarget && (
-        <DenyOfferModal
-          offer={denyTarget}
-          onClose={() => setDenyTarget(null)}
-          onDenied={async () => {
-            await loadCatalog();
-            setDenyTarget(null);
-          }}
         />
       )}
 

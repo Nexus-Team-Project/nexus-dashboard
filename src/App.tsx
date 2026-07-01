@@ -39,6 +39,8 @@ import BusinessSetupPage from './pages/BusinessSetupPage';
 import WorkspaceSetupModal from './components/workspace/WorkspaceSetupModal';
 import CreateOffer from './pages/CreateOffer';
 import ProductCatalog from './pages/ProductCatalog';
+import OfferApprovals from './pages/admin/OfferApprovals';
+import TrustedTenants from './pages/admin/TrustedTenants';
 
 const WEBSITE_URL = import.meta.env.VITE_WEBSITE_URL ?? 'http://localhost:3000';
 
@@ -302,6 +304,8 @@ function AppRoutes() {
               path="supply/create"
               element={isTenantAdmin || isPlatformAdmin ? <CreateOffer /> : <Navigate to="/" replace />}
             />
+            <Route path="admin/offer-approvals" element={isPlatformAdmin ? <OfferApprovals /> : <Navigate to="/" replace />} />
+            <Route path="admin/trusted-tenants" element={isPlatformAdmin ? <TrustedTenants /> : <Navigate to="/" replace />} />
             <Route path="send-gift/event" element={<SendGiftEvent />} />
             <Route path="send-gift/brands" element={<SendGiftBrands />} />
             <Route path="send-gift/greeting" element={<SendGiftGreeting />} />
@@ -368,6 +372,8 @@ function AppRoutes() {
           path="supply/create"
           element={isTenantAdmin || isPlatformAdmin ? <CreateOffer /> : <Navigate to="/" replace />}
         />
+        <Route path="admin/offer-approvals" element={isPlatformAdmin ? <OfferApprovals /> : <Navigate to="/" replace />} />
+        <Route path="admin/trusted-tenants" element={isPlatformAdmin ? <TrustedTenants /> : <Navigate to="/" replace />} />
         <Route path="send-gift/event" element={<SendGiftEvent />} />
         <Route path="send-gift/brands" element={<SendGiftBrands />} />
         <Route path="send-gift/greeting" element={<SendGiftGreeting />} />

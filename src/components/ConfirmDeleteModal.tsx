@@ -19,6 +19,8 @@
  *   busyLabel?   - confirm-button text while deleting (defaults to confirmLabel).
  *   isDeleting?  - true while the caller's delete request is in flight (disables
  *                  the buttons, shows a spinner, and blocks cancel/Escape/backdrop).
+ *   tone?        - confirm-button color: 'danger' (red, default - destructive) or
+ *                  'primary' (emerald - for a positive/non-destructive confirm).
  *   onConfirm    - called when the user accepts.
  *   onCancel     - called on cancel / Escape / backdrop click (ignored while deleting).
  */
@@ -34,6 +36,7 @@ interface ConfirmDeleteModalProps {
   cancelLabel: string;
   busyLabel?: string;
   isDeleting?: boolean;
+  tone?: 'danger' | 'primary';
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -46,6 +49,7 @@ export default function ConfirmDeleteModal({
   cancelLabel,
   busyLabel,
   isDeleting = false,
+  tone = 'danger',
   onConfirm,
   onCancel,
 }: ConfirmDeleteModalProps) {
@@ -119,7 +123,9 @@ export default function ConfirmDeleteModal({
             type="button"
             onClick={onConfirm}
             disabled={isDeleting}
-            className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className={`flex cursor-pointer items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+              tone === 'primary' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'
+            }`}
           >
             {isDeleting && (
               <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">

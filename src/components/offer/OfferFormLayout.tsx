@@ -208,18 +208,23 @@ export default function OfferFormLayout({
       <main className="relative px-4 sm:px-8 pt-6 pb-12">
         <div className="grid grid-cols-12 gap-6 lg:gap-8">
           <div className="col-span-12 space-y-6 lg:col-span-8">{leftColumn}</div>
-          {/* Sidebar column: optional right-column cards plus, pinned to the bottom
-              of the column, the Cancel + Publish action bar (`lg:mt-auto` pushes it
-              down; the grid stretches this column to the form's height). Always
-              rendered so the bar has a home even when a page passes no rightColumn
-              (e.g. EditOffer). */}
+          {/* Sidebar column: the right-column cards at the TOP, and pinned to the
+              bottom of the column a group that REPEATS the same right-column cards
+              (so the Visibility choice sits next to the bottom action bar too, just
+              like Cancel/Publish appear both up and down) + the Cancel/Publish bar.
+              `lg:mt-auto` on the bottom group pushes it down; the grid stretches this
+              column to the form's height. rightColumn may be null (e.g. EditOffer),
+              in which case only the action bar shows. */}
           <aside className="col-span-12 lg:col-span-4 flex flex-col gap-6">
             {rightColumn}
-            {/* Action bar: same Cancel + Publish/Save group as the hero. The buttons
-                use the white-on-dark hero design, so the bar reuses the hero gradient
-                tokens to keep that design legible. */}
-            <div className="flex items-center justify-end rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 px-4 py-4 shadow-sm sm:px-6 lg:mt-auto">
-              {actionButtons}
+            <div className="flex flex-col gap-6 lg:mt-auto">
+              {rightColumn}
+              {/* Action bar: same Cancel + Publish/Save group as the hero. The buttons
+                  use the white-on-dark hero design, so the bar reuses the hero gradient
+                  tokens to keep that design legible. */}
+              <div className="flex items-center justify-end rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 px-4 py-4 shadow-sm sm:px-6">
+                {actionButtons}
+              </div>
             </div>
           </aside>
         </div>
