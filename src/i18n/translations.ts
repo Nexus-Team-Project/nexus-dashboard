@@ -1319,6 +1319,10 @@ export const translations = {
     fi_bpcActions_short: 'Per-row Edit and Delete buttons (gated by ownership).',
     fi_bpcActions_detail: 'Edit opens the full offer drawer with all fields (including the rich-text description and image). Delete removes the offer permanently. Both buttons are visible only to the tenant that created the offer and to NEXUS platform admins. Platform admins also see Approve / Deny for offers pending review.',
     fi_bpcActions_example: 'A tenant admin sees Edit + Delete only on offers they uploaded - never on ecosystem offers from other tenants.',
+    fi_bpcBusiness_label: 'Business',
+    fi_bpcBusiness_short: 'The organization that uploaded this offer (logo + name).',
+    fi_bpcBusiness_detail: 'Every offer is uploaded by a business (tenant). This column shows that organization - its logo, or its initials on its brand color when it has no logo, plus its name. Offers created by the NEXUS platform show "NEXUS".',
+    fi_bpcBusiness_example: 'A voucher uploaded by "Acme Ltd" shows the Acme logo and name here, so you can see who the offer came from.',
 
     // ── Product Catalog page header tooltip ──
     fi_productCatalogPage_label: 'Product Catalog',
@@ -1395,6 +1399,7 @@ export const translations = {
     vp_pctBoxLabel: 'Markup %',
     vp_baseSalePrice: 'Base sale price',
     vp_value: 'Value',
+    bp_uploadedBy: 'by',
     home_adminWelcomeTitle: 'Welcome, Admin',
     home_adminWelcomeSubtitle: 'You are signed in as a NEXUS platform admin. Use the sidebar to manage the platform.',
     fi_voucherMarkupPct_label: 'Markup %',
@@ -2729,6 +2734,10 @@ export const translations = {
     fi_bpcActions_short: 'כפתורי עריכה ומחיקה לשורה (מוגבל לפי בעלות).',
     fi_bpcActions_detail: 'עריכה פותחת את חלון ההצעה המלא עם כל השדות (כולל תיאור עשיר ותמונה). מחיקה מסירה את ההצעה לצמיתות. שני הכפתורים גלויים רק לארגון שיצר את ההצעה ולמנהלי הפלטפורמה של NEXUS. מנהלי הפלטפורמה רואים גם אישור / דחייה עבור הצעות הממתינות לבדיקה.',
     fi_bpcActions_example: 'מנהל ארגון רואה עריכה + מחיקה רק עבור הצעות שהוא העלה - לעולם לא עבור הצעות אקוסיסטם של ארגונים אחרים.',
+    fi_bpcBusiness_label: 'ארגון',
+    fi_bpcBusiness_short: 'הארגון שהעלה את ההצעה (לוגו + שם).',
+    fi_bpcBusiness_detail: 'כל הצעה מועלית על ידי ארגון (טננט). העמודה הזו מציגה את הארגון - הלוגו שלו, או ראשי התיבות שלו על צבע המותג כשאין לו לוגו, יחד עם השם. הצעות שנוצרו על ידי פלטפורמת NEXUS מציגות "NEXUS".',
+    fi_bpcBusiness_example: 'שובר שהועלה על ידי "Acme בע"מ" יציג כאן את הלוגו והשם של Acme, כדי שתדע ממי הגיעה ההצעה.',
 
     // ── טיפ לכותרת דף קטלוג מוצרים ──
     fi_productCatalogPage_label: 'קטלוג מוצרים',
@@ -2805,6 +2814,7 @@ export const translations = {
     vp_pctBoxLabel: 'אחוז תוספת',
     vp_baseSalePrice: 'מחיר מכירה בסיס',
     vp_value: 'שווי',
+    bp_uploadedBy: 'מאת',
     home_adminWelcomeTitle: 'ברוך הבא, מנהל',
     home_adminWelcomeSubtitle: 'התחברת כמנהל פלטפורמת NEXUS. השתמש בתפריט הצד לניהול הפלטפורמה.',
     fi_voucherMarkupPct_label: 'אחוז תוספת',

@@ -43,6 +43,7 @@ export type FieldInfoKey =
   | 'bpcImage'
   | 'bpcPrice'
   | 'bpcActions'
+  | 'bpcBusiness'
   // Multi-image gallery on Create/Edit offer pages.
   | 'images'
   // Product Catalog page header — what the page is for.

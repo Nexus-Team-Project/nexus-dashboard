@@ -37,6 +37,7 @@ import CatalogFilterPanel from '../components/catalog/CatalogFilterPanel';
 import FieldTooltip from '../components/FieldTooltip';
 import { countActiveCatalogFilters } from '../components/catalog/catalogFilters';
 import VoucherPricePopover from '../components/catalog/VoucherPricePopover';
+import OfferUploaderBadge from '../components/catalog/OfferUploaderBadge';
 import OfferTypeBadge from '../components/catalog/OfferTypeBadge';
 import VoucherColorTile from '../components/offer/VoucherColorTile';
 import { buildOfferImageUrl, getImageCrop } from '../lib/cloudinaryImage';
@@ -50,6 +51,12 @@ interface Benefit {
   businessId: string;
   businessName: string;
   businessLogo: string;
+  /** Uploading tenant's org name (NEXUS for platform-created offers). */
+  uploaderName?: string;
+  /** Uploading tenant's logo URL, when set. */
+  uploaderLogo?: string;
+  /** Uploading tenant's brand color, for an initials fallback. */
+  uploaderBrandColor?: string;
   backgroundImage?: string;
   /** Full ordered gallery URLs from NexusOffer.imageUrls. Used by the lightbox. */
   galleryImages?: string[];
@@ -748,6 +755,9 @@ const BenefitsPartnerships = () => {
     businessId: item.createdByTenantId,
     businessName: item.title,
     businessLogo: '',
+    uploaderName: item.createdByTenantName,
+    uploaderLogo: item.createdByTenantLogoUrl,
+    uploaderBrandColor: item.createdByTenantBrandColor,
     // Crop is applied at the mapping boundary: card-context for the thumbnail,
     // full-context for the gallery (the lightbox shows the crop at full size).
     backgroundImage: item.imageUrl
@@ -1021,6 +1031,12 @@ const BenefitsPartnerships = () => {
                         </th>
                         <th className="px-4 py-3 text-right text-xs font-bold text-primary/70 dark:text-slate-400 uppercase tracking-wider">
                           <span className="inline-flex items-center">
+                            {language === 'he' ? 'ארגון' : 'Business'}
+                            <FieldTooltip fieldKey="bpcBusiness" placement="bottom" />
+                          </span>
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-bold text-primary/70 dark:text-slate-400 uppercase tracking-wider">
+                          <span className="inline-flex items-center">
                             {language === 'he' ? 'תמונה' : 'Image'}
                             <FieldTooltip fieldKey="bpcImage" placement="bottom" />
                           </span>
@@ -1051,12 +1067,6 @@ const BenefitsPartnerships = () => {
                         </th>
                         <th className="px-4 py-3 text-right text-xs font-bold text-primary/70 dark:text-slate-400 uppercase tracking-wider">
                           <span className="inline-flex items-center">
-                            {language === 'he' ? 'נראות' : 'Visibility'}
-                            <FieldTooltip fieldKey="visibility" placement="bottom" />
-                          </span>
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-primary/70 dark:text-slate-400 uppercase tracking-wider">
-                          <span className="inline-flex items-center">
                             {language === 'he' ? 'מחיר' : 'Price'}
                             <FieldTooltip fieldKey="bpcPrice" placement="bottom" />
                           </span>
@@ -1077,7 +1087,17 @@ const BenefitsPartnerships = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {(() => {
+                      {/* Skeleton rows while the initial catalog load is in-flight. */}
+                      {isLoadingCatalog && Array.from({ length: 6 }).map((_, sk) => (
+                        <tr key={`sk-${sk}`}>
+                          {Array.from({ length: 10 }).map((__, c) => (
+                            <td key={c} className="px-4 py-4">
+                              <div className="h-4 rounded bg-slate-200 dark:bg-slate-700 animate-pulse" />
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                      {!isLoadingCatalog && (() => {
                         /* Cell helpers local to this render. The IIFE keeps them
                            private to the table without polluting the component scope. */
                         const np = t('bp_notProvided');
@@ -1113,7 +1133,6 @@ const BenefitsPartnerships = () => {
                             && item.description.trim() !== ''
                             && item.description !== '<p></p>';
                           const tagsList = item.tags ?? [];
-                          const visibility = item.visibility;
                           const isExpanded = expandedRows.has(item.offerId);
                           return (
                             <Fragment key={benefit.id}>
@@ -1173,6 +1192,20 @@ const BenefitsPartnerships = () => {
                                       }`}
                                     />
                                   </button>
+                                )}
+                              </td>
+
+                              {/* 1b. Business — the tenant that uploaded the offer (logo + name). */}
+                              <td className="px-4 py-4 align-top">
+                                {item.createdByTenantName ? (
+                                  <OfferUploaderBadge
+                                    name={item.createdByTenantName}
+                                    logoUrl={item.createdByTenantLogoUrl}
+                                    brandColor={item.createdByTenantBrandColor}
+                                    showPrefix={false}
+                                  />
+                                ) : (
+                                  <span className="text-xs text-slate-400">-</span>
                                 )}
                               </td>
 
@@ -1293,20 +1326,6 @@ const BenefitsPartnerships = () => {
                                 </span>
                               </td>
 
-                              {/* 7. Visibility — green chip for ecosystem, slate for tenant-only. */}
-                              <td className="px-4 py-4 align-top">
-                                <span className={cn(
-                                  'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap',
-                                  visibility === 'tenant_only'
-                                    ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-                                    : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-                                )}>
-                                  {visibility === 'tenant_only'
-                                    ? t('bp_visibilityTenant')
-                                    : t('bp_visibilityEcosystem')}
-                                </span>
-                              </td>
-
                               {/* 8. Price - READ-ONLY. Vouchers show the per-variant
                                   effective member_price range (lowest-highest); a single
                                   variant shows its one effective price. Per-variant editing
@@ -1410,8 +1429,8 @@ const BenefitsPartnerships = () => {
                 {/* Businesses-table branch removed in the redesign. */}
               </div>
 
-              {/* Empty state - shown when the filtered set is empty in Table view. */}
-              {filteredBenefits.length === 0 && (
+              {/* Empty state - shown when loaded but the filtered set is empty in Table view. */}
+              {!isLoadingCatalog && filteredBenefits.length === 0 && (
                 <div className="py-20 text-center">
                   <span className="material-icons text-slate-300 dark:text-slate-600 text-6xl mb-4">
                     search_off
@@ -1523,6 +1542,14 @@ const BenefitsPartnerships = () => {
                           ) : null}
                           <h3 className="font-semibold text-lg text-slate-900 dark:text-white leading-snug">{benefit.businessName}</h3>
                         </div>
+                        {benefit.uploaderName && (
+                          <OfferUploaderBadge
+                            name={benefit.uploaderName}
+                            logoUrl={benefit.uploaderLogo}
+                            brandColor={benefit.uploaderBrandColor}
+                            className="-mt-2 mb-4"
+                          />
+                        )}
                         <div className="mb-4">
                           <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mb-2">
                             {benefit.discount}
@@ -1688,6 +1715,14 @@ const BenefitsPartnerships = () => {
                           ) : null}
                           <h3 className="font-semibold text-slate-900 dark:text-white leading-snug">{benefit.businessName}</h3>
                         </div>
+                        {benefit.uploaderName && (
+                          <OfferUploaderBadge
+                            name={benefit.uploaderName}
+                            logoUrl={benefit.uploaderLogo}
+                            brandColor={benefit.uploaderBrandColor}
+                            className="-mt-4 mb-4"
+                          />
+                        )}
                         <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-2">
                           {/* Price */}
                           <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
