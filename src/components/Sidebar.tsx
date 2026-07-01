@@ -8,6 +8,7 @@ import type { TranslationKey } from '../i18n/translations';
 import { useRecentPages, PAGE_META } from '../hooks/useRecentPages';
 import { useDevMode } from '../contexts/DevModeContext';
 import { useAuth } from '../contexts/AuthContext';
+import SidebarTooltip from './SidebarTooltip';
 
 export type SidebarState = 'open' | 'collapsed' | 'closed';
 
@@ -164,31 +165,31 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
   }
 
   const renderNavLink = (item: NavItem) => (
-    <NavLink
-      key={item.to}
-      to={item.to!}
-      onClick={onNavigate}
-      className={({ isActive }) =>
-        `flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 ${
-          isCollapsed ? 'justify-center' : ''
-        } ${
-          isActive
-            ? 'hover:bg-violet-50 text-primary font-medium'
-            : 'text-[#676879] hover:bg-slate-200'
-        }`
-      }
-      end={item.to === '/'}
-      title={isCollapsed ? item.label : undefined}
-    >
-      {({ isActive }) => (
-        <>
-          <span className={`material-symbols-rounded !text-[16px] ${isActive ? 'text-primary' : ''}`}>
-            {item.icon}
-          </span>
-          {isOpen && <span className="text-[13px] flex-1 truncate">{item.label}</span>}
-        </>
-      )}
-    </NavLink>
+    <SidebarTooltip key={item.to} label={isCollapsed ? item.label : ''}>
+      <NavLink
+        to={item.to!}
+        onClick={onNavigate}
+        className={({ isActive }) =>
+          `flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 ${
+            isCollapsed ? 'justify-center' : ''
+          } ${
+            isActive
+              ? 'hover:bg-violet-50 text-primary font-medium'
+              : 'text-[#676879] hover:bg-slate-200'
+          }`
+        }
+        end={item.to === '/'}
+      >
+        {({ isActive }) => (
+          <>
+            <span className={`material-symbols-rounded !text-[16px] ${isActive ? 'text-primary' : ''}`}>
+              {item.icon}
+            </span>
+            {isOpen && <span className="text-[13px] flex-1 truncate">{item.label}</span>}
+          </>
+        )}
+      </NavLink>
+    </SidebarTooltip>
   );
 
   return (
@@ -275,9 +276,11 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
             )}
             {isCollapsed && (
               <div className="flex justify-center mb-1">
-                <span className="material-symbols-rounded !text-[14px] text-[#676879]" title={t('shortcuts')}>
-                  bolt
-                </span>
+                <SidebarTooltip label={t('shortcuts')}>
+                  <span className="material-symbols-rounded !text-[14px] text-[#676879]">
+                    bolt
+                  </span>
+                </SidebarTooltip>
               </div>
             )}
             <div>
@@ -286,6 +289,7 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
                 if (!meta) return null;
                 return (
                   <div key={page.path} className="group/shortcut">
+                    <SidebarTooltip label={isCollapsed ? t(meta.labelKey as TranslationKey) : ''}>
                     <NavLink
                       to={page.path}
                       end
@@ -299,7 +303,6 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
                             : 'text-[#676879] hover:bg-slate-200'
                         }`
                       }
-                      title={isCollapsed ? t(meta.labelKey as TranslationKey) : undefined}
                     >
                       {({ isActive }) => (
                         <>
@@ -329,6 +332,7 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
                         </>
                       )}
                     </NavLink>
+                    </SidebarTooltip>
                   </div>
                 );
               })}
@@ -353,49 +357,51 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
           )}
           {isCollapsed && (
             <div className="flex justify-center mb-1">
-              <span className="material-symbols-rounded !text-[14px] text-[#676879]" title={t('products')}>
-                widgets
-              </span>
+              <SidebarTooltip label={t('products')}>
+                <span className="material-symbols-rounded !text-[14px] text-[#676879]">
+                  widgets
+                </span>
+              </SidebarTooltip>
             </div>
           )}
           <div>
             {productItems.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                onClick={onNavigate}
-                className={({ isActive }) =>
-                  `flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 text-[13px] ${
-                    isCollapsed ? 'justify-center' : ''
-                  } ${
-                    isActive
-                      ? 'hover:bg-violet-50 text-primary font-medium'
-                      : 'text-[#676879] hover:bg-slate-200'
-                  }`
-                }
-                title={isCollapsed ? item.label : undefined}
-              >
-                {({ isActive }) => (
-                  <>
-                    <span className={`material-symbols-rounded !text-[16px] ${isActive ? 'text-primary' : 'text-[#676879]'}`}>
-                      {item.icon}
-                    </span>
-                    {isOpen && <span className="flex-1 truncate">{item.label}</span>}
-                  </>
-                )}
-              </NavLink>
+              <SidebarTooltip key={item.to} label={isCollapsed ? item.label : ''}>
+                <NavLink
+                  to={item.to}
+                  onClick={onNavigate}
+                  className={({ isActive }) =>
+                    `flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 text-[13px] ${
+                      isCollapsed ? 'justify-center' : ''
+                    } ${
+                      isActive
+                        ? 'hover:bg-violet-50 text-primary font-medium'
+                        : 'text-[#676879] hover:bg-slate-200'
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <span className={`material-symbols-rounded !text-[16px] ${isActive ? 'text-primary' : 'text-[#676879]'}`}>
+                        {item.icon}
+                      </span>
+                      {isOpen && <span className="flex-1 truncate">{item.label}</span>}
+                    </>
+                  )}
+                </NavLink>
+              </SidebarTooltip>
             ))}
 
             {/* More products */}
             {showMoreProducts && moreProductItems.map((item) => (
               item.to === '/marketing' ? (
                 <div key={item.to}>
+                  <SidebarTooltip label={isCollapsed ? item.label : ''}>
                   <button
                     onClick={() => toggleSubmenu('marketing')}
                     className={`w-full flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 text-[13px] text-[#676879] hover:bg-slate-200 ${
                       isCollapsed ? 'justify-center' : ''
                     }`}
-                    title={isCollapsed ? item.label : undefined}
                   >
                     <span className="material-symbols-rounded !text-[16px]">{item.icon}</span>
                     {isOpen && (
@@ -407,6 +413,7 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
                       </>
                     )}
                   </button>
+                  </SidebarTooltip>
                   {isOpen && expandedMenus.includes('marketing') && (
                     <div className="ms-4">
                       {marketingSubItems.map((sub) => (
@@ -436,30 +443,30 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
                   )}
                 </div>
               ) : (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  onClick={onNavigate}
-                  className={({ isActive }) =>
-                    `flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 text-[13px] ${
-                      isCollapsed ? 'justify-center' : ''
-                    } ${
-                      isActive
-                        ? 'hover:bg-violet-50 text-primary font-medium'
-                        : 'text-[#676879] hover:bg-slate-200'
-                    }`
-                  }
-                  title={isCollapsed ? item.label : undefined}
-                >
-                  {({ isActive }) => (
-                    <>
-                      <span className={`material-symbols-rounded !text-[16px] ${isActive ? 'text-primary' : 'text-[#676879]'}`}>
-                        {item.icon}
-                      </span>
-                      {isOpen && <span className="flex-1 truncate">{item.label}</span>}
-                    </>
-                  )}
-                </NavLink>
+                <SidebarTooltip key={item.to} label={isCollapsed ? item.label : ''}>
+                  <NavLink
+                    to={item.to}
+                    onClick={onNavigate}
+                    className={({ isActive }) =>
+                      `flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 text-[13px] ${
+                        isCollapsed ? 'justify-center' : ''
+                      } ${
+                        isActive
+                          ? 'hover:bg-violet-50 text-primary font-medium'
+                          : 'text-[#676879] hover:bg-slate-200'
+                      }`
+                    }
+                  >
+                    {({ isActive }) => (
+                      <>
+                        <span className={`material-symbols-rounded !text-[16px] ${isActive ? 'text-primary' : 'text-[#676879]'}`}>
+                          {item.icon}
+                        </span>
+                        {isOpen && <span className="flex-1 truncate">{item.label}</span>}
+                      </>
+                    )}
+                  </NavLink>
+                </SidebarTooltip>
               )
             ))}
 
@@ -469,12 +476,12 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
         {/* Dev Mode Toggle */}
         {canSeeDevMode && (
         <div className="pt-4 mt-3">
+          <SidebarTooltip label={isCollapsed ? 'Dev Mode' : ''}>
           <button
             onClick={toggleDevMode}
             className={`w-full flex items-center gap-2.5 ps-3 pe-2 py-1 rounded-md transition-all duration-150 ${
               isCollapsed ? 'justify-center' : ''
             } ${isDevMode ? 'text-purple-600 hover:bg-purple-50' : 'text-[#676879] hover:bg-slate-200'}`}
-            title={isCollapsed ? 'Dev Mode' : undefined}
           >
             <span className={`material-symbols-rounded !text-[16px] transition-colors ${isDevMode ? 'text-purple-500' : ''}`}>
               code_blocks
@@ -488,9 +495,11 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
               </>
             )}
           </button>
+          </SidebarTooltip>
 
           {/* Dev Playground Link — visible only when Dev Mode is on */}
           {isDevMode && (
+            <SidebarTooltip label={isCollapsed ? 'Dev Playground' : ''}>
             <NavLink
               to="/dev"
               onClick={onNavigate}
@@ -503,7 +512,6 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
                     : 'text-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20'
                 }`
               }
-              title={isCollapsed ? 'Dev Playground' : undefined}
             >
               {({ isActive }) => (
                 <>
@@ -514,6 +522,7 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
                 </>
               )}
             </NavLink>
+            </SidebarTooltip>
           )}
         </div>
         )}
