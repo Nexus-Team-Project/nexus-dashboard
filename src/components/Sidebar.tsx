@@ -146,23 +146,10 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
   const isCollapsed = state === 'collapsed';
   const isClosed = state === 'closed';
 
-  const cycleState = () => {
-    if (isOpen) onStateChange('collapsed');
-    else if (isCollapsed) onStateChange('closed');
-    else onStateChange('open');
-  };
-
-  const getToggleIcon = () => {
-    if (isOpen) return 'chevron_left';
-    if (isCollapsed) return 'close';
-    return 'menu';
-  };
-
-  const getToggleTooltip = () => {
-    if (isOpen) return t('sb_collapseMenu');
-    if (isCollapsed) return t('sb_closeMenu');
-    return t('sb_openMenu');
-  };
+  // Shared style for the hover-revealed circular edge toggles. Each caller sets its
+  // own vertical offset (`top`) via inline style so multiple can stack on the edge.
+  const edgeToggleClass =
+    '!absolute w-6 h-6 bg-white rounded-full border border-slate-200 shadow-sm flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all z-30 opacity-0 group-hover/sidebar:opacity-100';
 
   if (isClosed) {
     return (
@@ -226,19 +213,41 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
       )}
 
 
-      {/* Toggle Button — z-30 so it sits ABOVE the resize handle (z-20) */}
-      {!isMobile && (
-      <button
-        onClick={cycleState}
-        className="!absolute top-6 w-6 h-6 bg-white rounded-full border border-slate-200 shadow-sm flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all z-30 opacity-0 group-hover/sidebar:opacity-100"
-        style={{ insetInlineEnd: '-12px' }}
-        title={getToggleTooltip()}
-      >
-        {/* rtl:rotate-180 mirrors the collapse chevron so it points toward the
-            edge the sidebar collapses to (left in LTR, right in RTL). The close/menu
-            glyphs are symmetric, so the flip is a no-op for them. */}
-        <span className="material-symbols-rounded !text-sm rtl:rotate-180">{getToggleIcon()}</span>
-      </button>
+      {/* Edge toggles - z-30 so they sit ABOVE the resize handle (z-20). Hover-revealed
+          circular buttons on the sidebar's inner edge. `rtl:rotate-180` mirrors the
+          chevrons so they point the correct way per direction (the close X is symmetric,
+          so the flip is a no-op for it). Open collapses the menu; collapsed offers BOTH
+          expand (back to open) AND fully-close, so the half-closed menu can reopen without
+          being removed first; the fully-closed state is the floating button handled above. */}
+      {!isMobile && isOpen && (
+        <button
+          onClick={() => onStateChange('collapsed')}
+          className={edgeToggleClass}
+          style={{ top: '1.5rem', insetInlineEnd: '-12px' }}
+          title={t('sb_collapseMenu')}
+        >
+          <span className="material-symbols-rounded !text-sm rtl:rotate-180">chevron_left</span>
+        </button>
+      )}
+      {!isMobile && isCollapsed && (
+        <>
+          <button
+            onClick={() => onStateChange('open')}
+            className={edgeToggleClass}
+            style={{ top: '1.5rem', insetInlineEnd: '-12px' }}
+            title={t('sb_expandMenu')}
+          >
+            <span className="material-symbols-rounded !text-sm rtl:rotate-180">chevron_right</span>
+          </button>
+          <button
+            onClick={() => onStateChange('closed')}
+            className={edgeToggleClass}
+            style={{ top: '4rem', insetInlineEnd: '-12px' }}
+            title={t('sb_closeMenu')}
+          >
+            <span className="material-symbols-rounded !text-sm">close</span>
+          </button>
+        </>
       )}
 
       {/* Navigation */}
