@@ -1676,6 +1676,11 @@ export const adminTenantsApi = {
     request<{ approvedOfferIds: string[] }>('PATCH', `/api/v1/admin/tenants/${encodeURIComponent(tenantId)}/auto-approve`, { enabled, language }),
 };
 
+/** Platform-admin: count of offers awaiting approval (for the sidebar badge). */
+export const adminOffersApi = {
+  pendingCount: () => request<{ count: number }>('GET', '/api/v1/admin/offers/pending-count'),
+};
+
 /**
  * Deactivates the Benefits Catalog service for the current tenant.
  * Sets TenantServiceActivation.status to 'suspended' and bulk-marks

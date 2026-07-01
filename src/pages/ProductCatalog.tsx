@@ -14,10 +14,12 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { useLanguage } from '../i18n/LanguageContext';
+import { localizedApiError } from '../lib/apiError';
 import {
   getPlatformOffers,
-  excludeOffer,
+  deleteOffer,
   type CatalogItem,
   OFFER_CATEGORIES,
   EXECUTION_TYPE_LABELS,
@@ -185,18 +187,22 @@ const ProductCatalog = () => {
   };
 
   /**
-   * Executes the exclusion API call for the confirmed offer and reloads the list.
-   * Input: offerId - the offer to exclude from this tenant's catalog.
-   * Output: void; reloads adopted offers on success.
+   * Deletes the confirmed offer (soft-delete) and reloads the list. Product
+   * Catalog lists the tenant's OWN uploaded offers, so "remove" deletes the
+   * product itself - unadopting would have no effect here since the ownedOnly
+   * view is not tied to adoption.
+   * Input: offerId - the offer to delete.
+   * Output: void; reloads the list on success, toasts on success/failure.
    */
   const confirmAndRemove = async (offerId: string) => {
     setConfirmRemove(null);
     setRemovingId(offerId);
     try {
-      await excludeOffer(offerId);
+      await deleteOffer(offerId);
+      toast.success(language === 'he' ? 'ההצעה נמחקה' : 'Offer deleted');
       await loadAdoptedOffers();
     } catch (err) {
-      console.error('[ProductCatalog] Failed to remove offer:', offerId, err);
+      toast.error(localizedApiError(err, language, language === 'he' ? 'מחיקת ההצעה נכשלה' : 'Failed to delete offer'));
     } finally {
       setRemovingId(null);
     }
@@ -551,10 +557,10 @@ const ProductCatalog = () => {
                 {t('pc_emptyHint')}
               </p>
               <button
-                onClick={() => navigate('/benefits-partnerships')}
+                onClick={() => navigate('/supply/create')}
                 className="mt-5 bg-primary shadow-sm hover:opacity-90 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-opacity"
               >
-                {t('pc_btnBrowseCatalog')}
+                {t('bp_createOffer')}
               </button>
             </>
           ) : (

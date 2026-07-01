@@ -25,6 +25,8 @@ import { variantMemberPriceRange } from '../../lib/voucherPricing';
 import OfferModal from '../../components/catalog/OfferModal';
 import OfferUploaderBadge from '../../components/catalog/OfferUploaderBadge';
 import DenyOfferModal from '../../components/DenyOfferModal';
+import ConfirmDeleteModal from '../../components/ConfirmDeleteModal';
+import { notifyPendingApprovalsChanged } from '../../lib/pendingApprovals';
 
 /** Offers loaded per page. Small enough to render richly, large enough to batch. */
 const PAGE_SIZE = 12;
@@ -162,6 +164,9 @@ export default function OfferApprovals() {
   const [total, setTotal] = useState(0);
   const [denyTarget, setDenyTarget] = useState<CatalogItem | null>(null);
   const [viewOffer, setViewOffer] = useState<CatalogItem | null>(null);
+  // Offer awaiting approve-confirmation, and whether the approve call is in flight.
+  const [approveTarget, setApproveTarget] = useState<CatalogItem | null>(null);
+  const [approving, setApproving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -180,13 +185,19 @@ export default function OfferApprovals() {
   }, [language, page]);
   useEffect(() => { void load(); }, [load]);
 
+  // Runs the actual approve after the admin confirms in the modal.
   const approve = async (id: string) => {
+    setApproving(true);
     try {
       await approveOfferApi(id);
       toast.success(language === 'he' ? 'ההצעה אושרה' : 'Offer approved');
+      notifyPendingApprovalsChanged(); // refresh the sidebar badge
       await load();
     } catch {
       toast.error(language === 'he' ? 'שגיאה באישור' : 'Failed to approve');
+    } finally {
+      setApproving(false);
+      setApproveTarget(null);
     }
   };
 
@@ -215,7 +226,7 @@ export default function OfferApprovals() {
                 key={o.offerId}
                 offer={o}
                 onView={() => setViewOffer(o)}
-                onApprove={() => void approve(o.offerId)}
+                onApprove={() => setApproveTarget(o)}
                 onDeny={() => setDenyTarget(o)}
               />
             ))}
@@ -258,11 +269,32 @@ export default function OfferApprovals() {
         />
       )}
 
+      {/* Confirm before the approve API call fires. */}
+      {approveTarget && (
+        <ConfirmDeleteModal
+          tone="primary"
+          title={language === 'he' ? 'לאשר את ההצעה?' : 'Approve this offer?'}
+          message={language === 'he'
+            ? `"${approveTarget.title}" תפורסם לכל הפלטפורמה.`
+            : `"${approveTarget.title}" will be published across the whole platform.`}
+          confirmLabel={t('co_allowOffer')}
+          cancelLabel={t('u_cancel')}
+          isDeleting={approving}
+          onConfirm={() => void approve(approveTarget.offerId)}
+          onCancel={() => setApproveTarget(null)}
+        />
+      )}
+
       {denyTarget && (
         <DenyOfferModal
           offer={denyTarget}
           onClose={() => setDenyTarget(null)}
-          onDenied={async () => { await load(); setDenyTarget(null); }}
+          onDenied={async () => {
+            toast.success(language === 'he' ? 'ההצעה נדחתה' : 'Offer rejected');
+            notifyPendingApprovalsChanged(); // refresh the sidebar badge
+            await load();
+            setDenyTarget(null);
+          }}
         />
       )}
     </main>

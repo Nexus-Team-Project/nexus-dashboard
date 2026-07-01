@@ -6,6 +6,7 @@
  */
 import { tenantColor } from '../../lib/tenantColor';
 import { buildOfferImageUrl, type ImageCrop } from '../../lib/cloudinaryImage';
+import nexusIcon from '../../assets/logos/Nexus_Logo_only_Icon_Black.png';
 
 /** Two-letter initials from a name (single word -> first two chars). */
 function initials(name: string): string {
@@ -26,6 +27,11 @@ interface TenantLogoProps {
   /** Tailwind rounding class (default rounded-full). */
   rounded?: string;
   className?: string;
+  /**
+   * When true (the NEXUS platform admin, who has no tenant), show the Nexus icon
+   * instead of the initials fallback. A real tenant logo (logoUrl) still wins.
+   */
+  nexusLogo?: boolean;
 }
 
 export default function TenantLogo({
@@ -35,6 +41,7 @@ export default function TenantLogo({
   size = 28,
   rounded = 'rounded-full',
   className = '',
+  nexusLogo = false,
 }: TenantLogoProps) {
   const dim = { width: size, height: size } as const;
   if (logoUrl) {
@@ -46,6 +53,17 @@ export default function TenantLogo({
         alt={name}
         style={dim}
         className={`${rounded} bg-white object-contain ${className}`}
+      />
+    );
+  }
+  if (nexusLogo) {
+    // NEXUS platform (no tenant): show the Nexus icon on a white tile.
+    return (
+      <img
+        src={nexusIcon}
+        alt="NEXUS"
+        style={dim}
+        className={`${rounded} bg-white object-contain p-0.5 ${className}`}
       />
     );
   }

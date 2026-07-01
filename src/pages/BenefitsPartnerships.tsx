@@ -36,6 +36,7 @@ import FieldTooltip from '../components/FieldTooltip';
 import { countActiveCatalogFilters } from '../components/catalog/catalogFilters';
 import VoucherPricePopover from '../components/catalog/VoucherPricePopover';
 import OfferUploaderBadge from '../components/catalog/OfferUploaderBadge';
+import { ApprovalStatusBadge, ApprovalCardOverlay } from '../components/catalog/OfferApprovalIndicator';
 import OfferTypeBadge from '../components/catalog/OfferTypeBadge';
 import VoucherColorTile from '../components/offer/VoucherColorTile';
 import { buildOfferImageUrl, getImageCrop, type ImageCrop } from '../lib/cloudinaryImage';
@@ -420,6 +421,8 @@ const BenefitsPartnerships = () => {
 
   /** True when the authenticated user is a NEXUS platform admin. */
   const isPlatformAdmin = me?.authorization?.isPlatformAdmin === true;
+  /** This tenant's id - used to tell the tenant's OWN global offers apart from others'. */
+  const myTenantId = me?.context?.tenantId;
   /** True while the delete API call is in-flight. Prevents double-submit and closes the modal. */
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -1117,6 +1120,28 @@ const BenefitsPartnerships = () => {
                             && item.description !== '<p></p>';
                           const tagsList = item.tags ?? [];
                           const isExpanded = expandedRows.has(item.offerId);
+                          // Adopt/unadopt toggle - reused for others' offers and,
+                          // stacked under the status badge, for the tenant's OWN
+                          // approved offer (so an uploader can still adopt it).
+                          const adoptToggle = (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void handleToggleAdopt(benefit.id, benefitActiveStates[benefit.id] ?? false);
+                              }}
+                              disabled={adoptingId === benefit.id}
+                              aria-label={benefitActiveStates[benefit.id] ? 'Unadopt offer' : 'Adopt offer'}
+                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all hover:ring-2 hover:ring-cyan-400 hover:ring-offset-1 disabled:opacity-60 disabled:cursor-not-allowed ${
+                                benefitActiveStates[benefit.id] ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'
+                              }`}
+                            >
+                              <span
+                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                  benefitActiveStates[benefit.id] ? '-translate-x-1' : '-translate-x-5'
+                                }`}
+                              />
+                            </button>
+                          );
                           return (
                             <Fragment key={benefit.id}>
                             <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
@@ -1143,24 +1168,17 @@ const BenefitsPartnerships = () => {
                                           ? (language === 'he' ? 'פעיל' : 'Active')
                                           : (language === 'he' ? 'לא פעיל' : 'Inactive')}
                                   </span>
+                                ) : item.createdByTenantId === myTenantId ? (
+                                  // The tenant's OWN global offer: show its approval state.
+                                  // Once approved (active) it can also be adopted, so the
+                                  // toggle is stacked under the badge; pending/denied show
+                                  // the badge only (nothing to adopt yet).
+                                  <div className="flex flex-col items-start gap-2">
+                                    <ApprovalStatusBadge status={item.approval_status} />
+                                    {item.approval_status === 'active' && adoptToggle}
+                                  </div>
                                 ) : (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      void handleToggleAdopt(benefit.id, benefitActiveStates[benefit.id] ?? false);
-                                    }}
-                                    disabled={adoptingId === benefit.id}
-                                    aria-label={benefitActiveStates[benefit.id] ? 'Unadopt offer' : 'Adopt offer'}
-                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all hover:ring-2 hover:ring-cyan-400 hover:ring-offset-1 disabled:opacity-60 disabled:cursor-not-allowed ${
-                                      benefitActiveStates[benefit.id] ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'
-                                    }`}
-                                  >
-                                    <span
-                                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                        benefitActiveStates[benefit.id] ? '-translate-x-1' : '-translate-x-5'
-                                      }`}
-                                    />
-                                  </button>
+                                  adoptToggle
                                 )}
                               </td>
 
@@ -1491,15 +1509,12 @@ const BenefitsPartnerships = () => {
                             {benefit.businessLogo}
                           </div>
                         )}
-                        {/* Pending-approval overlay */}
-                        {catalogItem?.approval_status === 'pending_approval' && (
-                          <div className="absolute inset-0 bg-slate-900/60 flex items-center justify-center">
-                            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/95 px-3 py-1 text-xs font-semibold text-amber-900 shadow">
-                              <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h3.25a.75.75 0 000-1.5h-2.5V5z" clipRule="evenodd" /></svg>
-                              {language === 'he' ? 'ממתין לאישור' : 'Pending Approval'}
-                            </span>
-                          </div>
-                        )}
+                        {/* Approval-state overlay: pending/denied dim the card, an
+                            approved OWN offer gets a small green corner chip. */}
+                        <ApprovalCardOverlay
+                          status={catalogItem?.approval_status}
+                          isOwn={catalogItem?.createdByTenantId === myTenantId}
+                        />
                       </div>
 
                       {/* Content */}
@@ -1666,15 +1681,12 @@ const BenefitsPartnerships = () => {
                         >
                           <span className="material-icons text-4xl text-slate-300 dark:text-slate-600" aria-hidden="true">image</span>
                         </div>
-                        {/* Pending-approval overlay */}
-                        {catalogItem?.approval_status === 'pending_approval' && (
-                          <div className="absolute inset-0 bg-slate-900/60 flex items-center justify-center">
-                            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/95 px-3 py-1 text-xs font-semibold text-amber-900 shadow">
-                              <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h3.25a.75.75 0 000-1.5h-2.5V5z" clipRule="evenodd" /></svg>
-                              {language === 'he' ? 'ממתין לאישור' : 'Pending Approval'}
-                            </span>
-                          </div>
-                        )}
+                        {/* Approval-state overlay: pending/denied dim the card, an
+                            approved OWN offer gets a small green corner chip. */}
+                        <ApprovalCardOverlay
+                          status={catalogItem?.approval_status}
+                          isOwn={catalogItem?.createdByTenantId === myTenantId}
+                        />
                       </div>
 
                       <div className="p-6 flex flex-col flex-1">
