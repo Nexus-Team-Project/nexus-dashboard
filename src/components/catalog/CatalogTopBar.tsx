@@ -8,7 +8,6 @@
  *   2. Toolbar row with:
  *      - Left group: expandable search icon + filter icon with active-count badge,
  *        the cards/table VIEW toggle (two icon buttons), and the results count.
- *      - Right group: Create Offer primary CTA (only when allowed).
  *
  * View type (cards/table) and offer type are independent. Search is a toggling
  * icon -> input pattern; the filter button shows a badge when activeFilterCount > 0.
@@ -41,10 +40,6 @@ interface CatalogTopBarProps {
   onOpenFilters: () => void;
   /** Number of catalog items currently visible after filtering. */
   resultsCount: number;
-  /** True when the Create Offer CTA should be visible (catalog active OR platform admin). */
-  showCreateOffer: boolean;
-  /** Called when the user clicks Create Offer. */
-  onCreateOffer: () => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -59,8 +54,6 @@ const CatalogTopBar = ({
   activeFilterCount,
   onOpenFilters,
   resultsCount,
-  showCreateOffer,
-  onCreateOffer,
 }: CatalogTopBarProps) => {
   const { t, language } = useLanguage();
   // Lazy initial state keeps the search expanded when the parent already has a
@@ -234,20 +227,6 @@ const CatalogTopBar = ({
             {resultsCount} {t('bp_offersCount')}
           </span>
         </div>
-
-        {/* Right group: primary CTA */}
-        {showCreateOffer && (
-          <button
-            type="button"
-            onClick={onCreateOffer}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm hover:opacity-90 transition-opacity"
-          >
-            <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4" aria-hidden="true">
-              <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-            </svg>
-            {t('bp_createOffer')}
-          </button>
-        )}
       </div>
     </div>
   );
