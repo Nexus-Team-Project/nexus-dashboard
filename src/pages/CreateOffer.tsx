@@ -142,9 +142,14 @@ const CreateOffer = () => {
           catch (e) { if (!invError) invError = localizedApiError(e, language); }
         }
       }
+      // Global (ecosystem) offers tell the user their approval outcome: pending review,
+      // or auto-approved (trusted tenant). tenant_only offers keep the plain published copy.
+      const publishedMsg = offer.visibility === 'ecosystem'
+        ? (offer.status === 'pending_approval' ? t('co_toastAwaitingApproval') : t('co_toastAutoApproved'))
+        : t('co_toastPublished');
       if (invError) toast.error(`${t('co_toastInventoryFailed')}: ${invError}`);
-      else if (units > 0) toast.success(`${t('co_toastPublished')} · ${units} ${t('co_toastUnits')}`);
-      else toast.success(t('co_toastPublished'));
+      else if (units > 0) toast.success(`${publishedMsg} · ${units} ${t('co_toastUnits')}`);
+      else toast.success(publishedMsg);
       navigate('/benefits-partnerships');
     } catch (err: unknown) {
       if (offerCreated) { toast.error(t('co_toastInventoryFailed')); navigate('/benefits-partnerships'); }

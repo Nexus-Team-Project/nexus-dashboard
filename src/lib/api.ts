@@ -1652,6 +1652,30 @@ export async function denyOfferApi(offerId: string, reason: string): Promise<voi
   await request<void>('POST', `/api/v1/offers/${encodeURIComponent(offerId)}/deny`, { reason });
 }
 
+/** A tenant row in the platform-admin trusted-tenants list. */
+export interface AdminTenantRow {
+  tenantId: string;
+  organizationName: string;
+  logoUrl?: string;
+  brandColor?: string;
+  status: string;
+  autoApproveOffers: boolean;
+  pendingOfferCount: number;
+}
+
+/** Platform-admin: trusted-tenants management (list all tenants + auto-approve toggle). */
+export const adminTenantsApi = {
+  list: (params: { search?: string; page?: number; limit?: number }) => {
+    const q = new URLSearchParams();
+    if (params.search) q.set('search', params.search);
+    if (params.page) q.set('page', String(params.page));
+    if (params.limit) q.set('limit', String(params.limit));
+    return request<{ tenants: AdminTenantRow[]; total: number }>('GET', `/api/v1/admin/tenants?${q.toString()}`);
+  },
+  setAutoApprove: (tenantId: string, enabled: boolean) =>
+    request<{ approvedOfferIds: string[] }>('PATCH', `/api/v1/admin/tenants/${encodeURIComponent(tenantId)}/auto-approve`, { enabled }),
+};
+
 /**
  * Deactivates the Benefits Catalog service for the current tenant.
  * Sets TenantServiceActivation.status to 'suspended' and bulk-marks

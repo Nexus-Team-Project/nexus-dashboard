@@ -2,7 +2,7 @@
  * Renders the dashboard sidebar navigation, recent shortcuts, and gated Dev Mode entry.
  */
 import { useState, useEffect } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { useLanguage } from '../i18n/LanguageContext';
 import type { TranslationKey } from '../i18n/translations';
 import { useRecentPages, PAGE_META } from '../hooks/useRecentPages';
@@ -31,7 +31,6 @@ interface NavItem {
 
 const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: SidebarProps) => {
   const { t, isRTL } = useLanguage();
-  const navigate = useNavigate();
   const [expandedMenus, setExpandedMenus] = useState<string[]>(['products']);
   const [sidebarWidth, setSidebarWidth] = useState(256);
   const [isResizing, setIsResizing] = useState(false);
@@ -42,12 +41,8 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
   const { me } = useAuth();
   const canSeeDevMode = me?.authorization.canSeeDevMode === true;
   const canViewMembers = me?.authorization.canViewMembers === true || me?.authorization.canManageMembers === true;
-  /** True when the user holds the supply_manager role or is a platform admin. */
-  const canManageSupply = me?.authorization.canManageSupply === true || me?.authorization.isPlatformAdmin === true;
-  /** True once the tenant has activated Benefits Catalog. Platform admins bypass this gate. */
-  const catalogServiceActive = me?.authorization.catalogServiceActive === true;
-  /** Show "Create Offer" link only after catalog service is active, or always for platform admins. */
-  const showCreateOffer = me?.authorization.isPlatformAdmin === true || (canManageSupply && catalogServiceActive);
+  /** True for NEXUS platform admins - gates the Admin section (approvals + trusted tenants). */
+  const isPlatformAdmin = me?.authorization.isPlatformAdmin === true;
 
   const DEFAULT_SHORTCUTS_COUNT = 5;
   const permittedRecentPages = recentPages.filter((page) =>
@@ -255,6 +250,28 @@ const Sidebar = ({ state, onStateChange, isMobile = false, onNavigate }: Sidebar
       <nav className="flex-1 px-3 py-2 space-y-0.5 overflow-y-auto no-scrollbar">
         {/* Main nav items */}
         {mainNavItems.map((item) => renderNavLink(item))}
+
+        {/* Admin Section - NEXUS platform admins only. */}
+        {isPlatformAdmin && (
+          <div className="pt-4 mt-3">
+            {isOpen && (
+              <div className="px-3 mb-1">
+                <span className="text-[11px] font-semibold text-[#676879] uppercase tracking-wide">{t('nav_admin')}</span>
+              </div>
+            )}
+            {isCollapsed && (
+              <div className="flex justify-center mb-1">
+                <SidebarTooltip label={t('nav_admin')}>
+                  <span className="material-symbols-rounded !text-[14px] text-[#676879]">shield</span>
+                </SidebarTooltip>
+              </div>
+            )}
+            {[
+              { to: '/admin/offer-approvals', icon: 'fact_check', label: t('nav_offerApprovals') },
+              { to: '/admin/trusted-tenants', icon: 'verified_user', label: t('nav_trustedTenants') },
+            ].map((item) => renderNavLink(item))}
+          </div>
+        )}
 
         {/* Shortcuts Section */}
         {recentPages.length > 0 && (
