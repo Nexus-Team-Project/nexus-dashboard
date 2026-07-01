@@ -251,10 +251,14 @@ function VariantsSummary({ offer }: { offer: CatalogItem }) {
   // owner-scoped units endpoint; failures (e.g. a non-owner viewing an adopted
   // ecosystem offer) fall back to hiding the stock chip + date tooltip silently.
   const [info, setInfo] = useState<Record<string, { count: number; validity: string[] }>>({});
+  // True while the per-variant units are being fetched, so the stock chip shows
+  // a skeleton instead of popping in ~2s later when the request resolves.
+  const [loading, setLoading] = useState(true);
   const variantKey = variants.map((v) => v.variantId).join(',');
   useEffect(() => {
-    if (offer.executionType !== 'voucher' || variants.length < 1) return;
+    if (offer.executionType !== 'voucher' || variants.length < 1) { setLoading(false); return; }
     let cancelled = false;
+    setLoading(true);
     Promise.all(
       variants.map((v) =>
         // One page (up to 200 units) is enough to summarise the distinct
@@ -277,6 +281,7 @@ function VariantsSummary({ offer }: { offer: CatalogItem }) {
       const next: Record<string, { count: number; validity: string[] }> = {};
       for (const p of pairs) if (p) next[p[0]] = p[1];
       setInfo(next);
+      setLoading(false);
     });
     return () => { cancelled = true; };
     // offerId + the variant-id list fully identify the data to fetch.
@@ -323,13 +328,17 @@ function VariantsSummary({ offer }: { offer: CatalogItem }) {
               {/* Chips: stock, validity, combine, SKU. Only the SKU value and
                   the stock count are isolated LTR (so their Hebrew labels still
                   flow RTL and are not broken). */}
-              {(hasStock || validity || typeof v.voucherStackable === 'boolean' || v.sku) && (
+              {(loading || hasStock || validity || typeof v.voucherStackable === 'boolean' || v.sku) && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
-                  {hasStock && (
+                  {/* Stock: skeleton pill while the units fetch is in flight,
+                      then the real count (or nothing when not visible to caller). */}
+                  {loading ? (
+                    <span className="inline-block h-[19px] w-16 animate-pulse rounded-full bg-white/10" aria-hidden="true" />
+                  ) : hasStock ? (
                     <span className={chip}>
                       {t('bp_variantStock')}: <span dir="ltr">{unitCount.toLocaleString()}</span>
                     </span>
-                  )}
+                  ) : null}
                   {validity && (
                     validityDetail ? (
                       // Hovering the validity-type badge reveals the concrete
