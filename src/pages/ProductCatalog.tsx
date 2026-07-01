@@ -232,6 +232,12 @@ const ProductCatalog = () => {
   const renderOfferCard = (item: CatalogItem) => {
     const isRemoving = removingId === item.offerId;
     const isPendingConfirm = confirmRemove?.offerId === item.offerId;
+    // No inventory supply: vouchers derive stock from their units, so any voucher
+    // with no available units is out of stock; other types only when a stock
+    // limit is set and reached (unlimited offers never show the badge).
+    const noStock = item.executionType === 'voucher'
+      ? (item.stockAvailable ?? 0) <= 0
+      : (item.stockLimit !== null && (item.stockAvailable ?? 0) <= 0);
 
     return (
       <article
@@ -265,6 +271,16 @@ const ProductCatalog = () => {
             </div>
           )}
           {/* Combine-with-promotions is a per-variant setting now, so no offer-level badge here. */}
+
+          {/* Big out-of-stock badge: prominently flags an offer with no inventory
+              supply, over a dark scrim so it stands out on any image/color tile. */}
+          {noStock && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/45" aria-hidden="true">
+              <span className="rounded-lg bg-red-600 px-5 py-2 text-base font-extrabold uppercase tracking-wide text-white shadow-lg -rotate-6">
+                {t('pc_noInventory')}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Card body */}
@@ -375,7 +391,19 @@ const ProductCatalog = () => {
               })()}
             </div>
 
-            {/* Confirm / Remove button */}
+            {/* Edit + Confirm/Remove buttons. Edit navigates the owner to the
+                shared edit-offer flow; hidden while a remove is being confirmed
+                so the yes/no prompt stays uncluttered. */}
+            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+            {!isPendingConfirm && (
+              <button
+                onClick={(e) => { e.stopPropagation(); navigate(`/benefits-partnerships/edit-offer/${item.offerId}`); }}
+                className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-3 py-1 rounded text-xs font-medium transition-colors"
+                aria-label={`Edit ${item.title}`}
+              >
+                {t('pc_btnEdit')}
+              </button>
+            )}
             {isPendingConfirm ? (
               <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                 <span className="text-xs text-slate-500 mr-1">{t('pc_removeQuestion')}</span>
@@ -411,6 +439,7 @@ const ProductCatalog = () => {
                 )}
               </button>
             )}
+            </div>
           </div>
         </div>
       </article>

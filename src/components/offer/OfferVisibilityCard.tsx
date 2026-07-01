@@ -7,6 +7,7 @@
  * keep that page under the 350-line limit. Presentation only — visibility
  * state is owned by the parent.
  */
+import { useId } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import FieldTooltip from '../FieldTooltip';
 
@@ -28,6 +29,11 @@ export default function OfferVisibilityCard({
   isSubmitting,
 }: OfferVisibilityCardProps) {
   const { t, language } = useLanguage();
+  // Unique radio-group name per instance. This card is rendered twice on the
+  // Create Offer page (top + bottom); a shared name="visibility" would make the
+  // browser treat all four radios as ONE native group, so only the last-painted
+  // card would show a selection. useId() gives each mount its own group.
+  const groupName = useId();
   // In development the ecosystem option is available without completed business setup
   // so the global-upload flow can be tested. import.meta.env.DEV is false in prod builds.
   const ecosystemEnabled = businessSetupComplete || import.meta.env.DEV;
@@ -51,7 +57,7 @@ export default function OfferVisibilityCard({
         <div className="space-y-4">
           <label className={`flex items-start gap-3 ${!ecosystemEnabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
             <input
-              type="radio" name="visibility" value="ecosystem"
+              type="radio" name={groupName} value="ecosystem"
               checked={visibility === 'ecosystem'}
               onChange={() => ecosystemEnabled && setVisibility('ecosystem')}
               disabled={isSubmitting || !ecosystemEnabled}
@@ -70,7 +76,7 @@ export default function OfferVisibilityCard({
           </label>
           <label className="flex items-start gap-3 cursor-pointer">
             <input
-              type="radio" name="visibility" value="tenant_only"
+              type="radio" name={groupName} value="tenant_only"
               checked={visibility === 'tenant_only'}
               onChange={() => setVisibility('tenant_only')}
               disabled={isSubmitting}

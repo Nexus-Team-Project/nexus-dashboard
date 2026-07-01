@@ -229,9 +229,10 @@ const EditOffer = () => {
       if (invError) toast.error(`${t('co_toastInventoryFailedSave')}: ${invError}`);
       else if (units > 0) toast.success(`${t('co_toastSaved')} · ${units} ${t('co_toastUnits')}`);
       else toast.success(t('co_toastSaved'));
-      navigate('/benefits-partnerships');
+      // After saving, return to Product Catalog (the tenant's own-offers list).
+      navigate('/product-catalog');
     } catch (err: unknown) {
-      if (saved) { toast.error(t('co_toastInventoryFailedSave')); navigate('/benefits-partnerships'); }
+      if (saved) { toast.error(t('co_toastInventoryFailedSave')); navigate('/product-catalog'); }
       else { toast.error(localizedApiError(err, language, t('co_errPublish'))); }
     } finally {
       setIsSubmitting(false);
@@ -247,7 +248,7 @@ const EditOffer = () => {
   };
 
   if (loading) return <OfferFormSkeleton />;
-  if (loadError) return <OfferFormErrorState message={loadError} onBack={() => navigate('/benefits-partnerships')} />;
+  if (loadError) return <OfferFormErrorState message={loadError} onBack={() => navigate('/product-catalog')} />;
 
   const leftColumn = (
     <>
@@ -319,7 +320,7 @@ const EditOffer = () => {
       saveLabel={offer?.approval_status === 'denied' ? t('of_saveResubmit') : t('of_saveUpdate')}
       cancelLabel={t('of_cancel')}
       onSave={handleSave}
-      onCancel={() => navigate('/benefits-partnerships')}
+      onCancel={() => navigate('/product-catalog')}
       isSubmitting={isSubmitting}
       saveDisabled={publishBlockers.length > 0}
       saveHint={publishBlockers[0]}
